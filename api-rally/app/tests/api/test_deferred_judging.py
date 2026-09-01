@@ -75,6 +75,40 @@ async def test_capture_activity_not_found(pg_session, pg_client, as_admin):
     assert resp.status_code == 404
 
 
+async def test_capture_unknown_team_is_a_404(pg_session, pg_client, as_admin):
+    """``ActivityResult.team_id`` is a foreign key, so an unknown id used to
+    surface as an unhandled IntegrityError — a 500 for what is a 404. Nothing
+    is written either way."""
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session)
+    act = await _make_activity(pg_session, checkpoint.id)
+
+    resp = pg_client.post(f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id=999999")
+
+    assert resp.status_code == 404, resp.text
+    assert await activity_result_crud.get_by_activity(pg_session, act.id) == []
+
+
+async def test_capture_rejects_a_team_from_another_edition(pg_session, pg_client, as_admin):
+    """A capture becomes a scored result once a judge reaches it, and a scored
+    result resolves the post and moves the team's total — so it has to obey the
+    same cross-edition guard every other write path applies."""
+    current = await _make_event(pg_session)
+    other = await _make_event(pg_session, name="Old Edition", is_current=False)
+    checkpoint = await _make_checkpoint(pg_session)
+    act = await _make_activity(pg_session, checkpoint.id)
+    assert act.event_id == current.id
+    team = await _make_team(pg_session)
+    team.event_id = other.id
+    pg_session.add(team)
+    await pg_session.commit()
+
+    resp = pg_client.post(f"/api/rally/v1/activities/deferred/{act.id}/capture?team_id={team.id}")
+
+    assert resp.status_code == 404, resp.text
+    assert await activity_result_crud.get_by_activity(pg_session, act.id) == []
+
+
 async def test_capture_missing_team_id(pg_session, pg_client, as_admin):
     await _make_event(pg_session)
     checkpoint = await _make_checkpoint(pg_session)
@@ -427,6 +461,78 @@ class TestRankDeferredResults:
         )
 
         assert resp.status_code == 404
+
+    async def test_rejects_a_ranking_that_leaves_a_capture_out(
+        self, pg_session, pg_client, as_admin
+    ):
+        """The scale is relative — last place *means* min_points — so ranking a
+        subset silently re-scales it across the whole range. Nothing is scored
+        when the set is short: the loop must not have written partial results."""
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        teams = [await _make_team(pg_session, name=f"Team{i}") for i in range(3)]
+        results = await self._capture_n(pg_client, act.id, teams)
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/rank",
+            json={"ordered_result_ids": [results[0]["id"], results[1]["id"]]},
+        )
+
+        assert resp.status_code == 400, resp.text
+        assert "1 missing" in resp.json()["detail"]
+        stored = await activity_result_crud.get_by_activity(pg_session, act.id)
+        assert all(r.judgment_status == "pending_judgment" for r in stored)
+
+    async def test_the_full_field_includes_already_judged_captures(
+        self, pg_session, pg_client, as_admin
+    ):
+        """A capture judged one at a time drops off the pending list but stays
+        part of the field: leaving it out of the ranking would re-scale the
+        others around a score it already has."""
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(pg_session, checkpoint.id)
+        teams = [await _make_team(pg_session, name=f"Team{i}") for i in range(2)]
+        results = await self._capture_n(pg_client, act.id, teams)
+        pg_client.put(
+            f"/api/rally/v1/activities/results/{results[0]['id']}/judge",
+            json={"points": 80},
+        )
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/rank",
+            json={"ordered_result_ids": [results[1]["id"]]},
+        )
+
+        assert resp.status_code == 400, resp.text
+
+    async def test_the_complete_field_re_scores_an_already_judged_capture(
+        self, pg_session, pg_client, as_admin
+    ):
+        """Covering everything is allowed to overwrite an individual score —
+        that is the point of ranking the whole field in one pass."""
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        act = await _make_activity(
+            pg_session, checkpoint.id, config={"max_points": 100, "min_points": 0}
+        )
+        teams = [await _make_team(pg_session, name=f"Team{i}") for i in range(2)]
+        results = await self._capture_n(pg_client, act.id, teams)
+        pg_client.put(
+            f"/api/rally/v1/activities/results/{results[0]['id']}/judge",
+            json={"points": 80},
+        )
+
+        resp = pg_client.post(
+            f"/api/rally/v1/activities/deferred/{act.id}/rank",
+            json={"ordered_result_ids": [results[1]["id"], results[0]["id"]]},
+        )
+
+        assert resp.status_code == 200, resp.text
+        scores = {r["id"]: r["final_score"] for r in resp.json()}
+        assert scores[results[1]["id"]] == 100
+        assert scores[results[0]["id"]] == 0
 
     async def test_a_re_ranked_result_updates_the_team_total(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)

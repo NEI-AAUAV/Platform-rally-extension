@@ -287,17 +287,44 @@ class TestSearchArea:
         )
 
     def test_different_posts_get_different_offsets(self) -> None:
+        # A free-choice stage: posts 3 and 4 are both open, so both get a
+        # circle at once and the offsets have to be distinguishable.
+        free_choice = {"resolved_orders": frozenset({1, 2}), "open_orders": frozenset({3, 4})}
         one = CheckpointService._redact_unreached(
-            _checkpoint(order=3), **_hunting(3), search_radius_m=400
+            _checkpoint(order=3), **free_choice, search_radius_m=400
         )
         two = CheckpointService._redact_unreached(
-            _checkpoint(order=4), **_hunting(3), search_radius_m=400
+            _checkpoint(order=4), **free_choice, search_radius_m=400
         )
 
         assert (one.search_latitude, one.search_longitude) != (
             two.search_latitude,
             two.search_longitude,
         )
+
+    def test_a_post_the_team_may_not_head_to_yet_gets_no_circle(self) -> None:
+        # Post 5 while the team hunts post 3: it carries no riddle, and it must
+        # carry no neighbourhood either. In complete route mode every post is
+        # listed, so a circle here draws the whole route's geography on the
+        # team's map before it has solved anything.
+        result = CheckpointService._redact_unreached(
+            _checkpoint(order=5), **_hunting(3), search_radius_m=400
+        )
+
+        assert result.clue is None
+        assert result.search_latitude is None
+        assert result.search_longitude is None
+        assert result.search_radius_m is None
+
+    def test_a_public_caller_gets_no_circle(self) -> None:
+        # Nothing is open for an unauthenticated caller, so nothing is close
+        # enough to earn a search area.
+        result = CheckpointService._redact_unreached(
+            _checkpoint(order=1), **PUBLIC, search_radius_m=400
+        )
+
+        assert result.search_latitude is None
+        assert result.search_radius_m is None
 
     def test_a_revealed_post_gets_no_circle(self) -> None:
         result = CheckpointService._redact_unreached(

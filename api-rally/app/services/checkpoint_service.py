@@ -117,6 +117,14 @@ class CheckpointService:
         It is also mirrored into ``description`` so clients that only render the
         description still show something.
 
+        The **search area is gated on the same set**, and for the same reason.
+        A circle the post is guaranteed to sit inside narrows the city to a
+        neighbourhood, so drawing one for every future post hands the team the
+        shape of the whole route on a map before it has solved a single riddle
+        — enough to plan transport, pre-position half the team at post 4, and
+        turn each riddle into a lookup once it finally arrives. Withholding the
+        riddle while publishing its neighbourhood is not withholding much.
+
         Both sets come from ``route_progress.progress_for_team``. "Resolved"
         is deliberately a set membership and not ``order < current_order``:
         under free order or stages a team resolves posts out of sequence, and
@@ -126,8 +134,8 @@ class CheckpointService:
         """
         if checkpoint.order in resolved_orders or has_arrived:
             return checkpoint
-        area = CheckpointService._search_area(checkpoint, search_radius_m)
         is_current = checkpoint.order in open_orders
+        area = CheckpointService._search_area(checkpoint, search_radius_m) if is_current else None
         clue = checkpoint.clue if is_current else None
         return checkpoint.model_copy(
             update={

@@ -54,7 +54,8 @@ class CheckpointArriveController:
             responses={
                 400: {
                     "description": (
-                        "GPS check-in unavailable, missing coordinates, or too far from checkpoint"
+                        "GPS check-in unavailable, missing coordinates, too far from the "
+                        "checkpoint, or a checkpoint the team is not due at yet"
                     )
                 },
                 404: {"description": "Checkpoint not found"},

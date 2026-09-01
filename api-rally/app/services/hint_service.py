@@ -22,7 +22,7 @@ from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.hint import HintReveal, RevealedHint, TeamHints, TeamHintSummary
-from app.services.checkin_service import require_same_event
+from app.services.event_scope import require_same_event
 from app.services.route_progress import can_reach_checkpoint
 from app.services.scoring_service import ScoringService
 

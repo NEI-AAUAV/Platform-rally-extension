@@ -366,6 +366,12 @@ async def test_arrive_repeat_is_idempotent_via_integrity_error(pg_session, pg_cl
         def first(self):
             return None
 
+        def all(self):
+            # progress_for_team reads the team's arrivals through the same
+            # patched execute(); with none visible, post 1 is still open and
+            # the order gate lets the duplicate insert reach the constraint.
+            return []
+
     class _EmptyResult:
         def scalars(self):
             return _EmptyScalars()
@@ -545,8 +551,17 @@ async def test_arrive_leg_time_zero_rate_is_a_no_op(pg_session, pg_client):
     assert await _awards_for(pg_session, team.id) == []
 
 
-async def test_arrive_no_activities_out_of_order_does_not_advance(pg_session, pg_client):
-    """No-activity checkpoint but team is not yet due here: no auto-advance."""
+async def test_arrive_out_of_order_is_rejected_and_nothing_is_written(pg_session, pg_client):
+    """A team standing inside post 3's geofence while post 1 is its next post
+    is refused, and **no arrival row is written**.
+
+    The row used to be stored anyway, "as a fact", and the ordering question
+    asked afterwards. For a no-activity post that row alone resolves the post
+    (``route_progress._is_resolved``), so post 3 was silently completed for
+    free, un-redacted by ``has_arrived``, and eligible for leg-time points —
+    while ``team.times`` stayed empty. Storing only accepted arrivals is what
+    keeps those three readers honest.
+    """
     await _make_event(pg_session)
     await _make_checkpoint(pg_session, order=1)
     await _make_checkpoint(pg_session, order=2)
@@ -559,8 +574,100 @@ async def test_arrive_no_activities_out_of_order_does_not_advance(pg_session, pg
             json={"latitude": 43.000045, "longitude": -9.0},
         )
 
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["auto_completed"] is False
+    assert resp.status_code == 400, resp.text
+    assert "not in order" in resp.json()["detail"]
+
+    arrivals = (
+        await pg_session.scalars(
+            select(CheckpointArrival).where(CheckpointArrival.team_id == team.id)
+        )
+    ).all()
+    assert arrivals == []
 
     refreshed = await _reread_team(pg_session, team.id)
     assert len(refreshed.times) == 0
+
+
+async def test_arrive_out_of_order_leaves_the_post_unresolved_and_redacted(pg_session, pg_client):
+    """The refusal above has to leave the route untouched: post 3 is still open
+    when the team legitimately gets there, and still hidden until then."""
+    from app.crud.crud_rally_settings import rally_settings
+    from app.services.route_progress import progress_for_team
+
+    await _make_event(pg_session)
+    await _make_checkpoint(pg_session, order=1)
+    checkpoint_2 = await _make_checkpoint(pg_session, order=2, lat=43.0, lon=-9.0)
+    team = await _make_team(pg_session)
+
+    with as_team(team.id, "TeamA"):
+        pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint_2.id}/arrive",
+            json={"latitude": 43.000045, "longitude": -9.0},
+        )
+
+    settings = await rally_settings.get_or_create(pg_session)
+    refreshed = await _reread_team(pg_session, team.id)
+    progress = await progress_for_team(pg_session, refreshed, settings)
+
+    assert 2 not in progress.resolved_orders
+    assert progress.current_order == 1
+
+
+async def test_arrive_twice_at_a_no_activity_post_stays_idempotent(pg_session, pg_client):
+    """A second tap at the post the team really is at must still answer
+    "already registered".
+
+    The post resolves on its own arrival row, so once resolved it is no longer
+    *open* — a naive order gate would turn the repeat into a 400. The duplicate
+    check runs first for exactly that reason, and the visit is appended once.
+    """
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1)
+    team = await _make_team(pg_session)
+
+    with as_team(team.id, "TeamA"):
+        first = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
+            json={"latitude": 41.000045, "longitude": -8.0},
+        )
+        second = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
+            json={"latitude": 41.000045, "longitude": -8.0},
+        )
+
+    assert first.status_code == 200, first.text
+    assert first.json()["already_registered"] is False
+    assert second.status_code == 200, second.text
+    assert second.json()["already_registered"] is True
+    assert second.json()["auto_completed"] is False
+
+    refreshed = await _reread_team(pg_session, team.id)
+    assert len(refreshed.times) == 1
+
+
+async def test_manual_arrival_out_of_order_is_rejected_and_nothing_is_written(pg_session):
+    """The guide path shares the gate: the guide's word replaces the GPS fix,
+    not the route order."""
+    import pytest
+
+    from app import crud
+    from app.core.exceptions import RallyValidationError
+    from app.crud.crud_rally_settings import rally_settings
+    from app.services.checkpoint_arrival_service import CheckpointArrivalService
+
+    await _make_event(pg_session)
+    await _make_checkpoint(pg_session, order=1)
+    checkpoint_2 = await _make_checkpoint(pg_session, order=2, lat=43.0, lon=-9.0)
+    team = await _make_team(pg_session)
+    await rally_settings.get_or_create(pg_session)
+
+    service = CheckpointArrivalService(pg_session, crud.checkpoint, crud.team)
+    with pytest.raises(RallyValidationError):
+        await service.record_manual_arrival(team_id=team.id, checkpoint_id=checkpoint_2.id)
+
+    arrivals = (
+        await pg_session.scalars(
+            select(CheckpointArrival).where(CheckpointArrival.team_id == team.id)
+        )
+    ).all()
+    assert arrivals == []

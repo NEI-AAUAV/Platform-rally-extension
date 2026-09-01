@@ -34,13 +34,14 @@ from app.crud.deps import get_team_crud
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.audit_service import AuditActor, record_audit
-from app.services.checkin_service import CheckinService, require_same_event
+from app.services.checkin_service import CheckinService
 from app.services.checkin_token import (
     CheckinTokenError,
     generate_checkin_token,
     verify_checkin_token,
 )
 from app.services.deps import get_checkin_service
+from app.services.event_scope import require_same_event
 
 
 class CheckinRequest(BaseModel):

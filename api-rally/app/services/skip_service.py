@@ -18,7 +18,7 @@ from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint_skip import CheckpointSkip
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.skip import CheckpointSkipped
-from app.services.checkin_service import require_same_event
+from app.services.event_scope import require_same_event
 from app.services.route_progress import can_reach_checkpoint, current_checkpoint_order
 from app.services.scoring_service import ScoringService
 

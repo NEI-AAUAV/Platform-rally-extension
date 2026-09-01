@@ -16,25 +16,10 @@ from app.crud.crud_team import CRUDTeam
 from app.events import TeamCheckpointAdvancedEvent, TeamCheckpointAdvancedPayload, publish_event
 from app.models.checkpoint import CheckPoint
 from app.models.team import Team
+from app.services.event_scope import CHECKPOINT_NOT_FOUND
 from app.services.route_progress import progress_for_team, unreachable_message
 
 logger = logging.getLogger(__name__)
-
-CHECKPOINT_NOT_FOUND = "Checkpoint not found"
-
-
-def require_same_event(team_event_id: int | None, checkpoint_event_id: int | None) -> None:
-    """Reject cross-event check-ins.
-
-    A valid token/scan for a checkpoint of another edition must not advance a
-    team in this one. NULL event ids (legacy rows) are treated as compatible.
-    """
-    if (
-        team_event_id is not None
-        and checkpoint_event_id is not None
-        and team_event_id != checkpoint_event_id
-    ):
-        raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)
 
 
 class CheckinService:

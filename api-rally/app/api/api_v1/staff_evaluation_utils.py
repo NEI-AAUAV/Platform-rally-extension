@@ -32,6 +32,7 @@ from app.schemas.activity import (
 )
 from app.schemas.user import DetailedUser
 from app.services.checkpoint_visits import append_visit_entry, record_visit
+from app.services.event_scope import require_same_event
 from app.services.route_progress import RouteSnapshot, progress_for_team
 from app.services.scoring_service import EvaluationEditor, ScoringService
 
@@ -140,6 +141,12 @@ async def validate_staff_checkpoint_access(
         )
         raise RallyNotFoundError("Activity not found at your assigned checkpoint")
 
+    # Progress is deliberately not checked (see above); the *edition* is, as it
+    # is on every other write path (``require_same_event``). A result scored
+    # here resolves the post and moves the team's total, so a team of a past
+    # edition must not acquire one against this one's activity.
+    require_same_event(team_obj.event_id, activity_obj.event_id)
+
     logger.info(f"Validation successful for team {team_id}, activity {activity_id}")
     return team_obj, activity_obj
 
@@ -157,6 +164,9 @@ async def validate_admin_access(
     activity_obj = await activity.get(db, id=activity_id)
     if not activity_obj:
         raise RallyNotFoundError("Activity not found")
+
+    # Admin or not, a team scores only against its own edition's activities.
+    require_same_event(team_obj.event_id, activity_obj.event_id)
 
     return team_obj, activity_obj
 

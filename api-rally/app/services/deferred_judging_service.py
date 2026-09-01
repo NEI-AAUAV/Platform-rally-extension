@@ -11,6 +11,7 @@ from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.models.activity import Activity, ActivityResult
 from app.models.team import Team
+from app.services.event_scope import require_same_event
 from app.services.ranking import linear_rank_points
 from app.services.scoring_service import ScoringService
 
@@ -22,11 +23,39 @@ class DeferredJudgingService:
         self._db = db
         self._team_crud = team_crud
 
+    async def resolve_team_for_capture(self, *, activity: Activity, team_id: int) -> Team:
+        """The team this capture is for, once it is allowed to have one.
+
+        Two things the capture path never asked before. The team has to exist:
+        ``ActivityResult.team_id`` is a foreign key, so an unknown id came back
+        as an unhandled IntegrityError — a 500 for what is a 404. And it has to
+        belong to the same edition as the activity, the guard every other write
+        path already applies (``require_same_event``): a capture is scored once
+        a judge gets to it, and a scored result resolves the post and moves the
+        team's total, so a past-edition team must not acquire one here.
+
+        Public because the controller resolves the team *before* uploading the
+        photos — a rejected capture should not leave orphaned objects in R2.
+        """
+        # CRUDBase.get() raises RallyNotFoundError for a missing id rather than
+        # returning None, which is exactly the 404 this path was missing.
+        team_obj = await self._team_crud.get(db=self._db, id=team_id)
+        if not team_obj:
+            raise RallyNotFoundError("Team not found")
+        require_same_event(team_obj.event_id, activity.event_id)
+        return team_obj
+
     async def capture_result(
-        self, *, activity_id: int, team_id: int, media_urls: list[str]
+        self, *, activity: Activity, team_id: int, media_urls: list[str]
     ) -> ActivityResult:
         """Upsert a pending-judgment result: append new media to an existing
-        capture, or create a fresh one."""
+        capture, or create a fresh one.
+
+        Takes the activity rather than its id: the caller has already loaded it
+        to check its type, and the team guard below needs its event.
+        """
+        await self.resolve_team_for_capture(activity=activity, team_id=team_id)
+        activity_id = activity.id
         existing = await crud_result.get_by_activity_and_team(self._db, activity_id, team_id)
         if existing:
             existing.append_capture(media_urls)
@@ -94,8 +123,19 @@ class DeferredJudgingService:
         1st place gets the activity's configured ``max_points``, the last
         gets ``min_points``, linearly in between (see
         ``ranking.linear_rank_points``) — the same shape a race gets scored
-        in. Every id must belong to this activity and appear once; anything
-        else means the ranking was built against a stale or wrong list.
+        in.
+
+        The ranking must cover **every** capture for the post, judged ones
+        included. The scale is relative: last place means ``min_points``, so
+        ranking a subset re-scales that subset across the whole range and
+        contradicts whatever the omitted captures already scored. Worse, a
+        capture that turns up after a ranking round would be ranked on its own,
+        and ``linear_rank_points`` gives a field of one ``max_points`` — a late
+        photo scoring top marks by arriving late. ``list_results_for_activity``
+        is the query that returns the full field to rank from.
+
+        Every id must also appear once; a duplicate means the ranking was built
+        against a stale list.
         """
         if not ordered_result_ids:
             raise RallyValidationError("Ranking must include at least one result")
@@ -105,14 +145,31 @@ class DeferredJudgingService:
         activity = await self._db.get(Activity, activity_id)
         if not activity:
             raise RallyNotFoundError("Activity not found")
+
+        # Checked after the activity lookup so an unknown activity is still a
+        # 404 rather than a complaint about the list's contents.
+        captured_ids = {r.id for r in await self.list_results_for_activity(activity_id)}
+        submitted_ids = set(ordered_result_ids)
+        foreign = submitted_ids - captured_ids
+        if foreign:
+            raise RallyValidationError(f"Result {min(foreign)} does not belong to this activity")
+        missing = captured_ids - submitted_ids
+        if missing:
+            raise RallyValidationError(
+                f"Ranking must cover all {len(captured_ids)} captures for this "
+                f"activity; {len(missing)} missing"
+            )
+
         max_points = float(activity.config.get("max_points", 100))
         min_points = float(activity.config.get("min_points", 0))
         total = len(ordered_result_ids)
 
         results: list[ActivityResult] = []
         for rank, result_id in enumerate(ordered_result_ids, start=1):
+            # Membership was settled by the set comparison above; this only
+            # loads the row (and stays defensive about a concurrent delete).
             result = await crud_result.get(self._db, result_id)
-            if not result or result.activity_id != activity_id:
+            if not result:
                 raise RallyValidationError(f"Result {result_id} does not belong to this activity")
             points = linear_rank_points(
                 rank=rank, total=total, max_points=max_points, min_points=min_points

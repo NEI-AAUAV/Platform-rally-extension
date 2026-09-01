@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Gavel, Image, CheckCircle2, AlertCircle, ArrowUp, ArrowDown, Trophy } from "lucide-react";
 import {
   listPendingJudgments,
+  listDeferredResultsForActivity,
   rankDeferredResults,
   getActivities,
   type DeferredResultResponse,
@@ -21,9 +22,13 @@ function reorder<T>(items: readonly T[], index: number, direction: -1 | 1): T[] 
 type RankingGroupProps = Readonly<{
   activityId: number;
   activityName: string;
-  results: readonly DeferredResultResponse[];
   onRanked: () => void;
 }>;
+
+/** Whether two id lists hold the same ids, order aside. */
+function sameIds(a: readonly number[], b: readonly number[]) {
+  return a.length === b.length && new Set(a).size === new Set([...a, ...b]).size;
+}
 
 /**
  * One post's captures, side by side, ranked instead of scored one at a time.
@@ -32,9 +37,31 @@ type RankingGroupProps = Readonly<{
  * max_points, last gets min_points, linearly in between (see
  * `app/services/ranking.py`) — closer to how "mais criativo" actually gets
  * judged than typing a number per photo.
+ *
+ * The group fetches the activity's *full* field rather than reusing the
+ * pending list its parent is built from. The scale is relative, so ranking
+ * only what is still pending re-scales those captures across the whole range
+ * and contradicts whatever the already-judged ones scored — and a capture that
+ * lands after a ranking round would be ranked alone, which is top marks by
+ * definition. The server refuses a partial ranking for the same reason.
  */
-function RankingGroup({ activityId, activityName, results, onRanked }: RankingGroupProps) {
-  const [order, setOrder] = useState<number[]>(() => results.map((r) => r.id));
+function RankingGroup({ activityId, activityName, onRanked }: RankingGroupProps) {
+  const { data: results = [], isLoading } = useQuery<DeferredResultResponse[]>({
+    queryKey: ["deferred-results", activityId],
+    queryFn: async () => {
+      const { data } = await listDeferredResultsForActivity({
+        path: { activity_id: activityId },
+      });
+      return data ?? [];
+    },
+  });
+
+  // The fetched order is the baseline; the judge's reordering replaces it only
+  // while it still describes the same set. A capture arriving mid-ranking thus
+  // resets the list instead of leaving a stale order the server would reject.
+  const [reordered, setReordered] = useState<number[] | null>(null);
+  const fetchedIds = useMemo(() => results.map((r) => r.id), [results]);
+  const order = reordered && sameIds(reordered, fetchedIds) ? reordered : fetchedIds;
   const byId = useMemo(() => new Map(results.map((r) => [r.id, r])), [results]);
 
   const rankMutation = useMutation({
@@ -46,8 +73,7 @@ function RankingGroup({ activityId, activityName, results, onRanked }: RankingGr
     onSuccess: onRanked,
   });
 
-  const move = (index: number, direction: -1 | 1) =>
-    setOrder((prev) => reorder(prev, index, direction));
+  const move = (index: number, direction: -1 | 1) => setReordered(reorder(order, index, direction));
 
   return (
     <li className="rally-surface space-y-3 p-4">
@@ -55,13 +81,15 @@ function RankingGroup({ activityId, activityName, results, onRanked }: RankingGr
         <div>
           <p className="font-semibold">{activityName}</p>
           <p className="text-xs text-muted-foreground">
-            {results.length} equipa(s) — usa as setas para ordenar do melhor para o pior
+            {isLoading
+              ? "A carregar capturas…"
+              : `${results.length} equipa(s) — usa as setas para ordenar do melhor para o pior`}
           </p>
         </div>
         <button
           type="button"
           className="rally-press rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-          disabled={rankMutation.isPending}
+          disabled={rankMutation.isPending || order.length === 0}
           onClick={() => rankMutation.mutate()}
         >
           {rankMutation.isPending ? "A submeter…" : "Confirmar ordenação"}
@@ -106,7 +134,14 @@ function RankingGroup({ activityId, activityName, results, onRanked }: RankingGr
                 </div>
               )}
 
-              <span className="ml-auto text-sm font-medium">Equipa #{result.team_id}</span>
+              <span className="ml-auto text-sm font-medium">
+                Equipa #{result.team_id}
+                {result.judgment_status === "judged" && (
+                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                    já julgada: {result.final_score ?? 0}
+                  </span>
+                )}
+              </span>
 
               <div className="flex shrink-0 flex-col gap-0.5">
                 <button
@@ -158,18 +193,16 @@ export default function DeferredJudgingTab() {
   });
   const activityNames = useMemo(() => new Map(activities.map((a) => [a.id, a.name])), [activities]);
 
-  const groups = useMemo(() => {
-    const byActivity = new Map<number, DeferredResultResponse[]>();
-    for (const result of pending) {
-      const list = byActivity.get(result.activity_id) ?? [];
-      list.push(result);
-      byActivity.set(result.activity_id, list);
-    }
-    return [...byActivity.entries()];
-  }, [pending]);
+  // The pending list says *which* posts still need a judge; each group then
+  // loads that post's full field to rank, judged captures included.
+  const activityIds = useMemo(
+    () => [...new Set(pending.map((result) => result.activity_id))],
+    [pending],
+  );
 
   const onRanked = () => {
     void qc.invalidateQueries({ queryKey: ["deferred-pending"] });
+    void qc.invalidateQueries({ queryKey: ["deferred-results"] });
   };
 
   if (isLoading) {
@@ -180,7 +213,7 @@ export default function DeferredJudgingTab() {
     );
   }
 
-  if (groups.length === 0) {
+  if (activityIds.length === 0) {
     return (
       <div className="rally-surface flex flex-col items-center gap-3 py-16 text-center">
         <CheckCircle2 className="h-10 w-10 text-green-500" />
@@ -203,12 +236,11 @@ export default function DeferredJudgingTab() {
       </div>
 
       <ul className="space-y-4">
-        {groups.map(([activityId, results]) => (
+        {activityIds.map((activityId) => (
           <RankingGroup
             key={activityId}
             activityId={activityId}
             activityName={activityNames.get(activityId) ?? `Atividade #${activityId}`}
-            results={results}
             onRanked={onRanked}
           />
         ))}
