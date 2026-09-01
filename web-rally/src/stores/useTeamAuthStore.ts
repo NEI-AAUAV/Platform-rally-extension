@@ -9,6 +9,7 @@ import {
   type TeamTokenData,
 } from "@/lib/auth/tokenStore";
 import { setSentryUser, clearSentryUser } from "@/lib/sentry";
+import { clearApiCache } from "@/lib/auth/clearApiCache";
 
 interface TeamAuthState {
   isAuthenticated: boolean;
@@ -42,6 +43,9 @@ const useTeamAuthStore = create<TeamAuthState>((set) => ({
   clearAuth: () => {
     removeTeamAuth();
     clearSentryUser();
+    // Fire-and-forget: the store update must stay synchronous (consumers
+    // re-render off it immediately), and the purge is best-effort anyway.
+    void clearApiCache();
     set({ teamData: null, isAuthenticated: false, isLoadingAuth: false });
   },
 }));
