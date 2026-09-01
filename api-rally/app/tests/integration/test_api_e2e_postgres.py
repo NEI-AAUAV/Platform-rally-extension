@@ -256,15 +256,40 @@ def test_guide_surface_role_gate_and_indications(e2e_client: TestClient) -> None
         app.dependency_overrides.pop(api_nei_auth, None)
 
 
-def test_team_listing_requires_authentication(e2e_client: TestClient) -> None:
-    """The roster carries every team's progress, so it is behind auth.
+def test_team_listing_follows_the_public_switches(e2e_client: TestClient) -> None:
+    """The roster carries every team's progress, so who gets it is a setting.
 
-    Anonymous callers are refused; a team token is enough (no staff role
-    needed) since the leaderboard is a participant-facing screen.
+    While the event publishes to the public the anonymous scoreboard is
+    served — that board is a feature. Close either switch and the listing
+    demands a caller; a team token is enough (no staff role needed), since the
+    leaderboard is a participant-facing screen.
     """
-    assert e2e_client.get("/api/rally/v1/team/").status_code == 401
-
     headers = {"Authorization": f"Bearer {_login(e2e_client)}"}
     teams = e2e_client.get("/api/rally/v1/team/", headers=headers)
     assert teams.status_code == 200, teams.text
     assert [t["name"] for t in teams.json()] == ["Equipa E2E"]
+
+    app.dependency_overrides[api_nei_auth] = lambda: _fake_oidc_user(["admin"])
+    try:
+        current = e2e_client.get("/api/rally/v1/rally/settings")
+        assert current.status_code == 200, current.text
+        settings_body = {k: v for k, v in current.json().items() if k != "id"}
+
+        for public, leaderboard, expected in (
+            (True, True, 200),
+            (False, True, 401),
+            (True, False, 401),
+        ):
+            updated = e2e_client.put(
+                "/api/rally/v1/rally/settings",
+                json={
+                    **settings_body,
+                    "public_access_enabled": public,
+                    "show_live_leaderboard": leaderboard,
+                },
+            )
+            assert updated.status_code == 200, updated.text
+            anon = e2e_client.get("/api/rally/v1/team/")
+            assert anon.status_code == expected, anon.text
+    finally:
+        app.dependency_overrides.pop(api_nei_auth, None)
