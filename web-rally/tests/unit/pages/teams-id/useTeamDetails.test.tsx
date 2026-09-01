@@ -50,7 +50,14 @@ describe('useTeamDetails', () => {
     vi.mocked(getTeamEvaluations).mockResolvedValue({
       data: { evaluations: [{ team_id: 1, final_score: 7 }] },
     } as never);
-    vi.mocked(getTeams).mockResolvedValue({ data: [{ id: 1 }, { id: 2 }] } as never);
+    // Full rows: useTeamDetails now ranks through lib/teamRanking, which
+    // sorts on total/classification/name.
+    vi.mocked(getTeams).mockResolvedValue({
+      data: [
+        { id: 1, name: 'Team A', total: 10, classification: 1 },
+        { id: 2, name: 'Team B', total: 5, classification: 2 },
+      ],
+    } as never);
     vi.mocked(getCheckpointsCount).mockResolvedValue({ data: 5 } as never);
   });
 

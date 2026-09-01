@@ -57,11 +57,22 @@ async def _sync_scopes(db: AsyncSession, user: Any, auth: AuthData) -> None:
 async def _load_checkpoint_assignments(
     db: AsyncSession, user_id: int, scopes: list[str], detailed_user: DetailedUser
 ) -> None:
-    if "rally-staff" in scopes:
+    """Resolve this request's assignments from the assignment tables.
+
+    Both fields are cleared first. ``users.staff_checkpoint_id`` is a
+    persisted column that ``DetailedUser.model_validate`` has already copied
+    in, and it is never rewritten when someone's staff group is revoked in
+    Authentik — so a user who lost the scope kept a truthy value and went on
+    passing every gate that tested the *field* instead of the scope. The
+    request's scopes are the authority; the column is only a cache.
+    """
+    detailed_user.staff_checkpoint_id = None
+    detailed_user.guide_team_id = None
+    if ScopeEnum.RALLY_STAFF in scopes:
         staff_assignment = await rally_staff_assignment.get_by_user_id(db, user_id)
         if staff_assignment:
             detailed_user.staff_checkpoint_id = staff_assignment.checkpoint_id
-    if "rally-guide" in scopes:
+    if ScopeEnum.RALLY_GUIDE in scopes:
         guide_assignment = await rally_guide_assignment.get_by_user_id(db, user_id)
         if guide_assignment:
             detailed_user.guide_team_id = guide_assignment.team_id
@@ -181,9 +192,18 @@ def get_admin_or_staff(
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     curr_user: Annotated[DetailedUser, Depends(get_participant)],
 ) -> DetailedUser:
-    if not is_admin(auth.scopes) and curr_user.staff_checkpoint_id is None:
-        raise HTTPException(status_code=403, detail="User without permissions")
-    return curr_user
+    """Admin/manager, or staff who actually hold an assignment.
+
+    The scope is checked first and is not optional. This used to pass on
+    ``staff_checkpoint_id is not None`` alone, which is a data test, not a
+    permission test: it admitted anyone the column still had a value for,
+    including a user whose staff group had since been revoked.
+    """
+    if is_admin(auth.scopes):
+        return curr_user
+    if is_staff(auth.scopes) and curr_user.staff_checkpoint_id is not None:
+        return curr_user
+    raise HTTPException(status_code=403, detail="User without permissions")
 
 
 team_security_optional = HTTPBearer(auto_error=False)

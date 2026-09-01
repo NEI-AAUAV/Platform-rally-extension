@@ -340,6 +340,7 @@ class TestGuideOwnTeam:
         self, pg_session, pg_client, as_guide
     ):
         event = await _make_event(pg_session)
+        await _enable_guide_mode(pg_session)
         team = await _make_team(pg_session, name="MyTeam", event_id=event.id)
         await _assign_guide(pg_session, team.id)
 
@@ -351,6 +352,19 @@ class TestGuideOwnTeam:
         assert body["access_code"]
 
     async def test_guide_with_no_assignment_gets_404(self, pg_session, pg_client, as_guide):
+        await _make_event(pg_session)
+        await _enable_guide_mode(pg_session)
+
         resp = pg_client.get("/api/rally/v1/guide/team")
 
         assert resp.status_code == 404
+
+    async def test_guide_team_403_when_guide_mode_off(self, pg_session, pg_client, as_guide):
+        """Every guide surface is gated on the two switches, this one included."""
+        event = await _make_event(pg_session)
+        team = await _make_team(pg_session, name="MyTeam", event_id=event.id)
+        await _assign_guide(pg_session, team.id)
+
+        resp = pg_client.get("/api/rally/v1/guide/team")
+
+        assert resp.status_code == 403

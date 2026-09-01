@@ -4,7 +4,10 @@ A rally-guide user can view checkpoint details including their media gallery
 (photos/videos uploaded by admins). This gives tour guides a read-only view
 of the checkpoints they're accompanying teams through.
 
-Guides, staff, admins, and managers all have access. Public users do not.
+Guides, staff, admins, and managers can all reach these routes, but only an
+admin or manager is treated as privileged here: a plain ``rally-staff`` user
+is scoped like a guide and must actually be assigned before writing progress.
+Every route is gated on guide mode being enabled *and* active.
 """
 
 from datetime import datetime
@@ -121,7 +124,7 @@ class GuideController:
             self.list_teams_at_checkpoint,
             methods=["GET"],
             name="list_guide_teams_at_checkpoint",
-            responses={403: {"description": "Not this guide's checkpoint"}},
+            responses={403: {"description": "Guide mode is off, or not this guide's checkpoint"}},
         )
         self.router.add_api_route(
             "/guide/checkpoints/{checkpoint_id}/arrivals",
@@ -131,7 +134,11 @@ class GuideController:
             name="record_guide_arrival",
             responses={
                 400: {"description": "Outside the event window, or a cross-edition team"},
-                403: {"description": "Not this guide's checkpoint, or not this guide's team"},
+                403: {
+                    "description": (
+                        "Guide mode is off, not this guide's checkpoint, or not this guide's team"
+                    )
+                },
                 404: {"description": "Checkpoint not found"},
             },
         )
@@ -140,7 +147,10 @@ class GuideController:
             self.get_guide_team,
             methods=["GET"],
             name="get_guide_team",
-            responses={404: {"description": "No team assigned to this guide"}},
+            responses={
+                403: {"description": "Guide mode is not active for this event"},
+                404: {"description": "No team assigned to this guide"},
+            },
         )
 
     async def list_guide_checkpoints(
@@ -156,9 +166,10 @@ class GuideController:
         post flagged via ``is_current`` for the client to highlight. Ordered
         by checkpoint order.
         """
+        await service.require_guide_mode()
         checkpoints, current_id = await service.list_checkpoints_with_gallery(
             user_id=curr_user.id,
-            is_privileged=deps.is_admin_or_staff(auth.scopes),
+            is_privileged=deps.is_admin_or_manager(auth.scopes),
         )
 
         return [
@@ -206,6 +217,7 @@ class GuideController:
         service: Annotated[GuideService, Depends(get_guide_service)],
     ) -> list[GuideTeamAtCheckpoint]:
         """Teams that have arrived at this post, and the hints they bought."""
+        await service.require_guide_mode()
         await self._require_checkpoint_access(service, curr_user, auth, checkpoint_id)
         rows = await service.teams_at_checkpoint(checkpoint_id)
         return [GuideTeamAtCheckpoint(**row) for row in rows]
@@ -228,9 +240,10 @@ class GuideController:
         indoor post — and the guide is standing there watching the team. This
         is the fallback, and it is audited like every other progress write.
         """
+        await guide_service.require_guide_mode()
         await self._require_checkpoint_access(guide_service, curr_user, auth, checkpoint_id)
 
-        if not deps.is_admin_or_staff(auth.scopes):
+        if not deps.is_admin_or_manager(auth.scopes):
             assigned_team_id = await guide_service.assigned_team_id(curr_user.id)
             if assigned_team_id != body.team_id:
                 raise RallyForbiddenError("Not this guide's team")
@@ -242,12 +255,14 @@ class GuideController:
         created = await arrival_service.record_manual_arrival(
             team_id=body.team_id, checkpoint_id=checkpoint_id
         )
-        # Same follow-up as the GPS path: a post with no activities completes
-        # on arrival, one with activities waits for the staff evaluation.
-        auto_completed = await arrival_service.auto_complete_if_no_activities(
-            body.team_id, checkpoint_id
-        )
+        # Same follow-up as the GPS path, and same reason it is gated on
+        # ``created``: re-running it on a repeat call appended another visit
+        # and advanced the team a post it had not been to.
+        auto_completed = False
         if created:
+            auto_completed = await arrival_service.auto_complete_if_no_activities(
+                body.team_id, checkpoint_id
+            )
             await record_audit(
                 db,
                 action="checkin.guide_arrival",
@@ -277,6 +292,7 @@ class GuideController:
         Scoped to the single team this guide is assigned to; a guide never
         sees another team's roster or access code through this endpoint.
         """
+        await guide_service.require_guide_mode()
         team_id = await guide_service.assigned_team_id(curr_user.id)
         if team_id is None:
             raise RallyNotFoundError("No team assigned to this guide")
@@ -299,7 +315,7 @@ class GuideController:
         allowed = await service.can_manage_checkpoint(
             user_id=curr_user.id,
             checkpoint_id=checkpoint_id,
-            is_privileged=deps.is_admin_or_staff(auth.scopes),
+            is_privileged=deps.is_admin_or_manager(auth.scopes),
         )
         if not allowed:
             raise RallyForbiddenError("Not assigned to this checkpoint")

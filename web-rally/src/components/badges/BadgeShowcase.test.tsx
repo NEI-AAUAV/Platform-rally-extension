@@ -15,7 +15,7 @@ vi.mock("@/hooks/useBadges", () => ({
 describe("BadgeShowcase", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders the DB catalogue with earned + locked badges", () => {
+  it("renders only the badges the team has earned", () => {
     mockUseBadgeShowcase.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -30,13 +30,27 @@ describe("BadgeShowcase", () => {
 
     render(<BadgeShowcase teamId={7} />);
 
-    // both catalogue badges render (locked included)
+    // earned badge shows, locked one is hidden entirely
     expect(screen.getByText("Duelo")).toBeInTheDocument();
-    expect(screen.getByText("Bloqueado")).toBeInTheDocument();
-    // count chip: 1 of 2 earned
+    expect(screen.queryByText("Bloqueado")).not.toBeInTheDocument();
+    expect(screen.queryByText("Por conquistar")).not.toBeInTheDocument();
+    // count chip still reads earned / total catalogue
     expect(screen.getByText("/2")).toBeInTheDocument();
-    // the locked one shows the "not yet earned" label
-    expect(screen.getByText("Por conquistar")).toBeInTheDocument();
+  });
+
+  it("renders nothing when the team has earned no badges", () => {
+    mockUseBadgeShowcase.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        definitions: [
+          { code: "won", name: "Duelo", color: "#111111", glyph: "\u2694", icon_url: null },
+        ],
+        earned: [],
+      },
+    });
+    const { container } = render(<BadgeShowcase teamId={7} />);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("renders nothing while loading", () => {

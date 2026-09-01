@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Canonical, ordered set of home page section keys. Any home_layout entry
 # with an unknown key is dropped; any missing key is appended (visible by
@@ -162,17 +162,32 @@ def normalize_ticker_items(value: list[Any]) -> list[str]:
     return items
 
 
+# Domain constraints, applied at the schema so an out-of-range value is a 422
+# rather than a live event running on it. None of these were bounded before:
+# a positive hint_penalty *awarded* points for buying a hint (the cost is
+# summed as-is into a DynamicAward), and a show_route_mode typo made
+# ``!= "focused"`` true, which is what several reveal checks key off.
+NonPositiveInt = Annotated[int, Field(le=0)]
+PositiveCount = Annotated[int, Field(ge=1)]
+NonNegativeInt = Annotated[int, Field(ge=0)]
+RouteMode = Literal["focused", "complete"]
+ScoreMode = Literal["hidden", "individual", "competitive"]
+
+
 class RallySettingsBase(BaseModel):
     # Team management
-    max_teams: int
-    max_members_per_team: int
+    max_teams: PositiveCount
+    max_members_per_team: PositiveCount
     enable_versus: bool
 
-    # Scoring system
-    penalty_per_puke: int
-    penalty_per_not_drinking: int
+    # Scoring system. The two per-occurrence penalties are priced through
+    # ``abs()`` in resolve_penalty_points, but they are still written and read
+    # as costs everywhere a human looks at them, so they are constrained the
+    # same way as the rest.
+    penalty_per_puke: NonPositiveInt
+    penalty_per_not_drinking: NonPositiveInt
     bonus_per_extra_shot: int
-    max_extra_shots_per_member: int
+    max_extra_shots_per_member: NonNegativeInt
 
     # Checkpoint behavior
     checkpoint_order_matters: bool
@@ -185,8 +200,8 @@ class RallySettingsBase(BaseModel):
     show_team_details: bool
     show_checkpoint_map: bool
     participant_view_enabled: bool
-    show_route_mode: str  # 'focused' or 'complete'
-    show_score_mode: str  # 'hidden', 'individual', or 'competitive'
+    show_route_mode: RouteMode
+    show_score_mode: ScoreMode
 
     # Rally customization
     rally_theme: str  # skin preset: 'bloody' | 'nei' | 'default'
@@ -220,10 +235,10 @@ class RallySettingsBase(BaseModel):
     reveal_next_checkpoint: bool = True
 
     # Points charged for unlocking a hint (negative; 0 disables the cost).
-    hint_penalty: int = 0
+    hint_penalty: NonPositiveInt = 0
 
     # Points charged for giving up on a post (negative; 0 disables the cost).
-    skip_penalty: int = 0
+    skip_penalty: NonPositiveInt = 0
 
     # Feature switches, independent of the costs above: 0 points means free,
     # not off.
@@ -235,7 +250,7 @@ class RallySettingsBase(BaseModel):
     proximity_enabled: bool = False
     compass_enabled: bool = False
     # Radius of the on-map search circle for a redacted post; 0 = no circle.
-    search_radius_m: int = 0
+    search_radius_m: NonNegativeInt = 0
     # Route stages: per-block ordering rules (see RouteStage). Off means the
     # whole route is one block governed by checkpoint_order_matters.
     route_stages_enabled: bool = False
@@ -248,12 +263,12 @@ class RallySettingsBase(BaseModel):
     # switch is on, same "toggle separate from cost" convention as the rest
     # of this settings row.
     leg_time_scoring_enabled: bool = False
-    leg_time_target_minutes: int = 10
+    leg_time_target_minutes: NonNegativeInt = 10
     leg_time_points_per_minute: int = 0
     # Caps the bonus/penalty magnitude per leg so a team that stops for
     # dinner (or a phone that died) between two posts doesn't blow up the
     # scoreboard either direction.
-    leg_time_max_adjustment: int = 20
+    leg_time_max_adjustment: NonNegativeInt = 20
 
     # Guide mode: tourist-guide pages/checkpoint photos, only shown when the
     # admin has both enabled the feature and switched it on for the event

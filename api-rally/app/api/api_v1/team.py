@@ -40,6 +40,12 @@ from app.services.deps import get_team_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
 from app.services.storage import storage_client
 from app.services.team_service import TeamService
+from app.services.visibility_policy import (
+    public_listing_allowed,
+    require_participant_view,
+    require_team_details,
+    scores_are_hidden,
+)
 
 _TEAM_ID_PATH = "/{id}"
 AUTH_REQUIRED = "Authentication required (User or Team Token)"
@@ -106,17 +112,34 @@ class TeamController:
         service: Annotated[TeamService, Depends(get_team_service)],
         team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
         curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)] = None,
+        curr_team: Annotated[TeamTokenData | None, Depends(deps.get_current_team_optional)] = None,
     ) -> list[ListingTeam]:
+        """The team directory.
+
+        This route had no auth dependency at all — ``curr_user`` was optional
+        and only steered the redaction of the next post's name — so the full
+        roster, with every team's progress, was readable by anyone whatever
+        the event had configured. An anonymous caller is now served only while
+        the event publishes to the public (``public_access_enabled`` and
+        ``show_live_leaderboard``): that pair is what the public scoreboard
+        runs on, and closing either one closes this too.
+        ``show_score_mode`` decides whether the points and ranks come with it.
+        """
+        if not curr_user and not curr_team and not await public_listing_allowed(db):
+            raise RallyUnauthorizedError(AUTH_REQUIRED)
+
         teams = await team_crud.get_multi(db)
         for team in teams:
             await db.refresh(team, ["members"])
         settings = await rally_settings.get_or_create(db)
         is_privileged = bool(curr_user) and deps.is_admin_or_staff(getattr(curr_user, "scopes", []))
+        hide_scores = scores_are_hidden(settings, is_privileged=is_privileged)
         return [
             await service.build_listing_team(
                 team,
                 reveal_next_checkpoint=bool(settings.reveal_next_checkpoint),
                 is_privileged=is_privileged,
+                hide_scores=hide_scores,
             )
             for team in teams
         ]
@@ -124,10 +147,19 @@ class TeamController:
     async def get_own_team(
         self,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
+        auth: Annotated[AuthData | None, Depends(api_nei_auth_optional)],
         curr_user: Annotated[DetailedUser, Depends(deps.get_participant)],
         service: Annotated[TeamService, Depends(get_team_service)],
         team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
     ) -> PrivilegedDetailedTeam:
+        """The caller's own team. Gated by ``participant_view_enabled``.
+
+        The team's own screen is the participant view, so the switch that
+        turns that view off has to close this too — it used to be honoured by
+        the SPA's routing alone.
+        """
+        is_privileged = auth is not None and deps.is_admin_or_staff(auth.scopes)
+        await require_participant_view(db, is_privileged=is_privileged)
         team_obj = await team_crud.get(db=db, id=curr_user.team_id)
         return await service.build_detailed_team(
             team_obj, with_progress=True, with_access_code=True
@@ -170,9 +202,23 @@ class TeamController:
                 )
             )
         )
+        # ``show_team_details`` governs looking at *another* team. The team's
+        # own page is never gated by it, and neither is staff/admin.
+        is_own_team = (curr_team is not None and curr_team.team_id == id) or (
+            curr_user is not None and curr_user.team_id == id
+        )
+        is_privileged = curr_user is not None and deps.is_admin_or_staff(
+            getattr(curr_user, "scopes", [])
+        )
+        await require_team_details(db, is_privileged=is_privileged or is_own_team)
+
+        settings = await rally_settings.get_or_create(db)
         team_obj = await team_crud.get(db=db, id=id)
         return await service.build_detailed_team(
-            team_obj, with_progress=True, with_access_code=may_see_access_code
+            team_obj,
+            with_progress=True,
+            with_access_code=may_see_access_code,
+            hide_scores=scores_are_hidden(settings, is_privileged=is_privileged or is_own_team),
         )
 
     async def add_checkpoint(

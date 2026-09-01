@@ -11,7 +11,8 @@ type RouteCheckpointItemProps = Readonly<{
   checkpoint: DetailedCheckPoint;
   index: number;
   team: DetailedTeam;
-  completedCount: number;
+  /** Orders the server says this team has resolved (completed or given up). */
+  resolvedOrders: ReadonlySet<number>;
   showScore: boolean;
   showMap: boolean;
   isExpanded: boolean;
@@ -195,24 +196,30 @@ function CheckpointCardBody({
 export default function RouteCheckpointItem({
   checkpoint,
   team,
-  completedCount,
+  resolvedOrders,
   showScore,
   showMap,
   isLast = false,
   offerCheckIn = false,
 }: RouteCheckpointItemProps) {
   const order = checkpoint.order;
-  const isCompleted = order <= completedCount;
-  // `is_reachable` comes from the server, which is the only thing that knows
-  // the stage rules — a free-choice stage has several posts open at once, and
-  // the positional guess below can only ever name one. Kept as the fallback
-  // for a payload that predates the field.
-  const isCurrent = checkpoint.is_reachable ?? order === completedCount + 1;
+  // Both states come from the server's progress engine, which is the only
+  // thing that knows the stage rules and the completion predicate. The old
+  // `order <= completedCount` / `order === completedCount + 1` arithmetic
+  // described a strictly sequential route only: under free order or stages a
+  // team resolves posts out of sequence, so a post it had finished was
+  // labelled "Pendente" and several genuinely open posts collapsed to one.
+  const isCompleted = resolvedOrders.has(order);
+  const isCurrent = !isCompleted && checkpoint.is_reachable === true;
   const isFuture = !isCompleted && !isCurrent;
   const arrival = useCheckpointArrival(checkpoint);
 
   const checkpointScore = isCompleted ? (team.score_per_checkpoint?.[order - 1] ?? 0) : 0;
-  const canReveal = isCompleted || isCurrent;
+  // What the server actually revealed, not what the client guessed. A post the
+  // team has arrived at is un-redacted even while its activity is unscored, and
+  // the arithmetic version called that "future" — so the gallery request was
+  // never even made for the post the team was standing at.
+  const canReveal = checkpoint.is_redacted !== true;
   const { photos, funFacts } = useCheckpointMedia(checkpoint.id, canReveal);
 
   const [modalOpen, setModalOpen] = useState(false);

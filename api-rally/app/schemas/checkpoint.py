@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # WGS-84 bounds, and the geofence radius floor. Applied to the *write* schemas
 # only: response models read whatever is already in the database, and a stricter
@@ -31,6 +31,22 @@ class CheckPointBase(BaseModel):
     available_from: datetime | None = None
     available_until: datetime | None = None
 
+    @model_validator(mode="after")
+    def _window_is_ordered(self) -> "CheckPointBase":
+        """A post that closes before it opens is never reachable.
+
+        ``hours_block_reason`` reads the two ends independently, so an
+        inverted window produced a post that reported "not open yet" and
+        "already closed" at once, with nothing rejecting it on the way in.
+        """
+        if (
+            self.available_from is not None
+            and self.available_until is not None
+            and self.available_from > self.available_until
+        ):
+            raise ValueError("available_from must not be after available_until")
+        return self
+
 
 class CheckPointPlanningFields(BaseModel):
     """The staff-only planning columns.
@@ -59,11 +75,20 @@ class CheckPointCreate(CheckPointBase, CheckPointPlanningFields):
 
 
 class CheckPointUpdate(BaseModel):
+    """A post's editable fields.
+
+    ``order`` is deliberately absent. It is not a plain column: it is unique
+    per event, it is what progress is read by, and moving it has to renumber
+    the rest of the route. Writing it here did none of that — no uniqueness
+    check (so it could collide with ``uq_checkpoint_event_order``) and no
+    resequence — which is why reordering has its own endpoint,
+    ``PUT /checkpoint/reorder``.
+    """
+
     name: str | None = None
     description: str | None = None
     latitude: float | None = LATITUDE_FIELD
     longitude: float | None = LONGITUDE_FIELD
-    order: int | None = None
     arrival_radius_m: int | None = Field(default=None, ge=0)
     clue: str | None = None
     clue_media_url: str | None = None
@@ -74,6 +99,22 @@ class CheckPointUpdate(BaseModel):
     is_placeholder: bool | None = None
     staff_script: str | None = None
     challenge_brief: str | None = None
+
+    @model_validator(mode="after")
+    def _window_is_ordered(self) -> "CheckPointUpdate":
+        """A post that closes before it opens is never reachable.
+
+        ``hours_block_reason`` reads the two ends independently, so an
+        inverted window produced a post that reported "not open yet" and
+        "already closed" at once, with nothing rejecting it on the way in.
+        """
+        if (
+            self.available_from is not None
+            and self.available_until is not None
+            and self.available_from > self.available_until
+        ):
+            raise ValueError("available_from must not be after available_until")
+        return self
 
 
 class CheckPointResponse(CheckPointBase):

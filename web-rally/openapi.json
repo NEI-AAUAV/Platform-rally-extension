@@ -11,6 +11,7 @@
           "Team"
         ],
         "summary": "Get Teams",
+        "description": "The team directory.\n\nThis route had no auth dependency at all \u2014 ``curr_user`` was optional\nand only steered the redaction of the next post's name \u2014 so the full\nroster, with every team's progress, was readable by anyone whatever\nthe event had configured. An anonymous caller is now served only while\nthe event publishes to the public (``public_access_enabled`` and\n``show_live_leaderboard``): that pair is what the public scoreboard\nruns on, and closing either one closes this too.\n``show_score_mode`` decides whether the points and ranks come with it.",
         "operationId": "get_teams",
         "responses": {
           "200": {
@@ -85,6 +86,7 @@
           "Team"
         ],
         "summary": "Get Own Team",
+        "description": "The caller's own team. Gated by ``participant_view_enabled``.\n\nThe team's own screen is the participant view, so the switch that\nturns that view off has to close this too \u2014 it used to be honoured by\nthe SPA's routing alone.",
         "operationId": "get_own_team",
         "responses": {
           "200": {
@@ -3520,7 +3522,7 @@
           "Scoreboard"
         ],
         "summary": "Get Live Scoreboard",
-        "description": "Return the cached global ranking, recomputing on a cache miss.\n\nWhen the realtime subsystem is disabled there is no cache to read and no\nworker keeping it warm, but the ranking is still a plain DB computation \u2014\nserve it directly from Postgres instead of failing the public view.",
+        "description": "Return the cached global ranking, recomputing on a cache miss.\n\nWhen the realtime subsystem is disabled there is no cache to read and no\nworker keeping it warm, but the ranking is still a plain DB computation \u2014\nserve it directly from Postgres instead of failing the public view.\n\n``show_live_leaderboard`` gates it: the switch used to hide the\nscoreboard in the SPA while this endpoint served the standings to\nanyone who asked.",
         "operationId": "get_live_scoreboard",
         "responses": {
           "200": {
@@ -3538,7 +3540,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/rally/v1/scoreboard/stream": {
@@ -3558,7 +3565,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/rally/v1/events/stream": {
@@ -3567,7 +3579,7 @@
           "Scoreboard"
         ],
         "summary": "Stream Rally Events",
-        "description": "Server-Sent Events stream that forwards raw activity_result/team events.\n\nUnlike /scoreboard/stream (which only signals \"leaderboard changed\"), this\nstream forwards each event's type and JSON payload so callers can react to\nthe specific team/activity involved \u2014 e.g. staff-evaluation and\nteam-progress pages invalidating only their own affected queries instead\nof refetching on every unrelated event.",
+        "description": "Server-Sent Events stream that forwards raw activity_result/team events.\n\nUnlike /scoreboard/stream (which only signals \"leaderboard changed\"), this\nstream forwards each event's type and JSON payload so callers can react to\nthe specific team/activity involved \u2014 e.g. staff-evaluation and\nteam-progress pages invalidating only their own affected queries instead\nof refetching on every unrelated event.\n\nGated on ``show_live_leaderboard`` like the scoreboard itself: the\npayloads it forwards carry the same score changes, so leaving it open\nwould hand out live standings by another name.",
         "operationId": "stream_rally_events",
         "responses": {
           "200": {
@@ -3578,7 +3590,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/rally/v1/scoreboard/recompute": {
@@ -5860,7 +5877,7 @@
           "Deferred Judging"
         ],
         "summary": "Set Team Photo From Result",
-        "description": "Promote one of a deferred-judging result's submitted photos to the team's official photo.\n\nGated by rally_settings.allow_photo_as_team_photo so an admin can turn\nthis capability off event-wide. The chosen URL must already be one of\nthe result's own media_urls (already stored in R2) to prevent staff\nfrom pointing a team's photo at an arbitrary URL.",
+        "description": "Promote one of a deferred-judging result's submitted photos to the team's official photo.\n\nGated by rally_settings.allow_photo_as_team_photo so an admin can turn\nthis capability off event-wide. The chosen URL must already be one of\nthe result's own media_urls (already stored in R2) to prevent staff\nfrom pointing a team's photo at an arbitrary URL, and \u2014 like the\ncapture route \u2014 scoped to the caller's own post: proving *some*\nassignment was never the same as proving this one.",
         "operationId": "set_team_photo_from_result",
         "security": [
           {
@@ -6460,7 +6477,7 @@
             }
           },
           "403": {
-            "description": "Not this guide's checkpoint"
+            "description": "Guide mode is off, or not this guide's checkpoint"
           },
           "422": {
             "description": "Validation Error",
@@ -6524,7 +6541,7 @@
             "description": "Outside the event window, or a cross-edition team"
           },
           "403": {
-            "description": "Not this guide's checkpoint, or not this guide's team"
+            "description": "Guide mode is off, not this guide's checkpoint, or not this guide's team"
           },
           "404": {
             "description": "Checkpoint not found"
@@ -6560,6 +6577,9 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Guide mode is not active for this event"
           },
           "404": {
             "description": "No team assigned to this guide"
@@ -9018,17 +9038,6 @@
             ],
             "title": "Longitude"
           },
-          "order": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Order"
-          },
           "arrival_radius_m": {
             "anyOf": [
               {
@@ -9144,7 +9153,8 @@
           }
         },
         "type": "object",
-        "title": "CheckPointUpdate"
+        "title": "CheckPointUpdate",
+        "description": "A post's editable fields.\n\n``order`` is deliberately absent. It is not a plain column: it is unique\nper event, it is what progress is read by, and moving it has to renumber\nthe rest of the route. Writing it here did none of that \u2014 no uniqueness\ncheck (so it could collide with ``uq_checkpoint_event_order``) and no\nresequence \u2014 which is why reordering has its own endpoint,\n``PUT /checkpoint/reorder``."
       },
       "CheckinRequest": {
         "properties": {
@@ -9423,6 +9433,45 @@
           "checkpoint_id"
         ],
         "title": "CheckpointMediaResponse"
+      },
+      "CheckpointPenalties": {
+        "properties": {
+          "checkpoint_order": {
+            "type": "integer",
+            "title": "Checkpoint Order"
+          },
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "hints_cost": {
+            "type": "integer",
+            "title": "Hints Cost",
+            "default": 0
+          },
+          "skip_cost": {
+            "type": "integer",
+            "title": "Skip Cost",
+            "default": 0
+          },
+          "activity_penalties": {
+            "type": "integer",
+            "title": "Activity Penalties",
+            "default": 0
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_order",
+          "checkpoint_id"
+        ],
+        "title": "CheckpointPenalties",
+        "description": "Points a team lost at one post, broken down by cause.\n\n``hints_cost`` is what the team paid unlocking guide indications there,\n``skip_cost`` the give-up penalty, ``activity_penalties`` the sum of the\nactivity-level deductions (v\u00f3mitos, n\u00e3o-beber, contadores din\u00e2micos).\nEvery field is negative or zero, the same sign convention as the rest of\nthe app. Only posts with at least one non-zero penalty are emitted, keyed\nby ``checkpoint_order`` so a client can line them up with\n``score_per_checkpoint[order - 1]``."
       },
       "CheckpointSkipped": {
         "properties": {
@@ -9755,6 +9804,49 @@
       },
       "DetailedTeam": {
         "properties": {
+          "last_checkpoint_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checkpoint Number"
+          },
+          "current_checkpoint_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Checkpoint Number"
+          },
+          "resolved_checkpoint_orders": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Resolved Checkpoint Orders",
+            "default": []
+          },
+          "open_checkpoint_orders": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Open Checkpoint Orders",
+            "default": []
+          },
+          "is_route_finished": {
+            "type": "boolean",
+            "title": "Is Route Finished",
+            "default": false
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -9814,28 +9906,6 @@
             "type": "array",
             "title": "Members"
           },
-          "last_checkpoint_number": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Checkpoint Number"
-          },
-          "current_checkpoint_number": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Checkpoint Number"
-          },
           "total_checkpoints": {
             "anyOf": [
               {
@@ -9846,6 +9916,14 @@
               }
             ],
             "title": "Total Checkpoints"
+          },
+          "penalties_per_checkpoint": {
+            "items": {
+              "$ref": "#/components/schemas/CheckpointPenalties"
+            },
+            "type": "array",
+            "title": "Penalties Per Checkpoint",
+            "default": []
           }
         },
         "type": "object",
@@ -10597,6 +10675,49 @@
       },
       "ListingTeam": {
         "properties": {
+          "last_checkpoint_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checkpoint Number"
+          },
+          "current_checkpoint_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Checkpoint Number"
+          },
+          "resolved_checkpoint_orders": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Resolved Checkpoint Orders",
+            "default": []
+          },
+          "open_checkpoint_orders": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Open Checkpoint Orders",
+            "default": []
+          },
+          "is_route_finished": {
+            "type": "boolean",
+            "title": "Is Route Finished",
+            "default": false
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -10670,17 +10791,6 @@
             ],
             "title": "Last Checkpoint Score"
           },
-          "last_checkpoint_number": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Checkpoint Number"
-          },
           "last_checkpoint_name": {
             "anyOf": [
               {
@@ -10691,17 +10801,6 @@
               }
             ],
             "title": "Last Checkpoint Name"
-          },
-          "current_checkpoint_number": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Checkpoint Number"
           }
         },
         "type": "object",
@@ -11031,6 +11130,49 @@
       },
       "PrivilegedDetailedTeam": {
         "properties": {
+          "last_checkpoint_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checkpoint Number"
+          },
+          "current_checkpoint_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Checkpoint Number"
+          },
+          "resolved_checkpoint_orders": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Resolved Checkpoint Orders",
+            "default": []
+          },
+          "open_checkpoint_orders": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Open Checkpoint Orders",
+            "default": []
+          },
+          "is_route_finished": {
+            "type": "boolean",
+            "title": "Is Route Finished",
+            "default": false
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -11090,28 +11232,6 @@
             "type": "array",
             "title": "Members"
           },
-          "last_checkpoint_number": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Checkpoint Number"
-          },
-          "current_checkpoint_number": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Checkpoint Number"
-          },
           "total_checkpoints": {
             "anyOf": [
               {
@@ -11122,6 +11242,14 @@
               }
             ],
             "title": "Total Checkpoints"
+          },
+          "penalties_per_checkpoint": {
+            "items": {
+              "$ref": "#/components/schemas/CheckpointPenalties"
+            },
+            "type": "array",
+            "title": "Penalties Per Checkpoint",
+            "default": []
           },
           "access_code": {
             "anyOf": [
@@ -11767,10 +11895,12 @@
         "properties": {
           "max_teams": {
             "type": "integer",
+            "minimum": 1.0,
             "title": "Max Teams"
           },
           "max_members_per_team": {
             "type": "integer",
+            "minimum": 1.0,
             "title": "Max Members Per Team"
           },
           "enable_versus": {
@@ -11779,10 +11909,12 @@
           },
           "penalty_per_puke": {
             "type": "integer",
+            "maximum": 0.0,
             "title": "Penalty Per Puke"
           },
           "penalty_per_not_drinking": {
             "type": "integer",
+            "maximum": 0.0,
             "title": "Penalty Per Not Drinking"
           },
           "bonus_per_extra_shot": {
@@ -11791,6 +11923,7 @@
           },
           "max_extra_shots_per_member": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Max Extra Shots Per Member"
           },
           "checkpoint_order_matters": {
@@ -11819,10 +11952,19 @@
           },
           "show_route_mode": {
             "type": "string",
+            "enum": [
+              "focused",
+              "complete"
+            ],
             "title": "Show Route Mode"
           },
           "show_score_mode": {
             "type": "string",
+            "enum": [
+              "hidden",
+              "individual",
+              "competitive"
+            ],
             "title": "Show Score Mode"
           },
           "rally_theme": {
@@ -11888,11 +12030,13 @@
           },
           "hint_penalty": {
             "type": "integer",
+            "maximum": 0.0,
             "title": "Hint Penalty",
             "default": 0
           },
           "skip_penalty": {
             "type": "integer",
+            "maximum": 0.0,
             "title": "Skip Penalty",
             "default": 0
           },
@@ -11928,6 +12072,7 @@
           },
           "search_radius_m": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Search Radius M",
             "default": 0
           },
@@ -11948,6 +12093,7 @@
           },
           "leg_time_target_minutes": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Leg Time Target Minutes",
             "default": 10
           },
@@ -11958,6 +12104,7 @@
           },
           "leg_time_max_adjustment": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Leg Time Max Adjustment",
             "default": 20
           },
@@ -12111,10 +12258,12 @@
         "properties": {
           "max_teams": {
             "type": "integer",
+            "minimum": 1.0,
             "title": "Max Teams"
           },
           "max_members_per_team": {
             "type": "integer",
+            "minimum": 1.0,
             "title": "Max Members Per Team"
           },
           "enable_versus": {
@@ -12123,10 +12272,12 @@
           },
           "penalty_per_puke": {
             "type": "integer",
+            "maximum": 0.0,
             "title": "Penalty Per Puke"
           },
           "penalty_per_not_drinking": {
             "type": "integer",
+            "maximum": 0.0,
             "title": "Penalty Per Not Drinking"
           },
           "bonus_per_extra_shot": {
@@ -12135,6 +12286,7 @@
           },
           "max_extra_shots_per_member": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Max Extra Shots Per Member"
           },
           "checkpoint_order_matters": {
@@ -12163,10 +12315,19 @@
           },
           "show_route_mode": {
             "type": "string",
+            "enum": [
+              "focused",
+              "complete"
+            ],
             "title": "Show Route Mode"
           },
           "show_score_mode": {
             "type": "string",
+            "enum": [
+              "hidden",
+              "individual",
+              "competitive"
+            ],
             "title": "Show Score Mode"
           },
           "rally_theme": {
@@ -12232,11 +12393,13 @@
           },
           "hint_penalty": {
             "type": "integer",
+            "maximum": 0.0,
             "title": "Hint Penalty",
             "default": 0
           },
           "skip_penalty": {
             "type": "integer",
+            "maximum": 0.0,
             "title": "Skip Penalty",
             "default": 0
           },
@@ -12272,6 +12435,7 @@
           },
           "search_radius_m": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Search Radius M",
             "default": 0
           },
@@ -12292,6 +12456,7 @@
           },
           "leg_time_target_minutes": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Leg Time Target Minutes",
             "default": 10
           },
@@ -12302,6 +12467,7 @@
           },
           "leg_time_max_adjustment": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Leg Time Max Adjustment",
             "default": 20
           },

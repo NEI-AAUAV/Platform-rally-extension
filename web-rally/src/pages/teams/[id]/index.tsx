@@ -7,7 +7,6 @@ import { useTeamDetails } from "./useTeamDetails";
 import { NextCheckpointCard } from "./NextCheckpointCard";
 import { CheckpointTimelineItem } from "./CheckpointTimelineItem";
 import { BadgeShowcase } from "@/components/badges/BadgeShowcase";
-import { ShareButton } from "@/components/shared/ShareButton";
 
 export default function TeamsById() {
   const { id } = useParams({ strict: false }) as { id: string };
@@ -23,7 +22,15 @@ export default function TeamsById() {
     allEvaluations,
     totalTeams,
     totalCount,
+    resolvedOrders,
+    nextCheckpoint,
+    isRouteFinished,
+    rank,
   } = useTeamDetails(id);
+
+  const penaltiesByOrder = new Map(
+    (team?.penalties_per_checkpoint ?? []).map((p) => [p.checkpoint_order, p]),
+  );
 
   const toggleCheckpoint = (checkpointIndex: number) => {
     setExpandedCheckpoints((prev) => {
@@ -102,10 +109,10 @@ export default function TeamsById() {
                   <p className="rally-display truncate text-2xl font-bold text-foreground">
                     {team.name}
                   </p>
-                  {team.classification > 0 && (
+                  {rank != null && (
                     <span className="rally-bg-accent mt-1.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white">
-                      {team.classification}
-                      {nthNumber(team.classification)} lugar
+                      {rank}
+                      {nthNumber(rank)} lugar
                     </span>
                   )}
                 </div>
@@ -121,9 +128,6 @@ export default function TeamsById() {
                   </p>
                 </div>
               )}
-              <div className="flex justify-end px-5 pb-4">
-                <ShareButton title={`${team.name} — Rally`} label="Partilhar equipa" />
-              </div>
             </div>
 
             {settings?.badges_enabled !== false && <BadgeShowcase teamId={Number(id)} />}
@@ -149,16 +153,15 @@ export default function TeamsById() {
           {/* Right column — progress timeline */}
           <div className="space-y-6">
             <NextCheckpointCard
-              team={team}
-              checkpoints={checkpoints}
-              totalCount={totalCount}
+              nextCheckpoint={nextCheckpoint}
+              isRouteFinished={isRouteFinished}
               settings={settings}
             />
 
             <div className="rally-surface rounded-2xl p-4 sm:p-6">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
-                  Progresso: {team.last_checkpoint_number || 0} de {totalCount} postos
+                  Progresso: {resolvedOrders.size} de {totalCount} postos
                 </span>
                 {settings?.show_score_mode !== "hidden" && (
                   <span className="font-medium">{team.total} pts</span>
@@ -168,32 +171,37 @@ export default function TeamsById() {
                 <div
                   className="rally-bg-accent h-full transition-all duration-500"
                   style={{
-                    width: `${((team.last_checkpoint_number || 0) / (totalCount || 1)) * 100}%`,
+                    width: `${(resolvedOrders.size / (totalCount || 1)) * 100}%`,
                   }}
                 />
               </div>
             </div>
 
+            {/* The whole route, in order — the same array /team-progress
+                renders. Iterating `Array.from({length: last_checkpoint_number})`
+                showed only the posts the team had finished, numbered by
+                position, so a free-order or staged route was unreadable and a
+                team ahead of the count had rows the lookup could not match. */}
             <div className="space-y-4">
-              {(team?.last_checkpoint_number ?? team?.times?.length ?? 0) > 0 ? (
-                Array.from({ length: team.last_checkpoint_number ?? team.times.length }).map(
-                  (_, index: number) => (
-                    <CheckpointTimelineItem
-                      key={
-                        checkpoints?.find((cp) => cp.order === index + 1)?.id ??
-                        `checkpoint-${index}`
-                      }
-                      team={team}
-                      index={index}
-                      checkpoints={checkpoints}
-                      activityResults={activityResults}
-                      allEvaluations={allEvaluations}
-                      totalTeams={totalTeams}
-                      isExpanded={expandedCheckpoints.has(index)}
-                      onToggle={toggleCheckpoint}
-                    />
-                  ),
-                )
+              {checkpoints && checkpoints.length > 0 ? (
+                checkpoints.map((checkpoint, index: number) => (
+                  <CheckpointTimelineItem
+                    key={checkpoint.id}
+                    team={team}
+                    index={index}
+                    checkpoint={checkpoint}
+                    isResolved={resolvedOrders.has(checkpoint.order)}
+                    penalties={penaltiesByOrder.get(checkpoint.order)}
+                    isCurrent={
+                      !resolvedOrders.has(checkpoint.order) && checkpoint.is_reachable === true
+                    }
+                    activityResults={activityResults}
+                    allEvaluations={allEvaluations}
+                    totalTeams={totalTeams}
+                    isExpanded={expandedCheckpoints.has(index)}
+                    onToggle={toggleCheckpoint}
+                  />
+                ))
               ) : (
                 <div className="rally-surface rounded-2xl p-6 text-center">
                   <p className="text-muted-foreground">Ainda sem postos visitados</p>

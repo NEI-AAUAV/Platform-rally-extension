@@ -200,6 +200,17 @@ class ABACEngine:
         """
         Evaluate ABAC rules against the given context
 
+        Access is the **union** of every table the caller's scopes bring in:
+        if any one of them permits the action, it is permitted. This used to be
+        an ordered if-chain that returned on the first table matching a scope,
+        which made permissions non-monotonic in two ways. A user holding both
+        ``rally-staff`` and ``rally-guide`` was judged by the staff table
+        alone and denied anything the staff rules did not cover, so *gaining*
+        the staff role took away what the guide role granted. And the manager
+        branch had no ``return`` on a miss, so any action absent from the
+        manager table fell through to be judged by staff rules — latent only
+        because the table happens to be complete today.
+
         Returns:
             True if access is allowed, False if denied
         """
@@ -208,24 +219,15 @@ class ABACEngine:
         if _ADMIN_SCOPE in scopes:
             return True
 
-        if _MANAGER_SCOPE in scopes:
-            rule = _MANAGER_ACTIONS.get(context.action)
-            if rule is not None:
-                return rule(context)
-
-        if _STAFF_SCOPE in scopes:
-            rule = _STAFF_ACTIONS.get(context.action)
-            if rule is not None:
-                return rule(context)
-            return False
-
-        if _GUIDE_SCOPE in scopes:
-            rule = _GUIDE_ACTIONS.get(context.action)
-            if rule is not None:
-                return rule(context)
-            return False
-
-        return False
+        tables = (
+            (_MANAGER_SCOPE, _MANAGER_ACTIONS),
+            (_STAFF_SCOPE, _STAFF_ACTIONS),
+            (_GUIDE_SCOPE, _GUIDE_ACTIONS),
+        )
+        return any(
+            scope in scopes and (rule := actions.get(context.action)) is not None and rule(context)
+            for scope, actions in tables
+        )
 
 
 # Global ABAC engine instance

@@ -3,6 +3,7 @@ import { SiteFooter } from "@/components/shared/layout/SiteFooter";
 import { MobileBottomNav } from "@/components/shared/navigation/MobileBottomNav";
 import PWAInstallPrompt from "@/components/pwa/PWAInstallPrompt";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import Spinner from "@/components/shared/state/Spinner";
 import LandingGate from "@/components/landing/LandingGate";
 import useStaffLogin from "@/hooks/useLoginLink";
 import useRallySettings from "@/hooks/useRallySettings";
@@ -98,7 +99,7 @@ function MainLayoutContent() {
         data-rally-bg={backgroundStyle}
       >
         <div className="relative z-10 mx-4 flex min-h-screen flex-col items-center justify-center gap-4">
-          <span className="rally-border-accent h-10 w-10 animate-spin rounded-full border-2 border-border border-t-current" />
+          <Spinner size="lg" label="A carregar" />
           <p className="rally-display text-sm uppercase tracking-[0.18em] text-muted-foreground">
             A carregar
           </p>

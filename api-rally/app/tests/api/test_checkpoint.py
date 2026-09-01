@@ -3,6 +3,7 @@
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.schemas.checkpoint import CheckPointCreate
 from app.tests.conftest import make_event as _make_event
+from app.tests.conftest import set_rally_settings
 
 
 async def _make_checkpoint(pg_session, order: int = 1):
@@ -125,6 +126,9 @@ class TestNextCheckpoint:
         from app.tests.conftest import as_team
 
         await _make_event(pg_session)
+        # /checkpoint/me is the participant view, which the endpoint now gates
+        # on the manager's switch; a non-peddy event has it off by default.
+        await set_rally_settings(pg_session, participant_view_enabled=True)
         await _make_checkpoint(pg_session, order=1)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="NextTeam"), commit=True)
 
@@ -143,6 +147,7 @@ class TestNextCheckpoint:
         from app.schemas.team import TeamCreate
 
         await _make_event(pg_session)
+        await set_rally_settings(pg_session, participant_view_enabled=True)
         await _make_checkpoint(pg_session, order=1)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="LinkedTeam"), commit=True)
         as_user.team_id = team.id
@@ -158,6 +163,7 @@ class TestNextCheckpoint:
         from app.tests.conftest import as_team
 
         await _make_event(pg_session)
+        await set_rally_settings(pg_session, participant_view_enabled=True)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="DoneTeam"))
         # Team already checked into the only checkpoint -> no next one.
         import datetime as dt
@@ -176,16 +182,12 @@ class TestNextCheckpoint:
     ):
         """Regression: peddy-paper team finished post 1 (its only activity),
         physically arrived at the no-activity post 2, and post 3 is the last.
-        ``team.times`` is inflated by advance_team_to_next_checkpoint, but the
-        team must still be pointed at post 3 — redacted — not told the rally is
+        The team must be pointed at post 3 — redacted — not told the rally is
         over with post 3's location revealed.
         """
         import datetime as dt
 
-        from app.api.api_v1.staff_evaluation_utils import (
-            advance_team_to_next_checkpoint,
-            checkin_team_to_checkpoint,
-        )
+        from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
         from app.crud.crud_activity import activity as crud_activity
         from app.crud.crud_rally_settings import rally_settings
         from app.crud.crud_team import team as crud_team
@@ -226,22 +228,24 @@ class TestNextCheckpoint:
         settings = await rally_settings.get_or_create(pg_session)
         data = RallySettingsResponse.model_validate(settings).model_dump(exclude={"id"})
         data["reveal_next_checkpoint"] = False
+        # /checkpoint/me is gated on the participant-view switch.
+        data["participant_view_enabled"] = True
         await rally_settings.update(
             pg_session, id=settings.id, obj_in=RallySettingsUpdate(**data), commit=True
         )
 
-        # Post 1 resolved: its active activity has a completed result. Then the
-        # staff-eval advance checks the team into post 1 and appends the
-        # "next post" pointer — team.times now has two entries, one of them
-        # ahead of where the team physically is.
+        # Post 1 resolved: its active activity has a scored result, and the
+        # staff evaluation recorded the visit.
         pg_session.add(
             ActivityResult(
                 activity_id=activity1.id, team_id=team.id, final_score=10, is_completed=True
             )
         )
         await pg_session.commit()
-        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
-        await advance_team_to_next_checkpoint(pg_session, team.id)
+        # enforce_order=False, exactly as the staff-evaluation path calls it:
+        # post 1 is already resolved by the scored result above, so the
+        # reachability guard would (correctly) refuse a fresh check-in there.
+        await checkin_team_to_checkpoint(pg_session, team.id, cp1.id, enforce_order=False)
         await pg_session.commit()
 
         # Physically arrived at the no-activity post 2.
@@ -321,16 +325,22 @@ class TestCheckpointTeamsEndpoint:
         import datetime as dt
 
         from app.crud.crud_team import team as crud_team
+        from app.models.checkpoint_arrival import CheckpointArrival
         from app.schemas.team import TeamCreate
 
         await _make_event(pg_session)
         cp = await _make_checkpoint(pg_session, order=1)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="T1"))
-        # `get_by_checkpoint` matches teams whose visited-checkpoint count
-        # equals the checkpoint's order — give the team exactly one visit so
-        # it shows up as "at" checkpoint order 1, and build_team runs for it.
+        # `get_by_checkpoint` matches on the arrival row, which names the post
+        # (it used to compare the visit *count* to the post's order). The
+        # timestamp on `times` is what `last_checkpoint_time` reports.
         team.times = [dt.datetime(2026, 1, 1)]
         pg_session.add(team)
+        pg_session.add(
+            CheckpointArrival(
+                team_id=team.id, checkpoint_id=cp.id, arrived_at=dt.datetime(2026, 1, 1)
+            )
+        )
         await pg_session.commit()
 
         response = pg_client.get(f"/api/rally/v1/checkpoint/teams?checkpoint_id={cp.id}")

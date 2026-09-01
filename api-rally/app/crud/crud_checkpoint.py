@@ -9,7 +9,6 @@ from app.crud._event_scope import current_event_id
 from app.crud.base import CRUDBase
 from app.models.checkpoint import CheckPoint
 from app.models.route_stage import RouteStage
-from app.models.team import Team
 from app.schemas.checkpoint import CheckPointCreate, CheckPointUpdate
 
 # Sort key for posts that belong to no stage: they follow every staged post.
@@ -45,33 +44,6 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
             await db.flush()
         await db.refresh(db_obj)
         return db_obj
-
-    async def get_next(self, db: AsyncSession, team_id: int) -> CheckPoint | None:
-        """Next checkpoint by positional ``len(team.times)`` count.
-
-        Internal to the staff-eval advance machinery
-        (``advance_team_to_next_checkpoint``), which relies on the pointer-append
-        semantics. Read-facing "which post is the team hunting" callers must use
-        ``route_progress.current_checkpoint_order`` instead — it counts resolved
-        posts, not the inflated ``team.times`` length.
-        """
-        team = await db.get(Team, team_id)
-
-        if team is not None:
-            # Get the order of the last checkpoint the team visited
-            last_checkpoint_order = len(team.times)
-
-            event_id = await current_event_id(db)
-            # Find the next checkpoint by order within the current event
-            stmt = select(CheckPoint).where(
-                CheckPoint.order == last_checkpoint_order + 1,
-                _event_filter(event_id),
-                _published_filter(),
-            )
-            checkpoint: CheckPoint | None = await db.scalar(stmt)
-            return checkpoint
-
-        return None
 
     async def get_by_order(self, db: AsyncSession, order: int) -> CheckPoint | None:
         """Get checkpoint by its order number (within the current event).

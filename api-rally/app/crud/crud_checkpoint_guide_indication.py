@@ -1,7 +1,9 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import RallyValidationError
 from app.models.checkpoint_guide_indication import CheckpointGuideIndication
+from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.schemas.checkpoint_guide_indication import (
     CheckpointGuideIndicationCreate,
     CheckpointGuideIndicationUpdate,
@@ -64,6 +66,25 @@ class CRUDCheckpointGuideIndication:
         return db_obj
 
     async def delete(self, db: AsyncSession, *, db_obj: CheckpointGuideIndication) -> None:
+        """Delete an indication, unless a team has already paid to unlock it.
+
+        A plain delete orphaned the ``CheckpointHintReveal`` rows: both
+        ``HintService.list_hints`` and ``summary_for_team`` inner-join the
+        indication and silently drop a reveal whose row is gone, while the
+        points charged for it stay on the team's total. The team paid and lost
+        the hint, with nothing anywhere saying so. Editing the text is still
+        allowed — that changes what a paid hint says, not whether it exists.
+        """
+        paid = await db.scalar(
+            select(func.count())
+            .select_from(CheckpointHintReveal)
+            .where(CheckpointHintReveal.indication_id == db_obj.id)
+        )
+        if paid:
+            raise RallyValidationError(
+                f"{paid} team(s) already paid to unlock this indication; "
+                "edit its text instead of deleting it."
+            )
         await db.delete(db_obj)
         await db.commit()
 

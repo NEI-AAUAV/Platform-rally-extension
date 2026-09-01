@@ -26,20 +26,41 @@ export function isOfflineFailure(error: unknown): boolean {
   return candidate?.body?.detail === undefined && candidate?.response?.data?.detail === undefined;
 }
 
+/** The structured half of a rejected arrival, when the server sent one. */
+interface TooFarDetails {
+  code?: string;
+  distance_band?: string;
+  max_distance_m?: number;
+}
+
+function tooFarDetails(error: unknown): TooFarDetails | null {
+  const candidate = error as
+    | { body?: { details?: TooFarDetails }; response?: { data?: { details?: TooFarDetails } } }
+    | null
+    | undefined;
+  const details = candidate?.body?.details ?? candidate?.response?.data?.details;
+  return details?.code === "too_far" ? details : null;
+}
+
 /**
- * "Too far from checkpoint: menos de 500m (max 50m)" → friendly PT message.
+ * The friendly PT sentence for an arrival the server rejected as too far.
  *
- * The server reports a coarse distance band rather than an exact metre count,
- * so a team cannot trilaterate a hidden post from repeated rejections. Anything
- * that does not parse falls back to the generic nudge.
+ * Built from the server's `details` fields, not from its English message. The
+ * band and the radius used to be recovered with a regular expression over
+ * that sentence, so rewording it for readability would have silently degraded
+ * every one of these into the generic nudge, with nothing failing anywhere to
+ * say so.
+ *
+ * The band itself is deliberately coarse ("menos de 500m") rather than an
+ * exact metre count: a team that cannot see a post's coordinates must not be
+ * able to trilaterate them from a handful of rejected attempts.
  */
-function traduzirDistancia(detail: string): string {
-  const match = /: (.+) \(max (\d+)m\)$/.exec(detail.trimEnd());
-  if (!match) {
+function traduzirDistancia(error: unknown): string {
+  const details = tooFarDetails(error);
+  if (!details?.distance_band || details.max_distance_m == null) {
     return "Ainda não estás perto o suficiente. Aproxima-te e tenta outra vez.";
   }
-  const [, band, maxDistance] = match;
-  return `Ainda não estás perto o suficiente: ${band} (tens de estar a menos de ${maxDistance} m). Aproxima-te e tenta outra vez.`;
+  return `Ainda não estás perto o suficiente: ${details.distance_band} (tens de estar a menos de ${details.max_distance_m} m). Aproxima-te e tenta outra vez.`;
 }
 
 /**
@@ -106,10 +127,11 @@ export function useCheckpointArrival(checkpoint: DetailedCheckPoint) {
         setGpsState("queued");
         return;
       }
-      // ApiError.message is a generic "Bad Request"; the useful text
-      // ("Too far from checkpoint: …") lives in body.detail.
-      const raw = getErrorMessage(err, "Erro ao registar check-in.");
-      const msg = raw.startsWith("Too far from checkpoint") ? traduzirDistancia(raw) : raw;
+      // ApiError.message is a generic "Bad Request"; the useful text lives in
+      // body.detail, and the machine-readable version in body.details.
+      const msg = tooFarDetails(err)
+        ? traduzirDistancia(err)
+        : getErrorMessage(err, "Erro ao registar check-in.");
       setGpsMsg(msg);
       setGpsState("error");
     },

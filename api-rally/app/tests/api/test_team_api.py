@@ -15,6 +15,7 @@ from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
 from app.schemas.user import DetailedUser
 from app.tests.conftest import make_event as _make_event
+from app.tests.conftest import set_rally_settings
 
 
 async def _make_team(pg_session, name="Test Team"):
@@ -90,12 +91,17 @@ def _enable_optional_auth_from_required():
 
 
 class TestGetTeams:
+    """The directory serves an anonymous caller only while the event publishes
+    to the public; it used to serve every team's progress to anyone at all,
+    whatever the event had configured."""
+
     async def test_get_teams_lists_all(self, pg_session, pg_client):
         await _make_event(pg_session)
         await _make_team(pg_session, "Alpha")
         await _make_team(pg_session, "Beta")
 
-        resp = pg_client.get("/api/rally/v1/team/")
+        with _as_participant_override():
+            resp = pg_client.get("/api/rally/v1/team/")
 
         assert resp.status_code == 200, resp.text
         names = {t["name"] for t in resp.json()}
@@ -104,15 +110,54 @@ class TestGetTeams:
     async def test_get_teams_empty(self, pg_session, pg_client):
         await _make_event(pg_session)
 
-        resp = pg_client.get("/api/rally/v1/team/")
+        with _as_participant_override():
+            resp = pg_client.get("/api/rally/v1/team/")
 
         assert resp.status_code == 200
         assert resp.json() == []
+
+    async def test_get_teams_served_to_the_public_scoreboard(self, pg_session, pg_client):
+        """No token at all: the anonymous scoreboard is a feature while the
+        event publishes to the public."""
+        await _make_event(pg_session)
+        await _make_team(pg_session, "Alpha")
+        await set_rally_settings(pg_session, public_access_enabled=True, show_live_leaderboard=True)
+
+        resp = pg_client.get("/api/rally/v1/team/")
+
+        assert resp.status_code == 200, resp.text
+        assert {t["name"] for t in resp.json()} == {"Alpha"}
+
+    async def test_get_teams_requires_authentication_when_public_access_is_off(
+        self, pg_session, pg_client
+    ):
+        await _make_event(pg_session)
+        await _make_team(pg_session, "Alpha")
+        await set_rally_settings(pg_session, public_access_enabled=False)
+
+        resp = pg_client.get("/api/rally/v1/team/")
+
+        assert resp.status_code == 401
+
+    async def test_get_teams_requires_authentication_when_the_leaderboard_is_hidden(
+        self, pg_session, pg_client
+    ):
+        await _make_event(pg_session)
+        await _make_team(pg_session, "Alpha")
+        await set_rally_settings(
+            pg_session, public_access_enabled=True, show_live_leaderboard=False
+        )
+
+        resp = pg_client.get("/api/rally/v1/team/")
+
+        assert resp.status_code == 401
 
 
 class TestGetOwnTeam:
     async def test_get_own_team_success(self, pg_session, pg_client):
         await _make_event(pg_session)
+        # /team/me is the participant view, gated on the manager's switch.
+        await set_rally_settings(pg_session, participant_view_enabled=True)
         team = await _make_team(pg_session, "Mine")
         with _as_participant_override(team.id):
             resp = pg_client.get("/api/rally/v1/team/me")
@@ -124,6 +169,7 @@ class TestGetOwnTeam:
 class TestGetOwnTeamAccessCode:
     async def test_get_own_team_exposes_access_code(self, pg_session, pg_client):
         await _make_event(pg_session)
+        await set_rally_settings(pg_session, participant_view_enabled=True)
         team = await _make_team(pg_session, "Mine")
         with _as_participant_override(team.id):
             resp = pg_client.get("/api/rally/v1/team/me")
@@ -306,9 +352,10 @@ class TestGetTeamById:
         """Regression: a peddy-paper team that finished post 1 (its only post
         with an activity) and has posts 2 and 3 still to visit — neither with
         an activity, neither arrived at — must be pointed at post 2, not shown
-        the finished card. Before the fix, team.times inflation from
-        advance_team_to_next_checkpoint made both no-activity posts count as
-        done and current_checkpoint_number went null.
+        the finished card. Before the fix, progress was read from
+        ``len(team.times)``, which the staff-evaluation advance had inflated,
+        so both no-activity posts counted as done and
+        current_checkpoint_number went null.
         """
         await _make_event(pg_session)
         cp1 = await _create_checkpoint(pg_session, name="CP1", order=1)

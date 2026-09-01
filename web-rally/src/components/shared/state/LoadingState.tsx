@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import Spinner from "./Spinner";
 
 interface LoadingStateProps {
   message?: string;
@@ -10,9 +10,9 @@ export default function LoadingState({
   className = "",
 }: Readonly<LoadingStateProps>) {
   return (
-    <div className={`flex items-center justify-center py-8 ${className}`}>
+    <div role="status" className={`flex items-center justify-center py-8 ${className}`}>
       <div className="flex items-center gap-2 text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Spinner size="sm" label="" />
         <span>{message}</span>
       </div>
     </div>

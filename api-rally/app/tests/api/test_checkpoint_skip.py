@@ -130,10 +130,10 @@ async def test_cannot_give_up_on_a_post_the_team_has_not_reached(pg_session, pg_
 
 
 async def test_can_give_up_on_the_post_being_hunted_after_an_advance(pg_session, pg_client):
-    """Regression: ``advance_team_to_next_checkpoint`` inflates ``team.times``
-    with a "next post" pointer, so a team hunting post 2 has
-    ``len(team.times) == 2`` while only post 1 is resolved. The reachability
-    guard must key off resolved posts, not that count.
+    """Regression: ``team.times`` can hold more entries than the team has
+    resolved posts, so a team hunting post 2 may already have two visits
+    recorded. The reachability guard must key off resolved posts, not that
+    count.
     """
     from datetime import UTC, datetime
 
@@ -151,12 +151,15 @@ async def test_can_give_up_on_the_post_being_hunted_after_an_advance(pg_session,
     pg_session.add(team)
     await pg_session.commit()
 
+    # Post 3 first: giving up resolves the post it is called on, so once post 2
+    # has been forfeited post 3 *is* the post being hunted. The order here keeps
+    # the assertion about the post the team is not heading to yet.
     with as_team(team.id, "TeamA"):
-        on_target = pg_client.post(SKIP_URL.format(id=second.id))
         too_far = pg_client.post(SKIP_URL.format(id=third.id))
+        on_target = pg_client.post(SKIP_URL.format(id=second.id))
 
-    assert on_target.status_code == 200, on_target.text
     assert too_far.status_code == 400, too_far.text
+    assert on_target.status_code == 200, on_target.text
 
 
 async def test_can_give_up_current_post_with_a_later_post_resolved_ahead(pg_session, pg_client):

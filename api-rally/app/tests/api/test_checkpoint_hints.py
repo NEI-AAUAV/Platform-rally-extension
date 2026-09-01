@@ -124,10 +124,11 @@ async def test_cannot_buy_hints_for_a_future_checkpoint(pg_session, pg_client):
 
 
 async def test_can_buy_hints_for_the_post_being_hunted_after_an_advance(pg_session, pg_client):
-    """Regression: ``advance_team_to_next_checkpoint`` appends a "next post"
-    pointer to ``team.times``, so a team hunting post 2 has ``len(team.times) == 2``
-    while only post 1 is genuinely resolved. Reachability must key off resolved
-    posts, not that inflated count, or the team can never hint on post 2.
+    """Regression: ``team.times`` can hold more entries than the team has
+    resolved posts — a visit recorded at a post whose activities are still
+    unscored counts in the array but not as progress. Reachability must key
+    off resolved posts, not that count, or the team can never hint on the very
+    post it is hunting.
     """
     from datetime import UTC, datetime
 

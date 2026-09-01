@@ -82,7 +82,16 @@ class CheckpointArriveController:
             latitude=body.latitude,
             longitude=body.longitude,
         )
+        # No-activity posts complete immediately on arrival; posts with
+        # activities wait for staff to submit the result before the team
+        # advances. Only on a *new* arrival: the guard inside is not the no-op
+        # it was assumed to be, and re-running it appended one visit per repeat
+        # tap, walking the team forward through posts it never went to.
+        auto_completed = False
         if not already_registered:
+            auto_completed = await service.auto_complete_if_no_activities(
+                team.team_id, checkpoint_id
+            )
             await record_audit(
                 db,
                 action="checkin.gps_arrival",
@@ -92,13 +101,6 @@ class CheckpointArriveController:
                 event_id=event.id,
                 note=f"checkpoint_id={checkpoint_id} distance_m={round(dist, 1)}",
             )
-
-        # No-activity posts complete immediately on arrival; posts with activities
-        # wait for staff to submit the result before the team advances. Run this on
-        # every check-in (including repeats): the order guard inside makes it a
-        # no-op once the team has already advanced, so a team that arrived before
-        # this behaviour existed still gets unstuck on their next check-in.
-        auto_completed = await service.auto_complete_if_no_activities(team.team_id, checkpoint_id)
 
         return ArriveResponse(
             team_id=team.team_id,

@@ -43,13 +43,13 @@ describe("RouteCheckpointItem", () => {
     mockUseCheckpointMedia.mockReturnValue({ photos: [], funFacts: [] });
   });
 
-  it("renders as completed with score and time when order <= completedCount", () => {
+  it("renders as completed when the server lists the order as resolved", () => {
     renderWithQueryClient(
       <RouteCheckpointItem
         checkpoint={checkpoint}
         index={0}
         team={team}
-        completedCount={2}
+        resolvedOrders={new Set([1, 2])}
         showScore
         showMap
         isExpanded={false}
@@ -60,13 +60,13 @@ describe("RouteCheckpointItem", () => {
     expect(screen.getByText("+10 pts")).toBeInTheDocument();
   });
 
-  it("renders as current when order === completedCount + 1", () => {
+  it("renders as current when the server marks the post reachable", () => {
     renderWithQueryClient(
       <RouteCheckpointItem
-        checkpoint={checkpoint}
+        checkpoint={{ ...checkpoint, is_reachable: true } as DetailedCheckPoint}
         index={0}
         team={team}
-        completedCount={0}
+        resolvedOrders={new Set()}
         showScore
         showMap
         isExpanded={false}
@@ -76,14 +76,18 @@ describe("RouteCheckpointItem", () => {
     expect(screen.getByText("Em curso")).toBeInTheDocument();
   });
 
-  it("renders as future/pending and locked when order is beyond current", () => {
-    const futureCheckpoint = { ...checkpoint, order: 3 } as DetailedCheckPoint;
+  it("renders as future/pending and locked when the post is redacted and unreachable", () => {
+    const futureCheckpoint = {
+      ...checkpoint,
+      order: 3,
+      is_redacted: true,
+    } as DetailedCheckPoint;
     renderWithQueryClient(
       <RouteCheckpointItem
         checkpoint={futureCheckpoint}
         index={2}
         team={team}
-        completedCount={0}
+        resolvedOrders={new Set()}
         showScore
         showMap
         isExpanded={false}
@@ -101,7 +105,7 @@ describe("RouteCheckpointItem", () => {
         checkpoint={checkpoint}
         index={0}
         team={team}
-        completedCount={2}
+        resolvedOrders={new Set([1, 2])}
         showScore
         showMap
         isExpanded={false}
@@ -118,7 +122,7 @@ describe("RouteCheckpointItem", () => {
         checkpoint={checkpoint}
         index={0}
         team={team}
-        completedCount={2}
+        resolvedOrders={new Set([1, 2])}
         showScore={false}
         showMap
         isExpanded={false}
@@ -138,7 +142,7 @@ describe("RouteCheckpointItem", () => {
         checkpoint={checkpoint}
         index={0}
         team={team}
-        completedCount={2}
+        resolvedOrders={new Set([1, 2])}
         showScore
         showMap
         isExpanded={false}

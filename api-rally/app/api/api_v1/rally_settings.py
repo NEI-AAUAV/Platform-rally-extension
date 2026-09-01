@@ -23,44 +23,18 @@ INVALID_FILE_ERROR = "Invalid file"
 NOT_AUTHORIZED_ERROR = "Not authorized"
 R2_UPLOAD_ERROR = "R2 storage not configured or upload failed"
 
-# The highest-leverage change an admin can make (scoring weights, penalties,
-# visibility toggles) — every mutable settings field except identity
-# (id, event_id, which never change via this endpoint).
-_SETTINGS_AUDITED_FIELDS = (
-    "max_teams",
-    "max_members_per_team",
-    "enable_versus",
-    "rally_start_time",
-    "rally_end_time",
-    "penalty_per_puke",
-    "penalty_per_not_drinking",
-    "bonus_per_extra_shot",
-    "max_extra_shots_per_member",
-    "checkpoint_order_matters",
-    "enable_staff_scoring",
-    "show_live_leaderboard",
-    "show_team_details",
-    "show_checkpoint_map",
-    "participant_view_enabled",
-    "show_route_mode",
-    "show_score_mode",
-    "rally_theme",
-    "event_name",
-    "event_subtitle",
-    "accent_color",
-    "banner_url",
-    "logo_url",
-    "favicon_url",
-    "rules_pdf_url",
-    "rules_sections",
-    "public_access_enabled",
-    "allow_staff_registration",
-    "allow_photo_as_team_photo",
-    "guide_mode_enabled",
-    "guide_mode_active",
-    "badges_enabled",
-    "home_layout",
-    "ticker_items",
+# Every mutable settings field except identity (id/event_id, which never
+# change via this endpoint). Derived from the update schema rather than
+# hand-listed: the hand-written list had drifted to 34 of the 50-odd fields,
+# and everything it had missed was a game mechanic or a point cost —
+# hint_penalty, skip_penalty, hints_enabled, skip_enabled, gps_checkin_enabled,
+# reveal_next_checkpoint, route_stages_enabled, the leg-time knobs — so the
+# whole of peddy-paper's rules could be changed mid-event without a trace
+# while rally_theme and accent_color were faithfully recorded. Deriving it
+# means a newly added setting is audited by default instead of by remembering.
+_SETTINGS_IDENTITY_FIELDS = frozenset({"id", "event_id"})
+_SETTINGS_AUDITED_FIELDS = tuple(
+    name for name in RallySettingsUpdate.model_fields if name not in _SETTINGS_IDENTITY_FIELDS
 )
 
 

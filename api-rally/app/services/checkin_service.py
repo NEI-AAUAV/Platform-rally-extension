@@ -8,13 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
 from app.core.config import Settings
-from app.core.exceptions import RallyNotFoundError
+from app.core.exceptions import RallyConflictError, RallyNotFoundError
 from app.core.redis import get_async_redis_client
 from app.crud.crud_checkpoint import CRUDCheckPoint
+from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.events import TeamCheckpointAdvancedEvent, TeamCheckpointAdvancedPayload, publish_event
 from app.models.checkpoint import CheckPoint
 from app.models.team import Team
+from app.services.route_progress import progress_for_team, unreachable_message
 
 logger = logging.getLogger(__name__)
 
@@ -91,17 +93,32 @@ class CheckinService:
             )
         )
 
-    @staticmethod
-    def derive_staff_scan_status(*, checkpoint_order: int, times_reached: int) -> str:
+    async def derive_staff_scan_status(self, team_obj: Team, checkpoint: CheckPoint) -> str:
         """Where a scanned team stands relative to the staff's checkpoint.
 
-        "checked_in": arrival was newly registered now.
-        "already_present": team had already reached this post.
-        "ahead": team has not yet reached this post (scanned too early).
+        "checked_in": the post is open to the team, so the scan records it.
+        "already_present": the team has already resolved this post.
+        "ahead": the team may not be here yet (scanned too early).
+
+        Read from the progress engine, not from ``len(team.times) + 1``. The
+        count was only ever the post's order on a strictly sequential route
+        with nothing skipped: in free order every unvisited post is open, and
+        in a staged route the open set is whatever the stage rules say. The
+        arithmetic version called both of those "ahead" and refused to record
+        a team standing right in front of the staff member.
         """
-        expected_order = times_reached + 1
-        if checkpoint_order == expected_order:
-            return "checked_in"
-        if checkpoint_order <= times_reached:
+        settings = await rally_settings.get_or_create(self._db)
+        progress = await progress_for_team(self._db, team_obj, settings)
+        if progress.is_resolved(checkpoint.order):
             return "already_present"
+        if progress.is_open(checkpoint.order):
+            return "checked_in"
         return "ahead"
+
+    async def require_open(self, team_obj: Team, checkpoint: CheckPoint) -> None:
+        """Reject a self-check-in at a post the team may not be at yet."""
+        settings = await rally_settings.get_or_create(self._db)
+        progress = await progress_for_team(self._db, team_obj, settings)
+        if progress.is_open(checkpoint.order):
+            return
+        raise RallyConflictError(unreachable_message(checkpoint, progress))

@@ -1,44 +1,61 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { formatTime } from "@/utils/timeFormat";
 import { CheckpointDiscovery, ProvisionalBadge } from "@/components/shared";
-import type { DetailedTeam, DetailedCheckPoint } from "@/client";
+import type { CheckpointPenalties, DetailedTeam, DetailedCheckPoint } from "@/client";
 import type { EvaluationResult } from "./teamDetails.types";
 import React from "react";
 
 type CheckpointTimelineItemProps = Readonly<{
   team: DetailedTeam;
   index: number;
-  checkpoints: DetailedCheckPoint[] | undefined;
+  /** The post itself, from the team-scoped route the server returned. */
+  checkpoint: DetailedCheckPoint;
+  /** The server says this team has resolved this post. */
+  isResolved: boolean;
+  /** The server says this team may be at this post now. */
+  isCurrent: boolean;
   activityResults: EvaluationResult[];
   allEvaluations: EvaluationResult[];
   totalTeams: number;
   isExpanded: boolean;
   onToggle: (index: number) => void;
+  /** Points this team lost at this post, by cause. Absent when none. */
+  penalties?: CheckpointPenalties;
 }>;
 
+/**
+ * One post on another team's progress timeline.
+ *
+ * The post is passed in rather than looked up by `index + 1`: the page used to
+ * iterate `Array.from({length: last_checkpoint_number})`, so it rendered only
+ * as many rows as the team had completed, numbered by position, and fell back
+ * to a literal `Checkpoint N` label whenever the lookup missed. Resolution
+ * comes from the server's set for the same reason — `order <= completedCount`
+ * only describes a strictly sequential route.
+ */
 export function CheckpointTimelineItem({
   team,
   index,
-  checkpoints,
+  checkpoint,
+  isResolved,
+  isCurrent,
   activityResults,
   allEvaluations,
   totalTeams,
   isExpanded,
   onToggle,
+  penalties,
 }: CheckpointTimelineItemProps) {
-  // Match checkpoint by order: team.times[index] means they visited checkpoint with order (index + 1)
-  const checkpointOrder = index + 1;
-  const checkpoint = checkpoints?.find((cp) => cp.order === checkpointOrder);
-  const checkpointScore = team.score_per_checkpoint?.[index] ?? 0;
+  const checkpointOrder = checkpoint.order;
+  const isRedacted = checkpoint.is_redacted === true;
+  const checkpointScore = team.score_per_checkpoint?.[checkpointOrder - 1] ?? 0;
 
   // Find the evaluation timestamp from activity results
-  const checkpointId = checkpoint?.id;
+  const checkpointId = checkpoint.id;
   // Filter results that have a score (are completed) for activities at this checkpoint
-  const allCheckpointResults = checkpointId
-    ? activityResults.filter(
-        (result) => result.activity?.checkpoint_id === checkpointId && result.final_score != null,
-      )
-    : [];
+  const allCheckpointResults = activityResults.filter(
+    (result) => result.activity?.checkpoint_id === checkpointId && result.final_score != null,
+  );
 
   // Deduplicate by activity_id, keeping only the latest result for each activity
   const evaluationResults = Array.from(
@@ -70,11 +87,8 @@ export function CheckpointTimelineItem({
   }, null);
   const evaluationTime = latestResult?.completed_at ? new Date(latestResult.completed_at) : null;
 
-  // isEvaluated: use activity results when available (admin view), fall back
-  // to score_per_checkpoint when allEvaluations is empty (unauthenticated view).
-  const activityCompletedCount = team.last_checkpoint_number ?? team.times.length;
-  const isCurrentCheckpoint = checkpointOrder === activityCompletedCount + 1;
-  const isCompletedByActivity = checkpointOrder <= activityCompletedCount;
+  const isCurrentCheckpoint = isCurrent;
+  const isCompletedByActivity = isResolved;
   const hasEvaluations = evaluationResults.length > 0 || isCompletedByActivity;
   // Timestamp: prefer activity result, fall back to team.times entry for this checkpoint
   const displayTime =
@@ -113,7 +127,7 @@ export function CheckpointTimelineItem({
           <div className="flex-1">
             <div className="mb-2 flex items-center gap-3">
               <span className="text-sm font-medium text-muted-foreground">
-                Checkpoint {index + 1}
+                Checkpoint {checkpointOrder}
               </span>
               {isCurrentCheckpoint && (
                 <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-300">
@@ -128,7 +142,10 @@ export function CheckpointTimelineItem({
               {hasPendingTimeBasedActivity && <ProvisionalBadge />}
             </div>
             <h3 className="mb-1 text-lg font-semibold">
-              {checkpoint?.name || `Checkpoint ${index + 1}`}
+              {/* The server already replaced the name with "Posto N" when this
+                  post is still redacted for the viewer, so `name` is safe to
+                  print as-is. */}
+              {checkpoint.name}
             </h3>
           </div>
           <div className="flex items-center gap-3">
@@ -139,6 +156,15 @@ export function CheckpointTimelineItem({
                   <span className="italic text-muted-foreground"> *</span>
                 )}
               </div>
+              {penalties && penalties.total !== 0 && (
+                <div className="mb-1 space-y-0.5 text-xs font-medium text-destructive">
+                  {penalties.hints_cost !== 0 && <div>Dicas: {penalties.hints_cost} pts</div>}
+                  {penalties.skip_cost !== 0 && <div>Desistência: {penalties.skip_cost} pts</div>}
+                  {penalties.activity_penalties !== 0 && (
+                    <div>Penalizações: {penalties.activity_penalties} pts</div>
+                  )}
+                </div>
+              )}
               <div className="text-sm text-muted-foreground">
                 {hasEvaluations && displayTime ? formatTime(displayTime) : "Not evaluated yet"}
               </div>
@@ -156,8 +182,11 @@ export function CheckpointTimelineItem({
         </div>
       </ClickableElement>
 
-      {/* Discover the place: description + photos + fun facts */}
-      {checkpoint && (
+      {/* Discover the place: description + photos + fun facts. Withheld while
+          the post is still redacted for the viewer — the gallery is a stronger
+          reveal than the list entry, and on a peddy paper a photo of the venue
+          is the answer. */}
+      {!isRedacted && (
         <CheckpointDiscovery
           checkpointId={checkpoint.id}
           description={checkpoint.description}

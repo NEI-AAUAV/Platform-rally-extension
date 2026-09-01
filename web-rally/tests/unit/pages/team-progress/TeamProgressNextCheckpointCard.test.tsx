@@ -206,10 +206,15 @@ describe("team-progress NextCheckpointCard", () => {
   });
 
   it('translates a "too far" error into a friendly message', async () => {
-    // The server reports a coarse band, never the exact metre count — an exact
-    // distance would let a team trilaterate a post hidden by focused route mode.
+    // The band and the radius come from the structured `details`, not from
+    // parsing the English sentence. The server reports a coarse band, never
+    // the exact metre count — an exact distance would let a team trilaterate
+    // a post hidden by focused route mode.
     vi.mocked(arriveAtCheckpoint).mockRejectedValue({
-      body: { detail: "Too far from checkpoint: menos de 500m (max 50m)" },
+      body: {
+        detail: "Too far from checkpoint: menos de 500m (max 50m)",
+        details: { code: "too_far", distance_band: "menos de 500m", max_distance_m: 50 },
+      },
     });
     const getCurrentPosition = vi.fn((success) =>
       success({ coords: { latitude: 41.1, longitude: -8.6 } }),
@@ -232,9 +237,9 @@ describe("team-progress NextCheckpointCard", () => {
     );
   });
 
-  it('falls back to a generic nudge when the "too far" detail does not parse', async () => {
+  it('falls back to a generic nudge when the "too far" details are incomplete', async () => {
     vi.mocked(arriveAtCheckpoint).mockRejectedValue({
-      body: { detail: "Too far from checkpoint" },
+      body: { detail: "Too far from checkpoint", details: { code: "too_far" } },
     });
     const getCurrentPosition = vi.fn((success) =>
       success({ coords: { latitude: 41.1, longitude: -8.6 } }),

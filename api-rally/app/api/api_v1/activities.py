@@ -35,7 +35,19 @@ from app.schemas.activity import (
 from app.schemas.user import DetailedUser
 from app.services.activity_service import ActivityService
 from app.services.deps import get_activity_service, get_scoring_service
-from app.services.scoring_service import ScoringService
+from app.services.scoring_policy import require_staff_scoring_enabled
+from app.services.scoring_service import EvaluationEditor, ScoringService
+
+
+def _editor(curr_user: DetailedUser) -> EvaluationEditor:
+    """Who to record against an edit made through these routes.
+
+    These three endpoints change a team's points exactly like the staff
+    evaluation ones do, and used to call the service without an editor — so
+    no ``EvaluationHistory`` row was written and the change left no trail.
+    """
+    return EvaluationEditor(id=str(curr_user.id), name=curr_user.name)
+
 
 # Error message constants
 ACTIVITY_NOT_FOUND = "Activity not found"
@@ -352,7 +364,10 @@ class ActivityController:
             activity_id=db_result.activity_id,
         )
 
-        db_result = await service.update_result(db_result, result_in)
+        await require_staff_scoring_enabled(
+            db, is_admin_or_manager=deps.is_admin_or_manager(auth.scopes)
+        )
+        db_result = await service.update_result(db_result, result_in, editor=_editor(curr_user))
         return ActivityResultResponse.model_validate(db_result)
 
     async def apply_extra_shots(
@@ -378,8 +393,11 @@ class ActivityController:
             activity_id=db_result.activity_id,
         )
 
+        await require_staff_scoring_enabled(
+            db, is_admin_or_manager=deps.is_admin_or_manager(auth.scopes)
+        )
         success = await service.apply_extra_shots_bonus(
-            db_result.team_id, db_result.activity_id, extra_shots
+            db_result.team_id, db_result.activity_id, extra_shots, editor=_editor(curr_user)
         )
 
         if not success:
@@ -414,8 +432,15 @@ class ActivityController:
             activity_id=db_result.activity_id,
         )
 
+        await require_staff_scoring_enabled(
+            db, is_admin_or_manager=deps.is_admin_or_manager(auth.scopes)
+        )
         success = await service.apply_penalty(
-            db_result.team_id, db_result.activity_id, penalty_type, penalty_count
+            db_result.team_id,
+            db_result.activity_id,
+            penalty_type,
+            penalty_count,
+            editor=_editor(curr_user),
         )
 
         if not success:

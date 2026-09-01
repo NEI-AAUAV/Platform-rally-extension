@@ -23,6 +23,29 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+class _StubSettings:
+    """Only the fields the visibility gate reads."""
+
+    def __init__(self, *, show_live_leaderboard: bool = True) -> None:
+        self.show_live_leaderboard = show_live_leaderboard
+
+
+@pytest.fixture(autouse=True)
+def leaderboard_visible(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every scoreboard route now consults ``show_live_leaderboard``.
+
+    These tests exercise the streams, not the switch, and have no schema to
+    read a settings row from — so stub it on. ``test_live_403_when_leaderboard_hidden``
+    covers the other side.
+    """
+
+    async def _settings(*_args: Any, **_kwargs: Any) -> _StubSettings:
+        await asyncio.sleep(0)
+        return _StubSettings()
+
+    monkeypatch.setattr("app.services.visibility_policy.rally_settings.get_or_create", _settings)
+
+
 class _FakePubsub:
     """Shared pubsub double. `messages` is served in order to `get_message`
     (one per call, `None` once exhausted); defaults to no messages, i.e. a
@@ -199,8 +222,8 @@ def test_stream_rally_events_returns_streaming_response_when_enabled(
 
     async def _run() -> None:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
-        response = scoreboard_module.ScoreboardController().stream_rally_events(
-            _FakeRequest(), settings
+        response = await scoreboard_module.ScoreboardController().stream_rally_events(
+            _FakeRequest(), settings, db=None, curr_user=None
         )
         assert response.media_type == "text/event-stream"
         assert response.headers["Cache-Control"] == "no-cache"
@@ -221,8 +244,8 @@ def test_stream_scoreboard_emits_refresh_on_publish(
 
     async def _run() -> list[str]:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
-        response = scoreboard_module.ScoreboardController().stream_scoreboard(
-            _FakeRequest(disconnect_after=2), settings
+        response = await scoreboard_module.ScoreboardController().stream_scoreboard(
+            _FakeRequest(disconnect_after=2), settings, db=None, curr_user=None
         )
         events = []
         async for event in response.body_iterator:
@@ -249,8 +272,8 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
         # Stay connected for the first check (so a ping is emitted), then
         # report disconnected to end the generator.
-        response = scoreboard_module.ScoreboardController().stream_scoreboard(
-            _FakeRequest(disconnect_after=1), settings
+        response = await scoreboard_module.ScoreboardController().stream_scoreboard(
+            _FakeRequest(disconnect_after=1), settings, db=None, curr_user=None
         )
         events = []
         async for event in response.body_iterator:
@@ -308,6 +331,26 @@ def test_pmessage_event_stream_forwards_activity_events(
     events = asyncio.run(_run())
     assert events[0] == ": connected\n\n"
     assert any('event: activity_result:1\ndata: {"foo": "bar"}' in e for e in events)
+
+
+def test_live_403_when_leaderboard_hidden(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``show_live_leaderboard`` has to hold on the wire.
+
+    Turning it off used to hide the scoreboard in the SPA only; the endpoint
+    kept serving the standings to anyone who asked for them.
+    """
+
+    async def _settings(*_args: Any, **_kwargs: Any) -> _StubSettings:
+        await asyncio.sleep(0)
+        return _StubSettings(show_live_leaderboard=False)
+
+    monkeypatch.setattr("app.services.visibility_policy.rally_settings.get_or_create", _settings)
+
+    for path in ("/scoreboard/live", "/scoreboard/stream", "/events/stream"):
+        resp = client.get(f"{BASE}{path}")
+        assert resp.status_code == 403, (path, resp.text)
 
 
 def test_decode_handles_str_and_bytes() -> None:

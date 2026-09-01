@@ -74,6 +74,10 @@ describe('TeamsById page', () => {
       allEvaluations: [],
       totalTeams: 0,
       totalCount: 0,
+      resolvedOrders: new Set<number>(),
+      nextCheckpoint: undefined,
+      isRouteFinished: false,
+      rank: null,
     });
     render(<TeamsById />);
     expect(screen.getByTestId('navigate')).toHaveTextContent('/teams');
@@ -90,6 +94,10 @@ describe('TeamsById page', () => {
       allEvaluations: [],
       totalTeams: 0,
       totalCount: 0,
+      resolvedOrders: new Set<number>(),
+      nextCheckpoint: undefined,
+      isRouteFinished: false,
+      rank: null,
     });
     render(<TeamsById />);
     expect(screen.getByText('A carregar...')).toBeInTheDocument();
@@ -106,6 +114,10 @@ describe('TeamsById page', () => {
       allEvaluations: [],
       totalTeams: 0,
       totalCount: 0,
+      resolvedOrders: new Set<number>(),
+      nextCheckpoint: undefined,
+      isRouteFinished: false,
+      rank: null,
     });
     render(<TeamsById />);
     expect(screen.getByText('Detalhes da equipa ocultos')).toBeInTheDocument();
@@ -117,11 +129,18 @@ describe('TeamsById page', () => {
       team: baseTeam,
       isLoading: false,
       isSuccess: true,
-      checkpoints: [{ id: 1, order: 1 }],
+      checkpoints: [
+        { id: 1, order: 1 },
+        { id: 2, order: 2 },
+      ],
       activityResults: [],
       allEvaluations: [],
       totalTeams: 4,
       totalCount: 3,
+      resolvedOrders: new Set<number>([1, 2]),
+      nextCheckpoint: undefined,
+      isRouteFinished: false,
+      rank: 1,
     });
     render(<TeamsById />);
     expect(screen.getByText('Team Alpha')).toBeInTheDocument();
@@ -145,6 +164,10 @@ describe('TeamsById page', () => {
       allEvaluations: [],
       totalTeams: 0,
       totalCount: 3,
+      resolvedOrders: new Set<number>(),
+      nextCheckpoint: undefined,
+      isRouteFinished: false,
+      rank: null,
     });
     render(<TeamsById />);
     expect(screen.queryByText('Pontuação')).not.toBeInTheDocument();
@@ -163,6 +186,10 @@ describe('TeamsById page', () => {
       allEvaluations: [],
       totalTeams: 0,
       totalCount: 3,
+      resolvedOrders: new Set<number>(),
+      nextCheckpoint: undefined,
+      isRouteFinished: false,
+      rank: null,
     });
     render(<TeamsById />);
     expect(screen.getByText('Ainda sem postos visitados')).toBeInTheDocument();
@@ -179,6 +206,10 @@ describe('TeamsById page', () => {
       allEvaluations: [],
       totalTeams: 4,
       totalCount: 3,
+      resolvedOrders: new Set<number>([1]),
+      nextCheckpoint: undefined,
+      isRouteFinished: false,
+      rank: 1,
     });
     const user = userEvent.setup();
     render(<TeamsById />);
@@ -205,6 +236,10 @@ describe('TeamsById page', () => {
       allEvaluations: [],
       totalTeams: 0,
       totalCount: 0,
+      resolvedOrders: new Set<number>(),
+      nextCheckpoint: undefined,
+      isRouteFinished: false,
+      rank: null,
     });
     render(<TeamsById />);
     expect(screen.queryByText('A carregar...')).not.toBeInTheDocument();

@@ -217,6 +217,10 @@ async def test_get_current_user_syncs_scopes_from_provider():
     with (
         patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)),
         patch.object(DetailedUser, "model_validate", return_value=_detailed(user)),
+        patch(
+            "app.crud.crud_rally_staff_assignment.rally_staff_assignment.get_by_user_id",
+            new=AsyncMock(return_value=None),
+        ),
     ):
         await deps.get_current_user(_auth(scopes=["rally-staff"]), db)
     assert user.scopes == ["rally-staff"]

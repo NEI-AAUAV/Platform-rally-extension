@@ -171,14 +171,19 @@ const rallySettingsSchema = z.object({
 
 type RallySettingsForm = z.infer<typeof rallySettingsSchema>;
 
-const normalizeTheme = (theme?: string | null): "bloody" | "nei" | "default" => {
-  if (!theme) return "bloody";
-  const normalized = theme.toLowerCase();
-  if (normalized.includes("nei")) return "nei";
-  if (normalized.includes("default") || normalized.includes("rally tascas")) return "default";
-  if (normalized.includes("halloween") || normalized.includes("bloody")) return "bloody";
-  return "bloody";
-};
+/** Fall back only when the API genuinely omitted the field.
+ *
+ * The API sends every settings field, so a `??` here is dead code — except
+ * when it isn't, and then it is a silent third default table. That is what
+ * `leg_time_max_adjustment ?? 0` was: a missing value became 0, which the
+ * form describes as the cap on every leg-time adjustment, so the feature was
+ * dead while its switch read "on" — and the next Save wrote the 0 back.
+ * Column defaults in `app/models/rally_settings.py` are the one default
+ * table; anything unset here stays unset rather than being invented.
+ */
+function present<T>(value: T | null | undefined, fallback: T): T {
+  return value ?? fallback;
+}
 
 function buildFormValues(
   settings: RallySettingsResponse,
@@ -202,9 +207,9 @@ function buildFormValues(
     route_stages_enabled: settings.route_stages_enabled ?? false,
     checkpoint_hours_enabled: settings.checkpoint_hours_enabled ?? true,
     leg_time_scoring_enabled: settings.leg_time_scoring_enabled ?? false,
-    leg_time_target_minutes: settings.leg_time_target_minutes ?? 15,
-    leg_time_points_per_minute: settings.leg_time_points_per_minute ?? 0,
-    leg_time_max_adjustment: settings.leg_time_max_adjustment ?? 0,
+    leg_time_target_minutes: present(settings.leg_time_target_minutes, 10),
+    leg_time_points_per_minute: present(settings.leg_time_points_per_minute, 0),
+    leg_time_max_adjustment: present(settings.leg_time_max_adjustment, 20),
     gps_checkin_enabled: settings.gps_checkin_enabled ?? false,
     hint_penalty: settings.hint_penalty ?? 0,
     skip_penalty: settings.skip_penalty ?? 0,
@@ -224,7 +229,12 @@ function buildFormValues(
     participant_view_enabled: extendedSettings?.participant_view_enabled ?? false,
     show_route_mode: extendedSettings?.show_route_mode ?? "focused",
     show_score_mode: extendedSettings?.show_score_mode ?? "hidden",
-    rally_theme: normalizeTheme(settings.rally_theme),
+    // Echoed back untouched. This form has no theme control, so it has no
+    // business deciding a value: it used to normalise whatever the API sent
+    // and its "rally tascas" branch mapped the bootstrap's own string onto
+    // "default", so saving any unrelated setting reskinned the whole app to a
+    // theme nobody chose.
+    rally_theme: settings.rally_theme,
     public_access_enabled: settings.public_access_enabled,
     allow_photo_as_team_photo: extendedSettings?.allow_photo_as_team_photo ?? false,
     guide_mode_enabled: extendedSettings?.guide_mode_enabled ?? false,
@@ -313,12 +323,15 @@ export default function RallySettings({
     resolver: zodResolver(rallySettingsSchema),
     mode: "onChange", // Validate on change to catch errors early
     defaultValues: {
-      max_teams: 16,
+      // These mirror the column defaults in app/models/rally_settings.py.
+      // They are only ever shown for the instant before the API responds;
+      // buildFormValues replaces every one of them.
+      max_teams: 14,
       max_members_per_team: 10,
-      enable_versus: false,
+      enable_versus: true,
       rally_start_time: null,
       rally_end_time: null,
-      penalty_per_puke: -5,
+      penalty_per_puke: -10,
       penalty_per_not_drinking: -2,
       bonus_per_extra_shot: 1,
       max_extra_shots_per_member: 5,
@@ -326,9 +339,9 @@ export default function RallySettings({
       route_stages_enabled: false,
       checkpoint_hours_enabled: true,
       leg_time_scoring_enabled: false,
-      leg_time_target_minutes: 15,
+      leg_time_target_minutes: 10,
       leg_time_points_per_minute: 0,
-      leg_time_max_adjustment: 0,
+      leg_time_max_adjustment: 20,
       gps_checkin_enabled: false,
       hint_penalty: 0,
       skip_penalty: 0,
@@ -349,7 +362,7 @@ export default function RallySettings({
       show_route_mode: "focused",
       show_score_mode: "hidden",
       rally_theme: "bloody", // Changed from "Rally Tascas" to match schema default
-      public_access_enabled: false,
+      public_access_enabled: true,
       allow_photo_as_team_photo: false,
       guide_mode_enabled: false,
       guide_mode_active: false,

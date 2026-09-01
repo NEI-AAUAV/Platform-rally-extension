@@ -2,15 +2,12 @@ import { Navigation, Compass } from "lucide-react";
 import { CheckpointDiscovery } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 import { directionsUrl } from "@/lib/mapLinks";
+import type { DetailedCheckPoint } from "@/client";
 
-interface Checkpoint {
-  id: number;
-  name: string;
-  description?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  order: number;
-}
+/** The generated schema — see the note in MapSection. A local shape that
+ * omits `is_redacted` is how a redacted post came to be rendered as if it had
+ * a name and a location. */
+type Checkpoint = DetailedCheckPoint;
 
 type CheckpointCardProps = Readonly<{
   checkpoint: Checkpoint;
@@ -25,9 +22,15 @@ export default function CheckpointCard({
   onSelect,
   showMap = true,
 }: CheckpointCardProps) {
-  const hasCoords = checkpoint.latitude != null && checkpoint.longitude != null;
-  const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
-  const hasDiscovery = !!checkpoint.description || photos.length > 0 || funFacts.length > 0;
+  // A redacted post carries no location and no gallery: the server already
+  // stripped its name to "Posto N" and dropped the coordinates. Asking for
+  // its media, offering directions, or inviting the reader to "discover this
+  // place" is offering something that is deliberately not theirs yet.
+  const isRedacted = checkpoint.is_redacted === true;
+  const hasCoords = !isRedacted && checkpoint.latitude != null && checkpoint.longitude != null;
+  const { photos, funFacts } = useCheckpointMedia(checkpoint.id, !isRedacted);
+  const hasDiscovery =
+    !isRedacted && (!!checkpoint.description || photos.length > 0 || funFacts.length > 0);
 
   return (
     <article
@@ -58,7 +61,7 @@ export default function CheckpointCard({
             <p className="truncate text-[16px] font-bold text-foreground">{checkpoint.name}</p>
             <p className="mt-[3px] flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground/80">
               <Compass className="h-3.5 w-3.5" />
-              Descobre este local
+              {isRedacted ? "Ainda por descobrir" : "Descobre este local"}
             </p>
           </div>
         </button>

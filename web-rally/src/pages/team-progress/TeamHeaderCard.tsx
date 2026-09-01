@@ -20,6 +20,11 @@ type TeamHeaderCardProps = Readonly<{
   team: PrivilegedDetailedTeam;
   showScore: boolean;
   showRanking: boolean;
+  /** Position under the shared ranking policy (`lib/teamRanking`), or null
+   * when the standings are not loaded. The raw `classification` column was
+   * printed here, which is the number `lib/teamRanking` exists to stop the
+   * various surfaces disagreeing on. */
+  rank: number | null;
   completedCount: number;
   totalCount: number;
   /** Event start time (ISO); combined with the team's offset to show its own
@@ -40,6 +45,7 @@ export default function TeamHeaderCard({
   team,
   showScore,
   showRanking,
+  rank,
   completedCount,
   totalCount,
   rallyStartTime,
@@ -71,7 +77,7 @@ export default function TeamHeaderCard({
           {showRanking && (
             <div>
               <p className="rally-display text-3xl font-bold tabular-nums">
-                {team.classification > 0 ? `#${team.classification}` : "—"}
+                {rank != null ? `#${rank}` : "—"}
               </p>
               <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Posição</p>
             </div>

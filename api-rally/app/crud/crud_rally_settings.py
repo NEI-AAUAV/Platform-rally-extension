@@ -62,22 +62,16 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             legacy = await self._normalize_home_fields(db, legacy)
             return await self._sync_timing_from_event(db, legacy, event)
 
+        # Only the values that depend on the event type, or that this
+        # bootstrap genuinely decides, are named here. Everything else comes
+        # from the column defaults in ``app.models.rally_settings``, which are
+        # the single default table — restating them here is how the two sets
+        # came to disagree on six fields.
         settings = RallySettings(
             event_id=event_id,
-            # Team management
-            max_teams=14,
-            max_members_per_team=10,
-            enable_versus=True,
-            # Rally timing
+            # Rally timing mirrors the event; synced below.
             rally_start_time=None,
             rally_end_time=None,
-            # Scoring system
-            penalty_per_puke=-10,
-            penalty_per_not_drinking=-2,
-            bonus_per_extra_shot=1,
-            max_extra_shots_per_member=5,
-            # Checkpoint behavior
-            checkpoint_order_matters=True,
             # GPS self-check-in: on by default for peddy paper, where reaching
             # the post *is* the mechanic; off for formats that check teams in
             # through staff or QR.
@@ -92,31 +86,13 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             # Giving up forfeits the post's score too, so it costs more than a
             # hint. Only peddy paper can strand a team on a riddle at all.
             skip_penalty=-25 if event.event_type == EventType.PEDDY_PAPER.value else 0,
-            # Staff and scoring
-            enable_staff_scoring=True,
-            # Display settings
-            show_live_leaderboard=True,
-            show_team_details=True,
-            show_checkpoint_map=True,
             # Peddy paper's participant view is the clue/check-in screen —
             # equipas belong there by default. Other formats keep the
             # existing opt-in (staff must switch it on).
             participant_view_enabled=event.event_type == EventType.PEDDY_PAPER.value,
-            show_route_mode="focused",
-            show_score_mode="hidden",
-            # Rally customization
-            rally_theme="Rally Tascas - Competição de Equipas",
-            # Universal branding
+            # Event identity: data, so one build serves every edition.
             event_name="Rally Tascas",
             event_subtitle="Competição de Equipas",
-            accent_color="",
-            banner_url="",
-            logo_url="",
-            favicon_url="",
-            rules_pdf_url="",
-            rules_sections=[],
-            # Access control
-            public_access_enabled=True,
             # Home page layout
             home_layout=list(DEFAULT_HOME_LAYOUT),
             ticker_items=list(DEFAULT_TICKER_ITEMS),

@@ -12,7 +12,7 @@ from app.core.exceptions import RallyValidationError
 from app.crud._event_scope import current_event_id
 from app.crud.base import CRUDBase
 from app.crud.crud_rally_settings import rally_settings
-from app.models.checkpoint import CheckPoint
+from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.team import Team
 from app.schemas.team import (
     TeamCreate,
@@ -236,30 +236,29 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         )
 
     async def get_by_checkpoint(self, db: AsyncSession, checkpoint_id: int) -> Sequence[Team]:
-        """Get teams currently at a specific checkpoint.
+        """Teams that have checked in at this checkpoint.
 
-        Since team.times is order-based, we need to convert checkpoint_id to order first.
-        Teams are "at" a checkpoint if they've completed that many checkpoints.
+        Read from ``CheckpointArrival``, which names the post. This used to be
+        ``cardinality(team.times) == checkpoint.order`` — a count, not an
+        identity, so it answered "teams that have made N visits" and silently
+        disagreed with the guide's panel (which has always read arrivals) as
+        soon as a route ran out of strict sequence or the staff-eval advance
+        inflated the array by one.
+
+        Eager-loads members so callers can read ``team.members`` without a lazy
+        load. Scoped to the current event so editions never leak into each
+        other (legacy NULL rows count as current, same as ``list()``).
         """
-        # Get the checkpoint to find its order
-        checkpoint_obj = await db.get(CheckPoint, checkpoint_id)
-        if not checkpoint_obj:
-            return []
-
-        checkpoint_order = checkpoint_obj.order
-
-        # Teams at this checkpoint have visited exactly (order) checkpoints.
-        # Eager-load members so callers can read team.members without a lazy load.
-        # Scope to the current event so editions never leak into each other
-        # (legacy NULL rows count as current, same as list()).
         event_id = await current_event_id(db)
         stmt = (
             select(Team)
-            .options(selectinload(Team.members))
+            .join(CheckpointArrival, CheckpointArrival.team_id == Team.id)
             .where(
-                func.cardinality(Team.times) == checkpoint_order,
+                CheckpointArrival.checkpoint_id == checkpoint_id,
                 (Team.event_id == event_id) | (Team.event_id.is_(None)),
             )
+            .options(selectinload(Team.members))
+            .order_by(CheckpointArrival.arrived_at)
         )
         return (await db.scalars(stmt)).all()
 

@@ -10,7 +10,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud import crud_activity
 from app.crud.crud_checkpoint import CRUDCheckPoint
@@ -63,7 +62,6 @@ class SkipService:
             checkpoint=checkpoint,
             settings=settings,
             enforce_hours=False,
-            ignore_times_inflation=True,
         ):
             # Giving up on a post they have not reached would let a team skim
             # the route, paying to fast-forward to the end.
@@ -80,19 +78,22 @@ class SkipService:
 
         if cost != 0:
             await self._charge(team_id=team_id, cost=cost, checkpoint_order=checkpoint.order)
+        # The skip row *is* the advance: ``progress_for_team`` reads it as
+        # resolved, so the post stops blocking the route the moment this
+        # commits. It used to also append to ``team.times`` via a fake
+        # check-in, which stamped a visit timestamp for a post the team never
+        # went to and inflated the array that per-checkpoint scores were laid
+        # out against. One commit, so the forfeit and its charge cannot come
+        # apart.
         await self._db.commit()
-
-        # Advancing is the whole point: append to team.times so the team's
-        # current pointer moves to the next post. compute_checkpoint_progress
-        # treats a skipped post as resolved, so a post with an unjudged
-        # activity no longer blocks the route.
-        await checkin_team_to_checkpoint(self._db, team_id, checkpoint_id, enforce_order=False)
 
         if cost != 0:
             await ScoringService(self._db).update_team_scores(team_id)
 
         team_obj = await self._team_crud.get(db=self._db, id=team_id)
-        next_order = await current_checkpoint_order(self._db, team_obj) if team_obj else None
+        next_order = (
+            await current_checkpoint_order(self._db, team_obj, settings) if team_obj else None
+        )
         return CheckpointSkipped(
             checkpoint_id=checkpoint_id,
             cost=cost,

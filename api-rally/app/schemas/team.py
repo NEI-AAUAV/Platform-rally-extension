@@ -19,7 +19,26 @@ class TeamBase(BaseModel):
     start_offset_minutes: int = 0
 
 
-class ListingTeam(TeamBase):
+class RouteProgressFields(BaseModel):
+    """The team's position on the route, as the server computes it.
+
+    The sets exist because ``current_checkpoint_number`` alone cannot describe
+    a free-order or staged route: several posts are open at once, and resolved
+    posts need not form a prefix. Clients must render "concluído"/"pendente"
+    from ``resolved_checkpoint_orders`` and the finished state from
+    ``is_route_finished`` rather than re-deriving either from a count — that
+    arithmetic is what made the participant screen and the team page disagree.
+    """
+
+    # Activity-based completion counters (more reliable than len(times))
+    last_checkpoint_number: int | None = None
+    current_checkpoint_number: int | None = None
+    resolved_checkpoint_orders: list[int] = []
+    open_checkpoint_orders: list[int] = []
+    is_route_finished: bool = False
+
+
+class ListingTeam(TeamBase, RouteProgressFields):
     """
     The schema returned when listing multiple teams
     """
@@ -29,22 +48,43 @@ class ListingTeam(TeamBase):
 
     last_checkpoint_time: datetime | None
     last_checkpoint_score: int | None = None
-    last_checkpoint_number: int | None = None
     last_checkpoint_name: str | None = None
-    current_checkpoint_number: int | None = None
 
 
-class DetailedTeam(TeamBase):
+class CheckpointPenalties(BaseModel):
+    """Points a team lost at one post, broken down by cause.
+
+    ``hints_cost`` is what the team paid unlocking guide indications there,
+    ``skip_cost`` the give-up penalty, ``activity_penalties`` the sum of the
+    activity-level deductions (vómitos, não-beber, contadores dinâmicos).
+    Every field is negative or zero, the same sign convention as the rest of
+    the app. Only posts with at least one non-zero penalty are emitted, keyed
+    by ``checkpoint_order`` so a client can line them up with
+    ``score_per_checkpoint[order - 1]``.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    checkpoint_order: int
+    checkpoint_id: int
+    hints_cost: int = 0
+    skip_cost: int = 0
+    activity_penalties: int = 0
+    total: int = 0
+
+
+class DetailedTeam(TeamBase, RouteProgressFields):
     times: list[datetime]
 
     score_per_checkpoint: list[int]
 
     members: list[ListingUser]
 
-    # Activity-based completion counters (more reliable than len(times))
-    last_checkpoint_number: int | None = None
-    current_checkpoint_number: int | None = None
     total_checkpoints: int | None = None
+
+    # Per-post penalty breakdown. Empty when the team lost no points to
+    # hints/give-ups/activity penalties, or when scores are hidden.
+    penalties_per_checkpoint: list[CheckpointPenalties] = []
 
 
 class PrivilegedDetailedTeam(DetailedTeam):

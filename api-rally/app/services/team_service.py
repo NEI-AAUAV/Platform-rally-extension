@@ -18,26 +18,30 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
-from app.crud.crud_activity import activity
-from app.crud.crud_activity import activity_result as activity_result_crud
-from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
+from app.models.activity import Activity, ActivityResult
 from app.models.checkpoint import CheckPoint
-from app.models.checkpoint_arrival import CheckpointArrival
+from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.checkpoint_skip import CheckpointSkip
 from app.models.team import Team
 from app.schemas.team import (
+    CheckpointPenalties,
     ListingTeam,
     PrivilegedDetailedTeam,
     TeamScoresUpdate,
 )
-from app.services.route_progress import can_reach_checkpoint, closed_message, hours_block_reason
-from app.services.route_progress import is_checkpoint_reachable as _is_checkpoint_reachable
+from app.services.route_progress import (
+    TeamProgress,
+    closed_message,
+    hours_block_reason,
+    progress_for_team,
+    unreachable_message,
+)
 from app.services.scoring_service import ScoringService
 
 
@@ -65,13 +69,6 @@ def validate_rally_timing(
         raise RallyValidationError(
             f"Rally has ended. Ended at {settings.rally_end_time.isoformat()}"
         )
-
-
-#: The count-based rule, re-exported from ``route_progress`` where it now
-#: lives alongside the stage and opening-hour rules. Callers that have a
-#: checkpoint row and a team should prefer ``can_reach_checkpoint``, which
-#: applies all three; this predicate alone only knows about ordering.
-is_checkpoint_reachable = _is_checkpoint_reachable
 
 
 def assign_ranks(teams: list[Team]) -> None:
@@ -114,11 +111,19 @@ class TeamService:
 
     @staticmethod
     def calculate_min_time_scores(teams: Sequence[Team]) -> list[float]:
-        all_time_scores = [t.time_scores + [0] * (8 - len(t.time_scores)) for t in teams]
+        """Per-post best time across all teams; 0 means "no score yet".
+
+        The width is the longest ``time_scores`` any team actually has, not a
+        hardcoded 8. A route with more than eight posts silently lost every
+        one past the eighth, and one with fewer padded the result with
+        infinities for posts that do not exist.
+        """
+        width = max((len(t.time_scores) for t in teams), default=0)
+        all_time_scores = [t.time_scores + [0] * (width - len(t.time_scores)) for t in teams]
 
         return [
             min((s if s != 0 else math.inf) for s in scores)
-            for scores in zip(*all_time_scores, strict=False)
+            for scores in zip(*all_time_scores, strict=True)
         ]
 
     async def update_classification_unlocked(self) -> None:
@@ -161,18 +166,10 @@ class TeamService:
     async def _validate_checkpoint_order(
         self, team: Team, checkpoint_id: int, settings: Any
     ) -> None:
-        """Validate checkpoint order constraints."""
+        """Reject a check-in at a post the team may not reach right now."""
         checkpoint_obj = await self._db.get(CheckPoint, checkpoint_id)
         if not checkpoint_obj:
             raise RallyNotFoundError("Checkpoint not found")
-
-        checkpoint_order = checkpoint_obj.order
-        order_matters = settings.checkpoint_order_matters
-
-        if await can_reach_checkpoint(
-            self._db, team=team, checkpoint=checkpoint_obj, settings=settings
-        ):
-            return
 
         # Hours first: "not in order" would be a lie about a post the team is
         # perfectly entitled to visit, just not yet.
@@ -180,12 +177,18 @@ class TeamService:
         if closed is not None:
             raise RallyValidationError(closed_message(checkpoint_obj, closed))
 
-        if order_matters:
-            raise RallyValidationError(
-                f"Checkpoint not in order. Expected checkpoint order "
-                f"{len(team.times) + 1}, got {checkpoint_order}"
-            )
-        raise RallyValidationError(f"Checkpoint {checkpoint_order} already visited")
+        # This post's own arrival row is held out of the calculation: the
+        # question here is "may the team check in *here*", and a no-activity
+        # post that the caller has just recorded an arrival for would otherwise
+        # read as already resolved and refuse the very visit being recorded.
+        # Duplicate visits are stopped one layer up, by the arrival row's
+        # unique constraint (see ``checkpoint_visits.record_visit``).
+        progress = await progress_for_team(
+            self._db, team, settings, ignore_arrival_for=checkpoint_obj.id
+        )
+        if progress.is_open(checkpoint_obj.order):
+            return
+        raise RallyValidationError(unreachable_message(checkpoint_obj, progress))
 
     async def add_checkpoint(
         self, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate, enforce_order: bool = True
@@ -230,92 +233,35 @@ class TeamService:
         await self._db.refresh(team)
         return team
 
+    async def progress(self, team_obj: Team) -> TeamProgress:
+        """This team's position on the route, from the single progress engine."""
+        settings = await rally_settings.get_or_create(self._db)
+        return await progress_for_team(self._db, team_obj, settings)
+
     async def compute_checkpoint_progress(
         self, team_obj: Team
     ) -> tuple[int, int | None, str | None]:
-        """Compute last fully completed checkpoint and current checkpoint.
+        """(last_completed_order, current_order, last_checkpoint_name).
 
-        A checkpoint is considered completed only when all its activities have
-        a completed result for this team.
+        Kept as a convenience shape for the team schemas; the rules themselves
+        live in ``route_progress.progress_for_team``, which is what makes the
+        participant screen, the staff roster and the guide panel agree.
 
         ``current_order`` is None when there is no post left to send the team
         to — the route is finished, or there is no route. It used to clamp to
         the last post's order instead, which reads as "still working on the
         final post" and is indistinguishable from a team that genuinely is.
-        The participant screen builds its next-post card from this number, so
-        a finished team was shown the post it had just completed as its
-        "próximo posto", for good, and never saw the finished card at all.
-
-        Returns: (last_completed_order, current_order, last_checkpoint_name)
         """
-        checkpoints = await checkpoint_crud.get_all_ordered(self._db)
-        team_results = await activity_result_crud.get_by_team(self._db, team_id=team_obj.id)
-        # Was `is_completed` alone, which a deferred-judged capture sets
-        # true before a judge has actually scored it — see ActivityResult.is_scored.
-        completed_activity_ids = {
-            r.activity_id for r in team_results if getattr(r, "is_scored", False)
-        }
-        # A post the team gave up on is resolved, not completed: they score
-        # nothing for it, but it must stop blocking the route — otherwise the
-        # escape hatch would not actually let anyone out.
-        skipped_ids = set(
-            (
-                await self._db.scalars(
-                    select(CheckpointSkip.checkpoint_id).where(
-                        CheckpointSkip.team_id == team_obj.id
-                    )
-                )
-            ).all()
-        )
-        # A no-activity post counts as done only once the team has *physically
-        # arrived* there — read from the arrivals table, not inferred from
-        # len(team.times). team.times is inflated by advance_team_to_next_checkpoint,
-        # which appends an entry for the *next* post the team was pointed at but
-        # has not reached yet; trusting its length here marked no-activity posts
-        # ahead of the team as completed and ran current_order off the end of the
-        # route, so a peddy-paper team with posts still to visit saw the finished
-        # card instead of its next post.
-        arrived_checkpoint_ids = set(
-            (
-                await self._db.scalars(
-                    select(CheckpointArrival.checkpoint_id).where(
-                        CheckpointArrival.team_id == team_obj.id
-                    )
-                )
-            ).all()
-        )
-
-        last_completed_order = 0
-        last_completed_name: str | None = None
-        for cp in checkpoints:
-            if cp.id in skipped_ids:
-                last_completed_order = cp.order
-                last_completed_name = cp.name
-                continue
-            cp_activities = await activity.get_by_checkpoint(self._db, checkpoint_id=cp.id)
-            active_ids = [a.id for a in cp_activities if a.is_active]
-            if not active_ids:
-                # No activity to judge here: the post counts as done once the
-                # team has actually arrived (GPS/guide arrival row).
-                # Otherwise it is still their current, not-yet-reached post —
-                # stop here.
-                if cp.id in arrived_checkpoint_ids:
-                    last_completed_order = cp.order
-                    last_completed_name = cp.name
-                    continue
-                break
-            if all(aid in completed_activity_ids for aid in active_ids):
-                last_completed_order = cp.order
-                last_completed_name = cp.name
-            else:
-                break
-
-        max_order = checkpoints[-1].order if checkpoints else 0
-        current_order = last_completed_order + 1 if last_completed_order < max_order else None
-        return last_completed_order, current_order, last_completed_name
+        state = await self.progress(team_obj)
+        return state.last_completed_order, state.current_order, state.last_completed_name
 
     async def build_listing_team(
-        self, team: Team, *, reveal_next_checkpoint: bool = True, is_privileged: bool = False
+        self,
+        team: Team,
+        *,
+        reveal_next_checkpoint: bool = True,
+        is_privileged: bool = False,
+        hide_scores: bool = False,
     ) -> ListingTeam:
         """Build team data for listing using strict completion rules.
 
@@ -324,34 +270,45 @@ class TeamService:
         in a peddy paper that name is the answer to a puzzle the viewer
         hasn't solved yet. Withheld from non-privileged viewers whenever
         ``reveal_next_checkpoint`` is off; staff/admin always see it.
-        """
-        (
-            last_checkpoint_number,
-            current_checkpoint_number,
-            last_checkpoint_name,
-        ) = await self.compute_checkpoint_progress(team)
 
+        ``hide_scores`` blanks the points and the rank for
+        ``show_score_mode == "hidden"``. The switch was read by the SPA only,
+        so the standings it hides were served in full to anyone who asked the
+        API for them.
+        """
+        state = await self.progress(team)
+        last_checkpoint_name = state.last_completed_name
         if not reveal_next_checkpoint and not is_privileged:
             last_checkpoint_name = None
 
         return ListingTeam(
             id=team.id,
             name=team.name,
-            total=team.total,
-            classification=team.classification,
+            total=0 if hide_scores else team.total,
+            # 0 is outside the 1..N dense rank, and is what an unranked team
+            # already carries.
+            classification=0 if hide_scores else team.classification,
             versus_group_id=team.versus_group_id,
             start_offset_minutes=team.start_offset_minutes or 0,
             times=team.times,
             last_checkpoint_time=team.last_checkpoint_time,
-            last_checkpoint_score=team.last_checkpoint_score,
-            last_checkpoint_number=last_checkpoint_number,
+            last_checkpoint_score=None if hide_scores else team.last_checkpoint_score,
+            last_checkpoint_number=state.last_completed_order,
             last_checkpoint_name=last_checkpoint_name,
-            current_checkpoint_number=current_checkpoint_number,
+            current_checkpoint_number=state.current_order,
+            resolved_checkpoint_orders=sorted(state.resolved_orders),
+            open_checkpoint_orders=sorted(state.open_orders),
+            is_route_finished=state.is_finished,
             num_members=team.num_members,
         )
 
     async def build_detailed_team(
-        self, team_obj: Team, *, with_progress: bool = False, with_access_code: bool = False
+        self,
+        team_obj: Team,
+        *,
+        with_progress: bool = False,
+        with_access_code: bool = False,
+        hide_scores: bool = False,
     ) -> PrivilegedDetailedTeam:
         """Serialize a team, eager-loading the members relationship (the schema
         includes members, which would otherwise lazy-load).
@@ -364,9 +321,113 @@ class TeamService:
         result = PrivilegedDetailedTeam.model_validate(team_obj)
         if not with_access_code:
             result.access_code = None
+        if hide_scores:
+            # ``show_score_mode == "hidden"``: the total, the rank and the
+            # per-post breakdown are the whole of what that switch hides.
+            # 0 is outside the 1..N dense rank and is what an unranked team
+            # already carries.
+            result.total = 0
+            result.classification = 0
+            result.score_per_checkpoint = []
         if with_progress:
-            last_cp, current_cp, _ = await self.compute_checkpoint_progress(team_obj)
-            result.last_checkpoint_number = last_cp
-            result.current_checkpoint_number = current_cp
-            result.total_checkpoints = len(await checkpoint_crud.get_all_ordered(self._db))
+            state = await self.progress(team_obj)
+            result.last_checkpoint_number = state.last_completed_order
+            result.current_checkpoint_number = state.current_order
+            result.resolved_checkpoint_orders = sorted(state.resolved_orders)
+            result.open_checkpoint_orders = sorted(state.open_orders)
+            result.is_route_finished = state.is_finished
+            result.total_checkpoints = state.total_published
+            if not hide_scores:
+                result.penalties_per_checkpoint = await self._penalties_per_checkpoint(team_obj)
         return result
+
+    async def _penalties_per_checkpoint(self, team_obj: Team) -> list[CheckpointPenalties]:
+        """Every point this team lost to hints, give-ups and activity
+        penalties, grouped by post and summed per cause.
+
+        The three sources live in separate tables and none is on ``Team``:
+        ``checkpoint_hint_reveals`` and ``checkpoint_skips`` freeze the penalty
+        at the price it was charged, and the activity deductions sit in each
+        ``ActivityResult.penalties`` JSON blob. Posts with nothing to report
+        are dropped so the list stays short.
+        """
+        team_id = team_obj.id
+
+        order_by_cp_id: dict[int, int] = {
+            cp_id: cp_order
+            for cp_id, cp_order in (
+                await self._db.execute(select(CheckPoint.id, CheckPoint.order))
+            ).all()
+        }
+
+        buckets: dict[int, dict[str, int]] = {}
+
+        def bucket(checkpoint_id: int) -> dict[str, int]:
+            return buckets.setdefault(
+                checkpoint_id, {"hints_cost": 0, "skip_cost": 0, "activity_penalties": 0}
+            )
+
+        hint_rows = (
+            await self._db.execute(
+                select(
+                    CheckpointHintReveal.checkpoint_id,
+                    func.coalesce(func.sum(CheckpointHintReveal.cost), 0),
+                )
+                .where(CheckpointHintReveal.team_id == team_id)
+                .group_by(CheckpointHintReveal.checkpoint_id)
+            )
+        ).all()
+        for checkpoint_id, cost in hint_rows:
+            bucket(checkpoint_id)["hints_cost"] += int(cost)
+
+        skip_rows = (
+            await self._db.execute(
+                select(
+                    CheckpointSkip.checkpoint_id,
+                    func.coalesce(func.sum(CheckpointSkip.cost), 0),
+                )
+                .where(CheckpointSkip.team_id == team_id)
+                .group_by(CheckpointSkip.checkpoint_id)
+            )
+        ).all()
+        for checkpoint_id, cost in skip_rows:
+            bucket(checkpoint_id)["skip_cost"] += int(cost)
+
+        # Activity penalties are a JSON dict of positive magnitudes deducted
+        # from the activity's score, so they are negated here to match the
+        # negative sign every other penalty carries.
+        penalty_rows = (
+            await self._db.execute(
+                select(Activity.checkpoint_id, ActivityResult.penalties)
+                .join(Activity, Activity.id == ActivityResult.activity_id)
+                .where(
+                    ActivityResult.team_id == team_id,
+                    Activity.checkpoint_id.is_not(None),
+                )
+            )
+        ).all()
+        for checkpoint_id, penalties in penalty_rows:
+            deducted = sum(int(v) for v in (penalties or {}).values())
+            if deducted:
+                bucket(checkpoint_id)["activity_penalties"] -= deducted
+
+        out: list[CheckpointPenalties] = []
+        for checkpoint_id, parts in buckets.items():
+            order = order_by_cp_id.get(checkpoint_id)
+            if order is None:
+                continue
+            total = parts["hints_cost"] + parts["skip_cost"] + parts["activity_penalties"]
+            if total == 0:
+                continue
+            out.append(
+                CheckpointPenalties(
+                    checkpoint_order=order,
+                    checkpoint_id=checkpoint_id,
+                    hints_cost=parts["hints_cost"],
+                    skip_cost=parts["skip_cost"],
+                    activity_penalties=parts["activity_penalties"],
+                    total=total,
+                )
+            )
+        out.sort(key=lambda p: p.checkpoint_order)
+        return out

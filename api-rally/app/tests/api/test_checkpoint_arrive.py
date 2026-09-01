@@ -269,15 +269,12 @@ async def test_arrive_no_activities_auto_completes(pg_session, pg_client):
 
 
 async def test_arrive_no_activities_auto_completes_after_prior_advance(pg_session, pg_client):
-    """Regression: post 1 (its only activity) is done and the staff-eval
-    advance has inflated ``team.times`` with a pointer at post 2. The genuine
-    GPS arrival at the no-activity post 2 must still auto-complete — the
-    reachability guard counts resolved posts, not ``len(team.times)``.
+    """Regression: post 1 (its only activity) was scored by staff, so the team
+    is now hunting the no-activity post 2. The GPS arrival there must
+    auto-complete — the reachability guard counts resolved posts, not
+    ``len(team.times)``.
     """
-    from app.api.api_v1.staff_evaluation_utils import (
-        advance_team_to_next_checkpoint,
-        checkin_team_to_checkpoint,
-    )
+    from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
     from app.models.activity import ActivityResult
 
     await _make_event(pg_session)
@@ -298,8 +295,10 @@ async def test_arrive_no_activities_auto_completes_after_prior_advance(pg_sessio
         ActivityResult(activity_id=act1.id, team_id=team.id, final_score=10, is_completed=True)
     )
     await pg_session.commit()
-    await checkin_team_to_checkpoint(pg_session, team.id, cp1.id)
-    await advance_team_to_next_checkpoint(pg_session, team.id)
+    # enforce_order=False, exactly as the staff-evaluation path calls it: the
+    # scored result above already resolves post 1, so the reachability guard
+    # would (correctly) refuse a fresh check-in there.
+    await checkin_team_to_checkpoint(pg_session, team.id, cp1.id, enforce_order=False)
     await pg_session.commit()
 
     with as_team(team.id, "TeamA"):

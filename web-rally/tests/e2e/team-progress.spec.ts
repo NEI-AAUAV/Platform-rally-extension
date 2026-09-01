@@ -29,6 +29,10 @@ async function mockSettings(page: Page, overrides: Partial<RallySettingsResponse
   );
 }
 
+// `is_reachable`/`is_redacted` and the team's `resolved_checkpoint_orders`
+// come from the server's progress engine: the route list reads them directly
+// instead of deriving "done" and "current" from a visit count, which only ever
+// described a strictly sequential route.
 const CHECKPOINTS = [
   {
     id: 1,
@@ -38,6 +42,8 @@ const CHECKPOINTS = [
     longitude: -8.65,
     order: 1,
     arrival_radius_m: 50,
+    is_reachable: false,
+    is_redacted: false,
   },
   {
     id: 2,
@@ -47,6 +53,8 @@ const CHECKPOINTS = [
     longitude: -8.66,
     order: 2,
     arrival_radius_m: 50,
+    is_reachable: true,
+    is_redacted: false,
   },
 ];
 
@@ -66,6 +74,8 @@ function team(overrides: Record<string, unknown> = {}) {
     score_per_checkpoint: [30, 0],
     last_checkpoint_number: 1,
     current_checkpoint_number: 2,
+    resolved_checkpoint_orders: [1],
+    is_route_finished: false,
     ...overrides,
   };
 }
@@ -246,8 +256,13 @@ test.describe("Team progress", () => {
       route.fulfill({
         status: 400,
         contentType: "application/json",
-        // The server reports a coarse distance band, not an exact metre count.
-        body: JSON.stringify({ detail: "Too far from checkpoint: menos de 500m (max 50m)" }),
+        // The server reports a coarse distance band, not an exact metre count,
+        // and carries it in `details` so the app renders its own sentence
+        // instead of running a regex over the English one.
+        body: JSON.stringify({
+          detail: "Too far from checkpoint: menos de 500m (max 50m)",
+          details: { code: "too_far", distance_band: "menos de 500m", max_distance_m: 50 },
+        }),
       }),
     );
 

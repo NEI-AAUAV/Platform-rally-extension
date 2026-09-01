@@ -285,6 +285,17 @@ test.describe("peddy paper", () => {
   });
 
   test("the guide sees the clue its team was given", async () => {
+    // Every guide surface is gated on the two guide-mode switches, peddy
+    // paper included — the waiver that used to exempt this event type is
+    // gone, so the mode has to actually be on.
+    const current = await apiCall<Record<string, unknown>>("GET", "/rally/settings", {
+      token: peddy.admin.accessToken,
+    });
+    await apiCall("PUT", "/rally/settings", {
+      token: peddy.admin.accessToken,
+      body: { ...current, guide_mode_enabled: true, guide_mode_active: true },
+    });
+
     const guide = await apiCall<{ name: string; clue: string | null }[]>(
       "GET",
       "/guide/checkpoints",

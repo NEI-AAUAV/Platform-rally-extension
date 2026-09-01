@@ -21,12 +21,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.api.abac_deps import get_staff_with_checkpoint_access
+from app.api.auth import AuthData, api_nei_auth
 from app.crud.crud_activity import activity as crud_activity
 from app.models.activity import ActivityResult
 from app.schemas.activity_types import ActivityType
+from app.schemas.user import DetailedUser
 from app.services.deferred_judging_service import DeferredJudgingService
 from app.services.deps import get_deferred_judging_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
+
+
+def _require_own_checkpoint(
+    curr_user: DetailedUser, auth: AuthData, checkpoint_id: int | None
+) -> None:
+    """Staff may only act on deferred results belonging to their own post.
+
+    ``get_staff_with_checkpoint_access`` proves the caller holds *some*
+    assignment; it never compares it with the resource. Without this, any
+    assigned staff member could capture results for any team at any deferred
+    activity in the event, and overwrite any team's official photo.
+    """
+    if deps.is_admin_or_manager(auth.scopes):
+        return
+    if checkpoint_id is None or curr_user.staff_checkpoint_id != checkpoint_id:
+        raise HTTPException(status_code=403, detail="Not your assigned checkpoint")
+
 
 ACTIVITY_NOT_FOUND_MSG = "Activity not found"
 
@@ -145,7 +164,8 @@ class DeferredJudgingController:
         self,
         activity_id: int,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
-        _: Annotated[object, Depends(get_staff_with_checkpoint_access)],
+        curr_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
+        auth: Annotated[AuthData, Depends(api_nei_auth)],
         service: Annotated[DeferredJudgingService, Depends(get_deferred_judging_service)],
         images: Annotated[list[UploadFile] | None, File()] = None,
         team_id: int = 0,
@@ -157,6 +177,7 @@ class DeferredJudgingController:
             raise HTTPException(status_code=400, detail="Activity is not deferred-judged type")
         if not team_id:
             raise HTTPException(status_code=400, detail="team_id is required")
+        _require_own_checkpoint(curr_user, auth, activity.checkpoint_id)
 
         # Upload images
         urls: list[str] = []
@@ -187,7 +208,9 @@ class DeferredJudgingController:
         self,
         result_id: int,
         body: SetTeamPhotoRequest,
-        _: Annotated[object, Depends(get_staff_with_checkpoint_access)],
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
+        auth: Annotated[AuthData, Depends(api_nei_auth)],
         service: Annotated[DeferredJudgingService, Depends(get_deferred_judging_service)],
     ) -> SetTeamPhotoResponse:
         """Promote one of a deferred-judging result's submitted photos to the team's official photo.
@@ -195,8 +218,18 @@ class DeferredJudgingController:
         Gated by rally_settings.allow_photo_as_team_photo so an admin can turn
         this capability off event-wide. The chosen URL must already be one of
         the result's own media_urls (already stored in R2) to prevent staff
-        from pointing a team's photo at an arbitrary URL.
+        from pointing a team's photo at an arbitrary URL, and — like the
+        capture route — scoped to the caller's own post: proving *some*
+        assignment was never the same as proving this one.
         """
+        result = await db.get(ActivityResult, result_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Result not found")
+        result_activity = await crud_activity.get(db, result.activity_id)
+        _require_own_checkpoint(
+            curr_user, auth, result_activity.checkpoint_id if result_activity else None
+        )
+
         team_db = await service.set_team_photo_from_result(result_id, image_url=body.image_url)
         return SetTeamPhotoResponse(team_id=team_db.id, photo_url=team_db.photo_url)
 

@@ -12,15 +12,24 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from redis.asyncio.client import PubSub
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.config import SettingsDep
 from app.core.redis import get_async_redis_client
 from app.events.channels import Channels
+from app.schemas.user import DetailedUser
 from app.services import leaderboard_cache
 from app.services.deps import get_scoring_service, get_team_service
 from app.services.scoring_service import ScoringService
 from app.services.team_service import TeamService
+from app.services.visibility_policy import require_live_leaderboard
+
+
+def _is_privileged(curr_user: DetailedUser | None) -> bool:
+    """Admin/manager/staff see the standings whatever the switch says."""
+    return curr_user is not None and deps.is_admin_or_staff(getattr(curr_user, "scopes", []))
+
 
 # Seconds between SSE heartbeats; keeps proxies from dropping an idle connection.
 _HEARTBEAT_SECONDS = 15.0
@@ -106,6 +115,8 @@ class ScoreboardController:
     async def get_live_scoreboard(
         self,
         settings: SettingsDep,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
         service: Annotated[ScoringService, Depends(get_scoring_service)],
     ) -> list[dict[str, Any]]:
         """Return the cached global ranking, recomputing on a cache miss.
@@ -113,7 +124,12 @@ class ScoreboardController:
         When the realtime subsystem is disabled there is no cache to read and no
         worker keeping it warm, but the ranking is still a plain DB computation —
         serve it directly from Postgres instead of failing the public view.
+
+        ``show_live_leaderboard`` gates it: the switch used to hide the
+        scoreboard in the SPA while this endpoint served the standings to
+        anyone who asked.
         """
+        await require_live_leaderboard(db, is_privileged=_is_privileged(curr_user))
         if not settings.EVENTS_ENABLED:
             return await service.get_team_ranking()
 
@@ -159,8 +175,15 @@ class ScoreboardController:
             await client.aclose()
         return {"status": "ok", "results_repriced": repriced}
 
-    def stream_scoreboard(self, request: Request, settings: SettingsDep) -> StreamingResponse:
+    async def stream_scoreboard(
+        self,
+        request: Request,
+        settings: SettingsDep,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
+    ) -> StreamingResponse:
         """Server-Sent Events stream that emits a 'refresh' on each leaderboard update."""
+        await require_live_leaderboard(db, is_privileged=_is_privileged(curr_user))
         if not settings.EVENTS_ENABLED:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -192,7 +215,13 @@ class ScoreboardController:
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    def stream_rally_events(self, request: Request, settings: SettingsDep) -> StreamingResponse:
+    async def stream_rally_events(
+        self,
+        request: Request,
+        settings: SettingsDep,
+        db: Annotated[AsyncSession, Depends(deps.get_db)],
+        curr_user: Annotated[DetailedUser | None, Depends(deps.get_current_user_optional)],
+    ) -> StreamingResponse:
         """Server-Sent Events stream that forwards raw activity_result/team events.
 
         Unlike /scoreboard/stream (which only signals "leaderboard changed"), this
@@ -200,7 +229,12 @@ class ScoreboardController:
         the specific team/activity involved — e.g. staff-evaluation and
         team-progress pages invalidating only their own affected queries instead
         of refetching on every unrelated event.
+
+        Gated on ``show_live_leaderboard`` like the scoreboard itself: the
+        payloads it forwards carry the same score changes, so leaving it open
+        would hand out live standings by another name.
         """
+        await require_live_leaderboard(db, is_privileged=_is_privileged(curr_user))
         if not settings.EVENTS_ENABLED:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

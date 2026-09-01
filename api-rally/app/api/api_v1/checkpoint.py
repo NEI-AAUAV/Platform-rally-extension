@@ -33,6 +33,7 @@ from app.services.checkpoint_service import CheckpointService
 from app.services.deps import get_checkpoint_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
 from app.services.storage import storage_client
+from app.services.visibility_policy import require_participant_view
 
 _team_bearer = HTTPBearer(auto_error=False)
 
@@ -132,7 +133,11 @@ class CheckpointController:
 
         if curr_user:
             scopes = getattr(curr_user, "scopes", [])
-            if deps.is_admin_staff_or_guide(scopes):
+            # Admin/staff only, matching ``/checkpoint/me``. A guide used to be
+            # privileged here and redacted there, so the two endpoints
+            # disagreed about the same caller — and an unassigned guide got
+            # every coordinate on the route from this one.
+            if deps.is_admin_or_staff(scopes):
                 return await service.all_checkpoints()
             if curr_user.team_id:
                 return await service.visible_checkpoints_for_team(curr_user.team_id, settings)
@@ -185,6 +190,10 @@ class CheckpointController:
 
         if not team_id:
             raise RallyUnauthorizedError(f"{AUTH_REQUIRED} (User with Team or Team Token)")
+
+        # The next-post card is the participant view; the switch that turns
+        # that view off has to close this too.
+        await require_participant_view(db, is_privileged=is_privileged)
 
         settings = await rally_settings.get_or_create(db)
         result = await service.next_checkpoint_for_team(team_id, settings, redact=not is_privileged)
