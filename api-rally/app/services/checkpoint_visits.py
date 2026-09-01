@@ -31,6 +31,7 @@ async def insert_arrival(
     checkpoint_id: int,
     latitude: float | None = None,
     longitude: float | None = None,
+    commit: bool = True,
 ) -> CheckpointArrival | None:
     """Idempotent insert. Returns the created row, or ``None`` when an arrival
     for this (team, checkpoint) pair already existed.
@@ -57,7 +58,10 @@ async def insert_arrival(
     )
     db.add(arrival)
     try:
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
     except IntegrityError:
         # Lost a race against a concurrent arrival for the same pair.
         await db.rollback()
@@ -75,6 +79,7 @@ async def record_visit(
     latitude: float | None = None,
     longitude: float | None = None,
     enforce_order: bool = True,
+    commit: bool = True,
 ) -> bool:
     """Record a team's visit to a post, once. Returns True if this call recorded it.
 
@@ -94,12 +99,17 @@ async def record_visit(
         checkpoint_id=checkpoint_id,
         latitude=latitude,
         longitude=longitude,
+        commit=commit,
     )
     if arrival is None:
         return False
 
     await append_visit_entry(
-        db, team_id=team_id, checkpoint_id=checkpoint_id, enforce_order=enforce_order
+        db,
+        team_id=team_id,
+        checkpoint_id=checkpoint_id,
+        enforce_order=enforce_order,
+        commit=commit,
     )
     return True
 
@@ -110,6 +120,7 @@ async def append_visit_entry(
     team_id: int,
     checkpoint_id: int,
     enforce_order: bool = True,
+    commit: bool = True,
 ) -> None:
     """Stamp the visit on ``team.times`` (and the parallel score arrays).
 
@@ -136,4 +147,5 @@ async def append_visit_entry(
             skips=0,
         ),
         enforce_order=enforce_order,
+        commit=commit,
     )

@@ -12,6 +12,7 @@ from app.core.exceptions import RallyValidationError
 from app.crud._event_scope import current_event_id
 from app.crud.base import CRUDBase
 from app.crud.crud_rally_settings import rally_settings
+from app.models.activity import RallyEvent
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.team import Team
 from app.schemas.team import (
@@ -61,6 +62,15 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         """Get a team by their access code (access_code is globally unique)."""
         result: Team | None = await db.scalar(select(Team).where(Team.access_code == access_code))
         return result
+
+    async def get_current_event(self, db: AsyncSession) -> RallyEvent:
+        """Return the active edition without changing it during normal login."""
+        event = await db.scalar(select(RallyEvent).where(RallyEvent.is_current.is_(True)))
+        if event is None:
+            # Preserve the long-standing lazy bootstrap for legacy deployments.
+            event = await db.get(RallyEvent, await current_event_id(db))
+        assert event is not None
+        return event
 
     async def get_multi(
         self,
@@ -179,6 +189,11 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             team = await self.get(db=db, id=id, for_update=True)
             update_data = obj_in.model_dump(exclude_unset=True)
 
+            # The access code is a login credential. Rotating it must revoke
+            # every access/refresh JWT issued with the old code immediately.
+            if "access_code" in update_data and update_data["access_code"] != team.access_code:
+                team.auth_version += 1
+
             should_validate_locked = any(key in update_data for key in locked_arrays)
 
             if should_validate_locked:
@@ -225,6 +240,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         checkpoint_id: int,
         obj_in: TeamScoresUpdate,
         enforce_order: bool = True,
+        commit: bool = True,
     ) -> Team:
         """Delegates to TeamService — kept here so existing callers (and the
         test suite) don't need to construct a service directly."""
@@ -232,7 +248,11 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         from app.services.team_service import TeamService
 
         return await TeamService(db, self).add_checkpoint(
-            id=id, checkpoint_id=checkpoint_id, obj_in=obj_in, enforce_order=enforce_order
+            id=id,
+            checkpoint_id=checkpoint_id,
+            obj_in=obj_in,
+            enforce_order=enforce_order,
+            commit=commit,
         )
 
     async def get_by_checkpoint(self, db: AsyncSession, checkpoint_id: int) -> Sequence[Team]:

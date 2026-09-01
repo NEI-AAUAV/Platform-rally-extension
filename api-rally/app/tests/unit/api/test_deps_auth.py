@@ -355,6 +355,8 @@ def _team_token(**overrides):
     payload = {
         "team_id": 12,
         "team_name": "Equipa",
+        "auth_version": 1,
+        "event_id": 1,
         "type": "team_access",
         "exp": datetime.now(UTC) + timedelta(hours=1),
     }
@@ -366,33 +368,43 @@ def _creds(token: str) -> HTTPAuthorizationCredentials:
     return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
 
-def test_team_optional_none_without_credentials():
-    assert deps.get_current_team_optional(None, settings) is None
+async def test_team_optional_none_without_credentials():
+    assert await deps.get_current_team_optional(None, settings, AsyncMock()) is None
 
 
-def test_team_optional_valid_token():
-    data = deps.get_current_team_optional(_creds(_team_token()), settings)
+async def test_team_optional_valid_token():
+    expected = deps.TeamTokenData(team_id=12, team_name="Equipa")
+    with patch("app.api.deps.validate_team_token", new=AsyncMock(return_value=expected)):
+        data = await deps.get_current_team_optional(_creds(_team_token()), settings, AsyncMock())
     assert data is not None
     assert data.team_id == 12
     assert data.team_name == "Equipa"
 
 
-def test_team_optional_rejects_expired_token():
+async def test_team_optional_rejects_expired_token():
     token = _team_token(exp=datetime.now(UTC) - timedelta(minutes=1))
-    assert deps.get_current_team_optional(_creds(token), settings) is None
+    assert await deps.get_current_team_optional(_creds(token), settings, AsyncMock()) is None
 
 
-def test_team_optional_rejects_wrong_type():
-    assert deps.get_current_team_optional(_creds(_team_token(type="other")), settings) is None
+async def test_team_optional_rejects_wrong_type():
+    assert (
+        await deps.get_current_team_optional(
+            _creds(_team_token(type="other")), settings, AsyncMock()
+        )
+        is None
+    )
 
 
-def test_team_optional_none_when_secret_key_unconfigured():
+async def test_team_optional_none_when_secret_key_unconfigured():
     fake_settings = Mock()
     fake_settings.TEAM_JWT_SECRET_KEY = ""
-    assert deps.get_current_team_optional(_creds(_team_token()), fake_settings) is None
+    assert (
+        await deps.get_current_team_optional(_creds(_team_token()), fake_settings, AsyncMock())
+        is None
+    )
 
 
-def test_team_optional_rejects_tampered_signature():
+async def test_team_optional_rejects_tampered_signature():
     token = jwt.encode(
         {
             "team_id": 12,
@@ -403,7 +415,7 @@ def test_team_optional_rejects_tampered_signature():
         "wrong-secret",
         algorithm="HS256",
     )
-    assert deps.get_current_team_optional(_creds(token), settings) is None
+    assert await deps.get_current_team_optional(_creds(token), settings, AsyncMock()) is None
 
 
 def test_get_current_team_raises_401_without_token():

@@ -3,7 +3,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jose import JWTError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from app.crud.crud_rally_staff_assignment import rally_staff_assignment
 from app.db.session import SessionLocal
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
+from app.services.team_auth_service import validate_team_token
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -209,9 +210,10 @@ def get_admin_or_staff(
 team_security_optional = HTTPBearer(auto_error=False)
 
 
-def get_current_team_optional(
+async def get_current_team_optional(
     token: Annotated[HTTPAuthorizationCredentials | None, Depends(team_security_optional)],
     settings: SettingsDep,
+    db: SessionDep,
 ) -> TeamTokenData | None:
     """Dependency for optional team authentication"""
     if not token:
@@ -221,21 +223,8 @@ def get_current_team_optional(
         if not settings.TEAM_JWT_SECRET_KEY:
             return None
 
-        payload = jwt.decode(
-            token.credentials,
-            settings.TEAM_JWT_SECRET_KEY,
-            algorithms=[settings.TEAM_JWT_ALGORITHM],
-        )
-
-        team_id = payload.get("team_id")
-        team_name = payload.get("team_name")
-        token_type = payload.get("type")
-
-        if team_id is None or team_name is None or token_type != "team_access":
-            return None
-
-        return TeamTokenData(team_id=team_id, team_name=team_name)
-    except JWTError:
+        return await validate_team_token(db, token.credentials)
+    except (JWTError, HTTPException):
         return None
 
 

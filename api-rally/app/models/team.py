@@ -28,6 +28,9 @@ class Team(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column()
     access_code: Mapped[str] = mapped_column(unique=True, index=True)
+    # Incremented whenever a credential that can authenticate this team is
+    # rotated or the team is disabled. It revokes all outstanding team JWTs.
+    auth_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     # Official team photo (R2 public URL). Shown on the team page, leaderboard
     # and team cards. Empty string when unset (falls back to a placeholder).
     photo_url: Mapped[str] = mapped_column(String(500), nullable=False, default="")

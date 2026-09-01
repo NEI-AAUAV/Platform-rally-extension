@@ -11,19 +11,28 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import RallyNotFoundError, RallyUnauthorizedError
 from app.crud.crud_activity import activity_result as activity_result_crud
+from app.models.activity import RallyEvent
 from app.models.evaluation_history import EvaluationAction, EvaluationHistory
+from app.models.team import Team
 from app.schemas.evaluation_history import EvaluationHistoryEntry
 from app.schemas.team_auth import TeamTokenData
 
 logger = logging.getLogger(__name__)
 
 
-def create_team_access_token(team_id: int, team_name: str, orig_iat: int | None = None) -> str:
+def create_team_access_token(
+    team_id: int,
+    team_name: str,
+    auth_version: int = 1,
+    event_id: int = 1,
+    orig_iat: int | None = None,
+) -> str:
     """Create a JWT token for team authentication.
 
     ``orig_iat`` (epoch seconds of the original login) is carried across
@@ -34,6 +43,8 @@ def create_team_access_token(team_id: int, team_name: str, orig_iat: int | None 
     to_encode = {
         "team_id": team_id,
         "team_name": team_name,
+        "auth_version": auth_version,
+        "event_id": event_id,
         "exp": expire,
         "orig_iat": orig_iat if orig_iat is not None else int(now.timestamp()),
         "type": "team_access",
@@ -53,9 +64,18 @@ def decode_team_token(token: str) -> dict[str, Any]:
         )
         team_id = payload.get("team_id")
         team_name = payload.get("team_name")
+        auth_version = payload.get("auth_version")
+        event_id = payload.get("event_id")
         token_type = payload.get("type")
 
-        if team_id is None or team_name is None or token_type != "team_access":
+        if (
+            not isinstance(team_id, int)
+            or not isinstance(team_name, str)
+            or not isinstance(auth_version, int)
+            or isinstance(auth_version, bool)
+            or not isinstance(event_id, int)
+            or token_type != "team_access"
+        ):
             logger.warning("Team token rejected: missing/invalid claims")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
@@ -67,13 +87,34 @@ def decode_team_token(token: str) -> dict[str, Any]:
         ) from exc
 
 
-def verify_team_token(token: str) -> TeamTokenData:
-    """Verify and decode a team JWT token."""
+async def validate_team_token(db: AsyncSession, token: str) -> TeamTokenData:
+    """Validate JWT claims against the live team and active edition.
+
+    Missing version/edition claims are intentionally rejected, invalidating
+    tokens minted before per-team revocation existed.
+    """
     payload = decode_team_token(token)
-    return TeamTokenData(team_id=payload["team_id"], team_name=payload["team_name"])
+    team = await db.get(Team, payload["team_id"])
+    current_event_id = await db.scalar(select(RallyEvent.id).where(RallyEvent.is_current.is_(True)))
+    if (
+        team is None
+        or team.name != payload["team_name"]
+        or team.auth_version != payload["auth_version"]
+        or current_event_id is None
+        or payload["event_id"] != current_event_id
+        or (team.event_id is not None and team.event_id != current_event_id)
+    ):
+        logger.info("Team token revoked or outside current edition: team_id=%s", payload["team_id"])
+        raise RallyUnauthorizedError("Team session expired, please log in again")
+    return TeamTokenData(team_id=team.id, team_name=team.name)
 
 
-def refresh_team_access_token(token: str) -> dict[str, Any]:
+async def verify_team_token(db: AsyncSession, token: str) -> TeamTokenData:
+    """Verify a team JWT and its live revocation state."""
+    return await validate_team_token(db, token)
+
+
+async def refresh_team_access_token(db: AsyncSession, token: str) -> dict[str, Any]:
     """Verify an existing team token's absolute session lifetime and mint a
     fresh one, returning {access_token, team_id, team_name}.
 
@@ -91,14 +132,19 @@ def refresh_team_access_token(token: str) -> dict[str, Any]:
         logger.info("Team %s session expired at refresh (absolute lifetime)", payload["team_id"])
         raise RallyUnauthorizedError("Session expired, please log in again")
 
+    team = await validate_team_token(db, token)
     new_access_token = create_team_access_token(
-        team_id=payload["team_id"], team_name=payload["team_name"], orig_iat=orig_iat
+        team_id=team.team_id,
+        team_name=team.team_name,
+        auth_version=payload["auth_version"],
+        event_id=payload["event_id"],
+        orig_iat=orig_iat,
     )
     logger.info("Team %s token refreshed", payload["team_id"])
     return {
         "access_token": new_access_token,
-        "team_id": payload["team_id"],
-        "team_name": payload["team_name"],
+        "team_id": team.team_id,
+        "team_name": team.team_name,
     }
 
 

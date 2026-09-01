@@ -191,7 +191,13 @@ class TeamService:
         raise RallyValidationError(unreachable_message(checkpoint_obj, progress))
 
     async def add_checkpoint(
-        self, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate, enforce_order: bool = True
+        self,
+        *,
+        id: int,
+        checkpoint_id: int,
+        obj_in: TeamScoresUpdate,
+        enforce_order: bool = True,
+        commit: bool = True,
     ) -> Team:
         """Record a team's arrival/score at a checkpoint and recompute classification.
 
@@ -228,8 +234,12 @@ class TeamService:
                 at=current_time.replace(tzinfo=None),
             )
 
-        await self._db.commit()
-        await self.update_classification()
+        if commit:
+            await self._db.commit()
+            await self.update_classification()
+        else:
+            await self._team_crud.update_classification_unlocked(db=self._db)
+            await self._db.flush()
         await self._db.refresh(team)
         return team
 

@@ -149,6 +149,8 @@ async def store_idempotent_response(
     reservation.row.status_code = status_code
     reservation.row.completed_at = datetime.now(UTC)
     db.add(reservation.row)
+    # This is the single commit for an idempotent write: the reservation,
+    # domain mutation and replayable response become durable atomically.
     await db.commit()
 
 

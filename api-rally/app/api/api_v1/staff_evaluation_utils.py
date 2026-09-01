@@ -188,6 +188,8 @@ async def create_activity_result(
     team_id: int,
     activity_id: int,
     result_in: ActivityResultEvaluation,
+    *,
+    commit: bool = True,
 ) -> ActivityResult:
     """Create activity result"""
     result_create = ActivityResultCreate(
@@ -199,7 +201,7 @@ async def create_activity_result(
         # prices them. See ActivityResultEvaluation.
         penalty_counts=result_in.penalty_counts,
     )
-    return await scoring_service.create_result(result_create)
+    return await scoring_service.create_result(result_create, commit=commit)
 
 
 async def create_or_update_activity_result(
@@ -211,6 +213,7 @@ async def create_or_update_activity_result(
     *,
     set_extra_shots_on_update: bool = True,
     editor: EvaluationEditor | None = None,
+    commit: bool = True,
 ) -> ActivityResult:
     """Create the team's result for this activity, or update it if one already exists.
 
@@ -250,18 +253,28 @@ async def create_or_update_activity_result(
     existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
     if existing_result:
         return await scoring_service.update_result(
-            existing_result, _update_payload(), editor=editor
+            existing_result, _update_payload(), editor=editor, commit=commit
         )
 
     try:
-        return await create_activity_result(scoring_service, team_id, activity_id, result_in)
+        if commit:
+            return await create_activity_result(
+                scoring_service, team_id, activity_id, result_in, commit=True
+            )
+        # Keep a duplicate-result INSERT from rolling back the idempotency
+        # reservation and every earlier mutation in the caller's transaction.
+        async with db.begin_nested():
+            return await create_activity_result(
+                scoring_service, team_id, activity_id, result_in, commit=False
+            )
     except IntegrityError:
-        await db.rollback()
+        if commit:
+            await db.rollback()
         existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
         if existing_result is None:
             raise
         return await scoring_service.update_result(
-            existing_result, _update_payload(), editor=editor
+            existing_result, _update_payload(), editor=editor, commit=commit
         )
 
 
@@ -277,6 +290,7 @@ async def mirror_team_vs_result(
     result_data: dict[str, Any],
     *,
     editor: EvaluationEditor | None = None,
+    commit: bool = True,
 ) -> None:
     """Keep the opponent's TeamVsActivity result in sync.
 
@@ -311,6 +325,7 @@ async def mirror_team_vs_result(
         ActivityResultEvaluation(result_data=opponent_result_data),
         set_extra_shots_on_update=False,
         editor=editor,
+        commit=commit,
     )
 
 
@@ -319,7 +334,9 @@ async def mirror_team_vs_result(
 # =============================================================================
 
 
-async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: Activity) -> None:
+async def check_and_advance_team(
+    db: AsyncSession, team_id: int, activity_obj: Activity, *, commit: bool = True
+) -> None:
     """Advance the team past this checkpoint once ALL its activities are scored.
 
     Idempotent: evaluating (or re-evaluating) an activity at a checkpoint the
@@ -368,7 +385,9 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
             f"Team {team_id} completed all activities at "
             f"checkpoint {current_checkpoint_id}, recording the visit"
         )
-        await checkin_team_to_checkpoint(db, team_id, current_checkpoint_id, enforce_order=False)
+        await checkin_team_to_checkpoint(
+            db, team_id, current_checkpoint_id, enforce_order=False, commit=commit
+        )
     else:
         logger.debug(
             f"Team {team_id} still has {len(pending)} unscored activities at "
@@ -383,6 +402,7 @@ async def checkin_team_to_checkpoint(
     *,
     enforce_order: bool = True,
     arrival_already_recorded: bool = False,
+    commit: bool = True,
 ) -> None:
     """Record that the team visited this checkpoint.
 
@@ -413,6 +433,7 @@ async def checkin_team_to_checkpoint(
                 team_id=team_id,
                 checkpoint_id=checkpoint_id,
                 enforce_order=enforce_order,
+                commit=commit,
             )
             recorded = True
         else:
@@ -421,6 +442,7 @@ async def checkin_team_to_checkpoint(
                 team_id=team_id,
                 checkpoint_id=checkpoint_id,
                 enforce_order=enforce_order,
+                commit=commit,
             )
     except Exception as e:
         # Log error and propagate - checkpoint advancement is critical

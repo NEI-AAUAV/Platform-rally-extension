@@ -490,6 +490,45 @@ class TestEvaluationIdempotency:
         )
         assert conflict.status_code == 409, conflict.text
 
+    async def test_failure_before_final_commit_rolls_back_mutation_and_reservation(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        """A crash/failure while finalizing the replay response must not leave
+        either the scored result or an eternally in-flight reservation durable."""
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        team_id = team_obj.id
+        activity_id = activity_obj.id
+
+        async def _fail_before_commit(db, reservation, *, response_body, status_code=200):
+            await db.rollback()
+            raise RuntimeError("simulated crash before atomic commit")
+
+        monkeypatch.setattr(
+            staff_evaluation_module, "store_idempotent_response", _fail_before_commit
+        )
+
+        with pytest.raises(RuntimeError, match="simulated crash"):
+            pg_client.post(
+                url,
+                json={"result_data": {"assigned_points": 50}},
+                headers={"Idempotency-Key": "crash-before-final-commit"},
+            )
+
+        pg_session.expire_all()
+        result = await pg_session.scalar(
+            select(ActivityResult).where(
+                ActivityResult.activity_id == activity_id,
+                ActivityResult.team_id == team_id,
+            )
+        )
+        key = await pg_session.scalar(
+            select(IdempotencyKey).where(
+                IdempotencyKey.idempotency_key == "crash-before-final-commit"
+            )
+        )
+        assert result is None
+        assert key is None
+
     async def test_no_key_behaves_normally(self, pg_session, pg_client, as_admin):
         _team, _activity, url = await self._seed(pg_session)
         resp = pg_client.post(

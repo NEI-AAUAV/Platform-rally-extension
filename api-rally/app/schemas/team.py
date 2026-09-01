@@ -104,6 +104,9 @@ class TeamCreate(BaseModel):
 
 class TeamUpdate(BaseModel):
     name: str | None = None
+    # Admin-only endpoint. Changing this credential revokes all issued team
+    # JWTs in CRUDTeam.update.
+    access_code: str | None = Field(default=None, pattern=r"^[A-Z0-9]{4}-[A-Z0-9]{4}$")
     start_offset_minutes: int | None = Field(default=None, ge=0, le=24 * 60)
     times: list[datetime] | None = None
     score_per_checkpoint: list[int] | None = None

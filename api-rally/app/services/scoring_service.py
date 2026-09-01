@@ -1047,6 +1047,7 @@ class ScoringService:
         obj_in: ActivityResultUpdate | ActivityResultStaffUpdate,
         *,
         editor: EvaluationEditor | None = None,
+        commit: bool = True,
     ) -> ActivityResult:
         """Apply an update to a result, rescoring when result_data changed.
 
@@ -1124,6 +1125,11 @@ class ScoringService:
             total = await self._apply_team_score(db_obj.team_id)
             if total is not None:
                 totals[db_obj.team_id] = total
+        if not commit:
+            await self._reassign_team_ranks()
+            await self.db.flush()
+            return db_obj
+
         await self._commit_and_publish_team_scores(totals)
         await self._publish_result_change(
             ActivityResultUpdatedEvent,
