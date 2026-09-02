@@ -53,7 +53,10 @@ async def _setup(pg_session, **settings_kw):
 
 async def test_add_checkpoint_rolls_back_append_when_recompute_fails(pg_session, monkeypatch):
     _, _, cp1, _, team = await _setup(pg_session)
-    await insert_arrival(pg_session, team_id=team.id, checkpoint_id=cp1.id)
+    # Read the id out now: the rollback below expires every loaded attribute,
+    # and re-reading one afterwards is a lazy load from sync attribute access.
+    team_id = team.id
+    await insert_arrival(pg_session, team_id=team_id, checkpoint_id=cp1.id)
 
     monkeypatch.setattr(
         TeamService,
@@ -64,7 +67,7 @@ async def test_add_checkpoint_rolls_back_append_when_recompute_fails(pg_session,
     with pytest.raises(RuntimeError):
         await crud_team.add_checkpoint(
             db=pg_session,
-            id=team.id,
+            id=team_id,
             checkpoint_id=cp1.id,
             obj_in=TeamScoresUpdate(
                 checkpoint_id=cp1.id, question_score=1, time_score=10, pukes=0, skips=0
@@ -72,7 +75,7 @@ async def test_add_checkpoint_rolls_back_append_when_recompute_fails(pg_session,
         )
 
     await pg_session.rollback()
-    fresh = await pg_session.get(Team, team.id)
+    fresh = await pg_session.get(Team, team_id)
     # The append never became durable: no second commit persisted it ahead of
     # the failed recompute.
     assert list(fresh.times) == []
@@ -107,6 +110,7 @@ async def test_record_visit_reconciles_times_entry_owed_by_existing_arrival(pg_s
 
 async def test_skip_rolls_back_when_team_score_recompute_fails(pg_session, monkeypatch):
     _, settings, cp1, _, team = await _setup(pg_session, skip_enabled=True, skip_penalty=-25)
+    team_id, cp1_id = team.id, cp1.id
 
     monkeypatch.setattr(
         "app.services.skip_service.ScoringService.update_team_scores",
@@ -115,11 +119,11 @@ async def test_skip_rolls_back_when_team_score_recompute_fails(pg_session, monke
 
     service = SkipService(pg_session, crud_checkpoint, crud_team)
     with pytest.raises(RuntimeError):
-        await service.skip(team_id=team.id, checkpoint_id=cp1.id)
+        await service.skip(team_id=team_id, checkpoint_id=cp1_id)
 
     await pg_session.rollback()
     skips = await pg_session.scalar(
-        select(func.count()).select_from(CheckpointSkip).where(CheckpointSkip.team_id == team.id)
+        select(func.count()).select_from(CheckpointSkip).where(CheckpointSkip.team_id == team_id)
     )
     # Before the fix the skip row + award were committed before the recompute,
     # so a scorer failure left the post skipped with team.total stale.
@@ -128,9 +132,10 @@ async def test_skip_rolls_back_when_team_score_recompute_fails(pg_session, monke
 
 async def test_hint_reveal_rolls_back_when_team_score_recompute_fails(pg_session, monkeypatch):
     _, settings, cp1, _, team = await _setup(pg_session, hints_enabled=True, hint_penalty=-10)
+    team_id, cp1_id = team.id, cp1.id
     pg_session.add(
         CheckpointGuideIndication(
-            checkpoint_id=cp1.id, order=0, hint="first hint", question="q", expected_answer="a"
+            checkpoint_id=cp1_id, order=0, hint="first hint", question="q", expected_answer="a"
         )
     )
     await pg_session.commit()
@@ -142,13 +147,13 @@ async def test_hint_reveal_rolls_back_when_team_score_recompute_fails(pg_session
 
     service = HintService(pg_session, crud_checkpoint, crud_team)
     with pytest.raises(RuntimeError):
-        await service.reveal_next(team_id=team.id, checkpoint_id=cp1.id)
+        await service.reveal_next(team_id=team_id, checkpoint_id=cp1_id)
 
     await pg_session.rollback()
     reveals = await pg_session.scalar(
         select(func.count())
         .select_from(CheckpointHintReveal)
-        .where(CheckpointHintReveal.team_id == team.id)
+        .where(CheckpointHintReveal.team_id == team_id)
     )
     assert reveals == 0
 
@@ -172,11 +177,13 @@ async def test_activity_delete_is_atomic_with_team_rescore(pg_session, monkeypat
     pg_session.add(activity)
     await pg_session.commit()
     await pg_session.refresh(activity)
-    for tm in (team_a, team_b):
+    activity_id = activity.id
+    team_ids = [team_a.id, team_b.id]
+    for tm_id in team_ids:
         pg_session.add(
             ActivityResult(
-                activity_id=activity.id,
-                team_id=tm.id,
+                activity_id=activity_id,
+                team_id=tm_id,
                 result_data={"assigned_points": 40},
                 final_score=40,
                 is_completed=True,
@@ -199,16 +206,16 @@ async def test_activity_delete_is_atomic_with_team_rescore(pg_session, monkeypat
     monkeypatch.setattr(ScoringService, "_apply_team_score", flaky_apply)
 
     with pytest.raises(RuntimeError):
-        await crud_activity.remove(db=pg_session, id=activity.id, commit=False)
-        await ScoringService(pg_session).recompute_and_commit_team_scores({team_a.id, team_b.id})
+        await crud_activity.remove(db=pg_session, id=activity_id, commit=False)
+        await ScoringService(pg_session).recompute_and_commit_team_scores(set(team_ids))
 
     await pg_session.rollback()
     # The delete was flushed but never committed: activity (and its results)
     # survive, so the standings are never left half-rescored.
-    assert await pg_session.get(Activity, activity.id) is not None
+    assert await pg_session.get(Activity, activity_id) is not None
     remaining = await pg_session.scalar(
         select(func.count())
         .select_from(ActivityResult)
-        .where(ActivityResult.activity_id == activity.id)
+        .where(ActivityResult.activity_id == activity_id)
     )
     assert remaining == 2

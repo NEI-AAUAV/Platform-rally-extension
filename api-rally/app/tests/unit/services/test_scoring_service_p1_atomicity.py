@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy import select as sa_select
 
+from app.core.exceptions import RallyError
 from app.crud.crud_team import team as crud_team
 from app.events import ActivityResultUpdatedEvent
 from app.models.activity import Activity, ActivityResult
@@ -197,22 +198,29 @@ async def test_special_score_edits_do_not_commit_source_result_before_commit_fun
 
     service = ScoringService(pg_session)
 
+    # Read the ids out before the failure: the rollback below expires every
+    # loaded attribute, and re-reading one afterwards is a lazy load from sync
+    # attribute access (MissingGreenlet under asyncio).
+    team_id, activity_id, result_id = team.id, activity.id, result.id
+
     async def explode_before_commit():
         raise RuntimeError("classification failed")
 
     monkeypatch.setattr(service, "_reassign_team_ranks", explode_before_commit)
 
-    with pytest.raises(RuntimeError, match="classification failed"):
+    # The commit funnel wraps whatever fails before its single commit in a
+    # RallyError, so that is what reaches the caller.
+    with pytest.raises(RallyError, match="classification failed"):
         if method_name == "apply_extra_shots_bonus":
             await service.apply_extra_shots_bonus(
-                team.id,
-                activity.id,
+                team_id,
+                activity_id,
                 extra_shots=2,
             )
         else:
             await service.apply_penalty(
-                team.id,
-                activity.id,
+                team_id,
+                activity_id,
                 "vomit",
                 1,
             )
@@ -222,8 +230,8 @@ async def test_special_score_edits_do_not_commit_source_result_before_commit_fun
     # old implementation this rollback could not undo the first commit.
     await pg_session.rollback()
 
-    durable_result = await pg_session.get(ActivityResult, result.id)
-    durable_team = await pg_session.get(Team, team.id)
+    durable_result = await pg_session.get(ActivityResult, result_id)
+    durable_team = await pg_session.get(Team, team_id)
 
     assert durable_result is not None
     assert durable_team is not None

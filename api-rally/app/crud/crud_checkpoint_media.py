@@ -72,7 +72,9 @@ class CRUDCheckpointMedia:
             db_obj.image_url = image_url
         await db.commit()
         await db.refresh(db_obj)
-        if image_url is not None:
+        # Only the *replaced* image is orphaned. A first upload has nothing to
+        # clean up, and re-saving the same URL would delete the live image.
+        if image_url is not None and old_image_url and old_image_url != image_url:
             storage_client.delete_image(old_image_url)
         return db_obj
 

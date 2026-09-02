@@ -632,12 +632,12 @@ class TestIdempotentEvaluationPublishesEventsAfterCommit:
         resp = pg_client.post(url, json=payload, headers={"Idempotency-Key": "evt-normal-1"})
         assert resp.status_code == 200, resp.text
 
-        result_events = [e for e in published if str(e.event_type) == "activity_result.created"]
+        result_events = [e for e in published if e.event_type.value == "activity_result.created"]
         assert len(result_events) == 1
         assert result_events[0].payload.team_id == team_obj.id
         assert result_events[0].payload.activity_id == activity_obj.id
         # A team.score_updated must also reach the leaderboard worker.
-        assert any(str(e.event_type) == "team.score_updated" for e in published)
+        assert any(e.event_type.value == "team.score_updated" for e in published)
 
         # The event describes committed state: the total is really persisted.
         await pg_session.refresh(team_obj)
@@ -658,7 +658,7 @@ class TestIdempotentEvaluationPublishesEventsAfterCommit:
         assert resp.status_code == 200, resp.text
 
         # The worker's wake-up signal was published exactly once.
-        result_events = [e for e in published if str(e.event_type) == "activity_result.created"]
+        result_events = [e for e in published if e.event_type.value == "activity_result.created"]
         assert len(result_events) == 1
 
         # Deferred: the request itself did not fold the score into the total.
@@ -723,7 +723,7 @@ class TestIdempotentEvaluationPublishesEventsAfterCommit:
         )
         assert resp.status_code == 200, resp.text
 
-        result_events = [e for e in published if str(e.event_type).startswith("activity_result.")]
+        result_events = [e for e in published if e.event_type.value.startswith("activity_result.")]
         teams_notified = sorted(e.payload.team_id for e in result_events)
         assert teams_notified == sorted([team_a.id, team_b.id]), (
             f"expected exactly one result event per match half, got {teams_notified}"
