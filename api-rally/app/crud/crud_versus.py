@@ -79,10 +79,9 @@ class CRUDVersus:
             select(Team)
             .where(Team.id != team_id)
             .where(Team.versus_group_id == team.versus_group_id)
-            .where(
-                (Team.event_id == team.event_id)
-                | (Team.event_id.is_(None) & (team.event_id.is_(None)))
-            )
+            # Pairing already rejects cross-event groups, so matching this team's
+            # event_id is enough. SQLAlchemy emits ``IS NULL`` when it is None.
+            .where(Team.event_id == team.event_id)
         )
         return result.scalar_one_or_none()
 

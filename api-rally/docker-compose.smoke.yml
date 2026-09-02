@@ -109,9 +109,13 @@ services:
       R2_BUCKET: rally-smoke
       R2_PUBLIC_BASE_URL: http://localhost:9000/rally-smoke
       TEAM_JWT_SECRET_KEY: smoke-only-secret-not-for-prod
-      VAPID_PUBLIC_KEY: BOT6_YRLvJJuj_4434BQOyZQegRgYSKzeEoQGckKP8BQ8u-geoK9cRKQkPCbMbpeZSluYMq4nl-2YRwF9OyMXXk
-      VAPID_PRIVATE_KEY: Ma9f_ZEtTzcXpFJW-Km8tvbC6Vsi4DnM9ci4Bl5zOns
-      VAPID_SUBJECT: mailto:smoke-tests@example.invalid
+      # VAPID keys are a real EC keypair, so they are never committed — not even
+      # throwaway ones. Source them from the environment (compose reads an
+      # adjacent, git-ignored .env; CI generates a fresh pair per run) and fail
+      # fast when absent. See .env.example.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?set VAPID_PUBLIC_KEY (see api-rally/.env.example)}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?set VAPID_PRIVATE_KEY (see api-rally/.env.example)}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:smoke-tests@example.invalid}
       EVENTS_ENABLED: "true"
       EVENTS_FAIL_SILENTLY: "false"
       SELF_CHECKIN_ENABLED: "true"

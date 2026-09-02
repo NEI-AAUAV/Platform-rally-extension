@@ -399,6 +399,27 @@ jobs:
       working-directory: web-rally
       run: pnpm run playwright:install
 
+    - name: Generate ephemeral VAPID keypair for the smoke stack
+      working-directory: api-rally
+      run: |
+        python3 -m pip install --quiet 'cryptography>=42'
+        python3 - <<'PY' >> .env
+        import base64
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives import serialization
+
+        k = ec.generate_private_key(ec.SECP256R1())
+        b = lambda x: base64.urlsafe_b64encode(x).rstrip(b"=").decode()
+        priv = k.private_numbers().private_value.to_bytes(32, "big")
+        pub = k.public_key().public_bytes(
+            serialization.Encoding.X962,
+            serialization.PublicFormat.UncompressedPoint,
+        )
+        print("VAPID_PRIVATE_KEY=" + b(priv))
+        print("VAPID_PUBLIC_KEY=" + b(pub))
+        print("VAPID_SUBJECT=mailto:smoke-tests@example.invalid")
+        PY
+
     - name: Start api-rally smoke stack
       working-directory: api-rally
       run: docker compose -f docker-compose.smoke.yml up -d postgres redis fake-oidc api
