@@ -320,7 +320,7 @@ async def test_arrive_auto_complete_swallows_checkin_failure(pg_session, pg_clie
 
     with (
         patch(
-            "app.services.checkpoint_arrival_service.checkin_team_to_checkpoint",
+            "app.services.checkpoint_arrival_service.record_visit",
             new=AsyncMock(side_effect=RuntimeError("boom")),
         ),
         as_team(team.id, "TeamA"),

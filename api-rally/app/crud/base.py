@@ -45,7 +45,15 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         effective_limit = DEFAULT_MAX_LIMIT if limit is None else limit
         stmt = select(self.model).limit(effective_limit).offset(skip)
         if for_update:
-            stmt = stmt.with_for_update()
+            # Deterministic lock order. Without it Postgres locks rows in
+            # whatever order the plan returns, so two concurrent transactions
+            # taking the same set could take it in different orders and
+            # deadlock. Every other FOR UPDATE scan in the codebase orders by
+            # primary key (CRUDTeam.get_multi, crud_versus, ScoringService), so
+            # this generic one must too, or the two families of scan deadlock
+            # against each other. The LIMIT makes it doubly necessary:
+            # unordered, two callers could lock different subsets entirely.
+            stmt = stmt.order_by(*self.model.__mapper__.primary_key).with_for_update()
         return (await db.scalars(stmt)).all()
 
     async def create(

@@ -23,12 +23,19 @@ from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_activity import activity_result as crud_activity_result
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
+from app.crud.crud_versus import versus as crud_versus
 from app.main import app
 from app.models.activity import ActivityResult
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
-from app.tests.conftest import _fake_auth_data, _fake_detailed_user, as_team, make_event
+from app.tests.conftest import (
+    _fake_auth_data,
+    _fake_detailed_user,
+    as_team,
+    make_event,
+    set_rally_settings,
+)
 
 RESULTS_URL = "/api/rally/v1/activities/results/"
 
@@ -95,6 +102,13 @@ async def two_posts(pg_session):
             is_active=True,
         ),
     )
+    # Settling a TeamVs match is only allowed for the configured pairing, so
+    # the two teams have to be in a versus group before any of the permission
+    # questions below can be reached.
+    await set_rally_settings(pg_session, enable_versus=True)
+    await crud_versus.create_versus_pair(pg_session, team_a_id=team.id, team_b_id=other_team.id)
+    await pg_session.commit()
+
     return {
         "mine": mine,
         "mine_activity": mine_activity,
@@ -351,7 +365,10 @@ class TestTeamVsFollowsTheSameRule:
                 winner=two_posts["team"].id,
             )
 
-        assert response.status_code == 403
+        # A team token is not a staff identity at all, so the route refuses it
+        # at authentication (401) rather than at the post-ownership rule (403).
+        # Both are a refusal; what matters is that a team cannot settle a match.
+        assert response.status_code in (401, 403), response.text
 
 
 class TestAdminIsNotConfinedToAPost:

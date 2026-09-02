@@ -445,6 +445,10 @@ class TestCanonicalProgressAgreement:
         await set_rally_settings(
             pg_session,
             participant_view_enabled=True,
+            # Every guide surface is gated on the guide-mode pair, not just on
+            # the manual-arrival switch.
+            guide_mode_enabled=True,
+            guide_mode_active=True,
             guide_manual_arrival_enabled=True,
         )
         cp1 = await _make_checkpoint_with_location(pg_session, 1)
