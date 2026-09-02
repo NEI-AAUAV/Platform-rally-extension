@@ -13,7 +13,6 @@ from app.schemas.activity_types import ActivityType
 from app.schemas.team import TeamCreate
 from app.services.scoring_service import ScoringService
 
-
 _checkpoint_order = 50_000
 
 
@@ -139,7 +138,7 @@ async def test_special_score_edits_publish_activity_result_updated_off_path(
     monkeypatch.setattr(
         ScoringService,
         "_defer_recompute",
-        property(lambda self: True),
+        property(lambda _self: True),
     )
 
     published = []
@@ -169,9 +168,7 @@ async def test_special_score_edits_publish_activity_result_updated_off_path(
 
     assert ok is True
 
-    updated_events = [
-        event for event in published if isinstance(event, ActivityResultUpdatedEvent)
-    ]
+    updated_events = [event for event in published if isinstance(event, ActivityResultUpdatedEvent)]
     assert len(updated_events) == 1
 
     event = updated_events[0]
@@ -205,7 +202,7 @@ async def test_special_score_edits_do_not_commit_source_result_before_commit_fun
 
     monkeypatch.setattr(service, "_reassign_team_ranks", explode_before_commit)
 
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError, match="classification failed"):
         if method_name == "apply_extra_shots_bonus":
             await service.apply_extra_shots_bonus(
                 team.id,

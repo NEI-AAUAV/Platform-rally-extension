@@ -44,8 +44,7 @@ const apiMatcher = (): RouteMatcher => {
   return match;
 };
 
-const req = (path: string, init?: RequestInit) =>
-  new Request(`http://localhost${path}`, init);
+const req = (path: string, init?: RequestInit) => new Request(`http://localhost${path}`, init);
 
 const matches = (path: string, init?: RequestInit): boolean =>
   apiMatcher()({ url: new URL(`http://localhost${path}`), request: req(path, init) });

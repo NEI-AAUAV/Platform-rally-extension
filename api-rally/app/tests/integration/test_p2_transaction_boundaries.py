@@ -47,17 +47,18 @@ async def test_get_or_create_does_not_commit_callers_pending_work(pg_session):
 
     # If get_or_create had committed, this rollback could not undo the team.
     await pg_session.rollback()
-    assert await pg_session.scalar(
-        select(func.count()).select_from(Team).where(Team.access_code == "P2-PEND")
-    ) == 0
+    assert (
+        await pg_session.scalar(
+            select(func.count()).select_from(Team).where(Team.access_code == "P2-PEND")
+        )
+        == 0
+    )
 
 
 # --------------------------------------------------------------------------- #
 # P2b — single-holder badge: concurrent workers, different teams, one winner
 # --------------------------------------------------------------------------- #
-async def test_single_holder_badge_survives_concurrent_award_for_two_teams(
-    pg_session, _pg_engine
-):
+async def test_single_holder_badge_survives_concurrent_award_for_two_teams(pg_session, _pg_engine):
     event = await _event(pg_session, "Badge Edição", current=True)
     pg_session.add(RallySettings(event_id=event.id))
     team_a = Team(name="BA", access_code="P2-BA", event_id=event.id)
@@ -182,6 +183,9 @@ async def test_reservation_loss_does_not_discard_caller_pending_rows(pg_session,
     # Loser replays the winner's row...
     assert reservation.replay is not None
     # ...and the savepoint rolled back only the failed insert, not the team.
-    assert await pg_session.scalar(
-        select(func.count()).select_from(Team).where(Team.access_code == "P2-IDEM")
-    ) == 1
+    assert (
+        await pg_session.scalar(
+            select(func.count()).select_from(Team).where(Team.access_code == "P2-IDEM")
+        )
+        == 1
+    )

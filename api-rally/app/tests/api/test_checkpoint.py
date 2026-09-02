@@ -207,7 +207,6 @@ class TestNextCheckpoint:
         await set_rally_settings(pg_session, participant_view_enabled=True)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="DoneTeam"))
         # Team already checked into the only checkpoint -> no next one.
-        import datetime as dt
 
         team.times = [dt.datetime(2026, 1, 1)]
         pg_session.add(team)
@@ -226,7 +225,6 @@ class TestNextCheckpoint:
         The team must be pointed at post 3 — redacted — not told the rally is
         over with post 3's location revealed.
         """
-        import datetime as dt
 
         from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
         from app.crud.crud_activity import activity as crud_activity
@@ -484,7 +482,9 @@ class TestCanonicalProgressAgreement:
         from app.tests.conftest import as_team, make_team
 
         event = await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
-        await set_rally_settings(pg_session, participant_view_enabled=True, gps_checkin_enabled=True)
+        await set_rally_settings(
+            pg_session, participant_view_enabled=True, gps_checkin_enabled=True
+        )
         cp1 = await _make_checkpoint_with_location(pg_session, 1)
         await _make_checkpoint_with_location(pg_session, 2)
         team = await make_team(pg_session, event_id=event.id)
@@ -504,12 +504,14 @@ class TestCanonicalProgressAgreement:
     ):
         from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
         from app.crud.crud_activity import activity as crud_activity
-        from app.tests.conftest import as_team, make_team
         from app.models.activity import ActivityResult
         from app.schemas.activity import ActivityCreate, ActivityType
+        from app.tests.conftest import as_team, make_team
 
         event = await _make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
-        await set_rally_settings(pg_session, participant_view_enabled=True, gps_checkin_enabled=True)
+        await set_rally_settings(
+            pg_session, participant_view_enabled=True, gps_checkin_enabled=True
+        )
         cp1 = await _make_checkpoint_with_location(pg_session, 1)
         await _make_checkpoint_with_location(pg_session, 2)
         activity = await crud_activity.create(
@@ -534,7 +536,9 @@ class TestCanonicalProgressAgreement:
         _assert_progress_agreement(pg_client, expected_order=1)
 
         pg_session.add(
-            ActivityResult(activity_id=activity.id, team_id=team.id, final_score=10, is_completed=True)
+            ActivityResult(
+                activity_id=activity.id, team_id=team.id, final_score=10, is_completed=True
+            )
         )
         await pg_session.commit()
         await checkin_team_to_checkpoint(pg_session, team.id, cp1.id, enforce_order=False)
@@ -560,7 +564,6 @@ class TestCheckpointTeamsEndpoint:
         assert response.status_code == 400
 
     async def test_get_checkpoint_teams_by_checkpoint_id(self, pg_session, pg_client, as_admin):
-        import datetime as dt
 
         from app.crud.crud_team import team as crud_team
         from app.models.checkpoint_arrival import CheckpointArrival

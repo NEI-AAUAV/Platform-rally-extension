@@ -63,9 +63,7 @@ async def _make_pair(pg_session, name_a="A", name_b="B"):
     await _set_enable_versus(pg_session, True)
     team_a = await _make_team(pg_session, name_a)
     team_b = await _make_team(pg_session, name_b)
-    await crud_versus.create_versus_pair(
-        pg_session, team_a_id=team_a.id, team_b_id=team_b.id
-    )
+    await crud_versus.create_versus_pair(pg_session, team_a_id=team_a.id, team_b_id=team_b.id)
     return team_a, team_b
 
 
@@ -282,9 +280,7 @@ async def test_team_create_integrity_error_preserves_outer_transaction(pg_sessio
     existing.total = 123
     pg_session.add(existing)
     with pytest.raises(RallyValidationError, match="Team name already exists"):
-        await crud_team.create(
-            pg_session, obj_in=TeamCreate(name="Existing Team"), commit=False
-        )
+        await crud_team.create(pg_session, obj_in=TeamCreate(name="Existing Team"), commit=False)
 
     # A rollback owned by CRUDTeam.create() would have discarded this mutation.
     await pg_session.commit()

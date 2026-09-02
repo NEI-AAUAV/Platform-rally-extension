@@ -129,9 +129,11 @@ async def award_single_holder_badge(
     no-op. The lock releases automatically when ``award_badge`` commits.
     """
     await db.execute(
-        select(func.pg_advisory_xact_lock(
-            _single_holder_lock_key(badge_code, activity_id, checkpoint_id)
-        ))
+        select(
+            func.pg_advisory_xact_lock(
+                _single_holder_lock_key(badge_code, activity_id, checkpoint_id)
+            )
+        )
     )
     if await badge_holder_exists(db, badge_code, activity_id, checkpoint_id):
         return None

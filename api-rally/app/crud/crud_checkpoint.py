@@ -160,9 +160,9 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         await db.flush()
 
         for checkpoint_id, new_order in checkpoint_orders.items():
-            checkpoint = by_id.get(checkpoint_id)
-            if checkpoint is not None:
-                checkpoint.order = new_order
+            target = by_id.get(checkpoint_id)
+            if target is not None:
+                target.order = new_order
         await db.flush()
 
         # Exactly one durability boundary for the whole reorder.

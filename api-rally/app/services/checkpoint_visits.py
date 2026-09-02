@@ -121,9 +121,7 @@ async def record_visit(
         commit=False,
     )
     if arrival is None:
-        repaired = await _reconcile_missing_visit(
-            db, team_id=team_id, checkpoint_id=checkpoint_id
-        )
+        repaired = await _reconcile_missing_visit(db, team_id=team_id, checkpoint_id=checkpoint_id)
         if commit and repaired:
             await db.commit()
         return False
@@ -140,9 +138,7 @@ async def record_visit(
     return True
 
 
-async def _reconcile_missing_visit(
-    db: AsyncSession, *, team_id: int, checkpoint_id: int
-) -> bool:
+async def _reconcile_missing_visit(db: AsyncSession, *, team_id: int, checkpoint_id: int) -> bool:
     """Repair a ``team.times`` entry owed by an already-claimed arrival.
 
     The arrival row is the durable claim; ``team.times`` carries one timestamp

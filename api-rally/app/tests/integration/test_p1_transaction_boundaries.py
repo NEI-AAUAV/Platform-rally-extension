@@ -51,9 +51,7 @@ async def _setup(pg_session, **settings_kw):
     return event, settings, cp1, cp2, team
 
 
-async def test_add_checkpoint_rolls_back_append_when_recompute_fails(
-    pg_session, monkeypatch
-):
+async def test_add_checkpoint_rolls_back_append_when_recompute_fails(pg_session, monkeypatch):
     _, _, cp1, _, team = await _setup(pg_session)
     await insert_arrival(pg_session, team_id=team.id, checkpoint_id=cp1.id)
 
@@ -100,9 +98,9 @@ async def test_record_visit_reconciles_times_entry_owed_by_existing_arrival(pg_s
     await pg_session.refresh(team)
     assert len(team.times) == 1
     arrivals = await pg_session.scalar(
-        select(func.count()).select_from(CheckpointArrival).where(
-            CheckpointArrival.team_id == team.id
-        )
+        select(func.count())
+        .select_from(CheckpointArrival)
+        .where(CheckpointArrival.team_id == team.id)
     )
     assert arrivals == 1
 
@@ -128,12 +126,8 @@ async def test_skip_rolls_back_when_team_score_recompute_fails(pg_session, monke
     assert skips == 0
 
 
-async def test_hint_reveal_rolls_back_when_team_score_recompute_fails(
-    pg_session, monkeypatch
-):
-    _, settings, cp1, _, team = await _setup(
-        pg_session, hints_enabled=True, hint_penalty=-10
-    )
+async def test_hint_reveal_rolls_back_when_team_score_recompute_fails(pg_session, monkeypatch):
+    _, settings, cp1, _, team = await _setup(pg_session, hints_enabled=True, hint_penalty=-10)
     pg_session.add(
         CheckpointGuideIndication(
             checkpoint_id=cp1.id, order=0, hint="first hint", question="q", expected_answer="a"
@@ -206,9 +200,7 @@ async def test_activity_delete_is_atomic_with_team_rescore(pg_session, monkeypat
 
     with pytest.raises(RuntimeError):
         await crud_activity.remove(db=pg_session, id=activity.id, commit=False)
-        await ScoringService(pg_session).recompute_and_commit_team_scores(
-            {team_a.id, team_b.id}
-        )
+        await ScoringService(pg_session).recompute_and_commit_team_scores({team_a.id, team_b.id})
 
     await pg_session.rollback()
     # The delete was flushed but never committed: activity (and its results)

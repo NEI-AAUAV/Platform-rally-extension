@@ -30,7 +30,7 @@ from app.schemas.checkpoint import (
 )
 from app.schemas.team import ListingTeam
 from app.services.checkpoint_planning import missing_fields
-from app.services.route_progress import TeamProgress, progress_for_team
+from app.services.route_progress import TeamProgress
 from app.services.team_service import TeamService
 
 

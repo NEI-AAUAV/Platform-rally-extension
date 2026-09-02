@@ -195,7 +195,7 @@ describe('CheckpointGuideIndicationsManager', () => {
     renderWithClient();
     await screen.findByText('Look at the statue');
 
-    fireEvent.click(screen.getByLabelText('Remover indicação'));
+    fireEvent.click(screen.getByLabelText(/^Remover indicação/));
 
     await waitFor(() => expect(mockDeleteGuideIndication).toHaveBeenCalledWith({ path: { indication_id: 42 } }));
     await waitFor(() => expect(mockToast.success).toHaveBeenCalledWith('Removido.'));
@@ -207,7 +207,7 @@ describe('CheckpointGuideIndicationsManager', () => {
     renderWithClient();
     await screen.findByText('Look at the statue');
 
-    fireEvent.click(screen.getByLabelText('Remover indicação'));
+    fireEvent.click(screen.getByLabelText(/^Remover indicação/));
 
     await waitFor(() => expect(mockToast.error).toHaveBeenCalledWith('delete failed'));
   });

@@ -89,9 +89,7 @@ class CheckpointArriveController:
         # now stamps only a still-owed team.times entry (arrivals > visits) and
         # is otherwise a no-op, so a first attempt that failed best-effort can
         # self-heal on the next arrival instead of the visit being lost.
-        auto_completed = await service.auto_complete_if_no_activities(
-            team.team_id, checkpoint_id
-        )
+        auto_completed = await service.auto_complete_if_no_activities(team.team_id, checkpoint_id)
         if not already_registered:
             auto_completed = await service.auto_complete_if_no_activities(
                 team.team_id, checkpoint_id

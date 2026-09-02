@@ -3,9 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import VersusGroupList from '@/pages/versus/components/VersusGroupList';
 import type { ListingTeam, VersusGroupListResponse } from '@/client';
 
-const { mockUseMutation, mockUpdateTeam } = vi.hoisted(() => ({
+const { mockUseMutation, mockRemoveVersusGroup } = vi.hoisted(() => ({
   mockUseMutation: vi.fn(),
-  mockUpdateTeam: vi.fn(),
+  mockRemoveVersusGroup: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -13,7 +13,7 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('@/client', () => ({
-  updateTeam: mockUpdateTeam,
+  removeVersusGroup: mockRemoveVersusGroup,
 }));
 
 const teams = [
@@ -87,24 +87,18 @@ describe('VersusGroupList', () => {
     expect(screen.queryByText('Team A')).not.toBeInTheDocument();
   });
 
-  it('mutationFn updates all teams in the group and clears versus_group_id', async () => {
-    mockUpdateTeam.mockResolvedValue({});
+  it('mutationFn calls the dedicated removeVersusGroup endpoint with the group id', async () => {
+    mockRemoveVersusGroup.mockResolvedValue({});
     render(<VersusGroupList versusGroups={versusGroups} teams={teams} onSuccess={vi.fn()} />);
     await mutationFnCapture(1);
-    expect(mockUpdateTeam).toHaveBeenCalledWith({
-      path: { id: 1 },
-      body: { name: 'Team A', versus_group_id: null },
-    });
-    expect(mockUpdateTeam).toHaveBeenCalledWith({
-      path: { id: 2 },
-      body: { name: 'Team B', versus_group_id: null },
-    });
+    expect(mockRemoveVersusGroup).toHaveBeenCalledWith({ path: { group_id: 1 } });
   });
 
-  it('mutationFn handles no matching teams in group', async () => {
+  it('mutationFn dissolves the group server-side regardless of the loaded team list', async () => {
+    mockRemoveVersusGroup.mockResolvedValue({});
     render(<VersusGroupList versusGroups={versusGroups} teams={undefined} onSuccess={vi.fn()} />);
-    await expect(mutationFnCapture(1)).resolves.toBeUndefined();
-    expect(mockUpdateTeam).not.toHaveBeenCalled();
+    await mutationFnCapture(1);
+    expect(mockRemoveVersusGroup).toHaveBeenCalledWith({ path: { group_id: 1 } });
   });
 
   it('calls onSuccess when mutation succeeds', () => {

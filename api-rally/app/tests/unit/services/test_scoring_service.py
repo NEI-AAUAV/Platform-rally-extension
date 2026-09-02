@@ -291,6 +291,7 @@ async def test_ranking_tie_breaks_on_earliest_last_scored_at(pg_session):
 
 async def test_get_settings_creates_default_row_when_none_exists(pg_session):
     from sqlalchemy import select as sa_select
+
     from app.models.rally_settings import RallySettings
 
     existing = (await pg_session.scalars(sa_select(RallySettings))).first()
@@ -580,6 +581,7 @@ async def test_apply_extra_shots_missing_result(pg_session):
 # --------------------------------------------------------------------------- #
 async def test_apply_penalty_reduces_score(pg_session):
     from sqlalchemy import select as sa_select
+
     from app.models.rally_settings import RallySettings
 
     team = await _make_team(pg_session)
@@ -703,6 +705,7 @@ async def test_update_result_rescores_on_data_change(pg_session):
 
 async def test_update_result_records_history_with_editor(pg_session):
     from sqlalchemy import select
+
     from app.models.evaluation_history import EvaluationAction, EvaluationHistory
     from app.services.scoring_service import EvaluationEditor
 
@@ -740,6 +743,7 @@ async def test_update_result_records_history_with_editor(pg_session):
 
 async def test_update_result_no_change_writes_no_history(pg_session):
     from sqlalchemy import select
+
     from app.models.evaluation_history import EvaluationHistory
     from app.services.scoring_service import EvaluationEditor
 
@@ -772,6 +776,7 @@ async def test_update_result_no_change_writes_no_history(pg_session):
 
 async def test_update_result_without_editor_skips_history(pg_session):
     from sqlalchemy import select
+
     from app.models.evaluation_history import EvaluationHistory
 
     team = await _make_team(pg_session)
@@ -1067,6 +1072,7 @@ async def test_removing_time_based_result_reranks_the_rest(pg_session):
 
 async def test_reprice_all_results_applies_changed_settings(pg_session):
     from sqlalchemy import select as sa_select
+
     from app.models.rally_settings import RallySettings
 
     team = await _make_team(pg_session, "Reprice")
@@ -1099,6 +1105,7 @@ async def test_reprice_all_results_applies_changed_settings(pg_session):
 
 async def test_penalty_counts_are_priced_by_the_server(pg_session):
     from sqlalchemy import select as sa_select
+
     from app.models.rally_settings import RallySettings
 
     team = await _make_team(pg_session, "Counts")
@@ -1239,6 +1246,7 @@ async def test_peddy_paper_event_ignores_extra_shots_bonus(pg_session):
 
 async def test_rally_tascas_event_still_prices_drinking_penalties(pg_session):
     from sqlalchemy import select as sa_select
+
     from app.models.rally_settings import RallySettings
     from app.tests.conftest import make_event
 
@@ -1284,6 +1292,7 @@ async def test_resolve_penalty_points_non_strict_prices_orphan_key_at_zero(pg_se
 
 async def test_editing_counts_reprices_without_corrupting_the_count(pg_session):
     from sqlalchemy import select as sa_select
+
     from app.models.rally_settings import RallySettings
 
     team = await _make_team(pg_session, "Edit Counts")
@@ -1501,9 +1510,7 @@ async def test_create_team_vs_result_rejects_missing_activity(pg_session):
     svc = ScoringService(pg_session)
 
     with pytest.raises(RallyValidationError):
-        await svc.create_team_vs_result(
-            t1.id, t2.id, 999999, winner_id=t1.id, match_data={}
-        )
+        await svc.create_team_vs_result(t1.id, t2.id, 999999, winner_id=t1.id, match_data={})
 
 
 async def test_create_team_vs_result_rejects_invalid_winner(pg_session):

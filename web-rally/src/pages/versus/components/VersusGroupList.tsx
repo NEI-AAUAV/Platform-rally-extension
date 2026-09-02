@@ -3,11 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Swords, Trash2 } from "lucide-react";
-import {
-  removeVersusGroup,
-  type ListingTeam,
-  type VersusGroupListResponse,
-} from "@/client";
+import { removeVersusGroup, type ListingTeam, type VersusGroupListResponse } from "@/client";
 
 type VersusGroupListProps = Readonly<{
   versusGroups: VersusGroupListResponse | undefined;

@@ -23,6 +23,7 @@ from app.crud.crud_activity import activity, activity_result
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team
+from app.crud.crud_versus import versus
 from app.models.activity import Activity, ActivityResult
 from app.models.team import Team
 from app.schemas.activity import (
@@ -35,8 +36,6 @@ from app.services.checkpoint_visits import append_visit_entry, record_visit
 from app.services.event_scope import require_same_event
 from app.services.route_progress import RouteSnapshot, progress_for_team
 from app.services.scoring_service import EvaluationEditor, ScoringService
-from app.crud.crud_versus import versus
-
 
 # Error message constants
 NO_CHECKPOINT_ASSIGNED = "No checkpoint assigned to this staff member"

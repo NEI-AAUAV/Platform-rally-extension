@@ -465,9 +465,7 @@ class StaffEvaluationController:
         # Check if team has completed all activities and advance if needed
         try:
             logger.debug(f"Checking if team {team_id} can advance after activity {activity_id}")
-            await check_and_advance_team(
-                db, team_id, activity_obj, commit=reservation is None
-            )
+            await check_and_advance_team(db, team_id, activity_obj, commit=reservation is None)
         except Exception:
             logger.exception(f"Failed to check/advance team {team_id}")
             # Don't fail the evaluation if advancement fails - advancement is a side effect
