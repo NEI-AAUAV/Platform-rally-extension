@@ -93,6 +93,9 @@ class CheckpointArriveController:
             team.team_id, checkpoint_id
         )
         if not already_registered:
+            auto_completed = await service.auto_complete_if_no_activities(
+                team.team_id, checkpoint_id
+            )
             await record_audit(
                 db,
                 action="checkin.gps_arrival",
