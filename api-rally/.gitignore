@@ -1,2 +1,8 @@
 test.db
 /qodana.yaml
+
+# Never commit key material (VAPID EC keypairs, TLS certs, etc.)
+*.pem
+private_key.pem
+public_key.pem
+.env
