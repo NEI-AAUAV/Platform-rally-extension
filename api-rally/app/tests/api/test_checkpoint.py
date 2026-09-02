@@ -460,7 +460,7 @@ class TestCanonicalProgressAgreement:
             f"/api/rally/v1/guide/checkpoints/{cp1.id}/arrivals",
             json={"team_id": team.id},
         )
-        assert response.status_code == 200, response.text
+        assert response.status_code == 201, response.text
 
         _assert_progress_agreement(pg_client, expected_order=2)
 

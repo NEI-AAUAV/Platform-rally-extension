@@ -12,6 +12,7 @@ from app.core.exceptions import RallyValidationError
 from app.crud._event_scope import current_event_id
 from app.crud.base import CRUDBase
 from app.crud.crud_rally_settings import rally_settings
+from app.db.locks import lock_team_ranking
 from app.models.activity import RallyEvent
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.team import Team
@@ -94,17 +95,16 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             .offset(skip)
         )
         if for_update:
-            # Deterministic lock order (by id) is required here, not
-            # cosmetic: add_checkpoint already holds one team row locked via
-            # its own for_update=True before calling update_classification,
-            # which locks *every* team. Two concurrent check-ins for
-            # different teams each already hold a different single row, then
-            # both try to acquire the full set — without a fixed order,
-            # Postgres can pick a different scan order per transaction and
-            # deadlock (each waiting on the row the other already holds).
-            # Real DeadlockDetectedError reproduced under concurrent
-            # staff-check-in calls before this fix.
-            stmt = stmt.order_by(Team.id).with_for_update()
+            # Mutual exclusion for whole-team-set writes is the advisory gate,
+            # not row locks. A row-level FOR UPDATE here conflicts with the
+            # KEY SHARE lock that any INSERT referencing teams takes on its
+            # parent row (a checkpoint arrival, an activity result), so a
+            # transaction that inserted one of those and then reached this gate
+            # deadlocked against the gate holder scanning the same row. Under
+            # the gate only one writer runs at a time, so the row locks bought
+            # nothing but that cycle. Ordering stays for a deterministic read.
+            await lock_team_ranking(db, event_id)
+            stmt = stmt.order_by(Team.id)
         return list((await db.scalars(stmt)).all())
 
     async def update_classification_unlocked(self, db: AsyncSession) -> None:
@@ -144,6 +144,9 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         if current_team_count >= settings.max_teams:
             raise RallyValidationError("Team limit reached")
 
+        # Same gate as update(): this insert is followed by a whole-set re-rank,
+        # so the gate must come before the row this transaction writes.
+        await lock_team_ranking(db, event_id)
         obj_in_data = obj_in.model_dump()
         obj_in_data["access_code"] = await _generate_access_code(db)
         obj_in_data["event_id"] = event_id
@@ -184,8 +187,12 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
     async def update(
         self, db: AsyncSession, *, id: int, obj_in: TeamUpdate, commit: bool = False
     ) -> Team:
+        # The gate serializes every writer of the team set (see
+        # app.db.locks), so this read needs no row lock of its own — one would
+        # only reintroduce the conflict with FK KEY SHARE locks.
+        await lock_team_ranking(db, await current_event_id(db))
         async with db.begin_nested():
-            team = await self.get(db=db, id=id, for_update=True)
+            team = await self.get(db=db, id=id)
             update_data = obj_in.model_dump(exclude_unset=True)
 
             # The access code is a login credential. Rotating it must revoke

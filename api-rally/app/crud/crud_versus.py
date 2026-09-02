@@ -11,6 +11,7 @@ from app.core.exceptions import (
 )
 from app.crud._event_scope import current_event_id
 from app.crud.crud_rally_settings import rally_settings
+from app.db.locks import lock_team_ranking
 from app.models.team import Team
 
 
@@ -30,14 +31,15 @@ class CRUDVersus:
         if team_a_id == team_b_id:
             raise RallyValidationError("A team cannot be paired with itself")
 
-        # Lock both team rows before checking versus_group_id so two
-        # concurrent pair requests sharing a team can't both observe it as
-        # unpaired and cross-pair it. Locked in id order to avoid deadlocking
-        # against another pair request that targets the same two teams in
-        # reverse.
+        # Take the edition's team-write gate before reading versus_group_id, so
+        # two concurrent pair requests sharing a team can't both observe it as
+        # unpaired and cross-pair it. The gate, not a row lock: a FOR UPDATE
+        # here would conflict with the KEY SHARE an arrival INSERT holds on the
+        # same team row, and deadlock against it (see app.db.locks).
         locked_ids = sorted((team_a_id, team_b_id))
+        await lock_team_ranking(db, await current_event_id(db))
         result = await db.execute(
-            select(Team).where(Team.id.in_(locked_ids)).order_by(Team.id).with_for_update()
+            select(Team).where(Team.id.in_(locked_ids)).order_by(Team.id)
         )
         teams_by_id = {t.id: t for t in result.scalars().all()}
         team_a = teams_by_id.get(team_a_id)
@@ -107,6 +109,7 @@ class CRUDVersus:
     async def remove_versus_pair(self, db: AsyncSession, *, group_id: int) -> list[int]:
         """Atomically dissolve one complete pair in the current edition."""
         event_id = await current_event_id(db)
+        await lock_team_ranking(db, event_id)
         teams = list(
             (
                 await db.scalars(
@@ -116,7 +119,6 @@ class CRUDVersus:
                         (Team.event_id == event_id) | (Team.event_id.is_(None)),
                     )
                     .order_by(Team.id)
-                    .with_for_update()
                 )
             ).all()
         )

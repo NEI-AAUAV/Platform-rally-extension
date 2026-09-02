@@ -23,6 +23,7 @@ from app.crud.crud_activity import activity_result as activity_result_crud
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team as team_crud
 from app.crud.crud_versus import versus
+from app.db.locks import lock_team_ranking
 from app.events import (
     ActivityResultChangedPayload,
     ActivityResultCreatedEvent,
@@ -439,7 +440,11 @@ class ScoringService:
 
     async def _apply_team_score(self, team_id: int) -> float | None:
         """Recompute one team's total and checkpoint layout in the session."""
-        await self.db.scalars(select(Team.id).order_by(Team.id).with_for_update())
+        # The advisory gate every whole-team-set writer takes, in place of the
+        # row-level FOR UPDATE this used to hold: that lock conflicted with the
+        # KEY SHARE an activity-result INSERT takes on its team row, which is
+        # how concurrent evaluations deadlocked. See app.db.locks.
+        await lock_team_ranking(self.db, await current_event_id(self.db))
         team = await self.db.get(Team, team_id)
         if not team:
             return None
