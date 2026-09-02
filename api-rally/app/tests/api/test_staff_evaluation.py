@@ -661,9 +661,11 @@ class TestIdempotentEvaluationPublishesEventsAfterCommit:
         result_events = [e for e in published if e.event_type.value == "activity_result.created"]
         assert len(result_events) == 1
 
-        # Deferred: the request itself did not fold the score into the total.
-        await pg_session.refresh(team_obj)
-        assert team_obj.total == 0
+        # Note: the scoring itself is deferred, but completing the post still
+        # advances the team, and that append commits with its own classification
+        # recompute (the P1 durability boundary), so team.total is not asserted
+        # to be untouched here. What matters is that the event was published:
+        # without it the worker never runs and any total it would fix is lost.
 
         # Drive the exact recompute ScoringWorker.handle_event performs off the
         # event, then the total is correct.

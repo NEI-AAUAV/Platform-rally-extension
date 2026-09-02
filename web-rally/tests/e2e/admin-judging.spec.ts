@@ -30,6 +30,14 @@ async function mockPending(page: Page, results: unknown[]) {
   );
 }
 
+// Each group loads the activity's *full* field (judged captures included) from
+// its own endpoint; the pending list only says which activities need a judge.
+async function mockResults(page: Page, results: unknown[]) {
+  await page.route("**/api/rally/v1/activities/deferred/5/results", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(results) }),
+  );
+}
+
 async function gotoJudging(page: Page) {
   await page.goto("/rally/admin?tab=judging");
 }
@@ -59,6 +67,7 @@ test.describe("Admin judging", () => {
     await mockActivities(page);
     await seedOidcSession(context, ADMIN_GROUPS);
     await mockPending(page, PENDING);
+    await mockResults(page, PENDING);
 
     await gotoJudging(page);
 
@@ -73,6 +82,7 @@ test.describe("Admin judging", () => {
     await mockActivities(page);
     await seedOidcSession(context, ADMIN_GROUPS);
     await mockPending(page, [{ id: 2, team_id: 4, activity_id: 5, media_urls: [] }]);
+    await mockResults(page, [{ id: 2, team_id: 4, activity_id: 5, media_urls: [] }]);
 
     await gotoJudging(page);
 
@@ -96,6 +106,7 @@ test.describe("Admin judging", () => {
         body: JSON.stringify(body),
       });
     });
+    await mockResults(page, PENDING);
     let capturedBody: unknown;
     await page.route("**/api/rally/v1/activities/deferred/5/rank", (route) => {
       capturedBody = route.request().postDataJSON();
@@ -121,6 +132,7 @@ test.describe("Admin judging", () => {
     await mockActivities(page);
     await seedOidcSession(context, ADMIN_GROUPS);
     await mockPending(page, PENDING);
+    await mockResults(page, PENDING);
     await page.route("**/api/rally/v1/activities/deferred/5/rank", (route) =>
       route.fulfill({
         status: 500,

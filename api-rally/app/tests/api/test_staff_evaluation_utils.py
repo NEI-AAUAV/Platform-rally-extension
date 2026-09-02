@@ -609,6 +609,13 @@ class TestMirrorTeamVsResult:
         cp = await _make_checkpoint(pg_session, order=1)
         team_a = await _make_team(pg_session, name="A")
         team_b = await _make_team(pg_session, name="B")
+        # The mirror writes the opponent's points, so it trusts the persisted
+        # pairing rather than the opponent id in the payload: the two halves
+        # have to be in the same versus group for the write to be allowed.
+        team_a.versus_group_id = team_a.id
+        team_b.versus_group_id = team_a.id
+        pg_session.add_all([team_a, team_b])
+        await pg_session.commit()
         activity = await _make_activity(pg_session, cp.id, activity_type="TeamVsActivity")
 
         await mirror_team_vs_result(

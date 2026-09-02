@@ -812,12 +812,18 @@ class ScoringService:
         update_team_scores: bool = True,
         commit: bool = True,
         sync_team_vs: bool = True,
+        stage_events: bool = True,
     ) -> ActivityResult:
         """Validate, score and persist a new activity result.
 
         TeamVs writes are routed through ``create_team_vs_result`` so the two
         halves of the match are always one atomic unit, including the normal
         staff-evaluation path that calls this generic method.
+
+        ``stage_events=False`` is for callers that settle the events for the
+        whole write themselves (the TeamVs pair primitive). Without it each
+        half staged its own result event *and* got one from the settle step,
+        so subscribers saw every versus evaluation twice.
         """
         activity = await self.db.get(Activity, obj_in.activity_id)
         if not activity:
@@ -893,6 +899,8 @@ class ScoringService:
         if not commit:
             await self._reassign_team_ranks()
             await self.db.flush()
+            if not stage_events:
+                return db_obj
             for event in self._team_score_events(totals):
                 self._stage_event(event)
             self._stage_event(
@@ -968,6 +976,7 @@ class ScoringService:
         editor: EvaluationEditor | None = None,
         commit: bool = True,
         sync_team_vs: bool = True,
+        stage_events: bool = True,
     ) -> ActivityResult:
         """Apply an update to a result, rescoring when result_data changed.
 
@@ -1028,7 +1037,7 @@ class ScoringService:
             if total is not None:
                 totals[db_obj.team_id] = total
         if not commit:
-            await self._stage_deferred_result_update(db_obj, totals)
+            await self._stage_deferred_result_update(db_obj, totals, stage_events=stage_events)
             return db_obj
 
         await self._commit_and_publish_team_scores(totals)
@@ -1041,15 +1050,19 @@ class ScoringService:
         return db_obj
 
     async def _stage_deferred_result_update(
-        self, db_obj: ActivityResult, totals: dict[int, float]
+        self, db_obj: ActivityResult, totals: dict[int, float], *, stage_events: bool = True
     ) -> None:
         """Reassign ranks and queue score/result events for a ``commit=False`` update.
 
         The caller owns the commit, so the events wait in ``_staged_events``
-        until it drains them via ``publish_staged_events``.
+        until it drains them via ``publish_staged_events``. With
+        ``stage_events=False`` the caller settles the events itself (the TeamVs
+        pair primitive), so this queues none.
         """
         await self._reassign_team_ranks()
         await self.db.flush()
+        if not stage_events:
+            return
         for event in self._team_score_events(totals):
             self._stage_event(event)
         self._stage_event(
@@ -1467,6 +1480,7 @@ class ScoringService:
                 update_team_scores=False,
                 commit=False,
                 sync_team_vs=False,
+                stage_events=False,
             )
             return ActivityResultCreatedEvent, result
 
@@ -1483,6 +1497,7 @@ class ScoringService:
             editor=editor,
             commit=False,
             sync_team_vs=False,
+            stage_events=False,
         )
         return ActivityResultUpdatedEvent, result
 
