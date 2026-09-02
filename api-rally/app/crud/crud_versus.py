@@ -39,7 +39,12 @@ class CRUDVersus:
         locked_ids = sorted((team_a_id, team_b_id))
         await lock_team_ranking(db, await current_event_id(db))
         result = await db.execute(
-            select(Team).where(Team.id.in_(locked_ids)).order_by(Team.id)
+            select(Team)
+            .where(Team.id.in_(locked_ids))
+            .order_by(Team.id)
+            # Re-read under the gate rather than reusing a copy this session
+            # may already hold, which is what the dropped FOR UPDATE also did.
+            .execution_options(populate_existing=True)
         )
         teams_by_id = {t.id: t for t in result.scalars().all()}
         team_a = teams_by_id.get(team_a_id)
@@ -119,6 +124,7 @@ class CRUDVersus:
                         (Team.event_id == event_id) | (Team.event_id.is_(None)),
                     )
                     .order_by(Team.id)
+                    .execution_options(populate_existing=True)
                 )
             ).all()
         )

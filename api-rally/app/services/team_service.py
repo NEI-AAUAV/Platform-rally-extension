@@ -221,7 +221,7 @@ class TeamService:
         # have to run one after the other regardless.
         await self._team_crud.get_multi(db=self._db, for_update=True)
         async with self._db.begin_nested():
-            team = await self._team_crud.get(db=self._db, id=id)
+            team = await self._team_crud.get(db=self._db, id=id, populate_existing=True)
             current_time = datetime.now(UTC)
 
             self._validate_rally_timing(

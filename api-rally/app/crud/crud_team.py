@@ -104,7 +104,11 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             # the gate only one writer runs at a time, so the row locks bought
             # nothing but that cycle. Ordering stays for a deterministic read.
             await lock_team_ranking(db, event_id)
-            stmt = stmt.order_by(Team.id)
+            # populate_existing replaces what FOR UPDATE also did for free:
+            # overwrite any copy of these rows already in the session's
+            # identity map. Without it a caller that read a team earlier in the
+            # same request re-ranks from that stale copy.
+            stmt = stmt.order_by(Team.id).execution_options(populate_existing=True)
         return list((await db.scalars(stmt)).all())
 
     async def update_classification_unlocked(self, db: AsyncSession) -> None:
@@ -192,7 +196,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         # only reintroduce the conflict with FK KEY SHARE locks.
         await lock_team_ranking(db, await current_event_id(db))
         async with db.begin_nested():
-            team = await self.get(db=db, id=id)
+            team = await self.get(db=db, id=id, populate_existing=True)
             update_data = obj_in.model_dump(exclude_unset=True)
 
             # The access code is a login credential. Rotating it must revoke

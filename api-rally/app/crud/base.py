@@ -28,8 +28,24 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         """
         self.model = model
 
-    async def get(self, db: AsyncSession, *, id: Any, for_update: bool = False) -> ModelType:
-        obj = await db.get(self.model, id, with_for_update=for_update)
+    async def get(
+        self,
+        db: AsyncSession,
+        *,
+        id: Any,
+        for_update: bool = False,
+        populate_existing: bool = False,
+    ) -> ModelType:
+        """Fetch by primary key, or raise RallyNotFoundError.
+
+        ``populate_existing`` re-reads the row even when this session already
+        holds a copy in its identity map — needed by callers that serialize on
+        an advisory lock instead of a row lock, since taking the lock is the
+        point at which the row must be read fresh.
+        """
+        obj = await db.get(
+            self.model, id, with_for_update=for_update, populate_existing=populate_existing
+        )
         if obj is None:
             raise RallyNotFoundError(f"{self.model.__name__} Not Found")
         return obj

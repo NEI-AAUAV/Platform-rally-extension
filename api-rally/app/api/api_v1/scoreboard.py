@@ -190,6 +190,15 @@ class ScoreboardController:
                 detail="Realtime scoreboard is disabled",
             )
 
+        # FastAPI keeps yield-based dependencies alive for the lifetime of a
+        # StreamingResponse.  The visibility lookup above can synchronise the
+        # event timing fields on ``rally_settings`` and flush an UPDATE.  If we
+        # leave that transaction open, this SSE connection owns the row lock
+        # until the browser disconnects; checkpoint reads and staff check-ins
+        # then wait behind it and eventually fail at the lock timeout.  The
+        # generator uses Redis only, so finish the DB work before streaming.
+        await db.commit()
+
         async def event_stream() -> AsyncIterator[str]:
             client = get_async_redis_client()
             pubsub = client.pubsub()
@@ -240,6 +249,11 @@ class ScoreboardController:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Realtime events are disabled",
             )
+
+        # As above, no database transaction may span this long-lived Redis
+        # stream.  In particular, persist/release a timing self-heal performed
+        # by ``require_live_leaderboard`` before returning the response.
+        await db.commit()
 
         return StreamingResponse(
             _pmessage_event_stream(request),
