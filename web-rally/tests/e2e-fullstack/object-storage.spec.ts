@@ -161,6 +161,17 @@ test.describe("Object storage fullstack", () => {
     expect(captured.media_urls).toHaveLength(2);
     await Promise.all(captured.media_urls.map(assertObjectReachable));
 
+    // Promoting an activity photo to the team's official one is off by
+    // default, and settings are per-edition: the event created above starts
+    // with its own row, so the capability has to be switched on here.
+    const settings = await apiCall<Record<string, unknown>>("GET", "/rally/settings", {
+      token: admin.accessToken,
+    });
+    await apiCall("PUT", "/rally/settings", {
+      token: admin.accessToken,
+      body: { ...settings, allow_photo_as_team_photo: true },
+    });
+
     const promoted = await apiCall<{ photo_url: string }>(
       "PUT",
       `/activities/results/${captured.id}/set-team-photo`,

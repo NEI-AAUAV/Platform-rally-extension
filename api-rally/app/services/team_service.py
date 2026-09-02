@@ -214,6 +214,17 @@ class TeamService:
         the team's pointer past it.
         """
         settings = await rally_settings.get_or_create(self._db)
+        # Lock ordering, not a redundant lock: the classification recompute
+        # below locks *every* team row, so taking this team's row first made
+        # two concurrent check-ins for different teams a guaranteed deadlock —
+        # each holding the row the other needs to finish its full-set scan.
+        # (Ordering the full-set scan by id, as get_multi does, cannot fix
+        # that on its own: the single row is already held before the scan
+        # starts.) Acquiring the full set up front means both transactions
+        # queue on the same lock in the same order, so one waits instead of
+        # both dying with DeadlockDetectedError. Reproduced against the real
+        # backend with concurrent POST /checkpoint/staff-check-in.
+        await self._team_crud.get_multi(db=self._db, for_update=True)
         async with self._db.begin_nested():
             team = await self._team_crud.get(db=self._db, id=id, for_update=True)
             current_time = datetime.now(UTC)
