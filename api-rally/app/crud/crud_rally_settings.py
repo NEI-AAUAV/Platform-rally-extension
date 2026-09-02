@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.crud.base import CRUDBase
 from app.crud.crud_activity import rally_event
-from app.models.activity import EventType, RallyEvent
+from app.models.activity import EventType
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import (
     DEFAULT_HOME_LAYOUT,
@@ -29,9 +29,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         back a single RallySettings object for "the active rally".
         """
         event = await rally_event.ensure_current(db)
-        # Snapshot the id: a rollback below expires `event`, and reading any
-        # attribute off an expired instance from async code emits sync IO
-        # (MissingGreenlet). See _reload_event.
+        # The race branches below use SAVEPOINTs and no longer call
+        # db.rollback(), so `event` is never expired out from under us and its
+        # id/attributes stay usable throughout.
         event_id = event.id
         settings = await db.scalar(select(RallySettings).where(RallySettings.event_id == event_id))
         if settings is not None:
@@ -42,15 +42,17 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         # existing single-event deployments keep their configured values.
         legacy = await db.scalar(select(RallySettings).where(RallySettings.event_id.is_(None)))
         if legacy is not None:
-            legacy.event_id = event_id  # type: ignore[assignment]
-            db.add(legacy)
             try:
-                await db.commit()
+                # SAVEPOINT: a losing race undoes only this claim, never the
+                # caller's pending work — this method is reached from paths
+                # that read like plain settings lookups.
+                async with db.begin_nested():
+                    legacy.event_id = event_id  # type: ignore[assignment]
+                    db.add(legacy)
+                    await db.flush()
             except IntegrityError:
                 # Another caller already claimed this event's settings row (see
                 # the same race below); use theirs.
-                await db.rollback()
-                event = await self._reload_event(db, event_id)
                 adopted = await db.scalar(
                     select(RallySettings).where(RallySettings.event_id == event_id)
                 )
@@ -58,6 +60,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
                     raise
                 adopted = await self._normalize_home_fields(db, adopted)
                 return await self._sync_timing_from_event(db, adopted, event)
+            await db.commit()
             await db.refresh(legacy)
             legacy = await self._normalize_home_fields(db, legacy)
             return await self._sync_timing_from_event(db, legacy, event)
@@ -97,44 +100,28 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             home_layout=list(DEFAULT_HOME_LAYOUT),
             ticker_items=list(DEFAULT_TICKER_ITEMS),
         )
-        db.add(settings)
         try:
-            await db.commit()
+            # SAVEPOINT: a losing race undoes only this insert, never the
+            # caller's pending work in the surrounding transaction.
+            async with db.begin_nested():
+                db.add(settings)
+                await db.flush()
         except IntegrityError:
             # event_id is unique: several workers (API requests, the badges and
             # leaderboard workers) can reach this insert concurrently for the
             # same event and all but one lose the race. The loser adopts the
             # row the winner committed instead of surfacing the violation.
-            await db.rollback()
-            event = await self._reload_event(db, event_id)
             settings = await db.scalar(
                 select(RallySettings).where(RallySettings.event_id == event_id)
             )
             if settings is None:
                 raise
             settings = await self._normalize_home_fields(db, settings)
-        else:
-            await db.refresh(settings)
+            return await self._sync_timing_from_event(db, settings, event)
+        await db.commit()
+        await db.refresh(settings)
 
         return await self._sync_timing_from_event(db, settings, event)
-
-    @staticmethod
-    async def _reload_event(db: "AsyncSession", event_id: int) -> RallyEvent:
-        """Re-load the event after a rollback so its attributes stay usable.
-
-        ``rollback()`` expires every instance in the session regardless of
-        ``expire_on_commit``. Any later plain attribute read (e.g. the
-        ``getattr(event, "start_time")`` in :meth:`_sync_timing_from_event`)
-        would then trigger a *synchronous* lazy refresh from async code and
-        raise ``MissingGreenlet``. Awaiting the reload here keeps that IO on
-        the async path; a row that vanished under us falls back to
-        ``ensure_current``.
-        """
-        merged = await db.get(RallyEvent, event_id)
-        if merged is not None:
-            return merged
-        reloaded: RallyEvent = await rally_event.ensure_current(db)
-        return reloaded
 
     async def _sync_timing_from_event(
         self, db: "AsyncSession", settings: RallySettings, event: object
@@ -153,8 +140,11 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             settings.rally_start_time = event_start  # type: ignore[assignment]
             settings.rally_end_time = event_end  # type: ignore[assignment]
             db.add(settings)
-            await db.commit()
-            await db.refresh(settings)
+            # Flush, not commit: this self-heal must ride the caller's
+            # transaction, not force (or roll back) a durability boundary on a
+            # path that reads like a plain settings lookup. A caller that never
+            # commits simply re-heals on the next call (a cheap comparison).
+            await db.flush()
         return settings
 
     async def _normalize_home_fields(
@@ -176,8 +166,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             settings.home_layout = normalized_layout  # type: ignore[assignment]
             settings.ticker_items = normalized_ticker  # type: ignore[assignment]
             db.add(settings)
-            await db.commit()
-            await db.refresh(settings)
+            # Flush, not commit — same reasoning as _sync_timing_from_event:
+            # a self-heal on a read-shaped path must not own a commit/rollback.
+            await db.flush()
         return settings
 
     async def set_image_url(self, db: "AsyncSession", *, field: str, url: str) -> RallySettings:

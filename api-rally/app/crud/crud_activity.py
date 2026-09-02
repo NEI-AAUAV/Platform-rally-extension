@@ -298,19 +298,24 @@ class CRUDRallyEvent:
             is_active=True,
             is_current=True,
         )
-        db.add(default)
         try:
-            await db.commit()
+            # SAVEPOINT, not a bare commit+rollback: a losing race must undo
+            # only this insert, never the caller's own pending work in the
+            # surrounding transaction (this is reached from paths that look
+            # like plain reads).
+            async with db.begin_nested():
+                db.add(default)
+                await db.flush()
         except IntegrityError:
             # Concurrent bootstrap (multiple uvicorn workers / background
             # workers hitting their first read at once): the slug is unique, so
             # only one insert lands. The losers adopt whatever event is now
             # current rather than failing the request.
-            await db.rollback()
             current = await self.get_current(db)
             if current is None:
                 raise
             return current
+        await db.commit()
         await db.refresh(default)
         return default
 

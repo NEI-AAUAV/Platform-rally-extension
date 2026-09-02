@@ -250,7 +250,7 @@ class ActivityController:
         # was scored on it. team.total is denormalised, so without an explicit
         # recompute those points stay in the standings forever — the activity
         # is gone from the admin and its score is still on the leaderboard.
-        affected_team_ids = list(
+        affected_team_ids = set(
             (
                 await db.scalars(
                     select(ActivityResult.team_id).where(ActivityResult.activity_id == activity_id)
@@ -265,7 +265,7 @@ class ActivityController:
         await activity.remove(db=db, id=activity_id, commit=False)
 
         scoring_service = ScoringService(db)
-        await scoring_service.recompute_and_commit_team_scores(set(affected_team_ids))
+        await scoring_service.recompute_and_commit_team_scores(affected_team_ids)
         return {"message": "Activity deleted successfully"}
 
     async def _require_result_permission(

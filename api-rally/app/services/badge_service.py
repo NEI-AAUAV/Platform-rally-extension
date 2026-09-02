@@ -6,10 +6,11 @@ complete") are guarded by an explicit holder check. Badges are permanent and
 are never revoked here.
 """
 
+import hashlib
 import logging
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -94,6 +95,54 @@ async def award_badge(
         activity_id,
     )
     return badge
+
+
+def _single_holder_lock_key(
+    badge_code: str, activity_id: int | None, checkpoint_id: int | None
+) -> int:
+    """Stable signed 64-bit key for ``pg_advisory_xact_lock`` on a badge scope.
+
+    Must be process-independent (concurrent uvicorn/worker processes have to
+    agree), so it cannot use Python's per-process-salted ``hash()``.
+    """
+    raw = f"badge:{badge_code}:{activity_id or 0}:{checkpoint_id or 0}"
+    digest = hashlib.blake2b(raw.encode("utf-8"), digest_size=8).digest()
+    return int.from_bytes(digest, "big", signed=True)
+
+
+async def award_single_holder_badge(
+    db: AsyncSession,
+    *,
+    team_id: int,
+    badge_code: str,
+    activity_id: int | None = None,
+    checkpoint_id: int | None = None,
+    meta: dict[str, Any] | None = None,
+) -> TeamBadge | None:
+    """Award a badge that only one team may ever hold for a given scope.
+
+    The unique constraint on ``TeamBadge`` includes ``team_id``, so it cannot
+    stop two *different* teams being awarded the same first-to-* badge when two
+    workers evaluate concurrent results: both read no holder, both insert. A
+    transaction-scoped advisory lock keyed by ``(badge_code, scope)`` serialises
+    those attempts; the first re-checks and inserts, the rest see the holder and
+    no-op. The lock releases automatically when ``award_badge`` commits.
+    """
+    await db.execute(
+        select(func.pg_advisory_xact_lock(
+            _single_holder_lock_key(badge_code, activity_id, checkpoint_id)
+        ))
+    )
+    if await badge_holder_exists(db, badge_code, activity_id, checkpoint_id):
+        return None
+    return await award_badge(
+        db,
+        team_id=team_id,
+        badge_code=badge_code,
+        activity_id=activity_id,
+        checkpoint_id=checkpoint_id,
+        meta=meta,
+    )
 
 
 async def manual_award_badge(

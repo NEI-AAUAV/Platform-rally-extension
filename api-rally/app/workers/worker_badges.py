@@ -70,7 +70,12 @@ class BadgesWorker(BaseWorker):
         return (await session.scalars(stmt)).first()
 
     async def _award(self, session: AsyncSession, award: BadgeAward) -> None:
-        badge = await badge_service.award_badge(
+        award_fn = (
+            badge_service.award_single_holder_badge
+            if award.single_holder
+            else badge_service.award_badge
+        )
+        badge = await award_fn(
             session,
             team_id=award.team_id,
             badge_code=award.badge_code,
