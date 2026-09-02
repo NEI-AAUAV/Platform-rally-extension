@@ -24,7 +24,14 @@ async def _activate_rally(pg_session, event):
     event.end_time = now + timedelta(hours=6)
     pg_session.add(event)
     await pg_session.commit()
-    return await rally_settings.get_or_create(pg_session)
+    settings = await rally_settings.get_or_create(pg_session)
+    # get_or_create self-heals the settings timing with a flush, not a commit,
+    # so it leaves this session holding a row lock on the settings row. A
+    # request made through `pg_client` afterwards opens its own session, runs
+    # the same self-heal, and blocks on that lock forever (TestClient is
+    # synchronous, so nothing ever commits it). Commit here.
+    await pg_session.commit()
+    return settings
 
 
 class TestRallyDurationAPI:
