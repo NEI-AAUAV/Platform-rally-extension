@@ -46,6 +46,4 @@ async def lock_team_ranking(db: AsyncSession, event_id: int | None) -> None:
         return
     # event_id is None only for legacy unscoped rows; they all share key 0,
     # which is the same set they'd contend over anyway.
-    await db.execute(
-        select(func.pg_advisory_xact_lock(TEAM_RANKING_LOCK_NAMESPACE, event_id or 0))
-    )
+    await db.execute(select(func.pg_advisory_xact_lock(TEAM_RANKING_LOCK_NAMESPACE, event_id or 0)))

@@ -40,9 +40,7 @@ def upgrade() -> None:
                 sa.Column("last_scored_at", sa.DateTime(timezone=True), nullable=True),
                 schema=SCHEMA,
             )
-        op.execute(
-            f'UPDATE "{SCHEMA}".teams SET classification = 0 WHERE classification < 0'
-        )
+        op.execute(f'UPDATE "{SCHEMA}".teams SET classification = 0 WHERE classification < 0')
         op.alter_column(
             "teams",
             "classification",

@@ -50,9 +50,7 @@ def upgrade() -> None:
     if OLD_CONSTRAINT in existing:
         op.drop_constraint(OLD_CONSTRAINT, TABLE, schema=SCHEMA, type_="unique")
     if NEW_CONSTRAINT not in existing:
-        op.create_unique_constraint(
-            NEW_CONSTRAINT, TABLE, ["user_id", "team_id"], schema=SCHEMA
-        )
+        op.create_unique_constraint(NEW_CONSTRAINT, TABLE, ["user_id", "team_id"], schema=SCHEMA)
 
 
 def downgrade() -> None:

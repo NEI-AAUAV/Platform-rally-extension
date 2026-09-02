@@ -32,8 +32,7 @@ def _index_exists() -> bool:
     if not inspector.has_table("idempotency_keys", schema=SCHEMA):
         return True
     return any(
-        ix["name"] == INDEX_NAME
-        for ix in inspector.get_indexes("idempotency_keys", schema=SCHEMA)
+        ix["name"] == INDEX_NAME for ix in inspector.get_indexes("idempotency_keys", schema=SCHEMA)
     )
 
 
