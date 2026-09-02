@@ -85,14 +85,14 @@ class CheckpointArriveController:
         )
         # No-activity posts complete immediately on arrival; posts with
         # activities wait for staff to submit the result before the team
-        # advances. Only on a *new* arrival: the guard inside is not the no-op
-        # it was assumed to be, and re-running it appended one visit per repeat
-        # tap, walking the team forward through posts it never went to.
-        auto_completed = False
+        # advances. Safe to run on a repeat tap too: auto_complete_if_no_activities
+        # now stamps only a still-owed team.times entry (arrivals > visits) and
+        # is otherwise a no-op, so a first attempt that failed best-effort can
+        # self-heal on the next arrival instead of the visit being lost.
+        auto_completed = await service.auto_complete_if_no_activities(
+            team.team_id, checkpoint_id
+        )
         if not already_registered:
-            auto_completed = await service.auto_complete_if_no_activities(
-                team.team_id, checkpoint_id
-            )
             await record_audit(
                 db,
                 action="checkin.gps_arrival",

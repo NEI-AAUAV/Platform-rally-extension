@@ -596,6 +596,139 @@ class TestEvaluationIdempotency:
         )
         assert conflict.status_code == 409, conflict.text
 
+
+class TestIdempotentEvaluationPublishesEventsAfterCommit:
+    """P0: the idempotency transaction runs every domain write with commit=False,
+    so its activity_result.*/team.score_updated events must be *staged* on the
+    scoring service and published only once, after store_idempotent_response's
+    single commit. Before this fix they were dropped entirely — DB state was
+    right but SSE, caches, badges and the scoring worker never heard about it.
+    """
+
+    async def _seed(self, pg_session):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+        url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate"
+        return team_obj, activity_obj, url
+
+    @staticmethod
+    def _capture_events(monkeypatch) -> list:
+        published: list = []
+        monkeypatch.setattr(
+            "app.services.scoring_service.publish_event",
+            AsyncMock(side_effect=lambda event: published.append(event)),
+        )
+        return published
+
+    async def test_normal_scoring_publishes_one_result_event_after_commit(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        published = self._capture_events(monkeypatch)
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+
+        resp = pg_client.post(url, json=payload, headers={"Idempotency-Key": "evt-normal-1"})
+        assert resp.status_code == 200, resp.text
+
+        result_events = [e for e in published if str(e.event_type) == "activity_result.created"]
+        assert len(result_events) == 1
+        assert result_events[0].payload.team_id == team_obj.id
+        assert result_events[0].payload.activity_id == activity_obj.id
+        # A team.score_updated must also reach the leaderboard worker.
+        assert any(str(e.event_type) == "team.score_updated" for e in published)
+
+        # The event describes committed state: the total is really persisted.
+        await pg_session.refresh(team_obj)
+        assert team_obj.total == 50
+
+    async def test_off_path_stages_event_and_worker_recompute_fixes_total(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        # RECOMPUTE_OFF_PATH: the request persists the raw result and defers the
+        # heavy recompute to the scoring worker, which is only ever woken by the
+        # activity_result event. No event => Team.total stays wrong forever.
+        monkeypatch.setattr(ScoringService, "_defer_recompute", property(lambda _: True))
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        published = self._capture_events(monkeypatch)
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+
+        resp = pg_client.post(url, json=payload, headers={"Idempotency-Key": "evt-offpath-1"})
+        assert resp.status_code == 200, resp.text
+
+        # The worker's wake-up signal was published exactly once.
+        result_events = [e for e in published if str(e.event_type) == "activity_result.created"]
+        assert len(result_events) == 1
+
+        # Deferred: the request itself did not fold the score into the total.
+        await pg_session.refresh(team_obj)
+        assert team_obj.total == 0
+
+        # Drive the exact recompute ScoringWorker.handle_event performs off the
+        # event, then the total is correct.
+        worker_svc = ScoringService(pg_session)
+        await worker_svc._recalculate_all_results_for_activity(result_events[0].payload.activity_id)
+        await worker_svc.update_team_scores(result_events[0].payload.team_id)
+
+        await pg_session.refresh(team_obj)
+        assert team_obj.total == 50
+
+    async def test_retry_same_key_replays_and_publishes_no_duplicate_events(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        published = self._capture_events(monkeypatch)
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+        headers = {"Idempotency-Key": "evt-retry-1"}
+
+        first = pg_client.post(url, json=payload, headers=headers)
+        assert first.status_code == 200, first.text
+        count_after_first = len(published)
+        assert count_after_first >= 1
+
+        second = pg_client.post(url, json=payload, headers=headers)
+        assert second.status_code == 200, second.text
+        assert second.json() == first.json()
+
+        # The replay path returns before any domain write — zero new events.
+        assert len(published) == count_after_first
+
+    async def test_team_vs_idempotent_publishes_exactly_one_event_per_half(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team_a = await _make_team(pg_session, "VS A")
+        team_b = await _make_team(pg_session, "VS B")
+        team_a.versus_group_id = team_a.id
+        team_b.versus_group_id = team_a.id
+        activity_obj = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Duel",
+                activity_type=ActivityType.TEAM_VS,
+                checkpoint_id=checkpoint.id,
+                config={"win_points": 100, "draw_points": 50, "lose_points": 0},
+            ),
+        )
+        await pg_session.commit()
+
+        published = self._capture_events(monkeypatch)
+        url = f"/api/rally/v1/staff/teams/{team_a.id}/activities/{activity_obj.id}/evaluate"
+        resp = pg_client.post(
+            url,
+            json={"result_data": {"result": "win", "opponent_team_id": team_b.id}},
+            headers={"Idempotency-Key": "evt-vs-1"},
+        )
+        assert resp.status_code == 200, resp.text
+
+        result_events = [e for e in published if str(e.event_type).startswith("activity_result.")]
+        teams_notified = sorted(e.payload.team_id for e in result_events)
+        assert teams_notified == sorted([team_a.id, team_b.id]), (
+            f"expected exactly one result event per match half, got {teams_notified}"
+        )
+
     async def test_failure_before_final_commit_rolls_back_mutation_and_reservation(
         self, pg_session, pg_client, as_admin, monkeypatch
     ):

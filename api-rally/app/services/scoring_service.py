@@ -28,6 +28,7 @@ from app.events import (
     ActivityResultCreatedEvent,
     ActivityResultDeletedEvent,
     ActivityResultUpdatedEvent,
+    BaseEvent,
     TeamScoreUpdatedEvent,
     TeamScoreUpdatedPayload,
     publish_event,
@@ -105,6 +106,57 @@ class ScoringService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self._settings: RallySettings | None = None
+        # Events produced by ``commit=False`` writes, held until the caller's
+        # own transaction commits (see ``_stage_event`` / ``publish_staged_events``).
+        self._staged_events: list[BaseEvent] = []
+
+    def _stage_event(self, event: BaseEvent) -> None:
+        """Queue an event to publish *after* an external transaction commits.
+
+        The ``commit=False`` write paths (notably the idempotency transaction in
+        ``evaluate_team_activity``) do not own their commit, so they cannot
+        publish safely: publishing before the commit lets subscribers observe
+        state a rollback would erase, and dropping the event leaves SSE, other
+        sessions, caches, badges and the scoring worker unaware of the write.
+        The owning caller drains this queue via ``publish_staged_events`` once
+        ``store_idempotent_response`` (or equivalent) has committed.
+        """
+        self._staged_events.append(event)
+
+    async def publish_staged_events(self) -> None:
+        """Publish and clear every event queued by ``commit=False`` writes.
+
+        Call only after the transaction that produced these mutations has
+        committed. Safe to call unconditionally — a no-op when nothing staged.
+        """
+        events, self._staged_events = self._staged_events, []
+        for event in events:
+            await publish_event(event)
+
+    @staticmethod
+    def _result_change_event(
+        event_cls: type[
+            ActivityResultCreatedEvent | ActivityResultUpdatedEvent | ActivityResultDeletedEvent
+        ],
+        *,
+        result_id: int,
+        team_id: int,
+        activity_id: int,
+    ) -> BaseEvent:
+        return event_cls(
+            payload=ActivityResultChangedPayload(
+                result_id=result_id, team_id=team_id, activity_id=activity_id
+            )
+        )
+
+    @staticmethod
+    def _team_score_events(totals: dict[int, float]) -> list[BaseEvent]:
+        return [
+            TeamScoreUpdatedEvent(
+                payload=TeamScoreUpdatedPayload(team_id=team_id, total_score=total_score)
+            )
+            for team_id, total_score in sorted(totals.items())
+        ]
 
     @property
     def _defer_recompute(self) -> bool:
@@ -428,7 +480,12 @@ class ScoringService:
         return True
 
     async def recompute_and_commit_team_scores(self, team_ids: set[int]) -> None:
-        """Atomically persist scores for several teams and publish afterwards."""
+        """Atomically persist scores for several teams and publish afterwards.
+
+        Always commits, even when ``team_ids`` is empty or no team resolves to a
+        total: callers flush other work (e.g. an activity delete) into the same
+        transaction and rely on this to make it durable.
+        """
         totals: dict[int, float] = {}
         for team_id in sorted(team_ids):
             total = await self._apply_team_score(team_id)
@@ -436,6 +493,8 @@ class ScoringService:
                 totals[team_id] = total
         if totals:
             await self._commit_and_publish_team_scores(totals)
+        else:
+            await self.db.commit()
 
     async def _route_orders(self) -> list[int]:
         """The published route's checkpoint orders, ascending."""
@@ -534,10 +593,8 @@ class ScoringService:
     ) -> None:
         """Emit an activity_result.* event after its write has committed."""
         await publish_event(
-            event_cls(
-                payload=ActivityResultChangedPayload(
-                    result_id=result_id, team_id=team_id, activity_id=activity_id
-                )
+            self._result_change_event(
+                event_cls, result_id=result_id, team_id=team_id, activity_id=activity_id
             )
         )
 
@@ -838,6 +895,16 @@ class ScoringService:
         if not commit:
             await self._reassign_team_ranks()
             await self.db.flush()
+            for event in self._team_score_events(totals):
+                self._stage_event(event)
+            self._stage_event(
+                self._result_change_event(
+                    ActivityResultCreatedEvent,
+                    result_id=db_obj.id,
+                    team_id=db_obj.team_id,
+                    activity_id=db_obj.activity_id,
+                )
+            )
             return db_obj
 
         await self._commit_and_publish_team_scores(totals)
@@ -941,6 +1008,16 @@ class ScoringService:
         if not commit:
             await self._reassign_team_ranks()
             await self.db.flush()
+            for event in self._team_score_events(totals):
+                self._stage_event(event)
+            self._stage_event(
+                self._result_change_event(
+                    ActivityResultUpdatedEvent,
+                    result_id=db_obj.id,
+                    team_id=db_obj.team_id,
+                    activity_id=db_obj.activity_id,
+                )
+            )
             return db_obj
 
         await self._commit_and_publish_team_scores(totals)
@@ -1463,8 +1540,11 @@ class ScoringService:
                 # Both results must participate in the totals/ranking before the
                 # transaction can become durable. No "mirror" is a later side
                 # effect anymore.
-                await self.update_team_scores(team1_id, should_commit=False)
-                await self.update_team_scores(team2_id, should_commit=False)
+                vs_totals: dict[int, float] = {}
+                for vs_team_id in (team1_id, team2_id):
+                    vs_total = await self._apply_team_score(vs_team_id)
+                    if vs_total is not None:
+                        vs_totals[vs_team_id] = vs_total
                 await self._reassign_team_ranks()
                 await self.db.flush()
         except Exception:
@@ -1477,6 +1557,17 @@ class ScoringService:
             raise
 
         if not commit:
+            for event in self._team_score_events(vs_totals):
+                self._stage_event(event)
+            for event_cls, db_obj in result_events:
+                self._stage_event(
+                    self._result_change_event(
+                        event_cls,
+                        result_id=db_obj.id,
+                        team_id=db_obj.team_id,
+                        activity_id=db_obj.activity_id,
+                    )
+                )
             return result1, result2
 
         try:
@@ -1486,6 +1577,8 @@ class ScoringService:
             logger.exception("Failed to commit team-vs results")
             raise
 
+        for event in self._team_score_events(vs_totals):
+            await publish_event(event)
         for event_cls, db_obj in result_events:
             await self._publish_result_change(
                 event_cls,

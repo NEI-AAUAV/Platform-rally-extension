@@ -11,7 +11,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud import crud_activity
 from app.crud.crud_checkpoint import CRUDCheckPoint
@@ -22,6 +21,7 @@ from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.dynamic_scoring import DynamicAward
 from app.models.rally_settings import RallySettings
 from app.models.team import Team
+from app.services.checkpoint_visits import record_visit
 from app.services.event_scope import require_same_event
 from app.services.leg_time_service import leg_time_points
 from app.services.route_progress import (
@@ -242,7 +242,11 @@ class CheckpointArrivalService:
                     is_active=True,
                 )
             )
-            await self._db.commit()
+            # One boundary for the derived unit: the leg award, the team total
+            # and the ranking commit together. update_team_scores re-ranks,
+            # commits once and publishes. The arrival row was already made
+            # durable by _insert_arrival and is deliberately left independent —
+            # a leg-time failure must not erase a valid GPS arrival.
             await ScoringService(self._db).update_team_scores(team_id)
         except Exception as exc:
             logger.warning(
@@ -398,16 +402,17 @@ class CheckpointArrivalService:
 
         try:
             # enforce_order=False: reachability was just checked above against
-            # the progress engine, with this arrival held out.
-            # arrival_already_recorded=True: the caller wrote this arrival row
-            # moments ago, so the row is not evidence of an earlier visit — it
-            # is this one, and the timestamp for it is still owed.
-            await checkin_team_to_checkpoint(
+            # the progress engine, with this arrival held out. record_visit sees
+            # the arrival row this request already claimed, so it takes its
+            # reconcile path and stamps the still-owed team.times entry — and
+            # does the same on a later retry that finds the entry missing,
+            # instead of the visit being dropped permanently.
+            await record_visit(
                 self._db,
-                team_id,
-                checkpoint_id,
+                team_id=team_id,
+                checkpoint_id=checkpoint_id,
                 enforce_order=False,
-                arrival_already_recorded=True,
+                commit=True,
             )
             return True
         except Exception as exc:  # advancement is best-effort; arrival still succeeds

@@ -15,12 +15,13 @@ token for the whole system: if the row already exists, the visit is already
 recorded and nothing else runs.
 """
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_team import team as team_crud
 from app.models.checkpoint_arrival import CheckpointArrival
+from app.models.team import Team
 from app.schemas.team import TeamScoresUpdate
 
 
@@ -100,16 +101,31 @@ async def record_visit(
 
     ``enforce_order`` is False for callers that have already run the
     reachability check themselves.
+
+    The arrival claim and the ``team.times`` stamp are one durability boundary:
+    the claim is made on a SAVEPOINT and the visit entry appended in the same
+    transaction, so a failure after the claim rolls the claim back too instead
+    of leaving an arrival row with no matching visit timestamp. A retry whose
+    claim already exists (a prior call that committed the arrival but crashed
+    before the stamp) reconciles the missing entry rather than returning
+    silently and leaving the inconsistency permanent.
     """
+    # Claim on a savepoint regardless of ``commit`` so the claim and the visit
+    # append commit together (or not at all).
     arrival = await insert_arrival(
         db,
         team_id=team_id,
         checkpoint_id=checkpoint_id,
         latitude=latitude,
         longitude=longitude,
-        commit=commit,
+        commit=False,
     )
     if arrival is None:
+        repaired = await _reconcile_missing_visit(
+            db, team_id=team_id, checkpoint_id=checkpoint_id
+        )
+        if commit and repaired:
+            await db.commit()
         return False
 
     await append_visit_entry(
@@ -117,7 +133,44 @@ async def record_visit(
         team_id=team_id,
         checkpoint_id=checkpoint_id,
         enforce_order=enforce_order,
-        commit=commit,
+        commit=False,
+    )
+    if commit:
+        await db.commit()
+    return True
+
+
+async def _reconcile_missing_visit(
+    db: AsyncSession, *, team_id: int, checkpoint_id: int
+) -> bool:
+    """Repair a ``team.times`` entry owed by an already-claimed arrival.
+
+    The arrival row is the durable claim; ``team.times`` carries one timestamp
+    per arrival. When a prior call committed the arrival and then failed before
+    the stamp, the team has more arrivals than visit entries — append the
+    missing one. Returns True when a repair was made.
+
+    ``enforce_order`` is always False here: the arrival row already proves the
+    team was entitled to be at the post, and the order guard keys off
+    ``len(team.times)`` — which is exactly what is short by one.
+    """
+    arrivals = await db.scalar(
+        select(func.count())
+        .select_from(CheckpointArrival)
+        .where(CheckpointArrival.team_id == team_id)
+    )
+    team = await db.get(Team, team_id)
+    if team is None or not arrivals:
+        return False
+    if len(team.times or []) >= arrivals:
+        return False
+
+    await append_visit_entry(
+        db,
+        team_id=team_id,
+        checkpoint_id=checkpoint_id,
+        enforce_order=False,
+        commit=False,
     )
     return True
 

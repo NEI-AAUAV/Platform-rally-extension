@@ -475,10 +475,17 @@ class StaffEvaluationController:
         response = ActivityResultResponse.model_validate(db_result)
 
         # Persist the response against the reserved key so retries replay it.
+        # The domain writes above ran with commit=False and queued their
+        # activity_result.*/team.score_updated events on the scoring service
+        # instead of publishing them. store_idempotent_response performs the one
+        # commit for the whole transaction; only after it returns is it safe to
+        # publish, so SSE, other sessions, caches, badges and the scoring worker
+        # see the write exactly once and never ahead of a rollback.
         if reservation is not None:
             await store_idempotent_response(
                 db, reservation, response_body=response.model_dump(mode="json")
             )
+            await scoring_service.publish_staged_events()
 
         return response
 

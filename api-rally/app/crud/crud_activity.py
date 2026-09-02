@@ -77,13 +77,25 @@ class CRUDActivity:
         await db.refresh(db_obj)
         return db_obj
 
-    async def remove(self, db: AsyncSession, *, id: int) -> Activity | None:
-        """Remove an activity"""
+    async def remove(
+        self, db: AsyncSession, *, id: int, commit: bool = True
+    ) -> Activity | None:
+        """Remove an activity.
+
+        Commits by default. Pass ``commit=False`` to only flush the delete (and
+        its result cascades) so the caller can recompute the affected teams'
+        scores and commit everything as one transaction — otherwise a recompute
+        failure after this commit leaves the standings with an activity gone but
+        its points still counted, and only some teams rescored.
+        """
         obj = await db.get(Activity, id)
         if obj is None:
             return None
         await db.delete(obj)
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         return obj
 
 

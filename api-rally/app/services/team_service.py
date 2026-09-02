@@ -235,8 +235,13 @@ class TeamService:
             )
 
         if commit:
+            # One durability boundary: the checkpoint append and the derived
+            # totals/ranking recompute commit together. A recompute failure
+            # rolls the append back too, instead of leaving the team advanced
+            # past a post with stale classification (the old two-commit order:
+            # commit append, then commit recompute separately).
+            await self.update_classification_unlocked()
             await self._db.commit()
-            await self.update_classification()
         else:
             await self._team_crud.update_classification_unlocked(db=self._db)
             await self._db.flush()
