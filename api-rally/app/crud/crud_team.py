@@ -108,6 +108,13 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             # overwrite any copy of these rows already in the session's
             # identity map. Without it a caller that read a team earlier in the
             # same request re-ranks from that stale copy.
+            #
+            # Flush first: the session runs with autoflush=False, so pending
+            # in-memory changes (a score this transaction has just computed)
+            # would otherwise be overwritten by the re-read and lost. Flushing
+            # sends them to the database, so the fresh read returns this
+            # transaction's own writes instead of discarding them.
+            await db.flush()
             stmt = stmt.order_by(Team.id).execution_options(populate_existing=True)
         return list((await db.scalars(stmt)).all())
 

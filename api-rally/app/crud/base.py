@@ -42,7 +42,14 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         holds a copy in its identity map — needed by callers that serialize on
         an advisory lock instead of a row lock, since taking the lock is the
         point at which the row must be read fresh.
+
+        The session runs with autoflush=False, so the re-read is preceded by a
+        flush: without it, changes this transaction has made to the row but not
+        yet sent to the database would be silently overwritten by the values
+        coming back.
         """
+        if populate_existing:
+            await db.flush()
         obj = await db.get(
             self.model, id, with_for_update=for_update, populate_existing=populate_existing
         )

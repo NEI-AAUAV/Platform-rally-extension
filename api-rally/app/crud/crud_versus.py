@@ -38,6 +38,10 @@ class CRUDVersus:
         # same team row, and deadlock against it (see app.db.locks).
         locked_ids = sorted((team_a_id, team_b_id))
         await lock_team_ranking(db, await current_event_id(db))
+        # autoflush is off, so flush before a populate_existing re-read: the
+        # re-read overwrites the session's copies, and unflushed changes to
+        # these rows would be lost with it.
+        await db.flush()
         result = await db.execute(
             select(Team)
             .where(Team.id.in_(locked_ids))
@@ -115,6 +119,7 @@ class CRUDVersus:
         """Atomically dissolve one complete pair in the current edition."""
         event_id = await current_event_id(db)
         await lock_team_ranking(db, event_id)
+        await db.flush()  # see create_versus_pair: flush before re-reading
         teams = list(
             (
                 await db.scalars(
