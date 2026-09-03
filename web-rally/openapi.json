@@ -3399,6 +3399,33 @@
         }
       }
     },
+    "/api/rally/v1/rally/pace-ranking": {
+      "get": {
+        "tags": [
+          "Rally Duration"
+        ],
+        "summary": "Get Pace Ranking",
+        "description": "Public scoreboard pace, redacted alongside hidden score standings.",
+        "operationId": "get_pace_ranking",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaceRanking"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/rally/v1/team-auth/login": {
       "post": {
         "tags": [
@@ -9887,6 +9914,29 @@
             "title": "Is Route Finished",
             "default": false
           },
+          "elapsed_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed Seconds"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -10758,6 +10808,29 @@
             "title": "Is Route Finished",
             "default": false
           },
+          "elapsed_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed Seconds"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -11027,6 +11100,27 @@
         "title": "OidcUserSearchResult",
         "description": "A NEI account that can be linked to a placeholder member.\n\n``id`` is the local mirror user id when the account has already logged in\n(else null). ``authentik_sub`` is the stable identifier used to link."
       },
+      "PaceRanking": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TeamPaceEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "entries"
+        ],
+        "title": "PaceRanking"
+      },
       "Page_RallyGuideAssignmentWithTeam_": {
         "properties": {
           "items": {
@@ -11212,6 +11306,29 @@
             "type": "boolean",
             "title": "Is Route Finished",
             "default": false
+          },
+          "elapsed_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed Seconds"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
           },
           "id": {
             "type": "integer",
@@ -13442,6 +13559,94 @@
         },
         "type": "object",
         "title": "TeamMemberUpdate"
+      },
+      "TeamPaceEntry": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "elapsed_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed Seconds"
+          },
+          "elapsed_display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed Display"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "last_progress_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Progress At"
+          },
+          "resolved_count": {
+            "type": "integer",
+            "title": "Resolved Count"
+          },
+          "total_checkpoints": {
+            "type": "integer",
+            "title": "Total Checkpoints"
+          },
+          "is_finished": {
+            "type": "boolean",
+            "title": "Is Finished"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "rank",
+          "elapsed_seconds",
+          "elapsed_display",
+          "started_at",
+          "last_progress_at",
+          "resolved_count",
+          "total_checkpoints",
+          "is_finished"
+        ],
+        "title": "TeamPaceEntry"
       },
       "TeamRanking": {
         "properties": {

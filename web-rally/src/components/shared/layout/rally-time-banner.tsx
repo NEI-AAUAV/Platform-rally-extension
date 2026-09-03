@@ -1,20 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import useRallySettings from "@/hooks/useRallySettings";
-
-function formatDuration(ms: number) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const parts = [
-    days > 0 ? `${days}d` : null,
-    hours > 0 ? `${hours}h` : null,
-    minutes > 0 ? `${minutes}m` : null,
-    `${seconds}s`,
-  ].filter(Boolean);
-  return parts.join(" ");
-}
+import { formatElapsed } from "@/lib/time";
 
 export default function RallyTimeBanner() {
   const { settings } = useRallySettings();
@@ -48,20 +34,20 @@ export default function RallyTimeBanner() {
   if (state.kind === "pre") {
     return (
       <div className="mt-4 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-yellow-100">
-        O Rally começa em {formatDuration(state.remaining)}
+        O Rally começa em {formatElapsed(state.remaining / 1000)}
       </div>
     );
   }
   if (state.kind === "live") {
     return (
       <div className="mt-4 rounded-md border border-green-500/30 bg-green-500/10 px-4 py-3 text-green-100">
-        Rally a decorrer — termina em {formatDuration(state.remaining)}
+        Rally a decorrer — termina em {formatElapsed(state.remaining / 1000)}
       </div>
     );
   }
   return (
     <div className="mt-4 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-100">
-      O Rally terminou há {formatDuration(state.elapsed)}
+      O Rally terminou há {formatElapsed(state.elapsed / 1000)}
     </div>
   );
 }

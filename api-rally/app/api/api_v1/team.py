@@ -38,6 +38,7 @@ from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.deps import get_team_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
+from app.services.pace_service import compute_paces
 from app.services.storage import storage_client
 from app.services.team_service import TeamService
 from app.services.visibility_policy import (
@@ -134,12 +135,14 @@ class TeamController:
         settings = await rally_settings.get_or_create(db)
         is_privileged = bool(curr_user) and deps.is_admin_or_staff(getattr(curr_user, "scopes", []))
         hide_scores = scores_are_hidden(settings, is_privileged=is_privileged)
+        paces = {pace.team_id: pace for pace in await compute_paces(db, settings)}
         return [
             await service.build_listing_team(
                 team,
                 reveal_next_checkpoint=bool(settings.reveal_next_checkpoint),
                 is_privileged=is_privileged,
                 hide_scores=hide_scores,
+                pace=paces.get(team.id),
             )
             for team in teams
         ]
