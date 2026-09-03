@@ -22,7 +22,7 @@ from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.hint import HintReveal, RevealedHint, TeamHints, TeamHintSummary
-from app.services.checkin_service import require_same_event
+from app.services.event_scope import require_same_event
 from app.services.route_progress import can_reach_checkpoint
 from app.services.scoring_service import ScoringService
 
@@ -198,12 +198,16 @@ class HintService:
 
         if cost != 0:
             await self._charge(team_id=team_id, cost=cost, indication=indication)
-
-        await self._db.commit()
-        if cost != 0:
-            # Fold the award into team.total (which ScoringService recomputes
-            # from scratch — hence the award row rather than a direct += ).
+            # Single durability boundary: the reveal row, the award and the
+            # recomputed team total + ranking commit together. update_team_scores
+            # re-ranks, commits once and publishes. Previously the reveal + award
+            # were committed first and the total recomputed in a second commit,
+            # so a scorer failure left a paid-for hint with team.total unchanged.
+            # (The award row is what reaches team.total — ScoringService
+            # recomputes it from scratch — hence the row rather than a direct +=.)
             await ScoringService(self._db).update_team_scores(team_id)
+        else:
+            await self._db.commit()
 
         return HintReveal(
             checkpoint_id=checkpoint_id,

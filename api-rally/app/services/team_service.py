@@ -191,7 +191,13 @@ class TeamService:
         raise RallyValidationError(unreachable_message(checkpoint_obj, progress))
 
     async def add_checkpoint(
-        self, *, id: int, checkpoint_id: int, obj_in: TeamScoresUpdate, enforce_order: bool = True
+        self,
+        *,
+        id: int,
+        checkpoint_id: int,
+        obj_in: TeamScoresUpdate,
+        enforce_order: bool = True,
+        commit: bool = True,
     ) -> Team:
         """Record a team's arrival/score at a checkpoint and recompute classification.
 
@@ -208,8 +214,14 @@ class TeamService:
         the team's pointer past it.
         """
         settings = await rally_settings.get_or_create(self._db)
+        # Take the edition's team-write gate up front (see app.db.locks): it is
+        # what serializes this whole method against another check-in, and it
+        # must come before anything this transaction writes. The classification
+        # recompute below rewrites every team row, so two concurrent check-ins
+        # have to run one after the other regardless.
+        await self._team_crud.get_multi(db=self._db, for_update=True)
         async with self._db.begin_nested():
-            team = await self._team_crud.get(db=self._db, id=id, for_update=True)
+            team = await self._team_crud.get(db=self._db, id=id, populate_existing=True)
             current_time = datetime.now(UTC)
 
             self._validate_rally_timing(
@@ -228,8 +240,17 @@ class TeamService:
                 at=current_time.replace(tzinfo=None),
             )
 
-        await self._db.commit()
-        await self.update_classification()
+        if commit:
+            # One durability boundary: the checkpoint append and the derived
+            # totals/ranking recompute commit together. A recompute failure
+            # rolls the append back too, instead of leaving the team advanced
+            # past a post with stale classification (the old two-commit order:
+            # commit append, then commit recompute separately).
+            await self.update_classification_unlocked()
+            await self._db.commit()
+        else:
+            await self._team_crud.update_classification_unlocked(db=self._db)
+            await self._db.flush()
         await self._db.refresh(team)
         return team
 

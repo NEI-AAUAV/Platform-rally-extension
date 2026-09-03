@@ -26,6 +26,7 @@ from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.checkpoint_service import CheckpointService
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
+from app.services.storage import storage_client
 
 MEDIA_NOT_FOUND = "Media not found"
 
@@ -155,9 +156,13 @@ class CheckpointMediaService:
             content_url=content_url or None,
             content_text=content_text,
         )
-        updated = await self._media_crud.update(
-            self._db, db_obj=db_obj, obj_in=obj_in, image_url=image_url
-        )
+        try:
+            updated = await self._media_crud.update(
+                self._db, db_obj=db_obj, obj_in=obj_in, image_url=image_url
+            )
+        except Exception:
+            storage_client.delete_image(image_url)
+            raise
         return CheckpointMediaResponse.model_validate(updated)
 
     async def delete_media(self, media_id: int) -> None:

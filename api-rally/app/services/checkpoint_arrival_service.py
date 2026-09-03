@@ -11,18 +11,26 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud import crud_activity
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
+from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.dynamic_scoring import DynamicAward
 from app.models.rally_settings import RallySettings
-from app.services.checkin_service import require_same_event
+from app.models.team import Team
+from app.services.checkpoint_visits import record_visit
+from app.services.event_scope import require_same_event
 from app.services.leg_time_service import leg_time_points
-from app.services.route_progress import can_reach_checkpoint, closed_message, hours_block_reason
+from app.services.route_progress import (
+    can_reach_checkpoint,
+    closed_message,
+    hours_block_reason,
+    progress_for_team,
+    unreachable_message,
+)
 from app.services.scoring_service import ScoringService
 from app.services.team_service import validate_rally_timing
 from app.utils.geo import distance_m
@@ -55,6 +63,47 @@ class CheckpointArrivalService:
         self._db = db
         self._checkpoint_crud = checkpoint_crud
         self._team_crud = team_crud
+
+    async def _has_arrival(self, *, team_id: int, checkpoint_id: int) -> bool:
+        """Whether this (team, checkpoint) pair already has an arrival row."""
+        existing = await self._db.execute(
+            select(CheckpointArrival).where(
+                CheckpointArrival.team_id == team_id,
+                CheckpointArrival.checkpoint_id == checkpoint_id,
+            )
+        )
+        return existing.scalars().first() is not None
+
+    async def _require_open(
+        self, *, team_obj: Team, checkpoint: CheckPoint, settings: RallySettings
+    ) -> None:
+        """Refuse an arrival at a post the progression has not opened yet.
+
+        Runs **before** the arrival row is written. An arrival that gets stored
+        is one the route engine accepted, which is what the rest of the system
+        already assumes: a no-activity post is resolved by its arrival row
+        (``route_progress._is_resolved``), a post with an arrival is un-redacted
+        (``CheckpointService._redact_unreached``), and leg-time points are
+        awarded off it. Writing the row first and asking afterwards let a team
+        that reached post 4 out of turn resolve it for free, reveal it, and
+        score it, while the visit log stayed empty.
+
+        Opening hours are enforced by the callers before this point, so the
+        progress read here is the pure ordering question.
+        """
+        progress = await progress_for_team(self._db, team_obj, settings)
+        if progress.is_open(checkpoint.order):
+            return
+        raise RallyValidationError(
+            unreachable_message(checkpoint, progress),
+            # Same shape as the ``too_far`` rejection: fields the app can
+            # render its own sentence from instead of parsing this one.
+            details={
+                "code": "not_open",
+                "checkpoint_order": checkpoint.order,
+                "open_orders": sorted(progress.open_orders),
+            },
+        )
 
     async def record_manual_arrival(self, *, team_id: int, checkpoint_id: int) -> bool:
         """Record an arrival witnessed by a guide, with no geofence check.
@@ -91,6 +140,18 @@ class CheckpointArrivalService:
         if closed is not None:
             raise RallyValidationError(closed_message(checkpoint, closed))
 
+        # A repeat call is a no-op, not an ordering error: the post the team
+        # already arrived at is resolved by that very row, so the order gate
+        # below would refuse it. Answering "already registered" keeps the
+        # endpoint idempotent, exactly as it was before the gate existed.
+        if await self._has_arrival(team_id=team_id, checkpoint_id=checkpoint_id):
+            return False
+
+        # The guide's word replaces the GPS fix, not the route order: a guide
+        # standing at post 4 cannot hand a team that is due at post 1 a free
+        # resolution of post 4.
+        await self._require_open(team_obj=team_obj, checkpoint=checkpoint, settings=settings)
+
         arrival = await self._insert_arrival(
             team_id=team_id, checkpoint_id=checkpoint_id, latitude=None, longitude=None
         )
@@ -114,13 +175,7 @@ class CheckpointArrivalService:
     ) -> CheckpointArrival | None:
         """Idempotent insert. Returns the created row, or None when an
         arrival for this (team, checkpoint) pair already existed."""
-        existing = await self._db.execute(
-            select(CheckpointArrival).where(
-                CheckpointArrival.team_id == team_id,
-                CheckpointArrival.checkpoint_id == checkpoint_id,
-            )
-        )
-        if existing.scalars().first() is not None:
+        if await self._has_arrival(team_id=team_id, checkpoint_id=checkpoint_id):
             return None
 
         arrival = CheckpointArrival(
@@ -187,7 +242,11 @@ class CheckpointArrivalService:
                     is_active=True,
                 )
             )
-            await self._db.commit()
+            # One boundary for the derived unit: the leg award, the team total
+            # and the ranking commit together. update_team_scores re-ranks,
+            # commits once and publishes. The arrival row was already made
+            # durable by _insert_arrival and is deliberately left independent —
+            # a leg-time failure must not erase a valid GPS arrival.
             await ScoringService(self._db).update_team_scores(team_id)
         except Exception as exc:
             logger.warning(
@@ -258,6 +317,16 @@ class CheckpointArrivalService:
                 },
             )
 
+        # A second tap at a post already recorded is idempotent, and must stay
+        # so: its own arrival row resolves a no-activity post, which would make
+        # the order gate below reject the repeat instead of shrugging at it.
+        if await self._has_arrival(team_id=team_id, checkpoint_id=checkpoint_id):
+            return dist, True
+
+        # Last gate before the row exists: standing inside the geofence of a
+        # post the team is not due at yet is not an arrival, it is a detour.
+        await self._require_open(team_obj=team_obj, checkpoint=checkpoint, settings=settings)
+
         arrival = await self._insert_arrival(
             team_id=team_id,
             checkpoint_id=checkpoint_id,
@@ -313,11 +382,14 @@ class CheckpointArrivalService:
         if not team_obj:
             return False
 
-        # Only auto-advance when the team may actually check in here, under
-        # whatever ordering rule the event runs (sequential, free, or staged).
+        # Belt and braces. Both arrival paths now refuse an out-of-order post
+        # *before* writing the row, so this can only agree with them — but it is
+        # the guard that keeps ``team.times`` honest if a third caller ever
+        # writes an arrival without gating it.
         # ``ignore_arrival_for`` neutralises this post's own arrival row, which
         # the caller has just written: without it the post would already read as
-        # resolved and the guard would refuse the very arrival it is evaluating.
+        # resolved and the guard would refuse the very arrival it is evaluating,
+        # which is also what makes this answer match the pre-insert gate.
         settings = await rally_settings.get_or_create(self._db)
         if not await can_reach_checkpoint(
             self._db,
@@ -330,16 +402,17 @@ class CheckpointArrivalService:
 
         try:
             # enforce_order=False: reachability was just checked above against
-            # the progress engine, with this arrival held out.
-            # arrival_already_recorded=True: the caller wrote this arrival row
-            # moments ago, so the row is not evidence of an earlier visit — it
-            # is this one, and the timestamp for it is still owed.
-            await checkin_team_to_checkpoint(
+            # the progress engine, with this arrival held out. record_visit sees
+            # the arrival row this request already claimed, so it takes its
+            # reconcile path and stamps the still-owed team.times entry — and
+            # does the same on a later retry that finds the entry missing,
+            # instead of the visit being dropped permanently.
+            await record_visit(
                 self._db,
-                team_id,
-                checkpoint_id,
+                team_id=team_id,
+                checkpoint_id=checkpoint_id,
                 enforce_order=False,
-                arrival_already_recorded=True,
+                commit=True,
             )
             return True
         except Exception as exc:  # advancement is best-effort; arrival still succeeds

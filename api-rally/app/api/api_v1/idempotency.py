@@ -116,13 +116,17 @@ async def reserve_idempotency_key(
         response_body={},
         status_code=status.HTTP_200_OK,
     )
-    db.add(row)
     try:
-        await db.flush()
+        # SAVEPOINT, not a bare flush + db.rollback(): this helper is designed to
+        # participate in an external transaction, and a losing race must undo
+        # only the failed reservation insert — never any domain work the caller
+        # has already staged (matches the Team/User create-or-update pattern).
+        async with db.begin_nested():
+            db.add(row)
+            await db.flush()
     except IntegrityError:
-        # A concurrent request reserved the same key first. Roll back the failed
-        # insert and treat theirs as authoritative.
-        await db.rollback()
+        # A concurrent request reserved the same key first; treat theirs as
+        # authoritative. The savepoint already rolled back this insert.
         found = await _existing(db, endpoint=endpoint, key=key)
         if found is None:
             raise
@@ -149,6 +153,8 @@ async def store_idempotent_response(
     reservation.row.status_code = status_code
     reservation.row.completed_at = datetime.now(UTC)
     db.add(reservation.row)
+    # This is the single commit for an idempotent write: the reservation,
+    # domain mutation and replayable response become durable atomically.
     await db.commit()
 
 

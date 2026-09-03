@@ -93,6 +93,7 @@ export default function BadgeAdminTab() {
                 <button
                   type="button"
                   title="Editar"
+                  aria-label={`Editar crachá ${badge.name}`}
                   className="rounded-lg p-2 text-muted-foreground transition hover:bg-accent"
                   onClick={() => setFormMode({ open: true, editing: badge })}
                 >
@@ -101,6 +102,7 @@ export default function BadgeAdminTab() {
                 <button
                   type="button"
                   title={badge.is_active ? "Desativar" : "Ativar"}
+                  aria-label={`${badge.is_active ? "Desativar" : "Ativar"} crachá ${badge.name}`}
                   className="rounded-lg p-2 text-muted-foreground transition hover:bg-accent"
                   onClick={() => toggleActive(badge)}
                 >
@@ -115,6 +117,7 @@ export default function BadgeAdminTab() {
                     <button
                       type="button"
                       title="Eliminar"
+                      aria-label={`Eliminar crachá ${badge.name}`}
                       className="rounded-lg p-2 text-muted-foreground transition hover:bg-red-500/10 hover:text-red-500"
                     >
                       <Trash2 className="h-4 w-4" />

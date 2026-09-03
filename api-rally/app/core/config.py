@@ -11,6 +11,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Project Directories
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
+# Ports a browser leaves out of the ``Origin`` header because they are the
+# scheme's default. Rendering them back in would produce an origin string that
+# can never match the header.
+DEFAULT_PORTS = {"http": 80, "https": 443}
+
 
 def split_comma_list(v: Any) -> list[str] | Any:
     if isinstance(v, str):
@@ -80,6 +85,34 @@ class Settings(BaseSettings):
         if isinstance(v, (list, str)):
             return v
         raise ValueError(v)
+
+    @property
+    def CORS_ORIGINS(self) -> list[str]:  # noqa: N802
+        """``BACKEND_CORS_ORIGINS`` rendered as origins a browser can match.
+
+        (Named UPPER_SNAKE like every other setting on this class, since
+        callers read it as one — ``settings.CORS_ORIGINS`` — hence the N802.)
+
+        ``AnyHttpUrl`` normalizes a bare host to a URL with a trailing slash —
+        ``AnyHttpUrl("https://nei.web.ua.pt")`` stringifies to
+        ``"https://nei.web.ua.pt/"``. Browsers send ``Origin`` with no path and
+        no trailing slash, and ``CORSMiddleware`` compares the header against
+        its allow-list by plain string equality, so passing the URLs straight
+        through means *nothing* ever matches and every cross-origin request is
+        silently refused its CORS headers.
+
+        Rebuilding from the parsed components rather than stripping the slash
+        also drops any path someone put in the setting: an ``Origin`` is only
+        ever scheme + host + port, so an entry carrying a path could not match
+        either.
+        """
+        origins = []
+        for url in self.BACKEND_CORS_ORIGINS:
+            origin = f"{url.scheme}://{url.host}"
+            if url.port is not None and url.port != DEFAULT_PORTS.get(url.scheme):
+                origin = f"{origin}:{url.port}"
+            origins.append(origin)
+        return origins
 
     # Redis (realtime foundation: cache + event pub/sub for the live
     # scoreboard). Mirrors the NEI gamification system's config.

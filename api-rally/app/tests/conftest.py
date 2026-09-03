@@ -196,7 +196,17 @@ async def _pg_engine(request):
     except (SQLAlchemyError, OSError) as exc:
         require_or_skip_pg(request, exc)
 
-    engine = create_async_engine(_async_test_pg_url(), poolclass=NullPool)
+    # lock_timeout turns the one mistake this fixture pair invites — the test
+    # body leaving an uncommitted write on `pg_session`, then driving a request
+    # through `pg_client`, whose own session blocks on that row lock — into a
+    # fast, named failure. Without it the request waits forever (nothing will
+    # ever commit `pg_session`, and Postgres sees no deadlock cycle to break),
+    # TestClient blocks the test thread, and the whole CI shard hangs.
+    engine = create_async_engine(
+        _async_test_pg_url(),
+        poolclass=NullPool,
+        connect_args={"server_settings": {"lock_timeout": "15000"}},
+    )
     try:
         async with engine.begin() as conn:
             await conn.exec_driver_sql(f'DROP SCHEMA IF EXISTS "{_PG_SCHEMA}" CASCADE')
@@ -257,7 +267,8 @@ def pg_client(_pg_engine) -> TestClient:
 
 async def make_event(pg_session, **overrides):
     overrides.setdefault("name", "Test Event")
-    event = RallyEvent(is_current=True, **overrides)
+    overrides.setdefault("is_current", True)
+    event = RallyEvent(**overrides)
     pg_session.add(event)
     await pg_session.commit()
     await pg_session.refresh(event)

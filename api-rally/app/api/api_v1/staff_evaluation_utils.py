@@ -23,6 +23,7 @@ from app.crud.crud_activity import activity, activity_result
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team
+from app.crud.crud_versus import versus
 from app.models.activity import Activity, ActivityResult
 from app.models.team import Team
 from app.schemas.activity import (
@@ -32,6 +33,7 @@ from app.schemas.activity import (
 )
 from app.schemas.user import DetailedUser
 from app.services.checkpoint_visits import append_visit_entry, record_visit
+from app.services.event_scope import require_same_event
 from app.services.route_progress import RouteSnapshot, progress_for_team
 from app.services.scoring_service import EvaluationEditor, ScoringService
 
@@ -140,6 +142,12 @@ async def validate_staff_checkpoint_access(
         )
         raise RallyNotFoundError("Activity not found at your assigned checkpoint")
 
+    # Progress is deliberately not checked (see above); the *edition* is, as it
+    # is on every other write path (``require_same_event``). A result scored
+    # here resolves the post and moves the team's total, so a team of a past
+    # edition must not acquire one against this one's activity.
+    require_same_event(team_obj.event_id, activity_obj.event_id)
+
     logger.info(f"Validation successful for team {team_id}, activity {activity_id}")
     return team_obj, activity_obj
 
@@ -157,6 +165,9 @@ async def validate_admin_access(
     activity_obj = await activity.get(db, id=activity_id)
     if not activity_obj:
         raise RallyNotFoundError("Activity not found")
+
+    # Admin or not, a team scores only against its own edition's activities.
+    require_same_event(team_obj.event_id, activity_obj.event_id)
 
     return team_obj, activity_obj
 
@@ -178,6 +189,8 @@ async def create_activity_result(
     team_id: int,
     activity_id: int,
     result_in: ActivityResultEvaluation,
+    *,
+    commit: bool = True,
 ) -> ActivityResult:
     """Create activity result"""
     result_create = ActivityResultCreate(
@@ -189,7 +202,7 @@ async def create_activity_result(
         # prices them. See ActivityResultEvaluation.
         penalty_counts=result_in.penalty_counts,
     )
-    return await scoring_service.create_result(result_create)
+    return await scoring_service.create_result(result_create, commit=commit)
 
 
 async def create_or_update_activity_result(
@@ -201,6 +214,7 @@ async def create_or_update_activity_result(
     *,
     set_extra_shots_on_update: bool = True,
     editor: EvaluationEditor | None = None,
+    commit: bool = True,
 ) -> ActivityResult:
     """Create the team's result for this activity, or update it if one already exists.
 
@@ -240,18 +254,28 @@ async def create_or_update_activity_result(
     existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
     if existing_result:
         return await scoring_service.update_result(
-            existing_result, _update_payload(), editor=editor
+            existing_result, _update_payload(), editor=editor, commit=commit
         )
 
     try:
-        return await create_activity_result(scoring_service, team_id, activity_id, result_in)
+        if commit:
+            return await create_activity_result(
+                scoring_service, team_id, activity_id, result_in, commit=True
+            )
+        # Keep a duplicate-result INSERT from rolling back the idempotency
+        # reservation and every earlier mutation in the caller's transaction.
+        async with db.begin_nested():
+            return await create_activity_result(
+                scoring_service, team_id, activity_id, result_in, commit=False
+            )
     except IntegrityError:
-        await db.rollback()
+        if commit:
+            await db.rollback()
         existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)
         if existing_result is None:
             raise
         return await scoring_service.update_result(
-            existing_result, _update_payload(), editor=editor
+            existing_result, _update_payload(), editor=editor, commit=commit
         )
 
 
@@ -267,6 +291,7 @@ async def mirror_team_vs_result(
     result_data: dict[str, Any],
     *,
     editor: EvaluationEditor | None = None,
+    commit: bool = True,
 ) -> None:
     """Keep the opponent's TeamVsActivity result in sync.
 
@@ -287,6 +312,16 @@ async def mirror_team_vs_result(
     if opponent_team_id is None or own_result not in _OPPOSITE_TEAM_VS_RESULT:
         return
 
+    # Never trust the opponent supplied by the form for the mirrored write.
+    # The real pairing is event-scoped and must exactly match the request.
+
+    team_obj = await db.get(Team, team_id)
+    opponent = await versus.get_opponent(db, team_id=team_id)
+    if team_obj is None or opponent is None or opponent.id != opponent_team_id:
+        raise RallyValidationError("Teams are not paired opponents")
+    require_same_event(team_obj.event_id, activity_obj.event_id)
+    require_same_event(opponent.event_id, activity_obj.event_id)
+
     opponent_result_data = {
         **result_data,
         "opponent_team_id": team_id,
@@ -301,6 +336,7 @@ async def mirror_team_vs_result(
         ActivityResultEvaluation(result_data=opponent_result_data),
         set_extra_shots_on_update=False,
         editor=editor,
+        commit=commit,
     )
 
 
@@ -309,7 +345,9 @@ async def mirror_team_vs_result(
 # =============================================================================
 
 
-async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: Activity) -> None:
+async def check_and_advance_team(
+    db: AsyncSession, team_id: int, activity_obj: Activity, *, commit: bool = True
+) -> None:
     """Advance the team past this checkpoint once ALL its activities are scored.
 
     Idempotent: evaluating (or re-evaluating) an activity at a checkpoint the
@@ -358,7 +396,9 @@ async def check_and_advance_team(db: AsyncSession, team_id: int, activity_obj: A
             f"Team {team_id} completed all activities at "
             f"checkpoint {current_checkpoint_id}, recording the visit"
         )
-        await checkin_team_to_checkpoint(db, team_id, current_checkpoint_id, enforce_order=False)
+        await checkin_team_to_checkpoint(
+            db, team_id, current_checkpoint_id, enforce_order=False, commit=commit
+        )
     else:
         logger.debug(
             f"Team {team_id} still has {len(pending)} unscored activities at "
@@ -373,6 +413,7 @@ async def checkin_team_to_checkpoint(
     *,
     enforce_order: bool = True,
     arrival_already_recorded: bool = False,
+    commit: bool = True,
 ) -> None:
     """Record that the team visited this checkpoint.
 
@@ -403,6 +444,7 @@ async def checkin_team_to_checkpoint(
                 team_id=team_id,
                 checkpoint_id=checkpoint_id,
                 enforce_order=enforce_order,
+                commit=commit,
             )
             recorded = True
         else:
@@ -411,6 +453,7 @@ async def checkin_team_to_checkpoint(
                 team_id=team_id,
                 checkpoint_id=checkpoint_id,
                 enforce_order=enforce_order,
+                commit=commit,
             )
     except Exception as e:
         # Log error and propagate - checkpoint advancement is critical

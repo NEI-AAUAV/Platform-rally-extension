@@ -30,7 +30,7 @@ from app.schemas.checkpoint import (
 )
 from app.schemas.team import ListingTeam
 from app.services.checkpoint_planning import missing_fields
-from app.services.route_progress import TeamProgress, progress_for_team
+from app.services.route_progress import TeamProgress
 from app.services.team_service import TeamService
 
 
@@ -117,6 +117,14 @@ class CheckpointService:
         It is also mirrored into ``description`` so clients that only render the
         description still show something.
 
+        The **search area is gated on the same set**, and for the same reason.
+        A circle the post is guaranteed to sit inside narrows the city to a
+        neighbourhood, so drawing one for every future post hands the team the
+        shape of the whole route on a map before it has solved a single riddle
+        — enough to plan transport, pre-position half the team at post 4, and
+        turn each riddle into a lookup once it finally arrives. Withholding the
+        riddle while publishing its neighbourhood is not withholding much.
+
         Both sets come from ``route_progress.progress_for_team``. "Resolved"
         is deliberately a set membership and not ``order < current_order``:
         under free order or stages a team resolves posts out of sequence, and
@@ -126,8 +134,8 @@ class CheckpointService:
         """
         if checkpoint.order in resolved_orders or has_arrived:
             return checkpoint
-        area = CheckpointService._search_area(checkpoint, search_radius_m)
         is_current = checkpoint.order in open_orders
+        area = CheckpointService._search_area(checkpoint, search_radius_m) if is_current else None
         clue = checkpoint.clue if is_current else None
         return checkpoint.model_copy(
             update={
@@ -181,6 +189,16 @@ class CheckpointService:
         """Every checkpoint in the current event, ordered — the admin/staff view."""
         return self._validate_list(await self._checkpoint_crud.get_all_ordered(db=self._db))
 
+    async def _progress_for_team(self, team: Team) -> TeamProgress:
+        """The canonical progress snapshot, via ``TeamService``.
+
+        ``route_progress.progress_for_team`` is still the single engine, but
+        ``CheckpointService`` now gets at it the same way the participant
+        payloads do, through ``TeamService.progress``. That keeps `/checkpoint/me`
+        and `/team/*` on one service-level entry point as well as one engine.
+        """
+        return await TeamService(self._db, self._team_crud).progress(team)
+
     async def next_checkpoint_for_team(
         self, team_id: int, settings: Any, *, redact: bool = True
     ) -> DetailedCheckPoint | None:
@@ -198,7 +216,7 @@ class CheckpointService:
         team = await self._team_crud.get(db=self._db, id=team_id)
         if team is None:
             return None
-        progress = await progress_for_team(self._db, team, settings)
+        progress = await self._progress_for_team(team)
         if progress.current_order is None:
             return None
         checkpoint = await self._checkpoint_crud.get_by_order(
@@ -241,7 +259,7 @@ class CheckpointService:
         if not team:
             return []
 
-        progress = await progress_for_team(self._db, team, settings)
+        progress = await self._progress_for_team(team)
         reveal_next = getattr(settings, "reveal_next_checkpoint", True)
         # Skipped entirely when nothing is redacted anyway, so a rally does not
         # pay for a query it cannot use.
@@ -337,7 +355,7 @@ class CheckpointService:
         ):
             return True
 
-        progress = await progress_for_team(self._db, team, settings)
+        progress = await self._progress_for_team(team)
         if checkpoint.order in progress.resolved_orders:
             return True
         if checkpoint.order in progress.open_orders:

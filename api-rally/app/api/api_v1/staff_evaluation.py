@@ -436,6 +436,7 @@ class StaffEvaluationController:
             activity_id,
             result_in,
             editor=EvaluationEditor(id=str(current_user.id), name=current_user.name),
+            commit=reservation is None,
         )
         logger.info(
             f"Evaluation result {db_result.id} saved for team {team_id}, activity {activity_id}"
@@ -451,6 +452,7 @@ class StaffEvaluationController:
                 team_id,
                 db_result.result_data or {},
                 editor=EvaluationEditor(id=str(current_user.id), name=current_user.name),
+                commit=reservation is None,
             )
         except Exception:
             # loguru's `.error(..., exc_info=True)` does NOT attach a
@@ -463,7 +465,7 @@ class StaffEvaluationController:
         # Check if team has completed all activities and advance if needed
         try:
             logger.debug(f"Checking if team {team_id} can advance after activity {activity_id}")
-            await check_and_advance_team(db, team_id, activity_obj)
+            await check_and_advance_team(db, team_id, activity_obj, commit=reservation is None)
         except Exception:
             logger.exception(f"Failed to check/advance team {team_id}")
             # Don't fail the evaluation if advancement fails - advancement is a side effect
@@ -471,10 +473,17 @@ class StaffEvaluationController:
         response = ActivityResultResponse.model_validate(db_result)
 
         # Persist the response against the reserved key so retries replay it.
+        # The domain writes above ran with commit=False and queued their
+        # activity_result.*/team.score_updated events on the scoring service
+        # instead of publishing them. store_idempotent_response performs the one
+        # commit for the whole transaction; only after it returns is it safe to
+        # publish, so SSE, other sessions, caches, badges and the scoring worker
+        # see the write exactly once and never ahead of a rollback.
         if reservation is not None:
             await store_idempotent_response(
                 db, reservation, response_body=response.model_dump(mode="json")
             )
+            await scoring_service.publish_staged_events()
 
         return response
 

@@ -164,6 +164,7 @@ function RulesSection() {
             <button
               type="button"
               title={rule.is_active ? "Desativar" : "Ativar"}
+              aria-label={`${rule.is_active ? "Desativar" : "Ativar"} penalização ${rule.name}`}
               className="rounded-lg p-2 text-muted-foreground hover:bg-accent"
               onClick={() => toggleMutation.mutate({ id: rule.id, is_active: !rule.is_active })}
             >
@@ -176,6 +177,7 @@ function RulesSection() {
             <button
               type="button"
               title="Eliminar"
+              aria-label={`Eliminar penalização ${rule.name}`}
               className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
               onClick={() => {
                 if (confirm(`Eliminar penalização "${rule.name}"?`)) deleteMutation.mutate(rule.id);
@@ -330,6 +332,7 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
               <button
                 type="button"
                 title="Revogar"
+                aria-label={`Revogar prémio de ${teamName(award.team_id)}`}
                 className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
                 onClick={() => {
                   if (confirm("Revogar este prémio?")) deleteMutation.mutate(award.id);

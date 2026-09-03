@@ -18,9 +18,12 @@ class RallyGuideAssignment(Base):
     group), it only records which team a guide is assigned to.
     """
 
-    # One assignment row per guide — create_or_update relies on this.
+    # One assignment row per (guide, team) — a returning guide gets a fresh
+    # assignment for the current edition instead of their old-edition row being
+    # repointed. The CRUD lookups join ``team`` and filter the current event
+    # (mirrors rally_staff_assignment; see migration 0054).
     __table_args__: Any = (
-        UniqueConstraint("user_id", name="uq_rally_guide_assignment_user_id"),
+        UniqueConstraint("user_id", "team_id", name="uq_guide_assignment_user_team"),
         {"schema": settings.SCHEMA_NAME},
     )
 

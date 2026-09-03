@@ -27,19 +27,38 @@ export function isOfflineFailure(error: unknown): boolean {
 }
 
 /** The structured half of a rejected arrival, when the server sent one. */
-interface TooFarDetails {
+interface RejectionDetails {
   code?: string;
   distance_band?: string;
   max_distance_m?: number;
 }
 
-function tooFarDetails(error: unknown): TooFarDetails | null {
+function rejectionDetails(error: unknown): RejectionDetails | null {
   const candidate = error as
-    | { body?: { details?: TooFarDetails }; response?: { data?: { details?: TooFarDetails } } }
+    | {
+        body?: { details?: RejectionDetails };
+        response?: { data?: { details?: RejectionDetails } };
+      }
     | null
     | undefined;
-  const details = candidate?.body?.details ?? candidate?.response?.data?.details;
+  return candidate?.body?.details ?? candidate?.response?.data?.details ?? null;
+}
+
+function tooFarDetails(error: unknown): RejectionDetails | null {
+  const details = rejectionDetails(error);
   return details?.code === "too_far" ? details : null;
+}
+
+/**
+ * The server refuses an arrival at a post the team is not due at yet, and
+ * refuses it *before* recording anything — otherwise the stray arrival row
+ * would resolve a no-activity post the team merely walked past. Its own
+ * message names the open orders in English ("Checkpoint not in order.
+ * Expected one of [1]"), which is a debugging sentence, not one to show a
+ * team standing in the street.
+ */
+function isNotOpen(error: unknown): boolean {
+  return rejectionDetails(error)?.code === "not_open";
 }
 
 /**
@@ -129,9 +148,14 @@ export function useCheckpointArrival(checkpoint: DetailedCheckPoint) {
       }
       // ApiError.message is a generic "Bad Request"; the useful text lives in
       // body.detail, and the machine-readable version in body.details.
-      const msg = tooFarDetails(err)
-        ? traduzirDistancia(err)
-        : getErrorMessage(err, "Erro ao registar check-in.");
+      let msg: string;
+      if (tooFarDetails(err)) {
+        msg = traduzirDistancia(err);
+      } else if (isNotOpen(err)) {
+        msg = `Ainda não é aqui: ${feminino ? "esta" : "este"} ${terms.checkpoint} ainda não está disponível para a tua equipa. Segue o percurso pela ordem indicada.`;
+      } else {
+        msg = getErrorMessage(err, "Erro ao registar check-in.");
+      }
       setGpsMsg(msg);
       setGpsState("error");
     },

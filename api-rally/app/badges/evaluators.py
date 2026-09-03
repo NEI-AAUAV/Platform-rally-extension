@@ -44,6 +44,9 @@ class BadgeAward:
     activity_id: int | None = None
     checkpoint_id: int | None = None
     meta: dict[str, Any] = field(default_factory=dict)
+    # Only one team may ever hold this badge for its scope: the worker must take
+    # an advisory lock so two concurrent evaluations can't award two teams.
+    single_holder: bool = False
 
 
 Handler = Callable[[AsyncSession, ActivityResult, BadgeDefinition], Awaitable[list[BadgeAward]]]
@@ -125,6 +128,7 @@ async def _handle_first_complete_activity(
             team_id=earliest.team_id,
             badge_code=defn.code,
             activity_id=earliest.activity_id,
+            single_holder=True,
             meta={
                 "completed_at": earliest.completed_at.isoformat() if earliest.completed_at else None
             },
@@ -206,6 +210,7 @@ async def _handle_first_complete_checkpoint(
             team_id=winner_team,
             badge_code=defn.code,
             checkpoint_id=checkpoint_id,
+            single_holder=True,
             meta={"completed_at": finished_at.isoformat()},
         )
     ]
@@ -298,6 +303,7 @@ async def _handle_complete_all_checkpoints(
         BadgeAward(
             team_id=result.team_id,
             badge_code=defn.code,
+            single_holder=bool(criteria.get("single_holder")),
             meta={"activities": len(all_active)},
         )
     ]
@@ -390,6 +396,7 @@ async def _handle_fast_complete(
             team_id=result.team_id,
             badge_code=defn.code,
             activity_id=result.activity_id,
+            single_holder=bool(criteria.get("single_holder")),
             meta={"duration_seconds": duration},
         )
     ]

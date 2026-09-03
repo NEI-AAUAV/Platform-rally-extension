@@ -99,8 +99,7 @@ class TeamVsActivity(BaseActivity):
                     f"Team {team_id} has no opponent in versus system, but "
                     f"opponent_team_id={opponent_team_id} was provided"
                 )
-                # Allow validation if no opponent is set (teams might not be in versus mode)
-                return True
+                return False
 
             if opponent.id != opponent_team_id:
                 logger.warning(
@@ -112,12 +111,11 @@ class TeamVsActivity(BaseActivity):
             return True
 
         except Exception as e:
-            # If versus system fails, fall back to basic validation
             logger.warning(
                 f"Versus validation failed for team {team_id} vs {opponent_team_id}: "
-                f"{str(e)}, allowing validation"
+                f"{str(e)}, rejecting validation"
             )
-            return True
+            return False
 
     async def get_opponent_for_team(self, team_id: int, db_session: Any) -> dict[str, Any] | None:
         """Get opponent team information for a given team"""

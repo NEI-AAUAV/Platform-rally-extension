@@ -26,8 +26,8 @@ from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.schemas.proximity import ProximityReading
-from app.services.checkin_service import require_same_event
 from app.services.checkpoint_arrival_service import _DISTANCE_BUCKETS, _distance_bucket
+from app.services.event_scope import require_same_event
 from app.services.route_progress import can_reach_checkpoint
 from app.utils.geo import distance_m
 

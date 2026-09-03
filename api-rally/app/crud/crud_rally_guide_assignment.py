@@ -18,8 +18,24 @@ class CRUDRallyGuideAssignment(
     CRUDBase[RallyGuideAssignment, RallyGuideAssignmentCreate, RallyGuideAssignmentUpdate]
 ):
     async def get_by_user_id(self, db: AsyncSession, user_id: int) -> RallyGuideAssignment | None:
-        """Get guide assignment for a specific user"""
-        stmt = select(RallyGuideAssignment).where(RallyGuideAssignment.user_id == user_id)
+        """This user's guide assignment **in the current event**.
+
+        A guide can work more than one edition. Selecting on ``user_id`` alone
+        returned whichever row came back first — so a returning guide's stale
+        cross-edition assignment leaked to the lookup, and ``create_or_update``
+        then repointed that finished edition's row instead of creating one for
+        the current event. ``get_multi_with_team`` was already scoped this way;
+        this is the same join.
+        """
+        event_id = await current_event_id(db)
+        stmt = (
+            select(RallyGuideAssignment)
+            .join(Team, RallyGuideAssignment.team_id == Team.id)
+            .where(
+                RallyGuideAssignment.user_id == user_id,
+                (Team.event_id == event_id) | (Team.event_id.is_(None)),
+            )
+        )
         result: RallyGuideAssignment | None = await db.scalar(stmt)
         return result
 

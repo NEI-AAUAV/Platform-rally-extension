@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
+from unittest.mock import AsyncMock
 
 import fakeredis.aioredis
 import pytest
@@ -222,9 +223,11 @@ def test_stream_rally_events_returns_streaming_response_when_enabled(
 
     async def _run() -> None:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
+        db = AsyncMock()
         response = await scoreboard_module.ScoreboardController().stream_rally_events(
-            _FakeRequest(), settings, db=None, curr_user=None
+            _FakeRequest(), settings, db=db, curr_user=None
         )
+        db.commit.assert_awaited_once()
         assert response.media_type == "text/event-stream"
         assert response.headers["Cache-Control"] == "no-cache"
 
@@ -244,9 +247,11 @@ def test_stream_scoreboard_emits_refresh_on_publish(
 
     async def _run() -> list[str]:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
+        db = AsyncMock()
         response = await scoreboard_module.ScoreboardController().stream_scoreboard(
-            _FakeRequest(disconnect_after=2), settings, db=None, curr_user=None
+            _FakeRequest(disconnect_after=2), settings, db=db, curr_user=None
         )
+        db.commit.assert_awaited_once()
         events = []
         async for event in response.body_iterator:
             events.append(event)
@@ -270,11 +275,13 @@ def test_stream_scoreboard_emits_ping_and_stops_on_disconnect(
 
     async def _run() -> list[str]:
         settings = get_settings().model_copy(update={"EVENTS_ENABLED": True})
+        db = AsyncMock()
         # Stay connected for the first check (so a ping is emitted), then
         # report disconnected to end the generator.
         response = await scoreboard_module.ScoreboardController().stream_scoreboard(
-            _FakeRequest(disconnect_after=1), settings, db=None, curr_user=None
+            _FakeRequest(disconnect_after=1), settings, db=db, curr_user=None
         )
+        db.commit.assert_awaited_once()
         events = []
         async for event in response.body_iterator:
             events.append(event)

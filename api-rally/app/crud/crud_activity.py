@@ -77,13 +77,23 @@ class CRUDActivity:
         await db.refresh(db_obj)
         return db_obj
 
-    async def remove(self, db: AsyncSession, *, id: int) -> Activity | None:
-        """Remove an activity"""
+    async def remove(self, db: AsyncSession, *, id: int, commit: bool = True) -> Activity | None:
+        """Remove an activity.
+
+        Commits by default. Pass ``commit=False`` to only flush the delete (and
+        its result cascades) so the caller can recompute the affected teams'
+        scores and commit everything as one transaction — otherwise a recompute
+        failure after this commit leaves the standings with an activity gone but
+        its points still counted, and only some teams rescored.
+        """
         obj = await db.get(Activity, id)
         if obj is None:
             return None
         await db.delete(obj)
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         return obj
 
 
@@ -175,10 +185,19 @@ class CRUDActivityResult:
         stmt = select(ActivityResult).order_by(desc(ActivityResult.completed_at))
         return list((await db.scalars(stmt)).all())
 
-    async def delete(self, db: AsyncSession, *, db_obj: ActivityResult) -> ActivityResult:
-        """Delete a result and commit (no team-score side effects)."""
+    async def delete(
+        self, db: AsyncSession, *, db_obj: ActivityResult, commit: bool = True
+    ) -> ActivityResult:
+        """Delete a result (no team-score side effects).
+
+        Commits by default. Pass commit=False to only flush, so the caller can
+        batch the delete with the rescore it triggers into one transaction.
+        """
         await db.delete(db_obj)
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         return db_obj
 
 
@@ -277,19 +296,24 @@ class CRUDRallyEvent:
             is_active=True,
             is_current=True,
         )
-        db.add(default)
         try:
-            await db.commit()
+            # SAVEPOINT, not a bare commit+rollback: a losing race must undo
+            # only this insert, never the caller's own pending work in the
+            # surrounding transaction (this is reached from paths that look
+            # like plain reads).
+            async with db.begin_nested():
+                db.add(default)
+                await db.flush()
         except IntegrityError:
             # Concurrent bootstrap (multiple uvicorn workers / background
             # workers hitting their first read at once): the slug is unique, so
             # only one insert lands. The losers adopt whatever event is now
             # current rather than failing the request.
-            await db.rollback()
             current = await self.get_current(db)
             if current is None:
                 raise
             return current
+        await db.commit()
         await db.refresh(default)
         return default
 

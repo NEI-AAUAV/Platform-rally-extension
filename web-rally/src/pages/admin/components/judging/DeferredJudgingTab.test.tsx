@@ -5,11 +5,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import DeferredJudgingTab from "./DeferredJudgingTab";
 
 const mockListPendingJudgments = vi.fn();
+const mockListDeferredResultsForActivity = vi.fn();
 const mockGetActivities = vi.fn();
 const mockRankDeferredResults = vi.fn();
 
 vi.mock("@/client", () => ({
   listPendingJudgments: (...args: unknown[]) => mockListPendingJudgments(...args),
+  listDeferredResultsForActivity: (...args: unknown[]) =>
+    mockListDeferredResultsForActivity(...args),
   getActivities: (...args: unknown[]) => mockGetActivities(...args),
   rankDeferredResults: (...args: unknown[]) => mockRankDeferredResults(...args),
 }));
@@ -35,6 +38,12 @@ const result = (id: number, teamId: number) => ({
   is_completed: true,
 });
 
+const judged = (id: number, teamId: number, score: number) => ({
+  ...result(id, teamId),
+  judgment_status: "judged",
+  final_score: score,
+});
+
 describe("DeferredJudgingTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,6 +51,11 @@ describe("DeferredJudgingTab", () => {
       data: { activities: [{ id: 42, name: "Foto Criativa" }] },
     });
     mockRankDeferredResults.mockResolvedValue({ data: [] });
+    // Default: the full field matches what is pending. Tests that care about
+    // the difference override it.
+    mockListDeferredResultsForActivity.mockImplementation(async () => ({
+      data: [result(1, 100), result(2, 200)],
+    }));
   });
 
   it("shows the empty state when there is nothing pending", async () => {
@@ -57,7 +71,9 @@ describe("DeferredJudgingTab", () => {
     renderWithClient();
 
     expect(await screen.findByText("Foto Criativa")).toBeInTheDocument();
-    expect(screen.getByText("Equipa #100")).toBeInTheDocument();
+    // The entries come from the per-activity query, which resolves after the
+    // group header the pending list alone can render.
+    expect(await screen.findByText("Equipa #100")).toBeInTheDocument();
     expect(screen.getByText("Equipa #200")).toBeInTheDocument();
   });
 
@@ -68,7 +84,7 @@ describe("DeferredJudgingTab", () => {
     });
     renderWithClient();
 
-    await screen.findByText("Foto Criativa");
+    await screen.findByText("Equipa #200");
     await user.click(screen.getByLabelText("Subir equipa #200"));
 
     const teamLabels = screen.getAllByText(/^Equipa #/).map((el) => el.textContent);
@@ -84,13 +100,39 @@ describe("DeferredJudgingTab", () => {
     );
   });
 
+  it("ranks the whole field, not just what is still pending", async () => {
+    const user = userEvent.setup();
+    // One capture was judged individually earlier, so it is absent from the
+    // pending list — but the ranking must still cover it, or the server
+    // rejects the submission and the remaining ones get re-scaled over the
+    // full range behind the judge's back.
+    mockListPendingJudgments.mockResolvedValue({ data: [result(1, 100)] });
+    mockListDeferredResultsForActivity.mockResolvedValue({
+      data: [result(1, 100), judged(2, 200, 80)],
+    });
+    renderWithClient();
+
+    expect(await screen.findByText("Equipa #200")).toBeInTheDocument();
+    expect(screen.getByText(/já julgada: 80/)).toBeInTheDocument();
+
+    await user.click(screen.getByText("Confirmar ordenação"));
+
+    await waitFor(() =>
+      expect(mockRankDeferredResults).toHaveBeenCalledWith({
+        path: { activity_id: 42 },
+        body: { ordered_result_ids: [1, 2] },
+      }),
+    );
+  });
+
   it("shows an error message when submitting the ranking fails", async () => {
     const user = userEvent.setup();
     mockListPendingJudgments.mockResolvedValue({ data: [result(1, 100)] });
+    mockListDeferredResultsForActivity.mockResolvedValue({ data: [result(1, 100)] });
     mockRankDeferredResults.mockRejectedValue(new Error("boom"));
     renderWithClient();
 
-    await screen.findByText("Foto Criativa");
+    await screen.findByText("Equipa #100");
     await user.click(screen.getByText("Confirmar ordenação"));
 
     expect(await screen.findByText(/Erro ao submeter a ordenação/)).toBeInTheDocument();

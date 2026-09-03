@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useAuth } from "react-oidc-context";
 import { useUserStore } from "@/stores/useUserStore";
+import { clearApiCache } from "@/lib/auth/clearApiCache";
 
 /**
  * Full sign-out: clears the local rally session AND ends the OIDC session.
@@ -28,6 +29,7 @@ export function useLogout(): () => Promise<void> {
 
   return useCallback(async () => {
     storeLogout();
+    await clearApiCache();
     try {
       await auth.removeUser();
       await auth.signoutRedirect();

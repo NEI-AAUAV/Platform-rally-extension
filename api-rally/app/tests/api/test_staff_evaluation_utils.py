@@ -138,6 +138,26 @@ class TestValidateStaffCheckpointAccess:
         assert team_obj.id == team.id
         assert activity_obj.id == activity.id
 
+    async def test_rejects_a_team_from_another_edition(self, pg_session):
+        """Progress is deliberately not checked here (staff evaluate whoever is
+        standing at their post), but the *edition* is: a scored result resolves
+        the post and moves the total, so it must stay inside one event."""
+        current = await _make_event(pg_session)
+        other = await _make_event(pg_session, name="Old Edition", is_current=False)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        team.event_id = other.id
+        pg_session.add(team)
+        await pg_session.commit()
+        activity = await _make_activity(pg_session, cp.id)
+        assert activity.event_id == current.id
+        user = _staff_user(cp.id)
+
+        with pytest.raises(RallyNotFoundError):
+            await validate_staff_checkpoint_access(
+                pg_session, user, team_id=team.id, activity_id=activity.id
+            )
+
 
 class TestValidateAdminAccess:
     async def test_team_not_found(self, pg_session):
@@ -163,6 +183,37 @@ class TestValidateAdminAccess:
 
         assert team_obj.id == team.id
         assert activity_obj.id == activity.id
+
+    async def test_rejects_a_team_from_another_edition(self, pg_session):
+        """Admin or not, a team scores only against its own edition."""
+        await _make_event(pg_session)
+        other = await _make_event(pg_session, name="Old Edition", is_current=False)
+        cp = await _make_checkpoint(pg_session)
+        team = await _make_team(pg_session)
+        team.event_id = other.id
+        pg_session.add(team)
+        await pg_session.commit()
+        activity = await _make_activity(pg_session, cp.id)
+
+        with pytest.raises(RallyNotFoundError):
+            await validate_admin_access(pg_session, team_id=team.id, activity_id=activity.id)
+
+    async def test_a_legacy_null_event_id_still_passes(self, pg_session):
+        """NULL ids are treated as compatible, so pre-multi-event rows keep
+        working — same tolerance as every other caller of the guard."""
+        await _make_event(pg_session)
+        cp = await _make_checkpoint(pg_session)
+        team = await _make_team(pg_session)
+        team.event_id = None
+        pg_session.add(team)
+        await pg_session.commit()
+        activity = await _make_activity(pg_session, cp.id)
+
+        team_obj, _ = await validate_admin_access(
+            pg_session, team_id=team.id, activity_id=activity.id
+        )
+
+        assert team_obj.id == team.id
 
 
 class TestCheckExistingResult:
@@ -558,6 +609,13 @@ class TestMirrorTeamVsResult:
         cp = await _make_checkpoint(pg_session, order=1)
         team_a = await _make_team(pg_session, name="A")
         team_b = await _make_team(pg_session, name="B")
+        # The mirror writes the opponent's points, so it trusts the persisted
+        # pairing rather than the opponent id in the payload: the two halves
+        # have to be in the same versus group for the write to be allowed.
+        team_a.versus_group_id = team_a.id
+        team_b.versus_group_id = team_a.id
+        pg_session.add_all([team_a, team_b])
+        await pg_session.commit()
         activity = await _make_activity(pg_session, cp.id, activity_type="TeamVsActivity")
 
         await mirror_team_vs_result(

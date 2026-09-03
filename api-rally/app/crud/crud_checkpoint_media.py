@@ -67,12 +67,15 @@ class CRUDCheckpointMedia:
             db_obj.content_url = str(obj_in.content_url)
         if obj_in.content_text is not None:
             db_obj.content_text = obj_in.content_text
+        old_image_url = db_obj.image_url
         if image_url is not None:
-            if db_obj.image_url:
-                storage_client.delete_image(db_obj.image_url)
             db_obj.image_url = image_url
         await db.commit()
         await db.refresh(db_obj)
+        # Only the *replaced* image is orphaned. A first upload has nothing to
+        # clean up, and re-saving the same URL would delete the live image.
+        if image_url is not None and old_image_url and old_image_url != image_url:
+            storage_client.delete_image(old_image_url)
         return db_obj
 
     async def delete(self, db: AsyncSession, *, db_obj: CheckpointMedia) -> None:

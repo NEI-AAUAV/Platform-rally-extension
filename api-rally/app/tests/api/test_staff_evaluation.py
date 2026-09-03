@@ -23,6 +23,7 @@ from app.models.idempotency_key import IdempotencyKey
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
+from app.services.scoring_service import ScoringService
 from app.tests.conftest import _fake_auth_data, as_team
 from app.tests.conftest import make_event as _make_event
 
@@ -47,6 +48,13 @@ async def _make_activity(pg_session, checkpoint_id):
             config={},
         ),
     )
+
+
+async def _scoreboard_row(pg_session, team_id: int) -> dict:
+    ranking = await ScoringService(pg_session).get_team_ranking()
+    row = next((item for item in ranking if item["team_id"] == team_id), None)
+    assert row is not None
+    return row
 
 
 class TestStaffEvaluationAPI:
@@ -448,11 +456,15 @@ class TestEvaluationIdempotency:
 
         first = pg_client.post(url, json=payload, headers=headers)
         assert first.status_code == 200, first.text
+        await pg_session.refresh(team_obj)
+        scoreboard_before = await _scoreboard_row(pg_session, team_obj.id)
+        total_before = team_obj.total
+        classification_before = team_obj.classification
         second = pg_client.post(url, json=payload, headers=headers)
         assert second.status_code == 200, second.text
 
         # Same response replayed…
-        assert first.json()["final_score"] == second.json()["final_score"]
+        assert first.json() == second.json()
 
         # …and still exactly one result row (no double-apply).
         rows = (
@@ -471,6 +483,100 @@ class TestEvaluationIdempotency:
             )
         ).all()
         assert len(keys) == 1
+        await pg_session.refresh(team_obj)
+        assert team_obj.total == total_before
+        assert team_obj.classification == classification_before
+        assert await _scoreboard_row(pg_session, team_obj.id) == scoreboard_before
+
+    async def test_idempotent_evaluation_updates_total_classification_and_scoreboard(
+        self, pg_session, pg_client, as_admin
+    ):
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+
+        resp = pg_client.post(url, json=payload, headers={"Idempotency-Key": "eval-total-1"})
+        assert resp.status_code == 200, resp.text
+
+        result = await pg_session.scalar(
+            select(ActivityResult).where(
+                ActivityResult.activity_id == activity_obj.id,
+                ActivityResult.team_id == team_obj.id,
+            )
+        )
+        assert result is not None
+        assert result.final_score == 50
+
+        await pg_session.refresh(team_obj)
+        assert team_obj.total == 50
+        assert team_obj.classification == 1
+
+        scoreboard_row = await _scoreboard_row(pg_session, team_obj.id)
+        assert scoreboard_row["total_score"] == 50.0
+        assert scoreboard_row["rank"] == 1
+
+    async def test_time_ranking_recomputes_via_idempotent_staff_path(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team_a = await _make_team(pg_session, "Team A")
+        team_b = await _make_team(pg_session, "Team B")
+        activity_obj = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Timed Activity",
+                activity_type=ActivityType.TIME_BASED,
+                checkpoint_id=checkpoint.id,
+                config={"max_points": 100, "min_points": 10},
+            ),
+        )
+        url_a = f"/api/rally/v1/staff/teams/{team_a.id}/activities/{activity_obj.id}/evaluate"
+        url_b = f"/api/rally/v1/staff/teams/{team_b.id}/activities/{activity_obj.id}/evaluate"
+
+        resp_a = pg_client.post(
+            url_a,
+            json={"result_data": {"completion_time_seconds": 10}, "extra_shots": 0},
+            headers={"Idempotency-Key": "time-a"},
+        )
+        assert resp_a.status_code == 200, resp_a.text
+
+        resp_b = pg_client.post(
+            url_b,
+            json={"result_data": {"completion_time_seconds": 5}, "extra_shots": 0},
+            headers={"Idempotency-Key": "time-b"},
+        )
+        assert resp_b.status_code == 200, resp_b.text
+
+        result_a = await pg_session.scalar(
+            select(ActivityResult).where(
+                ActivityResult.activity_id == activity_obj.id,
+                ActivityResult.team_id == team_a.id,
+            )
+        )
+        result_b = await pg_session.scalar(
+            select(ActivityResult).where(
+                ActivityResult.activity_id == activity_obj.id,
+                ActivityResult.team_id == team_b.id,
+            )
+        )
+        assert result_a is not None
+        assert result_b is not None
+        assert result_b.final_score == pytest.approx(100)
+        assert result_a.final_score == pytest.approx(10)
+
+        await pg_session.refresh(team_a)
+        await pg_session.refresh(team_b)
+        assert team_b.total == 100
+        assert team_a.total == 10
+        assert team_b.classification == 1
+        assert team_a.classification == 2
+
+        scoreboard = await ScoringService(pg_session).get_team_ranking()
+        assert [row["team_id"] for row in scoreboard[:2]] == [team_b.id, team_a.id]
+        assert scoreboard[0]["total_score"] == 100.0
+        assert scoreboard[0]["rank"] == 1
+        assert scoreboard[1]["total_score"] == 10.0
+        assert scoreboard[1]["rank"] == 2
 
     async def test_same_key_different_payload_conflicts(self, pg_session, pg_client, as_admin):
         _team, _activity, url = await self._seed(pg_session)
@@ -489,6 +595,180 @@ class TestEvaluationIdempotency:
             headers=headers,
         )
         assert conflict.status_code == 409, conflict.text
+
+
+class TestIdempotentEvaluationPublishesEventsAfterCommit:
+    """P0: the idempotency transaction runs every domain write with commit=False,
+    so its activity_result.*/team.score_updated events must be *staged* on the
+    scoring service and published only once, after store_idempotent_response's
+    single commit. Before this fix they were dropped entirely — DB state was
+    right but SSE, caches, badges and the scoring worker never heard about it.
+    """
+
+    async def _seed(self, pg_session):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team_obj = await _make_team(pg_session, "TeamA")
+        activity_obj = await _make_activity(pg_session, checkpoint.id)
+        url = f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate"
+        return team_obj, activity_obj, url
+
+    @staticmethod
+    def _capture_events(monkeypatch) -> list:
+        published: list = []
+        monkeypatch.setattr(
+            "app.services.scoring_service.publish_event",
+            AsyncMock(side_effect=lambda event: published.append(event)),
+        )
+        return published
+
+    async def test_normal_scoring_publishes_one_result_event_after_commit(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        published = self._capture_events(monkeypatch)
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+
+        resp = pg_client.post(url, json=payload, headers={"Idempotency-Key": "evt-normal-1"})
+        assert resp.status_code == 200, resp.text
+
+        result_events = [e for e in published if e.event_type.value == "activity_result.created"]
+        assert len(result_events) == 1
+        assert result_events[0].payload.team_id == team_obj.id
+        assert result_events[0].payload.activity_id == activity_obj.id
+        # A team.score_updated must also reach the leaderboard worker.
+        assert any(e.event_type.value == "team.score_updated" for e in published)
+
+        # The event describes committed state: the total is really persisted.
+        await pg_session.refresh(team_obj)
+        assert team_obj.total == 50
+
+    async def test_off_path_stages_event_and_worker_recompute_fixes_total(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        # RECOMPUTE_OFF_PATH: the request persists the raw result and defers the
+        # heavy recompute to the scoring worker, which is only ever woken by the
+        # activity_result event. No event => Team.total stays wrong forever.
+        monkeypatch.setattr(ScoringService, "_defer_recompute", property(lambda _: True))
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        published = self._capture_events(monkeypatch)
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+
+        resp = pg_client.post(url, json=payload, headers={"Idempotency-Key": "evt-offpath-1"})
+        assert resp.status_code == 200, resp.text
+
+        # The worker's wake-up signal was published exactly once.
+        result_events = [e for e in published if e.event_type.value == "activity_result.created"]
+        assert len(result_events) == 1
+
+        # Note: the scoring itself is deferred, but completing the post still
+        # advances the team, and that append commits with its own classification
+        # recompute (the P1 durability boundary), so team.total is not asserted
+        # to be untouched here. What matters is that the event was published:
+        # without it the worker never runs and any total it would fix is lost.
+
+        # Drive the exact recompute ScoringWorker.handle_event performs off the
+        # event, then the total is correct.
+        worker_svc = ScoringService(pg_session)
+        await worker_svc._recalculate_all_results_for_activity(result_events[0].payload.activity_id)
+        await worker_svc.update_team_scores(result_events[0].payload.team_id)
+
+        await pg_session.refresh(team_obj)
+        assert team_obj.total == 50
+
+    async def test_retry_same_key_replays_and_publishes_no_duplicate_events(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        published = self._capture_events(monkeypatch)
+        payload = {"result_data": {"assigned_points": 50}, "extra_shots": 0, "penalties": {}}
+        headers = {"Idempotency-Key": "evt-retry-1"}
+
+        first = pg_client.post(url, json=payload, headers=headers)
+        assert first.status_code == 200, first.text
+        count_after_first = len(published)
+        assert count_after_first >= 1
+
+        second = pg_client.post(url, json=payload, headers=headers)
+        assert second.status_code == 200, second.text
+        assert second.json() == first.json()
+
+        # The replay path returns before any domain write — zero new events.
+        assert len(published) == count_after_first
+
+    async def test_team_vs_idempotent_publishes_exactly_one_event_per_half(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team_a = await _make_team(pg_session, "VS A")
+        team_b = await _make_team(pg_session, "VS B")
+        team_a.versus_group_id = team_a.id
+        team_b.versus_group_id = team_a.id
+        activity_obj = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Duel",
+                activity_type=ActivityType.TEAM_VS,
+                checkpoint_id=checkpoint.id,
+                config={"win_points": 100, "draw_points": 50, "lose_points": 0},
+            ),
+        )
+        await pg_session.commit()
+
+        published = self._capture_events(monkeypatch)
+        url = f"/api/rally/v1/staff/teams/{team_a.id}/activities/{activity_obj.id}/evaluate"
+        resp = pg_client.post(
+            url,
+            json={"result_data": {"result": "win", "opponent_team_id": team_b.id}},
+            headers={"Idempotency-Key": "evt-vs-1"},
+        )
+        assert resp.status_code == 200, resp.text
+
+        result_events = [e for e in published if e.event_type.value.startswith("activity_result.")]
+        teams_notified = sorted(e.payload.team_id for e in result_events)
+        assert teams_notified == sorted([team_a.id, team_b.id]), (
+            f"expected exactly one result event per match half, got {teams_notified}"
+        )
+
+    async def test_failure_before_final_commit_rolls_back_mutation_and_reservation(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        """A crash/failure while finalizing the replay response must not leave
+        either the scored result or an eternally in-flight reservation durable."""
+        team_obj, activity_obj, url = await self._seed(pg_session)
+        team_id = team_obj.id
+        activity_id = activity_obj.id
+
+        async def _fail_before_commit(db, reservation, *, response_body, status_code=200):
+            await db.rollback()
+            raise RuntimeError("simulated crash before atomic commit")
+
+        monkeypatch.setattr(
+            staff_evaluation_module, "store_idempotent_response", _fail_before_commit
+        )
+
+        with pytest.raises(RuntimeError, match="simulated crash"):
+            pg_client.post(
+                url,
+                json={"result_data": {"assigned_points": 50}},
+                headers={"Idempotency-Key": "crash-before-final-commit"},
+            )
+
+        pg_session.expire_all()
+        result = await pg_session.scalar(
+            select(ActivityResult).where(
+                ActivityResult.activity_id == activity_id,
+                ActivityResult.team_id == team_id,
+            )
+        )
+        key = await pg_session.scalar(
+            select(IdempotencyKey).where(
+                IdempotencyKey.idempotency_key == "crash-before-final-commit"
+            )
+        )
+        assert result is None
+        assert key is None
 
     async def test_no_key_behaves_normally(self, pg_session, pg_client, as_admin):
         _team, _activity, url = await self._seed(pg_session)

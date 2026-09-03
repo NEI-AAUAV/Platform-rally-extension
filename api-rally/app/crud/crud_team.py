@@ -12,6 +12,8 @@ from app.core.exceptions import RallyValidationError
 from app.crud._event_scope import current_event_id
 from app.crud.base import CRUDBase
 from app.crud.crud_rally_settings import rally_settings
+from app.db.locks import lock_team_ranking
+from app.models.activity import RallyEvent
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.team import Team
 from app.schemas.team import (
@@ -62,6 +64,15 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         result: Team | None = await db.scalar(select(Team).where(Team.access_code == access_code))
         return result
 
+    async def get_current_event(self, db: AsyncSession) -> RallyEvent:
+        """Return the active edition without changing it during normal login."""
+        event = await db.scalar(select(RallyEvent).where(RallyEvent.is_current.is_(True)))
+        if event is None:
+            # Preserve the long-standing lazy bootstrap for legacy deployments.
+            event = await db.get(RallyEvent, await current_event_id(db))
+        assert event is not None
+        return event
+
     async def get_multi(
         self,
         db: AsyncSession,
@@ -84,17 +95,27 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             .offset(skip)
         )
         if for_update:
-            # Deterministic lock order (by id) is required here, not
-            # cosmetic: add_checkpoint already holds one team row locked via
-            # its own for_update=True before calling update_classification,
-            # which locks *every* team. Two concurrent check-ins for
-            # different teams each already hold a different single row, then
-            # both try to acquire the full set — without a fixed order,
-            # Postgres can pick a different scan order per transaction and
-            # deadlock (each waiting on the row the other already holds).
-            # Real DeadlockDetectedError reproduced under concurrent
-            # staff-check-in calls before this fix.
-            stmt = stmt.order_by(Team.id).with_for_update()
+            # Mutual exclusion for whole-team-set writes is the advisory gate,
+            # not row locks. A row-level FOR UPDATE here conflicts with the
+            # KEY SHARE lock that any INSERT referencing teams takes on its
+            # parent row (a checkpoint arrival, an activity result), so a
+            # transaction that inserted one of those and then reached this gate
+            # deadlocked against the gate holder scanning the same row. Under
+            # the gate only one writer runs at a time, so the row locks bought
+            # nothing but that cycle. Ordering stays for a deterministic read.
+            await lock_team_ranking(db, event_id)
+            # populate_existing replaces what FOR UPDATE also did for free:
+            # overwrite any copy of these rows already in the session's
+            # identity map. Without it a caller that read a team earlier in the
+            # same request re-ranks from that stale copy.
+            #
+            # Flush first: the session runs with autoflush=False, so pending
+            # in-memory changes (a score this transaction has just computed)
+            # would otherwise be overwritten by the re-read and lost. Flushing
+            # sends them to the database, so the fresh read returns this
+            # transaction's own writes instead of discarding them.
+            await db.flush()
+            stmt = stmt.order_by(Team.id).execution_options(populate_existing=True)
         return list((await db.scalars(stmt)).all())
 
     async def update_classification_unlocked(self, db: AsyncSession) -> None:
@@ -134,23 +155,25 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         if current_team_count >= settings.max_teams:
             raise RallyValidationError("Team limit reached")
 
+        # Same gate as update(): this insert is followed by a whole-set re-rank,
+        # so the gate must come before the row this transaction writes.
+        await lock_team_ranking(db, event_id)
         obj_in_data = obj_in.model_dump()
         obj_in_data["access_code"] = await _generate_access_code(db)
         obj_in_data["event_id"] = event_id
 
         team = self.model(**obj_in_data)
 
-        # Flushed (not committed) here regardless of the caller's commit=
-        # intent: a duplicate access_code/name is only detectable once
-        # Postgres evaluates the unique constraints, and the retry logic
-        # below depends on that failing atomically within its own savepoint
-        # rather than the caller's outer transaction.
+        # The INSERT must be isolated from an outer transaction.  A caller that
+        # asked for commit=False owns that transaction, so a uniqueness failure
+        # here may roll back only this INSERT, never unrelated work already queued
+        # on the session.  Keep the flush inside the SAVEPOINT so PostgreSQL can
+        # evaluate the unique constraints there.
         try:
-            db.add(team)
-            await db.flush()
+            async with db.begin_nested():
+                db.add(team)
+                await db.flush()
         except IntegrityError as e:
-            await db.rollback()
-
             if e.orig is None:
                 raise
 
@@ -175,9 +198,18 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
     async def update(
         self, db: AsyncSession, *, id: int, obj_in: TeamUpdate, commit: bool = False
     ) -> Team:
+        # The gate serializes every writer of the team set (see
+        # app.db.locks), so this read needs no row lock of its own — one would
+        # only reintroduce the conflict with FK KEY SHARE locks.
+        await lock_team_ranking(db, await current_event_id(db))
         async with db.begin_nested():
-            team = await self.get(db=db, id=id, for_update=True)
+            team = await self.get(db=db, id=id, populate_existing=True)
             update_data = obj_in.model_dump(exclude_unset=True)
+
+            # The access code is a login credential. Rotating it must revoke
+            # every access/refresh JWT issued with the old code immediately.
+            if "access_code" in update_data and update_data["access_code"] != team.access_code:
+                team.auth_version += 1
 
             should_validate_locked = any(key in update_data for key in locked_arrays)
 
@@ -225,6 +257,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         checkpoint_id: int,
         obj_in: TeamScoresUpdate,
         enforce_order: bool = True,
+        commit: bool = True,
     ) -> Team:
         """Delegates to TeamService — kept here so existing callers (and the
         test suite) don't need to construct a service directly."""
@@ -232,7 +265,11 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         from app.services.team_service import TeamService
 
         return await TeamService(db, self).add_checkpoint(
-            id=id, checkpoint_id=checkpoint_id, obj_in=obj_in, enforce_order=enforce_order
+            id=id,
+            checkpoint_id=checkpoint_id,
+            obj_in=obj_in,
+            enforce_order=enforce_order,
+            commit=commit,
         )
 
     async def get_by_checkpoint(self, db: AsyncSession, checkpoint_id: int) -> Sequence[Team]:

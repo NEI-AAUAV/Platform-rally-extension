@@ -120,9 +120,15 @@ async def validation_exception_handler(
 
 
 # CORSMiddleware works correctly at runtime, but mypy type stubs for Starlette 0.50 are outdated
+#
+# `CORS_ORIGINS`, not `BACKEND_CORS_ORIGINS`: the middleware compares the
+# `Origin` header against this list by string equality, and the raw
+# `AnyHttpUrl` values stringify with a trailing slash the header never carries
+# — so passing them through matched nothing at all. See the property's
+# docstring in app/core/config.py.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -168,17 +174,48 @@ async def request_id_and_timing(request: Request, call_next):  # type: ignore[no
     return response
 
 
+def _append_vary(response: Response, field: str) -> None:
+    """Add ``field`` to the response's ``Vary`` header without dropping what is
+    already there.
+
+    ``CORSMiddleware`` also writes ``Vary: Origin``, and it wraps this
+    middleware, so neither side may overwrite the header — both have to append.
+    Comparison is case-insensitive because header field names are.
+    """
+    existing = response.headers.get("Vary")
+    if not existing:
+        response.headers["Vary"] = field
+        return
+    fields = [part.strip() for part in existing.split(",") if part.strip()]
+    if any(part.lower() == field.lower() for part in fields):
+        return
+    response.headers["Vary"] = ", ".join([*fields, field])
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
     """Attach baseline security response headers.
 
     HSTS is only sent in production (over HTTPS) — asserting it over plain HTTP
     in dev would pin browsers to https://localhost.
+
+    API responses additionally get ``Vary: Authorization`` and
+    ``Cache-Control: private, no-store``. Many endpoints return a different body
+    for the same URL depending on the bearer token — ``GET /checkpoint/`` alone
+    serves an admin, a per-team and a public slice — so any shared or
+    identity-blind cache keyed on the URL alone can hand one caller another
+    caller's representation. The PWA service worker is the concrete case (see
+    ``web-rally/src/sw.ts``), which is why this is belt-and-braces: the worker
+    refuses to cache authenticated requests at all, and these headers stop any
+    other cache in the path from making the same mistake.
     """
     response = await call_next(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    if request.url.path.startswith(settings.API_V1_STR):
+        _append_vary(response, "Authorization")
+        response.headers.setdefault("Cache-Control", "private, no-store")
     if settings.PRODUCTION:
         response.headers.setdefault(
             "Strict-Transport-Security",

@@ -252,8 +252,8 @@ test.describe("Versus — equipa contra equipa, contra o backend real", () => {
       {
         method: "POST",
         headers: {
-          // Admin, not staff — see "the staff member running the match
-          // cannot record it" below. This is the only token that works.
+          // Admin here by test choice, not by necessity: the staff member
+          // assigned to this post is also allowed to settle the match.
           Authorization: `Bearer ${world.adminToken}`,
           "Content-Type": "application/json",
         },

@@ -328,16 +328,21 @@ class CheckpointController:
         the odd one out. Replaces (and deletes) any previous clue image.
         """
         checkpoint = await crud.checkpoint.get(db=db, id=id, for_update=True)
-        storage_client.delete_image(checkpoint.clue_media_url)
+        old_url = checkpoint.clue_media_url
 
         url = await validate_and_store(
             image=image,
             allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
             key_prefix=f"rally/checkpoints/{id}/clue",
         )
-        updated = await crud.checkpoint.update(
-            db=db, id=id, obj_in=CheckPointUpdate(clue_media_url=url), commit=True
-        )
+        try:
+            updated = await crud.checkpoint.update(
+                db=db, id=id, obj_in=CheckPointUpdate(clue_media_url=url), commit=True
+            )
+        except Exception:
+            storage_client.delete_image(url)
+            raise
+        storage_client.delete_image(old_url)
         return DetailedCheckPoint.model_validate(updated)
 
     async def delete_checkpoint(

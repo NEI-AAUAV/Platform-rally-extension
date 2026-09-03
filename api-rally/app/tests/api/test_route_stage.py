@@ -2,8 +2,11 @@
 stage-aware progression rule actually gating GPS arrival.
 """
 
+from sqlalchemy import select
+
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.models.activity import EventType
+from app.models.checkpoint_arrival import CheckpointArrival
 from app.schemas.checkpoint import CheckPointCreate
 from app.tests.conftest import as_team, make_event, make_team, set_rally_settings
 
@@ -99,15 +102,14 @@ class TestRouteStageCRUD:
 
 
 class TestStageAwareArrival:
-    """The rule actually gating auto-advance on arrival, not just the pure
+    """The stage rule as the arrival endpoint applies it, not just the pure
     predicate.
 
-    A GPS arrival is a fact ("the team stood here") and is recorded
-    regardless of order — the app has always allowed that. What the stage
-    rule gates is *advancement*: whether that arrival also moves the team
-    past the post (``auto_complete_if_no_activities``, called for these
-    no-activity posts). The endpoint reports 200 either way; the read that
-    matters is the team's own progress.
+    The stage rule gates the arrival itself, not only the advancement behind
+    it: an arrival at a post the stage has not opened is refused and never
+    written. It used to be stored anyway, "as a fact", which for these
+    no-activity posts silently resolved them — the arrival row *is* the
+    completion (``route_progress._is_resolved``).
     """
 
     async def test_ordered_stage_still_requires_sequence(self, pg_session, pg_client, as_admin):
@@ -126,11 +128,19 @@ class TestStageAwareArrival:
                 json={"latitude": 42.0, "longitude": -9.0},
             )
 
-        # The arrival itself is accepted (it's a fact); it just does not
-        # advance the team, since post 1 of the same ordered stage is unresolved.
-        assert response.status_code == 200, response.text
+        # Post 1 of the same ordered stage is unresolved, so post 2 is not
+        # open: the arrival is refused outright and leaves no row behind, or
+        # the no-activity post 2 would have resolved itself on the way past.
+        assert response.status_code == 400, response.text
         await pg_session.refresh(team)
         assert team.times == []
+
+        arrivals = (
+            await pg_session.scalars(
+                select(CheckpointArrival).where(CheckpointArrival.team_id == team.id)
+            )
+        ).all()
+        assert arrivals == []
 
     async def test_free_stage_lets_teams_pick_any_unresolved_post(
         self, pg_session, pg_client, as_admin

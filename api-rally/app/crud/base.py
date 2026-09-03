@@ -28,8 +28,31 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         """
         self.model = model
 
-    async def get(self, db: AsyncSession, *, id: Any, for_update: bool = False) -> ModelType:
-        obj = await db.get(self.model, id, with_for_update=for_update)
+    async def get(
+        self,
+        db: AsyncSession,
+        *,
+        id: Any,
+        for_update: bool = False,
+        populate_existing: bool = False,
+    ) -> ModelType:
+        """Fetch by primary key, or raise RallyNotFoundError.
+
+        ``populate_existing`` re-reads the row even when this session already
+        holds a copy in its identity map — needed by callers that serialize on
+        an advisory lock instead of a row lock, since taking the lock is the
+        point at which the row must be read fresh.
+
+        The session runs with autoflush=False, so the re-read is preceded by a
+        flush: without it, changes this transaction has made to the row but not
+        yet sent to the database would be silently overwritten by the values
+        coming back.
+        """
+        if populate_existing:
+            await db.flush()
+        obj = await db.get(
+            self.model, id, with_for_update=for_update, populate_existing=populate_existing
+        )
         if obj is None:
             raise RallyNotFoundError(f"{self.model.__name__} Not Found")
         return obj
@@ -45,7 +68,15 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         effective_limit = DEFAULT_MAX_LIMIT if limit is None else limit
         stmt = select(self.model).limit(effective_limit).offset(skip)
         if for_update:
-            stmt = stmt.with_for_update()
+            # Deterministic lock order. Without it Postgres locks rows in
+            # whatever order the plan returns, so two concurrent transactions
+            # taking the same set could take it in different orders and
+            # deadlock. Every other FOR UPDATE scan in the codebase orders by
+            # primary key (CRUDTeam.get_multi, crud_versus, ScoringService), so
+            # this generic one must too, or the two families of scan deadlock
+            # against each other. The LIMIT makes it doubly necessary:
+            # unordered, two callers could lock different subsets entirely.
+            stmt = stmt.order_by(*self.model.__mapper__.primary_key).with_for_update()
         return (await db.scalars(stmt)).all()
 
     async def create(

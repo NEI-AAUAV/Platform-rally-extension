@@ -58,9 +58,7 @@ def upgrade() -> None:
             op.drop_column("dynamic_awards", "rule_id", schema=SCHEMA)
 
     if table_exists("dynamic_rules", SCHEMA):
-        op.execute(
-            f"UPDATE \"{SCHEMA}\".dynamic_rules SET rule_type = 'penalty_counter'"
-        )
+        op.execute(f"UPDATE \"{SCHEMA}\".dynamic_rules SET rule_type = 'penalty_counter'")
         if column_exists("dynamic_rules", "is_automatic", SCHEMA):
             op.drop_column("dynamic_rules", "is_automatic", schema=SCHEMA)
 

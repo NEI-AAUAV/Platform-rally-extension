@@ -499,7 +499,10 @@ test.describe("stuck teams and navigation aids", () => {
     });
     await apiCall("PUT", "/rally/settings", {
       token: peddy.admin.accessToken,
-      body: { ...settings, search_radius_m: 400 },
+      // Complete route mode is the configuration that lists the posts the
+      // team may not head to yet, which is where a stray circle would leak
+      // the shape of the whole route.
+      body: { ...settings, search_radius_m: 400, show_route_mode: "complete" },
     });
 
     const visible = await apiCall<
@@ -516,5 +519,13 @@ test.describe("stuck teams and navigation aids", () => {
     expect(first.search_radius_m).toBe(400);
     // Narrowing the city to a neighbourhood, not handing over the doorway.
     expect(first.search_latitude).not.toBe(peddy.checkpoints[0]!.latitude);
+
+    // Post 2 is listed but not open yet: it carries no riddle, and it must
+    // carry no neighbourhood either. A circle here would let the team read the
+    // whole route off the map before solving anything.
+    const second = visible.find((cp) => cp.order === 2)!;
+    expect(second.latitude).toBeNull();
+    expect(second.search_latitude).toBeNull();
+    expect(second.search_radius_m).toBeNull();
   });
 });

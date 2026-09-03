@@ -8,6 +8,11 @@
  * endpoint) are deliberately never cached — freshness and correctness there
  * matter more than offline reads, and offline submits are handled by the
  * app-side queue (src/offline/evalQueue.ts), not here.
+ *
+ * Nor is any request carrying an `Authorization` header: those responses are
+ * scoped to one identity while Cache Storage is keyed on the URL alone, so
+ * caching them lets one team be served another's data. See `isAuthenticated`
+ * below.
  */
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
@@ -19,6 +24,12 @@ declare const self: ServiceWorkerGlobalScope & {
 };
 
 const BASE = "/rally/";
+
+/**
+ * Runtime cache for public (unauthenticated) API GETs. Named here because the
+ * activate handler has to be able to drop it — see below.
+ */
+const API_CACHE = "rally-api";
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
@@ -48,16 +59,45 @@ const isEventStream = (url: URL, request: Request): boolean =>
   url.pathname.endsWith("/stream") ||
   (request.headers.get("accept") ?? "").includes("text/event-stream");
 
+/**
+ * Whether the request carries a bearer token, i.e. its response is scoped to
+ * one identity and must never be cached here.
+ *
+ * Cache Storage is keyed on the request URL. Several endpoints return a
+ * different body for the same URL depending on who is asking — `GET
+ * /checkpoint/` serves the full unredacted route to admin/staff, a per-team
+ * slice to a team token, and the public slice to a caller with no token at
+ * all. Caching those
+ * responses means one identity's representation can be replayed to the next:
+ * a team logs in on a device where staff (or another team) was signed in
+ * earlier, the network is slow enough to trip `networkTimeoutSeconds`, and
+ * NetworkFirst falls back to the stored copy — handing out checkpoints that
+ * team is not meant to see yet. Nothing in the response prevents it either:
+ * `caches.match` only honours `Vary` when the *stored* response carried one.
+ *
+ * Testing the header rather than an endpoint denylist is deliberate: a new
+ * authenticated endpoint is excluded automatically, where a denylist would
+ * silently start caching it. `src/services/apiClient.ts` sets `Authorization`
+ * in a request interceptor, so the header is already on the Request the
+ * fetch handler sees.
+ *
+ * Authenticated GETs simply have no route, so they fall through to the
+ * network with no offline fallback. That is the intended trade: offline reads
+ * are not worth serving another team's data.
+ */
+const isAuthenticated = (request: Request): boolean => request.headers.has("authorization");
+
 registerRoute(
   ({ url, request }) =>
     request.method === "GET" &&
     url.pathname.includes("/api/rally/") &&
+    !isAuthenticated(request) &&
     !isEventStream(url, request) &&
     !url.pathname.includes("/evaluate") &&
     !url.pathname.includes("/oidc") &&
     !url.pathname.includes("/auth"),
   new NetworkFirst({
-    cacheName: "rally-api",
+    cacheName: API_CACHE,
     networkTimeoutSeconds: 5,
     plugins: [new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 60 * 60 })],
   }),
@@ -99,13 +139,33 @@ self.addEventListener("message", (event) => {
   if (data?.action === "skipWaiting" || data?.type === "SKIP_WAITING") {
     void self.skipWaiting();
   }
+  // Sign-out: drop the public API cache too. Authenticated responses never
+  // reach it, so this is not what keeps identities apart — the route matcher
+  // is. It stops the *previous* session's public view being the first thing
+  // the next person on a shared phone sees.
+  if (data?.action === "clearApiCache") {
+    event.waitUntil(caches.delete(API_CACHE));
+  }
 });
 
 // Navigation preload is deliberately NOT enabled: every navigation is answered
 // from the precached app shell, so a preloaded network response would be
 // fetched and then thrown away on each one.
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    (async () => {
+      // Drop the API cache on every activation. A worker shipped before the
+      // `isAuthenticated` exclusion above cached identity-scoped responses
+      // under a shared URL key, so an upgrading install can be carrying one
+      // team's (or staff's) checkpoints in a cache the new worker would
+      // happily serve. Nothing here is worth preserving across an update —
+      // entries live an hour at most and are re-fetched on demand — so
+      // deleting unconditionally is cheaper than trying to tell the poisoned
+      // ones apart.
+      await caches.delete(API_CACHE);
+      await self.clients.claim();
+    })(),
+  );
 });
 
 // Web Push (VAPID). Requires iOS 16.4+ AND the PWA installed to the Home

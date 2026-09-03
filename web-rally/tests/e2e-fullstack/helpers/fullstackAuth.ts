@@ -109,4 +109,22 @@ export async function apiCall<T = unknown>(
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
 
+export async function apiMultipart<T = unknown>(
+  method: "POST" | "PUT",
+  path: string,
+  options: { token?: string; form: FormData },
+): Promise<T> {
+  const response = await fetch(`${API_V1}${path}`, {
+    method,
+    headers: options.token ? { Authorization: `Bearer ${options.token}` } : undefined,
+    body: options.form,
+  });
+  if (!response.ok) {
+    throw new Error(
+      `apiMultipart ${method} ${path} failed: ${response.status} ${await response.text()}`,
+    );
+  }
+  return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
+}
+
 export { API_BASE_URL, API_V1, OIDC_PROVIDER_URL };

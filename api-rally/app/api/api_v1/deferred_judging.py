@@ -108,7 +108,7 @@ class DeferredJudgingController:
             status_code=201,
             name="capture_deferred_result",
             responses={
-                404: {"description": ACTIVITY_NOT_FOUND_MSG},
+                404: {"description": "Activity or team not found, or team of another event"},
                 400: {"description": "Activity is not deferred-judged type, or team_id is missing"},
             },
         )
@@ -156,7 +156,12 @@ class DeferredJudgingController:
             dependencies=[Depends(deps.get_admin)],
             responses={
                 404: {"description": ACTIVITY_NOT_FOUND_MSG},
-                400: {"description": "A result doesn't belong to this activity, or is duplicated"},
+                400: {
+                    "description": (
+                        "The ranking doesn't cover every capture for this activity, "
+                        "or lists one twice"
+                    )
+                },
             },
         )
 
@@ -178,6 +183,10 @@ class DeferredJudgingController:
         if not team_id:
             raise HTTPException(status_code=400, detail="team_id is required")
         _require_own_checkpoint(curr_user, auth, activity.checkpoint_id)
+        # Resolve the team before touching R2: an unknown id (a 404, not the
+        # unhandled IntegrityError it used to be) or a team from another edition
+        # would otherwise leave uploaded photos behind with no result to hang off.
+        await service.resolve_team_for_capture(activity=activity, team_id=team_id)
 
         # Upload images
         urls: list[str] = []
@@ -190,9 +199,7 @@ class DeferredJudgingController:
                 )
                 urls.append(url)
 
-        result = await service.capture_result(
-            activity_id=activity_id, team_id=team_id, media_urls=urls
-        )
+        result = await service.capture_result(activity=activity, team_id=team_id, media_urls=urls)
         return DeferredResultResponse.from_result(result)
 
     async def judge_deferred_result(

@@ -86,23 +86,36 @@ class TeamAuthController:
             logger.warning("Team login failed: invalid access code from ip=%s", ip)
             raise RallyUnauthorizedError("Invalid access code")
 
-        access_token = create_team_access_token(team_id=team.id, team_name=team.name)
+        event = await team_crud.get_current_event(db)
+        if team.event_id is not None and team.event_id != event.id:
+            # Do not turn an old-edition access code into a token that will be
+            # rejected only at its first protected request.
+            raise RallyUnauthorizedError("Invalid access code")
+
+        access_token = create_team_access_token(
+            team_id=team.id,
+            team_name=team.name,
+            auth_version=team.auth_version,
+            event_id=event.id,
+        )
         logger.info("Team %s (%s) logged in", team.id, team.name)
         return TeamLoginResponse(access_token=access_token, team_id=team.id, team_name=team.name)
 
-    def verify_token(
+    async def verify_token(
         self,
         credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+        db: deps.SessionDep,
     ) -> TeamTokenData:
         """
         Verify a team JWT token.
         Returns the team data if valid.
         """
-        return verify_team_token(credentials.credentials)
+        return await verify_team_token(db, credentials.credentials)
 
-    def refresh_team_token(
+    async def refresh_team_token(
         self,
         credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+        db: deps.SessionDep,
     ) -> TeamLoginResponse:
         """
         Refresh a team JWT token.
@@ -110,7 +123,7 @@ class TeamAuthController:
         up to an absolute session lifetime (TEAM_TOKEN_MAX_LIFETIME_HOURS) counted
         from the original login.
         """
-        result = refresh_team_access_token(credentials.credentials)
+        result = await refresh_team_access_token(db, credentials.credentials)
         return TeamLoginResponse(**result)
 
     async def contest_evaluation(

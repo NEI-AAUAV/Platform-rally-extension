@@ -108,7 +108,7 @@ async def test_add_checkpoint_outside_rally_window_rejected(pg_session) -> None:
     event, _, cp1, _, team = await _setup_rally(pg_session)
     # The event is the source of truth for timing; get_or_create syncs the
     # settings row from it on every read.
-    event.end_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1)
+    event.end_time = datetime.now(UTC) - timedelta(hours=1)
     await pg_session.commit()
 
     call = crud_team.add_checkpoint(

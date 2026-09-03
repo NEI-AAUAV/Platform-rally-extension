@@ -9,14 +9,12 @@ import { waitForApi } from './helpers/seedRally';
  * the real backend's per-event scoping (crud_team.get_multi's event_id
  * filter, checkin.py's _require_same_event guard) actually works.
  *
- * Along the way this surfaced a real discrepancy with the mocked suite: its
- * "an access code from a non-current edition is rejected by team login" test
- * asserts something the real backend does not do. crud_team.get_by_access_code
- * looks a team up globally by its (globally-unique) access_code with no event
- * filter at all — team login is intentionally edition-agnostic; isolation is
- * enforced at listing/ranking (get_multi) and check-in
- * (_require_same_event), not at login. This spec tests the real boundary
- * instead of the mocked assumption.
+ * Edition isolation now starts at login: crud_team.get_by_access_code still
+ * looks a team up globally (access codes are globally unique), but team_login
+ * refuses a code whose team belongs to a past edition instead of minting a
+ * token that every protected request would reject anyway. Listing/ranking
+ * (get_multi) and check-in (_require_same_event) enforce the same boundary
+ * further in.
  */
 
 async function rawFetch(
@@ -97,7 +95,7 @@ test.describe('Multi-edition isolation against a real backend', () => {
     await expect(page.getByText(checkpointBName)).toHaveCount(0);
   });
 
-  test('a team from a non-current edition can still log in (access codes are global), but is absent from the current edition\'s team listing', async ({
+  test('a team from a non-current edition is refused at login and is absent from the current edition\'s team listing', async ({
     page,
   }) => {
     const runId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
@@ -125,12 +123,16 @@ test.describe('Multi-edition isolation against a real backend', () => {
     }).then((r) => r.json() as Promise<{ id: number }>);
     await rawFetch('POST', `/events/${newEvent.id}/set-current`, { token: admin.accessToken });
 
-    // Login is intentionally edition-agnostic (crud_team.get_by_access_code
-    // has no event filter) — the old team's code still works.
+    // Access codes are global, but the token is not: team_login refuses a code
+    // belonging to a past edition rather than minting a token that every
+    // protected request would reject anyway.
     await page.goto('/rally/team-login');
     await page.getByPlaceholder('XXXX-XXXX').fill(oldTeam.access_code);
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-    await page.waitForURL('**/team-progress');
+    await expect(page.getByText(/inválido|invalid|not found/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
+    expect(page.url()).toContain('/team-login');
 
     // But the new (current) edition's public team listing never surfaces it
     // — isolation is enforced at listing, not login.

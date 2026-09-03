@@ -37,3 +37,34 @@ def test_validate_team_jwt_secret_key_rejects_empty(monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("TEAM_JWT_SECRET_KEY", "placeholder")
     with pytest.raises(ValidationError, match="TEAM_JWT_SECRET_KEY"):
         Settings(TEAM_JWT_SECRET_KEY="")
+
+
+def test_cors_origins_drop_the_trailing_slash_anyhttpurl_adds():
+    """The bug this property exists for: ``AnyHttpUrl("https://a.com")``
+    stringifies to ``"https://a.com/"``, browsers send ``Origin: https://a.com``,
+    and ``CORSMiddleware`` compares by string equality — so passing the raw
+    URLs through meant no origin ever matched and every cross-origin request
+    was silently denied its CORS headers."""
+    settings = Settings(BACKEND_CORS_ORIGINS="https://a.com,https://b.com")
+
+    assert settings.CORS_ORIGINS == ["https://a.com", "https://b.com"]
+
+
+def test_cors_origins_keep_a_non_default_port():
+    settings = Settings(BACKEND_CORS_ORIGINS="http://localhost:3000")
+
+    assert settings.CORS_ORIGINS == ["http://localhost:3000"]
+
+
+def test_cors_origins_omit_the_scheme_default_port():
+    """A browser leaves :443/:80 out of the Origin header, so rendering it back
+    in would produce a string the header can never match."""
+    settings = Settings(BACKEND_CORS_ORIGINS="https://a.com:443,http://b.com:80")
+
+    assert settings.CORS_ORIGINS == ["https://a.com", "http://b.com"]
+
+
+def test_cors_origins_drop_a_path_from_a_configured_entry():
+    settings = Settings(BACKEND_CORS_ORIGINS="https://a.com/rally")
+
+    assert settings.CORS_ORIGINS == ["https://a.com"]

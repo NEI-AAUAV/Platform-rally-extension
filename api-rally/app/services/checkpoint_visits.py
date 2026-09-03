@@ -15,12 +15,13 @@ token for the whole system: if the row already exists, the visit is already
 recorded and nothing else runs.
 """
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_team import team as team_crud
 from app.models.checkpoint_arrival import CheckpointArrival
+from app.models.team import Team
 from app.schemas.team import TeamScoresUpdate
 
 
@@ -31,6 +32,7 @@ async def insert_arrival(
     checkpoint_id: int,
     latitude: float | None = None,
     longitude: float | None = None,
+    commit: bool = True,
 ) -> CheckpointArrival | None:
     """Idempotent insert. Returns the created row, or ``None`` when an arrival
     for this (team, checkpoint) pair already existed.
@@ -55,13 +57,24 @@ async def insert_arrival(
         latitude=latitude,
         longitude=longitude,
     )
-    db.add(arrival)
-    try:
-        await db.commit()
-    except IntegrityError:
-        # Lost a race against a concurrent arrival for the same pair.
-        await db.rollback()
-        return None
+    if commit:
+        db.add(arrival)
+        try:
+            await db.commit()
+        except IntegrityError:
+            # Lost a race against a concurrent arrival for the same pair.
+            await db.rollback()
+            return None
+    else:
+        try:
+            async with db.begin_nested():
+                db.add(arrival)
+                await db.flush()
+        except IntegrityError:
+            # Lost a race against a concurrent arrival for the same pair. The
+            # savepoint rolls back only this insert; the caller's transaction
+            # stays intact.
+            return None
     # arrived_at is a server_default, only populated on the DB side.
     await db.refresh(arrival)
     return arrival
@@ -75,6 +88,7 @@ async def record_visit(
     latitude: float | None = None,
     longitude: float | None = None,
     enforce_order: bool = True,
+    commit: bool = True,
 ) -> bool:
     """Record a team's visit to a post, once. Returns True if this call recorded it.
 
@@ -87,19 +101,72 @@ async def record_visit(
 
     ``enforce_order`` is False for callers that have already run the
     reachability check themselves.
+
+    The arrival claim and the ``team.times`` stamp are one durability boundary:
+    the claim is made on a SAVEPOINT and the visit entry appended in the same
+    transaction, so a failure after the claim rolls the claim back too instead
+    of leaving an arrival row with no matching visit timestamp. A retry whose
+    claim already exists (a prior call that committed the arrival but crashed
+    before the stamp) reconciles the missing entry rather than returning
+    silently and leaving the inconsistency permanent.
     """
+    # Claim on a savepoint regardless of ``commit`` so the claim and the visit
+    # append commit together (or not at all).
     arrival = await insert_arrival(
         db,
         team_id=team_id,
         checkpoint_id=checkpoint_id,
         latitude=latitude,
         longitude=longitude,
+        commit=False,
     )
     if arrival is None:
+        repaired = await _reconcile_missing_visit(db, team_id=team_id, checkpoint_id=checkpoint_id)
+        if commit and repaired:
+            await db.commit()
         return False
 
     await append_visit_entry(
-        db, team_id=team_id, checkpoint_id=checkpoint_id, enforce_order=enforce_order
+        db,
+        team_id=team_id,
+        checkpoint_id=checkpoint_id,
+        enforce_order=enforce_order,
+        commit=False,
+    )
+    if commit:
+        await db.commit()
+    return True
+
+
+async def _reconcile_missing_visit(db: AsyncSession, *, team_id: int, checkpoint_id: int) -> bool:
+    """Repair a ``team.times`` entry owed by an already-claimed arrival.
+
+    The arrival row is the durable claim; ``team.times`` carries one timestamp
+    per arrival. When a prior call committed the arrival and then failed before
+    the stamp, the team has more arrivals than visit entries — append the
+    missing one. Returns True when a repair was made.
+
+    ``enforce_order`` is always False here: the arrival row already proves the
+    team was entitled to be at the post, and the order guard keys off
+    ``len(team.times)`` — which is exactly what is short by one.
+    """
+    arrivals = await db.scalar(
+        select(func.count())
+        .select_from(CheckpointArrival)
+        .where(CheckpointArrival.team_id == team_id)
+    )
+    team = await db.get(Team, team_id)
+    if team is None or not arrivals:
+        return False
+    if len(team.times or []) >= arrivals:
+        return False
+
+    await append_visit_entry(
+        db,
+        team_id=team_id,
+        checkpoint_id=checkpoint_id,
+        enforce_order=False,
+        commit=False,
     )
     return True
 
@@ -110,6 +177,7 @@ async def append_visit_entry(
     team_id: int,
     checkpoint_id: int,
     enforce_order: bool = True,
+    commit: bool = True,
 ) -> None:
     """Stamp the visit on ``team.times`` (and the parallel score arrays).
 
@@ -136,4 +204,5 @@ async def append_visit_entry(
             skips=0,
         ),
         enforce_order=enforce_order,
+        commit=commit,
     )

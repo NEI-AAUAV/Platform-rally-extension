@@ -86,10 +86,14 @@ class DynamicScoringService:
             is_active=True,
         )
         self._db.add(award)
-        await self._db.commit()
-        await self._db.refresh(award)
-        # Trigger score recalculation so leaderboard reflects immediately.
+
+        # AsyncSession is configured with autoflush=False. Persist the new
+        # score source into the current transaction before the scorer runs so
+        # its SELECTs can see this award. The scorer owns the final commit.
+        await self._db.flush()
+
         await ScoringService(self._db).update_team_scores(team_id)
+        await self._db.refresh(award)
         return award
 
     async def delete_award(self, award_id: int) -> None:
@@ -112,6 +116,9 @@ class DynamicScoringService:
             )
         team_id = award.team_id
         award.is_active = False
-        await self._db.commit()
-        # Recompute score now that the award is gone.
+
+        # With autoflush=False, make the soft-delete visible to the scorer
+        # before it aggregates active awards. The scorer owns the final commit.
+        await self._db.flush()
+
         await ScoringService(self._db).update_team_scores(team_id)

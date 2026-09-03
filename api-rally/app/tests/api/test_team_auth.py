@@ -9,7 +9,7 @@ from jose import jwt
 
 from app.core.config import settings
 from app.crud.crud_team import team as crud_team
-from app.schemas.team import TeamCreate
+from app.schemas.team import TeamCreate, TeamUpdate
 
 
 async def _make_team(pg_session, name="Test Team"):
@@ -33,6 +33,8 @@ class TestCreateTeamAccessToken:
         )
         assert payload["team_id"] == 1
         assert payload["team_name"] == "Test Team"
+        assert payload["auth_version"] == 1
+        assert payload["event_id"] == 1
         assert payload["type"] == "team_access"
 
     def test_token_includes_expiry(self):
@@ -64,64 +66,13 @@ class TestCreateTeamAccessToken:
         )
 
 
-class TestVerifyTeamToken:
-    def test_returns_team_data_for_valid_token(self):
-        from app.api.api_v1.team_auth import create_team_access_token, verify_team_token
+class TestDecodeTeamToken:
+    def test_rejects_missing_revocation_claims(self):
+        from app.services.team_auth_service import decode_team_token
 
-        token = create_team_access_token(team_id=42, team_name="Answer")
-        data = verify_team_token(token)
-
-        assert data.team_id == 42
-        assert data.team_name == "Answer"
-
-    def test_raises_for_expired_token(self):
-        from app.api.api_v1.team_auth import verify_team_token
-
-        expired_token = jwt.encode(
+        token = jwt.encode(
             {
                 "team_id": 1,
-                "team_name": "Test Team",
-                "type": "team_access",
-                "exp": datetime.now(UTC) - timedelta(seconds=1),
-            },
-            settings.TEAM_JWT_SECRET_KEY,
-            algorithm=settings.TEAM_JWT_ALGORITHM,
-        )
-        with pytest.raises(HTTPException) as exc:
-            verify_team_token(expired_token)
-        assert exc.value.status_code == 401
-
-    def test_raises_for_invalid_token(self):
-        from app.api.api_v1.team_auth import verify_team_token
-
-        with pytest.raises(HTTPException) as exc:
-            verify_team_token("not.a.valid.jwt")
-        assert exc.value.status_code == 401
-
-    def test_raises_for_wrong_token_type(self):
-        """A validly-signed JWT with the wrong `type` claim (e.g. some other
-        token kind) must be rejected, not treated as a team-access token."""
-        from app.api.api_v1.team_auth import verify_team_token
-
-        wrong_type_token = jwt.encode(
-            {
-                "team_id": 1,
-                "team_name": "Test Team",
-                "type": "not_team_access",
-                "exp": datetime.now(UTC) + timedelta(hours=1),
-            },
-            settings.TEAM_JWT_SECRET_KEY,
-            algorithm=settings.TEAM_JWT_ALGORITHM,
-        )
-        with pytest.raises(HTTPException) as exc:
-            verify_team_token(wrong_type_token)
-        assert exc.value.status_code == 401
-
-    def test_raises_for_missing_team_id(self):
-        from app.api.api_v1.team_auth import verify_team_token
-
-        missing_id_token = jwt.encode(
-            {
                 "team_name": "Test Team",
                 "type": "team_access",
                 "exp": datetime.now(UTC) + timedelta(hours=1),
@@ -130,24 +81,7 @@ class TestVerifyTeamToken:
             algorithm=settings.TEAM_JWT_ALGORITHM,
         )
         with pytest.raises(HTTPException) as exc:
-            verify_team_token(missing_id_token)
-        assert exc.value.status_code == 401
-
-    def test_raises_for_wrong_secret(self):
-        from app.api.api_v1.team_auth import verify_team_token
-
-        bad_token = jwt.encode(
-            {
-                "team_id": 1,
-                "team_name": "Test Team",
-                "type": "team_access",
-                "exp": datetime.now(UTC) + timedelta(hours=1),
-            },
-            "wrong-secret",
-            algorithm=settings.TEAM_JWT_ALGORITHM,
-        )
-        with pytest.raises(HTTPException) as exc:
-            verify_team_token(bad_token)
+            decode_team_token(token)
         assert exc.value.status_code == 401
 
 
@@ -192,10 +126,13 @@ class TestTeamAuthAPI:
         response = pg_client.post("/api/rally/v1/team-auth/login", json={"access_code": bad_code})
         assert response.status_code == 422
 
-    def test_refresh_with_valid_token(self, pg_client):
-        from app.api.api_v1.team_auth import create_team_access_token
-
-        token = create_team_access_token(team_id=1, team_name="Test Team")
+    async def test_refresh_with_valid_token(self, pg_session, pg_client):
+        team = await _make_team(pg_session)
+        login = pg_client.post(
+            "/api/rally/v1/team-auth/login", json={"access_code": team.access_code}
+        )
+        assert login.status_code == 200, login.text
+        token = login.json()["access_token"]
 
         response = pg_client.post(
             "/api/rally/v1/team-auth/refresh", headers={"Authorization": f"Bearer {token}"}
@@ -204,8 +141,8 @@ class TestTeamAuthAPI:
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
-        assert data["team_id"] == 1
-        assert data["team_name"] == "Test Team"
+        assert data["team_id"] == team.id
+        assert data["team_name"] == team.name
 
     def test_refresh_with_invalid_token(self, pg_client):
         response = pg_client.post(
@@ -220,11 +157,72 @@ class TestTeamAuthAPI:
 
 
 class TestTokenLifecycleHardening:
-    def test_refresh_carries_original_login_time(self, pg_client):
+    async def test_access_code_rotation_revokes_existing_token(self, pg_session, pg_client):
+        team = await _make_team(pg_session)
+        login = pg_client.post(
+            "/api/rally/v1/team-auth/login", json={"access_code": team.access_code}
+        )
+        assert login.status_code == 200, login.text
+
+        await crud_team.update(
+            pg_session,
+            id=team.id,
+            obj_in=TeamUpdate(access_code="NEWW-0001"),
+            commit=True,
+        )
+        revoked = pg_client.get(
+            "/api/rally/v1/team-auth/verify",
+            headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+        )
+        assert revoked.status_code == 401
+
+    async def test_deleted_team_token_is_revoked(self, pg_session, pg_client):
+        team = await _make_team(pg_session)
+        login = pg_client.post(
+            "/api/rally/v1/team-auth/login", json={"access_code": team.access_code}
+        )
+        assert login.status_code == 200, login.text
+        await crud_team.remove(pg_session, id=team.id, commit=True)
+
+        revoked = pg_client.get(
+            "/api/rally/v1/team-auth/verify",
+            headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+        )
+        assert revoked.status_code == 401
+
+    async def test_edition_switch_revokes_existing_token(self, pg_session, pg_client):
+        from app.crud.crud_activity import rally_event
+        from app.schemas.activity import RallyEventCreate
+
+        team = await _make_team(pg_session)
+        login = pg_client.post(
+            "/api/rally/v1/team-auth/login", json={"access_code": team.access_code}
+        )
+        assert login.status_code == 200, login.text
+        next_event = await rally_event.create(
+            pg_session, obj_in=RallyEventCreate(name="Next edition", is_current=False)
+        )
+        await rally_event.set_current(pg_session, event_id=next_event.id)
+
+        revoked = pg_client.get(
+            "/api/rally/v1/team-auth/verify",
+            headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+        )
+        assert revoked.status_code == 401
+
+    async def test_refresh_carries_original_login_time(self, pg_session, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
+        team = await _make_team(pg_session)
         orig = int((datetime.now(UTC) - timedelta(hours=2)).timestamp())
-        token = create_team_access_token(team_id=1, team_name="T", orig_iat=orig)
+        event = await crud_team.get_current_event(pg_session)
+        token = create_team_access_token(
+            team_id=team.id,
+            team_name=team.name,
+            auth_version=team.auth_version,
+            event_id=event.id,
+            orig_iat=orig,
+        )
 
         response = pg_client.post(
             "/api/rally/v1/team-auth/refresh", headers={"Authorization": f"Bearer {token}"}
@@ -235,15 +233,23 @@ class TestTokenLifecycleHardening:
         )
         assert payload["orig_iat"] == orig
 
-    def test_refresh_rejected_beyond_absolute_lifetime(self, pg_client):
+    async def test_refresh_rejected_beyond_absolute_lifetime(self, pg_session, pg_client):
         from app.api.api_v1.team_auth import create_team_access_token
 
+        team = await _make_team(pg_session)
+        event = await crud_team.get_current_event(pg_session)
         too_old = int(
             (
                 datetime.now(UTC) - timedelta(hours=settings.TEAM_TOKEN_MAX_LIFETIME_HOURS + 1)
             ).timestamp()
         )
-        token = create_team_access_token(team_id=1, team_name="T", orig_iat=too_old)
+        token = create_team_access_token(
+            team_id=team.id,
+            team_name=team.name,
+            auth_version=team.auth_version,
+            event_id=event.id,
+            orig_iat=too_old,
+        )
 
         response = pg_client.post(
             "/api/rally/v1/team-auth/refresh", headers={"Authorization": f"Bearer {token}"}
@@ -251,20 +257,25 @@ class TestTokenLifecycleHardening:
         assert response.status_code == 401
         assert "log in again" in response.json()["detail"].lower()
 
-    def test_verify_accepts_valid_and_rejects_expired(self, pg_client):
-        from app.api.api_v1.team_auth import create_team_access_token
-
-        valid = create_team_access_token(team_id=7, team_name="Sete")
+    async def test_verify_accepts_valid_and_rejects_expired(self, pg_session, pg_client):
+        team = await _make_team(pg_session, "Sete")
+        login = pg_client.post(
+            "/api/rally/v1/team-auth/login", json={"access_code": team.access_code}
+        )
+        assert login.status_code == 200, login.text
+        valid = login.json()["access_token"]
         ok = pg_client.get(
             "/api/rally/v1/team-auth/verify", headers={"Authorization": f"Bearer {valid}"}
         )
         assert ok.status_code == 200
-        assert ok.json()["team_id"] == 7
+        assert ok.json()["team_id"] == team.id
 
         expired = jwt.encode(
             {
-                "team_id": 7,
-                "team_name": "Sete",
+                "team_id": team.id,
+                "team_name": team.name,
+                "auth_version": team.auth_version,
+                "event_id": team.event_id,
                 "type": "team_access",
                 "exp": datetime.now(UTC) - timedelta(minutes=1),
             },

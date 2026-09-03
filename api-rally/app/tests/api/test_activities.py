@@ -5,10 +5,12 @@ from unittest.mock import AsyncMock, patch
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
+from app.crud.crud_versus import versus as crud_versus
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
 from app.tests.conftest import make_event as _make_event
+from app.tests.conftest import set_rally_settings
 
 
 async def _make_checkpoint(pg_session, order=1):
@@ -410,6 +412,12 @@ class TestTeamVsResult:
         )
         team1 = await _make_team(pg_session, "Team1")
         team2 = await _make_team(pg_session, "Team2")
+        # A TeamVs result is only accepted for the configured pairing: the
+        # service checks the versus group, so the two teams have to be paired
+        # before the match can be settled.
+        await set_rally_settings(pg_session, enable_versus=True)
+        await crud_versus.create_versus_pair(pg_session, team_a_id=team1.id, team_b_id=team2.id)
+        await pg_session.commit()
 
         resp = pg_client.post(
             f"/api/rally/v1/activities/team-vs/{act.id}",

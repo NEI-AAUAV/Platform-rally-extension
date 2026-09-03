@@ -25,6 +25,7 @@ from app.schemas.user import DetailedUser
 from app.services import badge_service
 from app.services.audit_service import AuditActor, record_audit
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
+from app.services.storage import storage_client
 
 BADGE_DEFINITION_NOT_FOUND = "Badge definition not found"
 
@@ -155,9 +156,13 @@ class BadgeAdminController:
             allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
             key_prefix=f"rally/badges/{id}",
         )
-        updated = await crud_def.update(
-            db, db_obj=db_obj, obj_in=BadgeDefinitionUpdate(), icon_url=icon_url
-        )
+        try:
+            updated = await crud_def.update(
+                db, db_obj=db_obj, obj_in=BadgeDefinitionUpdate(), icon_url=icon_url
+            )
+        except Exception:
+            storage_client.delete_image(icon_url)
+            raise
         return BadgeDefinitionResponse.model_validate(updated)
 
     async def delete_badge_definition(

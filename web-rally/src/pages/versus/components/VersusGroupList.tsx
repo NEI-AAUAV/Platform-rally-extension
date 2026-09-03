@@ -3,16 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Swords, Trash2 } from "lucide-react";
-import {
-  updateTeam,
-  type ListingTeam,
-  type VersusGroupListResponse,
-  type TeamUpdate,
-} from "@/client";
-
-type TeamUpdateWithVersus = TeamUpdate & {
-  versus_group_id?: number | null;
-};
+import { removeVersusGroup, type ListingTeam, type VersusGroupListResponse } from "@/client";
 
 type VersusGroupListProps = Readonly<{
   versusGroups: VersusGroupListResponse | undefined;
@@ -27,20 +18,8 @@ export default function VersusGroupList({
   onSuccess,
   className = "",
 }: VersusGroupListProps) {
-  // Remove versus pair mutation (by updating teams to remove versus_group_id)
   const { mutate: removeVersusPair, isPending: isRemovingPair } = useMutation({
-    mutationFn: async (groupId: number) => {
-      // Find teams in this group and remove their versus_group_id
-      const teamsInGroup = teams?.filter((team) => team.versus_group_id === groupId) || [];
-
-      for (const team of teamsInGroup) {
-        const updateData: TeamUpdateWithVersus = {
-          name: team.name,
-          versus_group_id: null,
-        };
-        await updateTeam({ path: { id: team.id }, body: updateData });
-      }
-    },
+    mutationFn: async (groupId: number) => removeVersusGroup({ path: { group_id: groupId } }),
     onSuccess: () => {
       onSuccess();
     },

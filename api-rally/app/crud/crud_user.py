@@ -152,19 +152,15 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         obj_in: UserCreate,
         commit: bool = False,
     ) -> User:
+        db_obj = self.model(**jsonable_encoder(obj_in))
         try:
-            obj_in_data = jsonable_encoder(obj_in)
-            db_obj = self.model(**obj_in_data)
-            db.add(db_obj)
-            if commit:
-                await db.commit()
-            else:
+            # The potentially failing flush belongs inside a SAVEPOINT.  In
+            # commit=False mode the caller owns the surrounding transaction;
+            # a bad team_id must not roll that transaction back globally.
+            async with db.begin_nested():
+                db.add(db_obj)
                 await db.flush()
-            await db.refresh(db_obj)
-            return db_obj
         except IntegrityError as e:
-            await db.rollback()
-
             if e.orig is None:
                 raise
 
@@ -172,15 +168,27 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 raise RallyNotFoundError("Team not found") from e
 
             raise
+
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
+        await db.refresh(db_obj)
+        return db_obj
 
     async def update(
         self, db: AsyncSession, *, id: int, obj_in: UserUpdate, commit: bool = False
     ) -> User:
         try:
-            return await super().update(db, id=id, obj_in=obj_in, commit=commit)
+            # CRUDBase.update() leaves its final flush *outside* its nested
+            # transaction, so an FK violation there poisons the caller's whole
+            # transaction.  Keep the mutation and constraint-checking flush in
+            # the same SAVEPOINT here instead.
+            async with db.begin_nested():
+                db_obj = await self.get(db, id=id, for_update=True)
+                db_obj = self.update_unlocked(db_obj=db_obj, obj_in=obj_in)
+                await db.flush()
         except IntegrityError as e:
-            await db.rollback()
-
             if e.orig is None:
                 raise
 
@@ -188,6 +196,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 raise RallyNotFoundError("Team not found") from e
 
             raise
+
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
+        return db_obj
 
 
 user = CRUDUser(User)

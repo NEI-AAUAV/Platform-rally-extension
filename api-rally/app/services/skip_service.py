@@ -18,7 +18,7 @@ from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint_skip import CheckpointSkip
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.skip import CheckpointSkipped
-from app.services.checkin_service import require_same_event
+from app.services.event_scope import require_same_event
 from app.services.route_progress import can_reach_checkpoint, current_checkpoint_order
 from app.services.scoring_service import ScoringService
 
@@ -76,19 +76,24 @@ class SkipService:
         except IntegrityError:
             raise RallyValidationError(ALREADY_SKIPPED) from None
 
-        if cost != 0:
-            await self._charge(team_id=team_id, cost=cost, checkpoint_order=checkpoint.order)
         # The skip row *is* the advance: ``progress_for_team`` reads it as
         # resolved, so the post stops blocking the route the moment this
         # commits. It used to also append to ``team.times`` via a fake
         # check-in, which stamped a visit timestamp for a post the team never
         # went to and inflated the array that per-checkpoint scores were laid
-        # out against. One commit, so the forfeit and its charge cannot come
-        # apart.
-        await self._db.commit()
-
+        # out against.
+        #
+        # One durability boundary: the skip row, the forfeit award and the
+        # recomputed team total + ranking commit together. update_team_scores
+        # re-ranks, commits once and publishes. Previously the skip + award were
+        # committed first and the total recomputed in a second commit, so a
+        # scorer failure left a checkpoint marked skipped with team.total and
+        # classification stale.
         if cost != 0:
+            await self._charge(team_id=team_id, cost=cost, checkpoint_order=checkpoint.order)
             await ScoringService(self._db).update_team_scores(team_id)
+        else:
+            await self._db.commit()
 
         team_obj = await self._team_crud.get(db=self._db, id=team_id)
         next_order = (
