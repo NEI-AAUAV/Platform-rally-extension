@@ -178,10 +178,16 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     );
     expect(actual).toBe(0);
 
-    // Scoreboard UI should show 0 pts, clamped
+    // Scoreboard UI should show 0 pts, clamped. Matched as the whole score
+    // node (`0pts`) rather than the bare string '0': getByText does substring
+    // matching, so '0' also hits the elapsed-time line (`00:12`), digits in
+    // the team name, and any other score containing a zero — several
+    // elements, which fails Playwright strict mode instead of asserting the
+    // clamp. The score <p> renders `{team.total}` plus an `ml-1` "pts" span
+    // (ScoreList.tsx), so its normalized text is exactly `0pts`.
     await page.goto('/rally/scoreboard');
     const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
-    await expect(teamRow.getByText('0')).toBeVisible({ timeout: 15_000 });
+    await expect(teamRow.getByText(/^0\s*pts$/)).toBeVisible({ timeout: 15_000 });
   });
 
   test('score-based activity applies the percentage-of-max formula exactly and shows on UI', async ({
