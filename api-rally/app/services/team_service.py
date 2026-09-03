@@ -35,6 +35,7 @@ from app.schemas.team import (
     PrivilegedDetailedTeam,
     TeamScoresUpdate,
 )
+from app.services.pace_service import TeamPace
 from app.services.route_progress import (
     TeamProgress,
     closed_message,
@@ -283,6 +284,7 @@ class TeamService:
         reveal_next_checkpoint: bool = True,
         is_privileged: bool = False,
         hide_scores: bool = False,
+        pace: TeamPace | None = None,
     ) -> ListingTeam:
         """Build team data for listing using strict completion rules.
 
@@ -320,6 +322,13 @@ class TeamService:
             resolved_checkpoint_orders=sorted(state.resolved_orders),
             open_checkpoint_orders=sorted(state.open_orders),
             is_route_finished=state.is_finished,
+            started_at=None if hide_scores or pace is None else pace.started_at,
+            elapsed_seconds=None if hide_scores or pace is None else pace.elapsed_seconds,
+            finished_at=(
+                None
+                if hide_scores or pace is None or not pace.is_finished
+                else pace.last_progress_at
+            ),
             num_members=team.num_members,
         )
 
@@ -330,6 +339,7 @@ class TeamService:
         with_progress: bool = False,
         with_access_code: bool = False,
         hide_scores: bool = False,
+        pace: TeamPace | None = None,
     ) -> PrivilegedDetailedTeam:
         """Serialize a team, eager-loading the members relationship (the schema
         includes members, which would otherwise lazy-load).
@@ -358,6 +368,13 @@ class TeamService:
             result.open_checkpoint_orders = sorted(state.open_orders)
             result.is_route_finished = state.is_finished
             result.total_checkpoints = state.total_published
+            result.started_at = None if hide_scores or pace is None else pace.started_at
+            result.elapsed_seconds = None if hide_scores or pace is None else pace.elapsed_seconds
+            result.finished_at = (
+                None
+                if hide_scores or pace is None or not pace.is_finished
+                else pace.last_progress_at
+            )
             if not hide_scores:
                 result.penalties_per_checkpoint = await self._penalties_per_checkpoint(team_obj)
         return result

@@ -38,6 +38,7 @@ from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.deps import get_team_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
+from app.services.pace_service import compute_paces
 from app.services.storage import storage_client
 from app.services.team_service import TeamService
 from app.services.visibility_policy import (
@@ -134,12 +135,14 @@ class TeamController:
         settings = await rally_settings.get_or_create(db)
         is_privileged = bool(curr_user) and deps.is_admin_or_staff(getattr(curr_user, "scopes", []))
         hide_scores = scores_are_hidden(settings, is_privileged=is_privileged)
+        paces = {pace.team_id: pace for pace in await compute_paces(db, settings)}
         return [
             await service.build_listing_team(
                 team,
                 reveal_next_checkpoint=bool(settings.reveal_next_checkpoint),
                 is_privileged=is_privileged,
                 hide_scores=hide_scores,
+                pace=paces.get(team.id),
             )
             for team in teams
         ]
@@ -161,8 +164,10 @@ class TeamController:
         is_privileged = auth is not None and deps.is_admin_or_staff(auth.scopes)
         await require_participant_view(db, is_privileged=is_privileged)
         team_obj = await team_crud.get(db=db, id=curr_user.team_id)
+        settings = await rally_settings.get_or_create(db)
+        paces = {pace.team_id: pace for pace in await compute_paces(db, settings)}
         return await service.build_detailed_team(
-            team_obj, with_progress=True, with_access_code=True
+            team_obj, with_progress=True, with_access_code=True, pace=paces.get(team_obj.id)
         )
 
     async def get_team_by_id(
@@ -214,11 +219,13 @@ class TeamController:
 
         settings = await rally_settings.get_or_create(db)
         team_obj = await team_crud.get(db=db, id=id)
+        paces = {pace.team_id: pace for pace in await compute_paces(db, settings)}
         return await service.build_detailed_team(
             team_obj,
             with_progress=True,
             with_access_code=may_see_access_code,
             hide_scores=scores_are_hidden(settings, is_privileged=is_privileged or is_own_team),
+            pace=paces.get(team_obj.id),
         )
 
     async def add_checkpoint(

@@ -7,6 +7,29 @@ from app.crud.crud_rally_settings import rally_settings
 from app.models.rally_settings import RallySettings
 
 
+def format_duration(duration: timedelta | None) -> str | None:
+    """Format a duration consistently across timing surfaces."""
+    if duration is None:
+        return None
+
+    total_seconds = int(duration.total_seconds())
+    days = total_seconds // 86400
+    hours = (total_seconds % 86400) // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+
+    parts = []
+    if days > 0:
+        parts.append(f"{days}d")
+    if hours > 0:
+        parts.append(f"{hours}h")
+    if minutes > 0:
+        parts.append(f"{minutes}m")
+    if seconds > 0 or not parts:
+        parts.append(f"{seconds}s")
+    return " ".join(parts)
+
+
 class RallyDurationCalculator:
     """Utility class for calculating rally duration and timing information.
 
@@ -164,26 +187,7 @@ class RallyDurationCalculator:
 
     def _format_duration(self, duration: timedelta) -> str | None:
         """Format a timedelta into a human-readable string."""
-        if duration is None:
-            return None
-
-        total_seconds = int(duration.total_seconds())
-        days = total_seconds // 86400
-        hours = (total_seconds % 86400) // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
-
-        parts = []
-        if days > 0:
-            parts.append(f"{days}d")
-        if hours > 0:
-            parts.append(f"{hours}h")
-        if minutes > 0:
-            parts.append(f"{minutes}m")
-        if seconds > 0 or not parts:
-            parts.append(f"{seconds}s")
-
-        return " ".join(parts)
+        return format_duration(duration)
 
     def _calculate_progress_percentage(self, elapsed: timedelta, total: timedelta) -> float:
         """Calculate rally progress as a percentage."""

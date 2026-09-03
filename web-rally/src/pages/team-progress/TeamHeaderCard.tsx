@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useState } from "react";
 import type { PrivilegedDetailedTeam } from "@/client";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
+import { formatElapsed } from "@/lib/time";
 
 /**
  * The team's own departure time, for events that stagger the start.
@@ -53,6 +55,17 @@ export default function TeamHeaderCard({
   const initials = initialsOf(team.name);
   const terms = useEventTerms();
   const departure = departureTime(rallyStartTime, team.start_offset_minutes ?? 0);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!team.started_at || team.finished_at) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [team.finished_at, team.started_at]);
+  const elapsed = useMemo(() => {
+    if (team.finished_at) return team.elapsed_seconds;
+    if (!team.started_at) return null;
+    return Math.max(0, (now - Date.parse(team.started_at)) / 1000);
+  }, [now, team.elapsed_seconds, team.finished_at, team.started_at]);
 
   return (
     <div className="rally-bg-accent relative overflow-hidden rounded-2xl p-6 text-white">
@@ -73,7 +86,7 @@ export default function TeamHeaderCard({
             {departure && <p className="mt-0.5 text-sm opacity-80">A vossa partida: {departure}</p>}
           </div>
         </div>
-        <div className="mt-5 flex gap-6">
+        <div className="mt-5 flex flex-wrap gap-x-6 gap-y-4">
           {showRanking && (
             <div>
               <p className="rally-display text-3xl font-bold tabular-nums">
@@ -96,6 +109,38 @@ export default function TeamHeaderCard({
               {capitalize(terms.checkpoints)}
             </p>
           </div>
+          {team.started_at && (
+            <div>
+              <p className="rally-display text-3xl font-bold tabular-nums">
+                {new Intl.DateTimeFormat("pt-PT", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(new Date(team.started_at))}
+              </p>
+              <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Início</p>
+            </div>
+          )}
+          {elapsed != null && (
+            <div>
+              <p className="rally-display text-3xl font-bold tabular-nums">
+                {formatElapsed(elapsed)}
+              </p>
+              <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">
+                {team.finished_at ? "Tempo final" : "Tempo a decorrer"}
+              </p>
+            </div>
+          )}
+          {team.finished_at && (
+            <div>
+              <p className="rally-display text-3xl font-bold tabular-nums">
+                {new Intl.DateTimeFormat("pt-PT", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }).format(new Date(team.finished_at))}
+              </p>
+              <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Terminou</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

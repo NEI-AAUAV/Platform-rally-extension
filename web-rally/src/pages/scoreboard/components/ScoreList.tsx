@@ -4,6 +4,7 @@ import { Trophy } from "lucide-react";
 import type { ListingTeam } from "@/client";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
+import { formatElapsed } from "@/lib/time";
 import { Skeleton } from "@/components/shared";
 
 /** Layout-stable placeholder matching the podium + rows structure. */
@@ -94,6 +95,7 @@ export function Podium({
   readonly isProvisional?: boolean;
 }) {
   const terms = useEventTerms();
+  const showPace = teams.some((team) => team.elapsed_seconds != null);
   // visual order: 2nd, 1st, 3rd
   const order: Array<{ team: ListingTeam; rank: number }> = [];
   if (teams[1]) order.push({ team: teams[1], rank: 2 });
@@ -152,6 +154,11 @@ export function Podium({
                 {reachedLabel(reached, checkpointsCount, terms)}
               </p>
             )}
+            {showPace && team.elapsed_seconds != null && (
+              <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
+                {formatElapsed(team.elapsed_seconds)}
+              </p>
+            )}
           </Link>
         );
       })}
@@ -175,6 +182,7 @@ export function ScoreRows({
   readonly isProvisional?: boolean;
 }) {
   const terms = useEventTerms();
+  const showPace = teams.some((team) => team.elapsed_seconds != null);
   if (teams.length === 0) return null;
 
   return (
@@ -217,6 +225,11 @@ export function ScoreRows({
                   {reached > 0 && (
                     <span className="block text-xs text-muted-foreground">
                       {reachedLabel(reached, checkpointsCount, terms)}
+                    </span>
+                  )}
+                  {showPace && team.elapsed_seconds != null && (
+                    <span className="block text-xs text-muted-foreground">
+                      {formatElapsed(team.elapsed_seconds)}
                     </span>
                   )}
                 </span>

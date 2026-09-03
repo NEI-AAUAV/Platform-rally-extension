@@ -1,6 +1,7 @@
 import { Navigate } from "@tanstack/react-router";
 import useRallySettings from "@/hooks/useRallySettings";
 import useTeamAuth from "@/hooks/useTeamAuth";
+import { useUserStore } from "@/stores/useUserStore";
 import { resolveBranding } from "@/lib/branding";
 import { DEFAULT_HOME_LAYOUT } from "@/lib/homeLayout";
 import { Reveal } from "@/components/home/Reveal";
@@ -22,13 +23,20 @@ import HomeBottomBanner from "./HomeBottomBanner";
 export default function Home() {
   const { isAuthenticated: isTeamAuthenticated } = useTeamAuth();
   const { settings } = useRallySettings();
+  const { scopes } = useUserStore((state) => state);
 
   if (isTeamAuthenticated) {
     return <Navigate to="/team-progress" replace />;
   }
 
   const branding = resolveBranding(settings);
-  const scoreVisible = settings?.show_score_mode !== "hidden";
+  const isPrivileged =
+    scopes?.includes("admin") ||
+    scopes?.includes("manager-rally") ||
+    scopes?.includes("rally-staff");
+  const scoreVisible =
+    isPrivileged ||
+    (settings?.show_score_mode !== "hidden" && settings?.show_live_leaderboard !== false);
   const checkpointsPublic = settings?.show_checkpoint_map === true;
 
   const layout = settings?.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT;
@@ -41,7 +49,9 @@ export default function Home() {
           let content = null;
           switch (section.key) {
             case "home_hero":
-              content = <HomeHero branding={branding} settings={settings} />;
+              content = (
+                <HomeHero branding={branding} settings={settings} showLeaderboard={scoreVisible} />
+              );
               break;
             case "rally_marquee":
               content = <RallyMarquee items={settings?.ticker_items} />;

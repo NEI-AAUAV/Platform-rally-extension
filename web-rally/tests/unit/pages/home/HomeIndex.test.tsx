@@ -2,9 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Home from '@/pages/home/index';
 
-const { mockUseTeamAuth, mockUseRallySettings } = vi.hoisted(() => ({
+const { mockUseTeamAuth, mockUseRallySettings, mockUseUserStore } = vi.hoisted(() => ({
   mockUseTeamAuth: vi.fn(),
   mockUseRallySettings: vi.fn(),
+  mockUseUserStore: vi.fn(),
 }));
 
 vi.mock('@/hooks/useTeamAuth', () => ({
@@ -13,6 +14,10 @@ vi.mock('@/hooks/useTeamAuth', () => ({
 
 vi.mock('@/hooks/useRallySettings', () => ({
   default: () => mockUseRallySettings(),
+}));
+
+vi.mock('@/stores/useUserStore', () => ({
+  useUserStore: (selector: (state: unknown) => unknown) => selector(mockUseUserStore()),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -49,6 +54,7 @@ vi.mock('@/pages/home/HomeBottomBanner', () => ({
 describe('Home index', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseUserStore.mockReturnValue({ scopes: undefined });
   });
 
   it('redirects team-authenticated users to team-progress', () => {
@@ -76,6 +82,21 @@ describe('Home index', () => {
     mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: 'hidden' } });
     render(<Home />);
     expect(screen.queryByText('LiveTop5')).not.toBeInTheDocument();
+  });
+
+  it('hides leaderboard entry points for public visitors when it is disabled', () => {
+    mockUseTeamAuth.mockReturnValue({ isAuthenticated: false });
+    mockUseRallySettings.mockReturnValue({ settings: { show_live_leaderboard: false } });
+    render(<Home />);
+    expect(screen.queryByText('LiveTop5')).not.toBeInTheDocument();
+  });
+
+  it('keeps leaderboard entry points for staff when it is disabled', () => {
+    mockUseTeamAuth.mockReturnValue({ isAuthenticated: false });
+    mockUseUserStore.mockReturnValue({ scopes: ['rally-staff'] });
+    mockUseRallySettings.mockReturnValue({ settings: { show_live_leaderboard: false } });
+    render(<Home />);
+    expect(screen.getByText('LiveTop5')).toBeInTheDocument();
   });
 
   it('respects a custom home_layout with hidden sections', () => {

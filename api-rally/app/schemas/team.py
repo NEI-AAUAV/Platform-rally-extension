@@ -36,6 +36,9 @@ class RouteProgressFields(BaseModel):
     resolved_checkpoint_orders: list[int] = []
     open_checkpoint_orders: list[int] = []
     is_route_finished: bool = False
+    started_at: datetime | None = None
+    elapsed_seconds: float | None = None
+    finished_at: datetime | None = None
 
 
 class ListingTeam(TeamBase, RouteProgressFields):

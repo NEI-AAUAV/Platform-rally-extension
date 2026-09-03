@@ -50,6 +50,11 @@ describe('HomeHero', () => {
     );
   });
 
+  it('hides the scoreboard CTA when the leaderboard is unavailable', () => {
+    render(<HomeHero branding={branding} settings={null} showLeaderboard={false} />);
+    expect(screen.queryByRole('link', { name: /Ver Pontuação/i })).not.toBeInTheDocument();
+  });
+
   it('shows "Em breve" pill and countdown when rally has not started', () => {
     render(
       <HomeHero

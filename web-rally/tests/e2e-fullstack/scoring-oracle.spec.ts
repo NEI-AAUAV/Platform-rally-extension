@@ -178,10 +178,19 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     );
     expect(actual).toBe(0);
 
-    // Scoreboard UI should show 0 pts, clamped
+    // The clamp is per-result, NOT per-team: scoring_service's
+    // _sync_excess_penalty_award mirrors any negative raw score into a
+    // negative DynamicAward, and a team's total is
+    // sum(final_score) + _active_award_points(). So the scoreboard shows the
+    // *unclamped* shortfall, not 0 — asserting `0 pts` here was asserting a
+    // behaviour the backend does not have.
+    const shortfall = Math.round(booleanOracle(true) - notDrinkingCount * Math.abs(settings.penalty_per_not_drinking));
     await page.goto('/rally/scoreboard');
     const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
-    await expect(teamRow.getByText('0')).toBeVisible({ timeout: 15_000 });
+    // Anchored on the whole score node (`-49900pts`) rather than a bare
+    // number string: getByText substring-matches, so a bare number also hits
+    // the elapsed-time line and other teams' scores, tripping strict mode.
+    await expect(teamRow.getByText(new RegExp(`^${shortfall}\\s*pts$`))).toBeVisible({ timeout: 15_000 });
   });
 
   test('score-based activity applies the percentage-of-max formula exactly and shows on UI', async ({
