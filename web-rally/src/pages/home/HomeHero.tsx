@@ -9,6 +9,8 @@ import { useCountdown, type CountdownState } from "./useCountdown";
 interface HomeHeroProps {
   readonly branding: Branding;
   readonly settings?: RallySettingsResponse | null;
+  /** Privileged users retain access when the public leaderboard is disabled. */
+  readonly showLeaderboard?: boolean;
 }
 
 const PAD = (n: number) => String(n).padStart(2, "0");
@@ -42,7 +44,7 @@ function CountdownDigits({ state }: { readonly state: CountdownState }) {
   );
 }
 
-export function HomeHero({ branding, settings }: HomeHeroProps) {
+export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHeroProps) {
   const state = useCountdown(settings?.rally_start_time, settings?.rally_end_time);
   const { eventName, eventSubtitle } = branding;
 
@@ -150,12 +152,14 @@ export function HomeHero({ branding, settings }: HomeHeroProps) {
               Entrar com a Equipa
             </Link>
           </RallyButton>
-          <RallyButton asChild variant="outline" size="xl">
-            <Link to="/scoreboard">
-              <Trophy className="h-4 w-4" />
-              Ver Pontuação
-            </Link>
-          </RallyButton>
+          {showLeaderboard && (
+            <RallyButton asChild variant="outline" size="xl">
+              <Link to="/scoreboard">
+                <Trophy className="h-4 w-4" />
+                Ver Pontuação
+              </Link>
+            </RallyButton>
+          )}
         </motion.div>
       </div>
     </section>

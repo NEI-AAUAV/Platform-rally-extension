@@ -1,6 +1,9 @@
+import { useEffect, useMemo, useState } from "react";
+import { Clock3, Flag, Timer } from "lucide-react";
 import type { PrivilegedDetailedTeam } from "@/client";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
+import { formatElapsed } from "@/lib/time";
 
 /**
  * The team's own departure time, for events that stagger the start.
@@ -53,6 +56,17 @@ export default function TeamHeaderCard({
   const initials = initialsOf(team.name);
   const terms = useEventTerms();
   const departure = departureTime(rallyStartTime, team.start_offset_minutes ?? 0);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!team.started_at || team.finished_at) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [team.finished_at, team.started_at]);
+  const elapsed = useMemo(() => {
+    if (team.finished_at) return team.elapsed_seconds;
+    if (!team.started_at) return null;
+    return Math.max(0, (now - Date.parse(team.started_at)) / 1000);
+  }, [now, team.elapsed_seconds, team.finished_at, team.started_at]);
 
   return (
     <div className="rally-bg-accent relative overflow-hidden rounded-2xl p-6 text-white">
@@ -71,6 +85,33 @@ export default function TeamHeaderCard({
               <p className="mt-0.5 text-sm opacity-80">Código: {team.access_code}</p>
             )}
             {departure && <p className="mt-0.5 text-sm opacity-80">A vossa partida: {departure}</p>}
+            {team.started_at && (
+              <div className="mt-3 grid gap-1 text-sm text-white/85">
+                <p className="flex items-center gap-2">
+                  <Clock3 className="h-4 w-4" /> Início:{" "}
+                  {new Intl.DateTimeFormat("pt-PT", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }).format(new Date(team.started_at))}
+                </p>
+                {elapsed != null && (
+                  <p className="flex items-center gap-2">
+                    <Timer className="h-4 w-4" />{" "}
+                    {team.finished_at ? "Tempo final" : "Tempo a decorrer"}:{" "}
+                    {formatElapsed(elapsed)}
+                  </p>
+                )}
+                {team.finished_at && (
+                  <p className="flex items-center gap-2">
+                    <Flag className="h-4 w-4" /> Terminou:{" "}
+                    {new Intl.DateTimeFormat("pt-PT", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }).format(new Date(team.finished_at))}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <div className="mt-5 flex gap-6">

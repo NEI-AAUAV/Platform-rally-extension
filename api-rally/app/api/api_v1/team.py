@@ -164,8 +164,10 @@ class TeamController:
         is_privileged = auth is not None and deps.is_admin_or_staff(auth.scopes)
         await require_participant_view(db, is_privileged=is_privileged)
         team_obj = await team_crud.get(db=db, id=curr_user.team_id)
+        settings = await rally_settings.get_or_create(db)
+        paces = {pace.team_id: pace for pace in await compute_paces(db, settings)}
         return await service.build_detailed_team(
-            team_obj, with_progress=True, with_access_code=True
+            team_obj, with_progress=True, with_access_code=True, pace=paces.get(team_obj.id)
         )
 
     async def get_team_by_id(
@@ -217,11 +219,13 @@ class TeamController:
 
         settings = await rally_settings.get_or_create(db)
         team_obj = await team_crud.get(db=db, id=id)
+        paces = {pace.team_id: pace for pace in await compute_paces(db, settings)}
         return await service.build_detailed_team(
             team_obj,
             with_progress=True,
             with_access_code=may_see_access_code,
             hide_scores=scores_are_hidden(settings, is_privileged=is_privileged or is_own_team),
+            pace=paces.get(team_obj.id),
         )
 
     async def add_checkpoint(

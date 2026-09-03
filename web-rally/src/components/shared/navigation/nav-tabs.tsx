@@ -207,7 +207,9 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
     setIsMobileMenuOpen(false);
   };
 
-  const showScoreMenu = settings?.show_score_mode !== "hidden";
+  const showScoreMenu =
+    isPrivileged ||
+    (settings?.show_score_mode !== "hidden" && settings?.show_live_leaderboard !== false);
   const terms = useEventTerms();
   const checkpointsLabel = capitalize(terms.checkpoints);
 

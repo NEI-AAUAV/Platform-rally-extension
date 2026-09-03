@@ -62,7 +62,9 @@ export function MobileBottomNav() {
 
   const { showGuideFeature } = useGuideAccess();
 
-  const showScore = settings?.show_score_mode !== "hidden";
+  const showScore =
+    isPrivileged ||
+    (settings?.show_score_mode !== "hidden" && settings?.show_live_leaderboard !== false);
   const showPostos = isPrivileged || settings?.show_checkpoint_map === true;
   const checkpointsLabel = capitalize(useEventTerms().checkpoints);
 

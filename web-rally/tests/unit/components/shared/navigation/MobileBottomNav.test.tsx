@@ -88,6 +88,17 @@ describe('MobileBottomNav', () => {
     expect(screen.queryByText('Conquistas')).not.toBeInTheDocument()
   })
 
+  it('hides Pontos for a team when the leaderboard is disabled', () => {
+    mockUseRallySettings.mockReturnValue({
+      settings: { show_score_mode: 'visible', show_live_leaderboard: false },
+    })
+    mockUseTeamAuth.mockReturnValue({ isAuthenticated: true, team: { access_code: 'ABC-123' } })
+
+    render(<MobileBottomNav />)
+
+    expect(screen.queryByText('Pontos')).not.toBeInTheDocument()
+  })
+
   it('lights the Progresso tab at /team-progress', () => {
     mockUseTeamAuth.mockReturnValue({ isAuthenticated: true, team: undefined })
     mockPathname.current = '/team-progress'

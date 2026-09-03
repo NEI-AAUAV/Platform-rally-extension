@@ -82,6 +82,16 @@ describe('NavTabs', () => {
     expect(screen.queryByText('Gestão')).not.toBeInTheDocument()
   })
 
+  it('hides Pontuação for non-privileged users when the leaderboard is disabled', () => {
+    mockUseRallySettings.mockReturnValue({
+      settings: { show_score_mode: 'visible', show_live_leaderboard: false, badges_enabled: true },
+    })
+
+    render(<NavTabs />)
+
+    expect(screen.queryByText('Pontuação')).not.toBeInTheDocument()
+  })
+
   it('keeps the logged-out auth block in the drawer footer, out of the scrolling list', () => {
     render(<NavTabs />)
     openDrawer()

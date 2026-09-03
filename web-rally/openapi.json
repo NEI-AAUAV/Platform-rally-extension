@@ -9914,6 +9914,18 @@
             "title": "Is Route Finished",
             "default": false
           },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
           "elapsed_seconds": {
             "anyOf": [
               {
@@ -10808,6 +10820,18 @@
             "title": "Is Route Finished",
             "default": false
           },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
           "elapsed_seconds": {
             "anyOf": [
               {
@@ -11306,6 +11330,18 @@
             "type": "boolean",
             "title": "Is Route Finished",
             "default": false
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
           },
           "elapsed_seconds": {
             "anyOf": [
