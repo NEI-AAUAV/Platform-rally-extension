@@ -39,7 +39,7 @@ async def _populate(session, event: RallyEvent) -> CheckPoint:
         order=1,
         arrival_radius_m=40,
         event_id=event.id,
-        route_stage_id=stage.id,
+        stage_id=stage.id,
     )
     session.add(checkpoint)
     await session.flush()
@@ -89,7 +89,7 @@ async def test_clone_copies_structure_as_new_rows(pg_session) -> None:
 
     # The stage was recreated too, and the copy points at the copy.
     stage = await pg_session.scalar(select(RouteStage).where(RouteStage.event_id == target.id))
-    assert clone.route_stage_id == stage.id
+    assert clone.stage_id == stage.id
 
 
 async def test_clone_leaves_the_source_edition_untouched(pg_session) -> None:

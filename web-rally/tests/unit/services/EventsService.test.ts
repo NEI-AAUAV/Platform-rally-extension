@@ -85,4 +85,22 @@ describe('EventsService', () => {
       path: { event_id: 4 },
     })
   })
+
+  it('cloneEventStructure posts to the clone endpoint and returns the counts', async () => {
+    const cloned = {
+      event_id: 6,
+      source_event_id: 5,
+      created: { checkpoints: 3, activities: 2 },
+    }
+    postMock.mockResolvedValue({ data: cloned })
+    const { EventsService } = await import('@/services/EventsService')
+
+    const result = await EventsService.cloneEventStructure(6, 5)
+
+    expect(result).toEqual(cloned)
+    expect(postMock).toHaveBeenCalledWith({
+      url: '/api/rally/v1/events/{event_id}/clone-from/{source_event_id}',
+      path: { event_id: 6, source_event_id: 5 },
+    })
+  })
 })

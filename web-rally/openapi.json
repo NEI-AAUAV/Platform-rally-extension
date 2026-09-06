@@ -4248,6 +4248,67 @@
         }
       }
     },
+    "/api/rally/v1/events/{event_id}/clone-from/{source_event_id}": {
+      "post": {
+        "tags": [
+          "Events",
+          "Events"
+        ],
+        "summary": "Clone Event Structure",
+        "description": "Seed an empty edition from a previous one (admin/manager only).\n\nCopies structure only \u2014 route, activities, badges, rules, settings.\nTeams and everything they did stay in the source edition.",
+        "operationId": "clone_event_structure",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "source_event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Source Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloneStructureResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/events/{event_id}/rotation-schedule": {
       "post": {
         "tags": [
@@ -9633,6 +9694,33 @@
         ],
         "title": "ClaimableTeam",
         "description": "A team (resolved by access code) and its claimable placeholder members."
+      },
+      "CloneStructureResponse": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "source_event_id": {
+            "type": "integer",
+            "title": "Source Event Id"
+          },
+          "created": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "source_event_id",
+          "created"
+        ],
+        "title": "CloneStructureResponse",
+        "description": "How many rows of each kind the clone created."
       },
       "ContestRequest": {
         "properties": {

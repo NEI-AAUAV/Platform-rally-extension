@@ -27,6 +27,11 @@ SOURCE_EVENT_NOT_FOUND = "Source event not found"
 ModelT = TypeVar("ModelT", bound=Base)
 
 
+def _row_id(row: Any) -> int:
+    """Primary key of a mapped row. Declared per-model, so not typed on Base."""
+    return int(row.id)
+
+
 class EventService:
     """Event edition lifecycle rules beyond plain CRUD."""
 
@@ -117,13 +122,13 @@ class EventService:
     ) -> dict[int, int]:
         rows = await self._rows_for_event(CheckPoint, source_event_id)
         return {
-            row.id: await self._copy_row(
+            _row_id(row): await self._copy_row(
                 CheckPoint,
                 row,
                 {
                     "event_id": event_id,
                     # Stages were just recreated: point at the copy.
-                    "route_stage_id": stage_ids.get(row.route_stage_id),
+                    "stage_id": (None if row.stage_id is None else stage_ids.get(row.stage_id)),
                 },
             )
             for row in rows
@@ -150,7 +155,9 @@ class EventService:
         rows = await self._rows_for_event(Activity, source_event_id)
         copied = 0
         for row in rows:
-            new_checkpoint_id = checkpoint_ids.get(row.checkpoint_id)
+            new_checkpoint_id = (
+                None if row.checkpoint_id is None else checkpoint_ids.get(row.checkpoint_id)
+            )
             if new_checkpoint_id is None:
                 # Its checkpoint was not part of the source edition; without a
                 # post to hang from the copy would be unreachable.
@@ -178,7 +185,10 @@ class EventService:
         return 1
 
     async def _rows_for_event(self, model: type[ModelT], event_id: int) -> list[ModelT]:
-        stmt = select(model).where(model.event_id == event_id)
+        # ``event_id`` and ``id`` are declared per-model, not on Base, so they
+        # are reached through Any rather than widening the TypeVar bound.
+        columns: Any = model
+        stmt = select(model).where(columns.event_id == event_id)
         order = getattr(model, "order", None)
         if order is not None:
             stmt = stmt.order_by(order)
@@ -189,7 +199,9 @@ class EventService:
     ) -> dict[int, int]:
         """Copy every row of ``model`` in the source event. Returns old id -> new id."""
         rows = await self._rows_for_event(model, source_event_id)
-        return {row.id: await self._copy_row(model, row, {"event_id": event_id}) for row in rows}
+        return {
+            _row_id(row): await self._copy_row(model, row, {"event_id": event_id}) for row in rows
+        }
 
     async def _copy_row(self, model: type[ModelT], row: ModelT, overrides: dict[str, Any]) -> int:
         """Insert a copy of ``row`` with ``overrides`` applied, and return its id.
@@ -205,4 +217,4 @@ class EventService:
         copy = model(**(values | overrides))
         self._db.add(copy)
         await self._db.flush()
-        return int(copy.id)
+        return _row_id(copy)
