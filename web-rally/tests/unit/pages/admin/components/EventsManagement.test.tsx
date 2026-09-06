@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import EventsManagement from "@/pages/admin/components/events/EventsManagement";
@@ -20,6 +21,7 @@ const {
   mockCreateMutate,
   mockUpdateMutate,
   mockSetCurrentMutate,
+  mockCloneMutate,
   mockToastSuccess,
   mockToastError,
   mockDownloadEventResults,
@@ -30,6 +32,7 @@ const {
   mockCreateMutate: vi.fn(),
   mockUpdateMutate: vi.fn(),
   mockSetCurrentMutate: vi.fn(),
+  mockCloneMutate: vi.fn(),
   mockToastSuccess: vi.fn(),
   mockToastError: vi.fn(),
   mockDownloadEventResults: vi.fn(),
@@ -43,6 +46,7 @@ vi.mock("@/hooks/useEvents", () => ({
     create: { mutate: mockCreateMutate, isPending: false },
     update: { mutate: mockUpdateMutate, isPending: false },
     setCurrent: { mutate: mockSetCurrentMutate, isPending: false },
+    clone: { mutate: mockCloneMutate, isPending: false },
   }),
 }));
 
@@ -337,5 +341,88 @@ describe("EventsManagement", () => {
     });
     renderWithClient();
     expect(screen.getByText("Rally 2024")).toBeInTheDocument();
+  });
+
+  describe("cloning an edition", () => {
+    beforeEach(() => {
+      // Radix Select relies on pointer-capture APIs jsdom does not implement.
+      Element.prototype.scrollIntoView = vi.fn();
+      Element.prototype.hasPointerCapture = vi.fn(() => false);
+      Element.prototype.setPointerCapture = vi.fn();
+      Element.prototype.releasePointerCapture = vi.fn();
+      // The shared setup stubs ResizeObserver as a plain function; Radix's
+      // popper positions itself with `new ResizeObserver(...)`.
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          observe = vi.fn();
+          unobserve = vi.fn();
+          disconnect = vi.fn();
+        },
+      );
+      mockUseEvents.mockReturnValue({
+        data: [makeEvent({ id: 1, name: "Rally 2024" }), makeEvent({ id: 2, name: "Rally 2025" })],
+        isLoading: false,
+        isError: false,
+      });
+    });
+
+    it("hides the clone control when there is only one edition", () => {
+      mockUseEvents.mockReturnValue({
+        data: [makeEvent()],
+        isLoading: false,
+        isError: false,
+      });
+      renderWithClient();
+      expect(screen.queryByText("Clonar de…")).not.toBeInTheDocument();
+    });
+
+    it("offers every other edition as a source, and disables the button until one is picked", () => {
+      renderWithClient();
+      const buttons = screen.getAllByRole("button", { name: /Clonar/i });
+      expect(buttons).toHaveLength(2);
+      buttons.forEach((button) => expect(button).toBeDisabled());
+    });
+
+    async function pickSourceAndClone() {
+      const user = userEvent.setup();
+      await user.click(screen.getAllByRole("combobox")[0]!);
+      await user.click(await screen.findByRole("option", { name: "Rally 2025" }));
+      await user.click(screen.getAllByRole("button", { name: /Clonar/i })[0]!);
+    }
+
+    it("clones the picked edition into the target and reports the counts", async () => {
+      mockCloneMutate.mockImplementation((_vars, opts) =>
+        opts.onSuccess({ created: { checkpoints: 3, activities: 2 } }),
+      );
+      renderWithClient();
+
+      await pickSourceAndClone();
+
+      expect(mockCloneMutate).toHaveBeenCalledWith(
+        { id: 1, sourceId: 2 },
+        expect.objectContaining({ onSuccess: expect.any(Function) }),
+      );
+      expect(mockToastSuccess).toHaveBeenCalledWith("Copiados 3 postos e 2 atividades");
+    });
+
+    it("reports zero counts for entities the source had none of", async () => {
+      mockCloneMutate.mockImplementation((_vars, opts) => opts.onSuccess({ created: {} }));
+      renderWithClient();
+
+      await pickSourceAndClone();
+
+      expect(mockToastSuccess).toHaveBeenCalledWith("Copiados 0 postos e 0 atividades");
+    });
+
+    it("surfaces a failed clone as an error toast", async () => {
+      mockCloneMutate.mockImplementation((_vars, opts) => opts.onError(new Error("boom")));
+      renderWithClient();
+
+      await pickSourceAndClone();
+
+      expect(mockToastError).toHaveBeenCalled();
+      expect(mockToastSuccess).not.toHaveBeenCalled();
+    });
   });
 });

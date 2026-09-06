@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
-from app.crud import crud_activity
+from app.crud import current_event_id
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
@@ -239,11 +239,10 @@ class HintService:
         direct decrement would be erased by the next recompute. An award row is
         also visible to admins and revocable if a hint turns out to be broken.
         """
-        event = await crud_activity.rally_event.get_current(self._db)
         self._db.add(
             DynamicAward(
                 team_id=team_id,
-                event_id=event.id if event else None,
+                event_id=await current_event_id(self._db),
                 points=float(cost),
                 reason=f"Pista revelada (indicação #{indication.order + 1})"[:256],
                 is_active=True,

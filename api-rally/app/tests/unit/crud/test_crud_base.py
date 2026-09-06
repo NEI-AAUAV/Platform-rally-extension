@@ -23,6 +23,16 @@ from app.schemas.team import TeamUpdate
 class _CreateSchema(BaseModel):
     name: str = "Test Team"
     access_code: str = "AAAA-1111"
+    # Team.event_id is NOT NULL: every scoped row belongs to an edition. The
+    # ``event_id`` fixture supplies one; CRUDBase itself is event-agnostic.
+    event_id: int
+
+
+@pytest.fixture
+async def event_id(pg_session):
+    from app.crud import current_event_id
+
+    return await current_event_id(pg_session)
 
 
 @pytest.fixture
@@ -37,16 +47,16 @@ def other_session_maker(_pg_engine):
 
 
 class TestCreate:
-    async def test_commit_true_persists(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=True)
+    async def test_commit_true_persists(self, pg_session, crud, event_id, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(event_id=event_id), commit=True)
 
         assert team.id is not None
         async with other_session_maker() as other:
             again = await crud.get(other, id=team.id)
             assert again.id == team.id
 
-    async def test_flushes_by_default(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema())
+    async def test_flushes_by_default(self, pg_session, crud, event_id, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(event_id=event_id))
 
         assert team.id is not None  # flushed, so it has a PK within this session
         from app.core.exceptions import RallyNotFoundError
@@ -57,9 +67,13 @@ class TestCreate:
 
 
 class TestGetMulti:
-    async def test_for_update_locks_rows(self, pg_session, crud):
-        await crud.create(pg_session, obj_in=_CreateSchema(name="A", access_code="AAAA-0001"))
-        await crud.create(pg_session, obj_in=_CreateSchema(name="B", access_code="AAAA-0002"))
+    async def test_for_update_locks_rows(self, pg_session, crud, event_id):
+        await crud.create(
+            pg_session, obj_in=_CreateSchema(name="A", access_code="AAAA-0001", event_id=event_id)
+        )
+        await crud.create(
+            pg_session, obj_in=_CreateSchema(name="B", access_code="AAAA-0002", event_id=event_id)
+        )
 
         results = await crud.get_multi(pg_session, for_update=True)
 
@@ -67,8 +81,8 @@ class TestGetMulti:
 
 
 class TestUpdate:
-    async def test_commit_true_persists(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=True)
+    async def test_commit_true_persists(self, pg_session, crud, event_id, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(event_id=event_id), commit=True)
 
         updated = await crud.update(
             pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed"), commit=True
@@ -79,8 +93,8 @@ class TestUpdate:
             again = await crud.get(other, id=team.id)
             assert again.name == "Renamed"
 
-    async def test_flushes_by_default(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=True)
+    async def test_flushes_by_default(self, pg_session, crud, event_id, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(event_id=event_id), commit=True)
 
         await crud.update(pg_session, id=team.id, obj_in=TeamUpdate(name="Renamed"))
 
@@ -90,8 +104,8 @@ class TestUpdate:
 
 
 class TestRemove:
-    async def test_commit_true_persists(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=True)
+    async def test_commit_true_persists(self, pg_session, crud, event_id, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(event_id=event_id), commit=True)
 
         await crud.remove(pg_session, id=team.id, commit=True)
 
@@ -101,8 +115,8 @@ class TestRemove:
             with pytest.raises(RallyNotFoundError):
                 await crud.get(other, id=team.id)
 
-    async def test_flushes_by_default(self, pg_session, crud, other_session_maker):
-        team = await crud.create(pg_session, obj_in=_CreateSchema(), commit=True)
+    async def test_flushes_by_default(self, pg_session, crud, event_id, other_session_maker):
+        team = await crud.create(pg_session, obj_in=_CreateSchema(event_id=event_id), commit=True)
 
         await crud.remove(pg_session, id=team.id)
 

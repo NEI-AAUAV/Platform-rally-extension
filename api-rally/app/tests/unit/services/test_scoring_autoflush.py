@@ -10,6 +10,7 @@ DELETE exists in the same transaction immediately before score aggregation.
 
 import pytest
 
+from app.crud import current_event_id
 from app.crud.crud_team import team as crud_team
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.team import TeamCreate
@@ -32,6 +33,7 @@ async def test_update_team_scores_flushes_pending_award_before_aggregation(pg_se
     pg_session.add(
         DynamicAward(
             team_id=team.id,
+            event_id=await current_event_id(pg_session),
             points=-60,
             is_active=True,
         )
@@ -49,6 +51,7 @@ async def test_update_team_scores_flushes_pending_award_delete_before_aggregatio
     team = await _make_team(pg_session, "Pending award delete")
     award = DynamicAward(
         team_id=team.id,
+        event_id=await current_event_id(pg_session),
         points=-60,
         is_active=True,
     )
@@ -77,6 +80,7 @@ async def test_update_all_team_scores_flushes_pending_award_before_aggregation(p
     pg_session.add(
         DynamicAward(
             team_id=team.id,
+            event_id=await current_event_id(pg_session),
             points=-60,
             is_active=True,
         )

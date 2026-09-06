@@ -212,6 +212,7 @@ async def test_delete_award_rejects_system_generated_excess_penalty_award(
     pg_session.add(
         DynamicAward(
             team_id=team.id,
+            event_id=event.id,
             activity_result_id=res.id,
             points=-60,
             reason="Penalização excedente: Some Activity",
