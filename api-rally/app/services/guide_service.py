@@ -10,7 +10,6 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import RallyForbiddenError
 from app.crud import current_event_id
-from app.crud.crud_activity import rally_event
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_rally_settings import rally_settings
 from app.models.checkpoint import CheckPoint
@@ -56,14 +55,13 @@ class GuideService:
         Write access (marking an arrival) stays scoped to the current post
         via ``can_manage_checkpoint``; this is the read path only.
         """
-        event = await rally_event.get_current(self._db)
+        event_id = await current_event_id(self._db)
 
-        event_filter = CheckPoint.event_id == event.id if event else CheckPoint.event_id.is_(None)
         stmt = (
             select(CheckPoint)
             # Drafts are posts still being planned: nobody is sent there, so
             # they would only be noise here.
-            .where(event_filter, CheckPoint.is_draft.is_(False))
+            .where(CheckPoint.event_id == event_id, CheckPoint.is_draft.is_(False))
             .options(
                 selectinload(CheckPoint.media),
                 selectinload(CheckPoint.guide_indications),
@@ -176,9 +174,7 @@ class GuideService:
             .join(Team, Team.id == CheckpointArrival.team_id)
             .where(
                 CheckpointArrival.checkpoint_id == checkpoint_id,
-                # Legacy rows carry no event; they belong to whatever edition
-                # is running rather than to none of them.
-                (Team.event_id == event_id) | (Team.event_id.is_(None)),
+                Team.event_id == event_id,
             )
             .order_by(CheckpointArrival.arrived_at)
         )

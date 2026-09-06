@@ -294,10 +294,19 @@ class ScoringService:
         if self._settings is not None and sa_inspect(self._settings).expired:
             self._settings = None
         if self._settings is None:
-            stmt = select(RallySettings)
+            # Scoped to the edition. A bare ``select(RallySettings)`` took the
+            # first row in the table whatever its event, so scoring could price
+            # this event's results with a past event's settings.
+            #
+            # Deliberately not crud.rally_settings.get_or_create: that commits
+            # when it bootstraps, and this is reached from inside scoring
+            # transactions that own their own commit boundary (see the P1/P2
+            # transaction-boundary tests). Flush only, as before.
+            event_id = await current_event_id(self.db)
+            stmt = select(RallySettings).where(RallySettings.event_id == event_id)
             self._settings = (await self.db.scalars(stmt)).first()
             if not self._settings:
-                self._settings = RallySettings()
+                self._settings = RallySettings(event_id=event_id)
                 self.db.add(self._settings)
                 await self.db.flush()
         if self._settings is None:
@@ -333,9 +342,7 @@ class ScoringService:
                     prices[key] = abs(float(points))
 
         event_id = await current_event_id(self.db)
-        rule_filters: list[ColumnElement[bool]] = [
-            (DynamicRule.event_id == event_id) | (DynamicRule.event_id.is_(None))
-        ]
+        rule_filters: list[ColumnElement[bool]] = [DynamicRule.event_id == event_id]
         if not include_inactive:
             rule_filters.append(DynamicRule.is_active.is_(True))
         rules = (await self.db.scalars(select(DynamicRule).where(*rule_filters))).all()
@@ -404,7 +411,7 @@ class ScoringService:
     async def _current_event_award_filter(self) -> Any:
         """WHERE clause restricting awards to the current edition."""
         event_id = await current_event_id(self.db)
-        return (DynamicAward.event_id == event_id) | (DynamicAward.event_id.is_(None))
+        return DynamicAward.event_id == event_id
 
     async def _active_award_points(self, team_id: int) -> float:
         """Sum points from active dynamic awards for this team (D4)."""
@@ -1201,11 +1208,7 @@ class ScoringService:
         """Re-run the scorer over every completed result of the current event."""
         event_id = await current_event_id(self.db)
         team_ids = list(
-            (
-                await self.db.scalars(
-                    select(Team.id).where((Team.event_id == event_id) | (Team.event_id.is_(None)))
-                )
-            ).all()
+            (await self.db.scalars(select(Team.id).where(Team.event_id == event_id))).all()
         )
         if not team_ids:
             return 0
@@ -1328,7 +1331,7 @@ class ScoringService:
     async def _get_global_ranking(self) -> list[dict[str, Any]]:
         """Global standings, read straight from the persisted columns."""
         event_id = await current_event_id(self.db)
-        team_stmt = select(Team).where((Team.event_id == event_id) | (Team.event_id.is_(None)))
+        team_stmt = select(Team).where(Team.event_id == event_id)
         teams: list[Team] = list((await self.db.scalars(team_stmt)).all())
 
         completed_counts = await self._completed_counts_by_team()
@@ -1422,14 +1425,14 @@ class ScoringService:
             return False
 
         event_id = await current_event_id(self.db)
-        if activity.event_id not in (None, event_id):
+        if activity.event_id != event_id:
             return False
 
         team1 = await self.db.get(Team, team1_id)
         team2 = await self.db.get(Team, team2_id)
         if team1 is None or team2 is None:
             return False
-        if team1.event_id not in (None, event_id) or team2.event_id not in (None, event_id):
+        if team1.event_id != event_id or team2.event_id != event_id:
             return False
 
         opponent = await versus.get_opponent(self.db, team_id=team1_id)

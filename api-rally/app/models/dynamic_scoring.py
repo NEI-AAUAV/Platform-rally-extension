@@ -38,10 +38,10 @@ class DynamicRule(Base):
     __table_args__: Any = {"schema": settings.SCHEMA_NAME}
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    event_id: Mapped[int | None] = mapped_column(
+    event_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -71,10 +71,10 @@ class DynamicAward(Base):
         nullable=False,
         index=True,
     )
-    event_id: Mapped[int | None] = mapped_column(
+    event_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     # Set when this award is the auto-recorded shortfall for an activity result

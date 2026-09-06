@@ -14,19 +14,16 @@ from app.core.exceptions import RallyNotFoundError
 CHECKPOINT_NOT_FOUND = "Checkpoint not found"
 
 
-def require_same_event(team_event_id: int | None, resource_event_id: int | None) -> None:
+def require_same_event(team_event_id: int, resource_event_id: int) -> None:
     """Reject cross-event writes.
 
     A valid token/scan for a checkpoint — or an activity — of another edition
-    must not advance or score a team in this one. NULL event ids (legacy rows)
-    are treated as compatible.
+    must not advance or score a team in this one. Since migration 0055 every
+    scoped row carries an event, so the comparison is strict: there is no
+    unscoped row left to wave through.
 
     Raises ``RallyNotFoundError``, not a permission error: a resource of another
     edition should read as absent rather than have its existence confirmed.
     """
-    if (
-        team_event_id is not None
-        and resource_event_id is not None
-        and team_event_id != resource_event_id
-    ):
+    if team_event_id != resource_event_id:
         raise RallyNotFoundError(CHECKPOINT_NOT_FOUND)

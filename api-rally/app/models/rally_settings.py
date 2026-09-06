@@ -15,13 +15,12 @@ class RallySettings(Base):
     __tablename__ = "rally_settings"
 
     id = Column(Integer, primary_key=True)
-    # One settings row per event. Nullable + unique so the legacy single-row
-    # (event_id NULL) settings keep working until migrated to an event.
+    # Exactly one settings row per event.
     event_id = Column(
         Integer,
         ForeignKey(f"{app_settings.SCHEMA_NAME}.rally_events.id"),
         unique=True,
-        nullable=True,
+        nullable=False,
         index=True,
     )
 

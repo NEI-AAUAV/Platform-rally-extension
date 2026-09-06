@@ -48,14 +48,9 @@ class CRUDActivity:
     async def get_multi(
         self, db: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> list[Activity]:
-        """Get the current event's activities (legacy NULL rows included)."""
+        """Get the current event's activities."""
         event_id = await current_event_id(db)
-        stmt = (
-            select(Activity)
-            .where((Activity.event_id == event_id) | (Activity.event_id.is_(None)))
-            .offset(skip)
-            .limit(limit)
-        )
+        stmt = select(Activity).where(Activity.event_id == event_id).offset(skip).limit(limit)
         return list((await db.scalars(stmt)).all())
 
     async def get_by_checkpoint(self, db: AsyncSession, checkpoint_id: int) -> list[Activity]:

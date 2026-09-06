@@ -50,8 +50,8 @@ async def test_array_columns_round_trip(pg_session) -> None:
 
 
 async def test_get_multi_is_scoped_to_current_event(pg_session) -> None:
-    """crud_team.get_multi returns only the current event's teams, plus legacy
-    rows whose event_id is NULL — the real event-scoped SQL the mocks skip."""
+    """crud_team.get_multi returns only the current event's teams — the real
+    event-scoped SQL the mocks skip. Editions never bleed into each other."""
     current = await _make_current_event(pg_session, "Current")
     other = RallyEvent(name="Other", event_type="rally_tascas", is_current=False)
     pg_session.add(other)
@@ -61,7 +61,6 @@ async def test_get_multi_is_scoped_to_current_event(pg_session) -> None:
     pg_session.add_all(
         [
             Team(name="In current", access_code="CUR-1", event_id=current.id),
-            Team(name="Legacy null", access_code="NUL-1", event_id=None),
             Team(name="In other", access_code="OTH-1", event_id=other.id),
         ]
     )
@@ -71,5 +70,4 @@ async def test_get_multi_is_scoped_to_current_event(pg_session) -> None:
     names = {t.name for t in teams}
 
     assert "In current" in names
-    assert "Legacy null" in names  # NULL folds into the current edition
     assert "In other" not in names

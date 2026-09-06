@@ -38,32 +38,9 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             settings = await self._normalize_home_fields(db, settings)
             return await self._sync_timing_from_event(db, settings, event)
 
-        # Fall back to adopting a legacy unscoped row (event_id NULL) once, so
-        # existing single-event deployments keep their configured values.
-        legacy = await db.scalar(select(RallySettings).where(RallySettings.event_id.is_(None)))
-        if legacy is not None:
-            try:
-                # SAVEPOINT: a losing race undoes only this claim, never the
-                # caller's pending work — this method is reached from paths
-                # that read like plain settings lookups.
-                async with db.begin_nested():
-                    legacy.event_id = event_id  # type: ignore[assignment]
-                    db.add(legacy)
-                    await db.flush()
-            except IntegrityError:
-                # Another caller already claimed this event's settings row (see
-                # the same race below); use theirs.
-                adopted = await db.scalar(
-                    select(RallySettings).where(RallySettings.event_id == event_id)
-                )
-                if adopted is None:
-                    raise
-                adopted = await self._normalize_home_fields(db, adopted)
-                return await self._sync_timing_from_event(db, adopted, event)
-            await db.commit()
-            await db.refresh(legacy)
-            legacy = await self._normalize_home_fields(db, legacy)
-            return await self._sync_timing_from_event(db, legacy, event)
+        # The unscoped-row adoption that used to live here is gone: migration
+        # 0055 gave every settings row an event and made the column NOT NULL,
+        # so there is no longer such a row to adopt.
 
         # Only the values that depend on the event type, or that this
         # bootstrap genuinely decides, are named here. Everything else comes

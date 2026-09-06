@@ -26,18 +26,12 @@ class CRUDRouteStage(CRUDBase[RouteStage, RouteStageCreate, RouteStageUpdate]):
 
     async def get_all_ordered(self, db: AsyncSession) -> Sequence[RouteStage]:
         event_id = await current_event_id(db)
-        stmt = (
-            select(RouteStage)
-            .where((RouteStage.event_id == event_id) | (RouteStage.event_id.is_(None)))
-            .order_by(RouteStage.order)
-        )
+        stmt = select(RouteStage).where(RouteStage.event_id == event_id).order_by(RouteStage.order)
         return (await db.scalars(stmt)).all()
 
     async def next_order(self, db: AsyncSession) -> int:
         event_id = await current_event_id(db)
-        stmt = select(func.max(RouteStage.order)).where(
-            (RouteStage.event_id == event_id) | (RouteStage.event_id.is_(None))
-        )
+        stmt = select(func.max(RouteStage.order)).where(RouteStage.event_id == event_id)
         return int(await db.scalar(stmt) or 0) + 1
 
 

@@ -39,3 +39,10 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   generic: "Genérico",
   olympic: "Olímpico",
 };
+
+/** What a clone created, per entity, so the UI can report it. */
+export interface CloneStructureResult {
+  event_id: number;
+  source_event_id: number;
+  created: Record<string, number>;
+}

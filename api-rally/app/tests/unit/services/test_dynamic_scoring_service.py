@@ -1,7 +1,7 @@
 """Unit tests for DynamicScoringService, exercised directly against real
 Postgres.
 
-Besides event scoping for legacy/global rules, these tests cover the
+Besides per-edition rule scoping, these tests cover the
 transaction boundary around manual DynamicAward creation/removal. The
 application session uses autoflush=False, so award mutations must be flushed
 before score recomputation queries run.
@@ -23,13 +23,16 @@ async def _make_team(db, name: str = "Team A"):
 
 
 class TestListRules:
-    async def test_global_rule_and_current_event_rule_both_appear(self, pg_session) -> None:
-        # given: one rule scoped to no event (legacy/global), one scoped to
-        # the current event
+    async def test_only_the_current_events_rules_appear(self, pg_session) -> None:
+        # given: two rules in the current event. There is no global scope: a
+        # rule always belongs to exactly one edition.
         event = await _make_event(pg_session)
-        global_rule = DynamicRule(name="Global Bonus", event_id=None)
-        event_rule = DynamicRule(name="Event Bonus", event_id=event.id)
-        pg_session.add_all([global_rule, event_rule])
+        pg_session.add_all(
+            [
+                DynamicRule(name="Bonus", event_id=event.id),
+                DynamicRule(name="Event Bonus", event_id=event.id),
+            ]
+        )
         await pg_session.commit()
 
         service = DynamicScoringService(pg_session)
@@ -39,7 +42,7 @@ class TestListRules:
 
         # then
         names = {r.name for r in rules}
-        assert names == {"Global Bonus", "Event Bonus"}
+        assert names == {"Bonus", "Event Bonus"}
 
     async def test_rule_scoped_to_a_different_event_is_excluded(self, pg_session) -> None:
         # given: a rule belonging to a real, but non-current, event

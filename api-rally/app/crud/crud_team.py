@@ -84,16 +84,10 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         """List teams scoped to the current event.
 
         Ranking and listing operate per-edition: only teams whose event_id
-        matches the current event are returned. Legacy rows with event_id NULL
-        are folded into the current event so single-event data keeps showing.
+        matches the current event are returned.
         """
         event_id = await current_event_id(db)
-        stmt = (
-            select(Team)
-            .where((Team.event_id == event_id) | (Team.event_id.is_(None)))
-            .limit(limit)
-            .offset(skip)
-        )
+        stmt = select(Team).where(Team.event_id == event_id).limit(limit).offset(skip)
         if for_update:
             # Mutual exclusion for whole-team-set writes is the advisory gate,
             # not row locks. A row-level FOR UPDATE here conflicts with the
@@ -147,9 +141,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         event_id = await current_event_id(db)
         # Count teams in the current event only, so max_teams is per-edition.
         current_team_count = await db.scalar(
-            select(func.count(Team.id)).where(
-                (Team.event_id == event_id) | (Team.event_id.is_(None))
-            )
+            select(func.count(Team.id)).where(Team.event_id == event_id)
         )
 
         if current_team_count >= settings.max_teams:
@@ -284,7 +276,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
 
         Eager-loads members so callers can read ``team.members`` without a lazy
         load. Scoped to the current event so editions never leak into each
-        other (legacy NULL rows count as current, same as ``list()``).
+        other, same as ``list()``.
         """
         event_id = await current_event_id(db)
         stmt = (
@@ -292,7 +284,7 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             .join(CheckpointArrival, CheckpointArrival.team_id == Team.id)
             .where(
                 CheckpointArrival.checkpoint_id == checkpoint_id,
-                (Team.event_id == event_id) | (Team.event_id.is_(None)),
+                Team.event_id == event_id,
             )
             .options(selectinload(Team.members))
             .order_by(CheckpointArrival.arrived_at)

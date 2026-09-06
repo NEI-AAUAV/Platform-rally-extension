@@ -11,6 +11,7 @@ vi.mock("@/services/EventsService", () => ({
     createEvent: vi.fn(),
     updateEvent: vi.fn(),
     setCurrentEvent: vi.fn(),
+    cloneEventStructure: vi.fn(),
   },
 }));
 
@@ -98,6 +99,26 @@ describe("useEventMutations", () => {
     });
 
     expect(EventsService.setCurrentEvent).toHaveBeenCalledWith(2);
+  });
+
+  it("clones an edition and invalidates the route caches it rewrites", async () => {
+    vi.mocked(EventsService.cloneEventStructure).mockResolvedValueOnce({
+      event_id: 2,
+      source_event_id: 1,
+      created: { checkpoints: 3 },
+    } as never);
+    const { Wrapper, queryClient } = createWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    const { result } = renderHook(() => useEventMutations(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await result.current.clone.mutateAsync({ id: 2, sourceId: 1 });
+    });
+
+    expect(EventsService.cloneEventStructure).toHaveBeenCalledWith(2, 1);
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["events"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["checkpoints"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["activities"] });
   });
 
   it("propagates errors from a failed create", async () => {

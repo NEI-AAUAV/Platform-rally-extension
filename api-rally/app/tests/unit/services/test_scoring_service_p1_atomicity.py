@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import select as sa_select
 
 from app.core.exceptions import RallyError
+from app.crud import current_event_id
 from app.crud.crud_team import team as crud_team
 from app.events import ActivityResultUpdatedEvent
 from app.models.activity import Activity, ActivityResult
@@ -25,7 +26,11 @@ async def _make_activity(db) -> Activity:
     global _checkpoint_order
     _checkpoint_order += 1
 
-    checkpoint = CheckPoint(name=f"P1 CP {_checkpoint_order}", order=_checkpoint_order)
+    # Every scoped row belongs to an edition; current_event_id bootstraps one.
+    event_id = await current_event_id(db)
+    checkpoint = CheckPoint(
+        name=f"P1 CP {_checkpoint_order}", order=_checkpoint_order, event_id=event_id
+    )
     db.add(checkpoint)
     await db.flush()
 
@@ -34,6 +39,7 @@ async def _make_activity(db) -> Activity:
         activity_type=ActivityType.GENERAL.value,
         config={"min_points": 0, "max_points": 100},
         checkpoint_id=checkpoint.id,
+        event_id=event_id,
     )
     db.add(activity)
     await db.commit()

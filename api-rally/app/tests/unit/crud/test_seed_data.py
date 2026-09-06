@@ -9,10 +9,11 @@ from app.crud.crud_activity import rally_event
 from app.db.seed_data import (
     _seed_activities,
     _seed_checkpoints,
+    _should_seed,
     _upsert_activity,
     seed_data,
 )
-from app.models.activity import Activity
+from app.models.activity import Activity, RallyEvent
 from app.models.checkpoint import CheckPoint
 
 
@@ -171,3 +172,51 @@ async def test_seed_data_end_to_end(pg_session, monkeypatch):
 
     assert "checkpoints" in calls
     assert "activities" in calls
+
+
+async def test_seed_does_not_move_another_editions_checkpoint(pg_session, tmp_path):
+    """Seeding runs on every boot. It must not steal a finished edition's post.
+
+    Matching on name alone used to find the previous edition's checkpoint and
+    re-stamp it onto the current one — so creating a new event and restarting
+    the API moved the whole route out of the old edition instead of leaving it
+    where it happened.
+    """
+    old_event = await rally_event.ensure_current(pg_session)
+    _write_json(
+        tmp_path / "checkpoints.json",
+        [{"name": "CP Shared", "order": 201, "arrival_radius_m": 30}],
+    )
+    await _seed_checkpoints(pg_session, tmp_path, old_event)
+    original = await pg_session.scalar(select(CheckPoint).where(CheckPoint.name == "CP Shared"))
+
+    new_event = RallyEvent(name="New Edition", event_type="rally_tascas", is_current=False)
+    pg_session.add(new_event)
+    await pg_session.commit()
+    await pg_session.refresh(new_event)
+
+    await _seed_checkpoints(pg_session, tmp_path, new_event)
+
+    await pg_session.refresh(original)
+    assert original.event_id == old_event.id  # the old edition keeps its route
+
+    rows = (
+        await pg_session.scalars(select(CheckPoint).where(CheckPoint.name == "CP Shared"))
+    ).all()
+    assert {row.event_id for row in rows} == {old_event.id, new_event.id}
+
+
+async def test_seed_skips_an_edition_that_is_not_the_seeded_one(pg_session, tmp_path):
+    """A later edition starts empty: the admin configures or clones it."""
+    old_event = await rally_event.ensure_current(pg_session)
+    pg_session.add(
+        CheckPoint(name="CP Existing", order=202, arrival_radius_m=50, event_id=old_event.id)
+    )
+    new_event = RallyEvent(name="Empty Edition", event_type="rally_tascas", is_current=True)
+    old_event.is_current = False
+    pg_session.add_all([new_event, old_event])
+    await pg_session.commit()
+    await pg_session.refresh(new_event)
+
+    assert await _should_seed(pg_session, new_event) is False
+    assert await _should_seed(pg_session, old_event) is True

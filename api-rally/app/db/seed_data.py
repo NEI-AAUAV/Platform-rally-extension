@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import anyio
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_activity import rally_event
@@ -27,33 +27,40 @@ async def _seed_checkpoints(db: AsyncSession, data_dir: Path, event: "RallyEvent
     checkpoints_data = await _read_json(checkpoints_file)
     logger.info(f"Seeding {len(checkpoints_data)} checkpoints")
     for cp_data in checkpoints_data:
+        # Match within the event. Matching on name alone used to find another
+        # edition's post and then re-stamp it onto this one, moving the
+        # structure out of the finished event instead of seeding this one.
         existing_checkpoint = await db.scalar(
-            select(CheckPoint).where(CheckPoint.name == cp_data["name"])
+            select(CheckPoint).where(
+                CheckPoint.name == cp_data["name"], CheckPoint.event_id == event.id
+            )
         )
         if not existing_checkpoint:
             db.add(CheckPoint(**cp_data, event_id=event.id))
             continue
         for key, value in cp_data.items():
             setattr(existing_checkpoint, key, value)
-        existing_checkpoint.event_id = event.id
     await db.commit()
 
 
 async def _upsert_activity(db: AsyncSession, act_data: dict[str, Any], event: "RallyEvent") -> None:
     cp_id = act_data.get("checkpoint_id")
-    checkpoint = await db.scalar(select(CheckPoint).where(CheckPoint.order == cp_id))
+    checkpoint = await db.scalar(
+        select(CheckPoint).where(CheckPoint.order == cp_id, CheckPoint.event_id == event.id)
+    )
     if not checkpoint:
         logger.error(f"Checkpoint with order {cp_id} not found for activity {act_data['name']}")
         return
 
     act_data["checkpoint_id"] = checkpoint.id
-    existing_activity = await db.scalar(select(Activity).where(Activity.name == act_data["name"]))
+    existing_activity = await db.scalar(
+        select(Activity).where(Activity.name == act_data["name"], Activity.event_id == event.id)
+    )
     if not existing_activity:
         db.add(Activity(**act_data, event_id=event.id))
         return
     for key, value in act_data.items():
         setattr(existing_activity, key, value)
-    existing_activity.event_id = event.id
 
 
 async def _seed_activities(db: AsyncSession, data_dir: Path, event: "RallyEvent") -> None:
@@ -69,11 +76,29 @@ async def _seed_activities(db: AsyncSession, data_dir: Path, event: "RallyEvent"
     await db.commit()
 
 
+async def _should_seed(db: AsyncSession, event: "RallyEvent") -> bool:
+    """Seed the base structure only where it belongs to.
+
+    This runs on every boot (``init_db``). It must keep refreshing the rows it
+    already owns, but it must not provision editions created later: a new event
+    starts empty and the admin either configures it or clones a previous one.
+    So seed when this event already holds seeded posts (refresh in place), or
+    when the install has no posts at all (first boot) — never otherwise.
+    """
+    if await db.scalar(select(func.count(CheckPoint.id)).where(CheckPoint.event_id == event.id)):
+        return True
+    return not await db.scalar(select(func.count(CheckPoint.id)))
+
+
 async def seed_data(db: AsyncSession) -> None:
     data_dir = Path(__file__).parent.parent.parent / "data"
 
     # Ensure a current event exists; seeded checkpoints/activities attach to it.
     event = await rally_event.ensure_current(db)
+
+    if not await _should_seed(db, event):
+        logger.info("Event %s is not the seeded edition; skipping base structure", event.id)
+        return
 
     await _seed_checkpoints(db, data_dir, event)
     await _seed_activities(db, data_dir, event)

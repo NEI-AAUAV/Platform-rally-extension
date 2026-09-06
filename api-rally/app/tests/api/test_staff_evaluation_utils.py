@@ -25,6 +25,7 @@ from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyVa
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
+from app.models.activity import RallyEvent
 from app.schemas.activity import ActivityCreate, ActivityResultEvaluation, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
@@ -198,22 +199,22 @@ class TestValidateAdminAccess:
         with pytest.raises(RallyNotFoundError):
             await validate_admin_access(pg_session, team_id=team.id, activity_id=activity.id)
 
-    async def test_a_legacy_null_event_id_still_passes(self, pg_session):
-        """NULL ids are treated as compatible, so pre-multi-event rows keep
-        working — same tolerance as every other caller of the guard."""
+    async def test_a_team_from_another_edition_is_rejected(self, pg_session):
+        """Editions are isolated: an admin cannot score a past edition's team
+        against this one's activity, even with valid ids for both."""
         await _make_event(pg_session)
         cp = await _make_checkpoint(pg_session)
         team = await _make_team(pg_session)
-        team.event_id = None
+        other = RallyEvent(name="Other Edition", is_current=False)
+        pg_session.add(other)
+        await pg_session.flush()
+        team.event_id = other.id
         pg_session.add(team)
         await pg_session.commit()
         activity = await _make_activity(pg_session, cp.id)
 
-        team_obj, _ = await validate_admin_access(
-            pg_session, team_id=team.id, activity_id=activity.id
-        )
-
-        assert team_obj.id == team.id
+        with pytest.raises(RallyNotFoundError):
+            await validate_admin_access(pg_session, team_id=team.id, activity_id=activity.id)
 
 
 class TestCheckExistingResult:

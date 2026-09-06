@@ -33,7 +33,7 @@ class CRUDRallyGuideAssignment(
             .join(Team, RallyGuideAssignment.team_id == Team.id)
             .where(
                 RallyGuideAssignment.user_id == user_id,
-                (Team.event_id == event_id) | (Team.event_id.is_(None)),
+                Team.event_id == event_id,
             )
         )
         result: RallyGuideAssignment | None = await db.scalar(stmt)
@@ -57,7 +57,7 @@ class CRUDRallyGuideAssignment(
         stmt = (
             select(RallyGuideAssignment)
             .join(Team, RallyGuideAssignment.team_id == Team.id)
-            .where((Team.event_id == event_id) | (Team.event_id.is_(None)))
+            .where(Team.event_id == event_id)
             .options(selectinload(RallyGuideAssignment.team))
         )
         return (await db.scalars(stmt)).all()

@@ -173,6 +173,7 @@ async def test_activity_delete_is_atomic_with_team_rescore(pg_session, monkeypat
         activity_type="GeneralActivity",
         config={"min_points": 0, "max_points": 100},
         checkpoint_id=cp1.id,
+        event_id=cp1.event_id,
     )
     pg_session.add(activity)
     await pg_session.commit()

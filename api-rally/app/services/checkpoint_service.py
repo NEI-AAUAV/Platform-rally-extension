@@ -403,7 +403,7 @@ class CheckpointService:
             teams = (
                 await self._db.scalars(
                     select(Team)
-                    .where((Team.event_id == event_id) | (Team.event_id.is_(None)))
+                    .where(Team.event_id == event_id)
                     .options(selectinload(Team.members))
                 )
             ).all()
@@ -485,10 +485,8 @@ class CheckpointService:
         scored result, or any recorded visit counts just the same.
         """
         event_id = await current_event_id(self._db)
-        event_posts = select(CheckPoint.id).where(
-            (CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None))
-        )
-        event_teams = (Team.event_id == event_id) | (Team.event_id.is_(None))
+        event_posts = select(CheckPoint.id).where(CheckPoint.event_id == event_id)
+        event_teams = Team.event_id == event_id
 
         signals = (
             select(CheckpointArrival.id).where(CheckpointArrival.checkpoint_id.in_(event_posts)),

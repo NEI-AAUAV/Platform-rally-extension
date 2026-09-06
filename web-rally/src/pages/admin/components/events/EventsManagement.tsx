@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Download,
   FileText,
+  Copy,
 } from "lucide-react";
 import { generateRotationSchedule } from "@/client";
 import { downloadEventResults, downloadEventReport } from "@/services/eventExport";
@@ -170,6 +171,60 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
   );
 }
 
+function CloneStructureButton({
+  event,
+  others,
+}: Readonly<{ event: RallyEvent; others: Array<RallyEvent> }>) {
+  const toast = useAppToast();
+  const { clone } = useEventMutations();
+  const [sourceId, setSourceId] = useState<string>("");
+
+  // Nothing to copy from: a first edition has to be configured by hand.
+  if (others.length === 0) return null;
+
+  const handleClone = () => {
+    if (!sourceId) return;
+    clone.mutate(
+      { id: event.id, sourceId: Number(sourceId) },
+      {
+        onSuccess: (result) => {
+          const posts = result.created.checkpoints ?? 0;
+          const activities = result.created.activities ?? 0;
+          toast.success(`Copiados ${posts} postos e ${activities} atividades`);
+          setSourceId("");
+        },
+        onError: (err) => toast.error(getErrorMessage(err, "Erro ao clonar edição")),
+      },
+    );
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Select value={sourceId} onValueChange={setSourceId}>
+        <SelectTrigger className="h-8 w-[168px] text-xs">
+          <SelectValue placeholder="Clonar de…" />
+        </SelectTrigger>
+        <SelectContent>
+          {others.map((other) => (
+            <SelectItem key={other.id} value={String(other.id)}>
+              {other.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!sourceId || clone.isPending}
+        onClick={handleClone}
+      >
+        <Copy className="mr-1.5 h-3.5 w-3.5" />
+        {clone.isPending ? "A copiar…" : "Clonar"}
+      </Button>
+    </div>
+  );
+}
+
 /**
  * Admin events (editions) management: list editions, switch the current one,
  * create and edit. Soft-depth styling.
@@ -297,6 +352,7 @@ export default function EventsManagement() {
                 <ExportResultsButton event={ev} />
                 <ReportButton event={ev} />
                 {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
+                <CloneStructureButton event={ev} others={list.filter((o) => o.id !== ev.id)} />
                 {!ev.is_current && (
                   <Button
                     variant="outline"

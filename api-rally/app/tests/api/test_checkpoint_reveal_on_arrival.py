@@ -7,10 +7,13 @@ progression still waits for the evaluation. Against real Postgres, driven
 through the real GPS arrival endpoint.
 """
 
+from sqlalchemy import select
+
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
 from app.models.activity import Activity, EventType
+from app.models.checkpoint import CheckPoint
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
 from app.tests.conftest import as_team, make_event
@@ -39,8 +42,16 @@ async def _make_checkpoint(pg_session, order, lat=41.0, lon=-8.0):
 
 
 async def _make_activity(pg_session, checkpoint_id):
+    # An activity's edition is its checkpoint's; event_id is NOT NULL.
+    event_id = await pg_session.scalar(
+        select(CheckPoint.event_id).where(CheckPoint.id == checkpoint_id)
+    )
     activity = Activity(
-        checkpoint_id=checkpoint_id, is_active=True, name="Prova", activity_type="generic"
+        checkpoint_id=checkpoint_id,
+        is_active=True,
+        name="Prova",
+        activity_type="generic",
+        event_id=event_id,
     )
     pg_session.add(activity)
     await pg_session.commit()

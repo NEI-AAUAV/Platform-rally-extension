@@ -102,13 +102,19 @@ async def _seed_structure(db: AsyncSession, event: RallyEvent) -> list[Activity]
     """Create demo checkpoints + activities, return all activities."""
     activities: list[Activity] = []
     for order, cp_name, acts in _DEMO_STRUCTURE:
-        checkpoint = await db.scalar(select(CheckPoint).where(CheckPoint.name == cp_name))
+        # Scoped to the event: matching on name alone would reuse (and later
+        # re-stamp) another edition's post.
+        checkpoint = await db.scalar(
+            select(CheckPoint).where(CheckPoint.name == cp_name, CheckPoint.event_id == event.id)
+        )
         if not checkpoint:
             checkpoint = CheckPoint(name=cp_name, order=order, event_id=event.id)
             db.add(checkpoint)
             await db.flush()
         for act_name, act_type, config in acts:
-            activity = await db.scalar(select(Activity).where(Activity.name == act_name))
+            activity = await db.scalar(
+                select(Activity).where(Activity.name == act_name, Activity.event_id == event.id)
+            )
             if not activity:
                 activity = Activity(
                     name=act_name,

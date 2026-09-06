@@ -185,7 +185,7 @@ export default function DeferredJudgingTab() {
 
   // Names for the group headers — the pending list only carries activity_id.
   const { data: activities = [] } = useQuery<ActivityResponse[]>({
-    queryKey: ["activities"],
+    queryKey: ["activities", "judging-names"],
     queryFn: async () => {
       const { data } = await getActivities();
       return data?.activities ?? [];

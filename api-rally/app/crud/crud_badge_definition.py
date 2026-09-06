@@ -17,12 +17,12 @@ class CRUDBadgeDefinition:
         return result.scalars().first()
 
     async def get_all(self, db: AsyncSession) -> list[BadgeDefinition]:
-        """List badges visible in the current event: event-stamped rows plus
-        legacy/global (NULL event_id) ones, same pattern as Team/CheckPoint."""
+        """List the current event's badges. Catalogues are per-edition: there
+        is no global badge, so a new event defines or clones its own."""
         event_id = await current_event_id(db)
         stmt = (
             select(BadgeDefinition)
-            .where((BadgeDefinition.event_id == event_id) | (BadgeDefinition.event_id.is_(None)))
+            .where(BadgeDefinition.event_id == event_id)
             .order_by(BadgeDefinition.id)
         )
         result = await db.execute(stmt)

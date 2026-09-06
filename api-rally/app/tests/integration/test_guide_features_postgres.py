@@ -33,7 +33,7 @@ async def _make_event(session, name: str = "Edition A", is_current: bool = True)
     return event
 
 
-async def _make_checkpoint(session, event_id=None, order: int = 1, name: str = "CP") -> CheckPoint:
+async def _make_checkpoint(session, event_id: int, order: int = 1, name: str = "CP") -> CheckPoint:
     cp = CheckPoint(name=f"{name}{order}", order=order, event_id=event_id)
     session.add(cp)
     await session.commit()
@@ -41,7 +41,7 @@ async def _make_checkpoint(session, event_id=None, order: int = 1, name: str = "
     return cp
 
 
-async def _make_team(session, event_id=None, name: str = "Team") -> Team:
+async def _make_team(session, event_id: int, name: str = "Team") -> Team:
     team = Team(name=name, access_code=f"code-{name}-{event_id}", event_id=event_id)
     session.add(team)
     await session.commit()
@@ -91,23 +91,19 @@ async def test_guide_assignment_listing_scoped_to_current_event(pg_session) -> N
 
     team_current = await _make_team(pg_session, current.id, name="Cur")
     team_other = await _make_team(pg_session, other.id, name="Oth")
-    team_legacy = await _make_team(pg_session, None, name="Leg")
 
     pg_session.add_all(
         [
             RallyGuideAssignment(user_id=1, team_id=team_current.id),
             RallyGuideAssignment(user_id=2, team_id=team_other.id),
-            RallyGuideAssignment(user_id=3, team_id=team_legacy.id),
         ]
     )
     await pg_session.commit()
 
     listed = await rally_guide_assignment.get_multi_with_team(pg_session)
     listed_users = {a.user_id for a in listed}
-    # Current event's assignment and the legacy (NULL event) one; never the
-    # other edition's.
+    # Only the current edition's assignment; never the other edition's.
     assert 1 in listed_users
-    assert 3 in listed_users
     assert 2 not in listed_users
 
 

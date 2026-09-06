@@ -205,7 +205,7 @@ class StaffEvaluationController:
         # a count rather than an identity, which mis-sorted teams as soon as a
         # route ran out of strict sequence.
         # Eager-load members (build_team_for_staff reads team.members).
-        # Scoped to the current event (legacy NULL rows count as current).
+        # Scoped to the current event.
         event_id = await current_event_id(db)
         moved_past = (
             select(CheckpointArrival.team_id)
@@ -217,7 +217,7 @@ class StaffEvaluationController:
             .options(selectinload(Team.members))
             .where(
                 Team.id.not_in(moved_past),
-                (Team.event_id == event_id) | (Team.event_id.is_(None)),
+                Team.event_id == event_id,
             )
         )
         teams = (await db.scalars(teams_stmt)).all()
@@ -672,13 +672,11 @@ class StaffEvaluationController:
         # scope to the current event by default, same as every other
         # results listing (get_all_activity_results, reprice_all_results).
         # Without this a past edition's completed results kept showing up
-        # here forever — legacy NULL event_id rows still count as current.
+        # here forever.
         # A subquery (not a join on ActivityResult.team) so it doesn't
         # collide with the joinedload(ActivityResult.team) above.
         event_id = await current_event_id(db)
-        current_event_team_ids = select(Team.id).where(
-            (Team.event_id == event_id) | (Team.event_id.is_(None))
-        )
+        current_event_team_ids = select(Team.id).where(Team.event_id == event_id)
         stmt = stmt.where(ActivityResult.team_id.in_(current_event_team_ids))
 
         # Filters are conjunctive: a staff caller's checkpoint clamp must survive
