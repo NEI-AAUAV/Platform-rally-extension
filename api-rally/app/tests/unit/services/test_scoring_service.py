@@ -16,9 +16,11 @@ import asyncio
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.exceptions import RallyError, RallyValidationError
+from app.crud import current_event_id
 from app.crud.crud_team import team as crud_team
 from app.models.activity import Activity, ActivityResult
 from app.models.checkpoint import CheckPoint
@@ -51,11 +53,15 @@ async def _make_activity(
     # Most activities are checkpoint-scoped; that is what gives them a slot in
     # score_per_checkpoint. Pass with_checkpoint=False for a *global* activity
     # (D3): no slot, but its points still count toward team.total.
+    # Every scoped row belongs to an edition; current_event_id bootstraps one.
+    event_id = await current_event_id(db)
     checkpoint_id = None
     if with_checkpoint:
         global _checkpoint_order
         _checkpoint_order += 1
-        checkpoint = CheckPoint(name=f"CP{_checkpoint_order}", order=_checkpoint_order)
+        checkpoint = CheckPoint(
+            name=f"CP{_checkpoint_order}", order=_checkpoint_order, event_id=event_id
+        )
         db.add(checkpoint)
         await db.flush()
         checkpoint_id = checkpoint.id
@@ -65,6 +71,7 @@ async def _make_activity(
         activity_type=activity_type,
         config=config or {"min_points": 0, "max_points": 100},
         checkpoint_id=checkpoint_id,
+        event_id=event_id,
     )
     db.add(activity)
     await db.commit()
@@ -206,8 +213,16 @@ async def test_update_team_scores_rounds_and_includes_awards(pg_session):
         result_data={"assigned_points": 50},
         final_score=50.4,
     )
-    pg_session.add(DynamicAward(team_id=team.id, points=10, is_active=True))
-    pg_session.add(DynamicAward(team_id=team.id, points=99, is_active=False))
+    pg_session.add(
+        DynamicAward(
+            team_id=team.id, points=10, is_active=True, event_id=await current_event_id(pg_session)
+        )
+    )
+    pg_session.add(
+        DynamicAward(
+            team_id=team.id, points=99, is_active=False, event_id=await current_event_id(pg_session)
+        )
+    )
     await pg_session.commit()
 
     svc = ScoringService(pg_session)
@@ -249,7 +264,14 @@ async def test_scoring_a_result_reranks_without_a_checkpoint_advance(pg_session)
 async def test_award_alone_reranks_the_team(pg_session):
     trailing = await _make_team(pg_session, "Zeroes")
     awarded = await _make_team(pg_session, "Bonus")
-    pg_session.add(DynamicAward(team_id=awarded.id, points=25, is_active=True))
+    pg_session.add(
+        DynamicAward(
+            team_id=awarded.id,
+            points=25,
+            is_active=True,
+            event_id=await current_event_id(pg_session),
+        )
+    )
     await pg_session.commit()
 
     await ScoringService(pg_session).update_team_scores(awarded.id)
@@ -313,7 +335,7 @@ async def test_update_all_team_scores_noop_on_empty_list(pg_session):
 
 async def test_checkpoint_scores_skips_incomplete_and_global_results(pg_session):
     team = await _make_team(pg_session)
-    cp = CheckPoint(name="CP", order=1)
+    cp = CheckPoint(name="CP", order=1, event_id=await current_event_id(pg_session))
     pg_session.add(cp)
     await pg_session.flush()
     checkpointed_activity = await _make_activity_on_checkpoint(pg_session, cp)
@@ -323,6 +345,7 @@ async def test_checkpoint_scores_skips_incomplete_and_global_results(pg_session)
         activity_type=ActivityType.GENERAL.value,
         config={"min_points": 0, "max_points": 100},
         checkpoint_id=None,
+        event_id=await current_event_id(pg_session),
     )
     pg_session.add(global_activity)
     await pg_session.commit()
@@ -373,7 +396,7 @@ async def test_update_team_scores_wraps_commit_failure_in_rally_error(pg_session
 
 
 async def test_update_all_team_scores_bulk_recomputes_multiple_teams(pg_session):
-    cp = CheckPoint(name="CP", order=1)
+    cp = CheckPoint(name="CP", order=1, event_id=await current_event_id(pg_session))
     pg_session.add(cp)
     await pg_session.flush()
     activity = await _make_activity_on_checkpoint(pg_session, cp)
@@ -388,6 +411,7 @@ async def test_update_all_team_scores_bulk_recomputes_multiple_teams(pg_session)
         activity_type=ActivityType.GENERAL.value,
         config={"min_points": 0, "max_points": 100},
         checkpoint_id=None,
+        event_id=await current_event_id(pg_session),
     )
     pg_session.add(global_activity)
     await pg_session.commit()
@@ -430,7 +454,15 @@ async def test_update_all_team_scores_bulk_recomputes_multiple_teams(pg_session)
         result_data={"assigned_points": 15},
         final_score=15,
     )
-    pg_session.add(DynamicAward(team_id=team_a.id, points=10, is_active=True, reason="bonus"))
+    pg_session.add(
+        DynamicAward(
+            team_id=team_a.id,
+            points=10,
+            is_active=True,
+            reason="bonus",
+            event_id=await current_event_id(pg_session),
+        )
+    )
     await pg_session.commit()
 
     svc = ScoringService(pg_session)
@@ -446,6 +478,7 @@ async def _make_activity_on_checkpoint(db, checkpoint: CheckPoint) -> Activity:
         activity_type=ActivityType.GENERAL.value,
         config={"min_points": 0, "max_points": 100},
         checkpoint_id=checkpoint.id,
+        event_id=checkpoint.event_id,
     )
     db.add(activity)
     await db.commit()
@@ -454,11 +487,22 @@ async def _make_activity_on_checkpoint(db, checkpoint: CheckPoint) -> Activity:
 
 
 async def test_score_per_checkpoint_keyed_by_id_not_order(pg_session):
+    """Each post gets its own slot, keyed by checkpoint id.
+
+    This used to seed two posts sharing ``order`` to prove the slots were not
+    keyed by order. That state is unreachable now: ``uq_checkpoint_event_order``
+    is enforced per edition, and it only ever admitted duplicates because
+    legacy rows carried ``event_id NULL``, which Postgres treats as distinct.
+    The posts therefore get distinct orders, and
+    ``test_an_edition_rejects_two_posts_with_the_same_order`` covers the
+    constraint itself.
+    """
     from datetime import datetime
 
     team = await _make_team(pg_session)
-    cp_a = CheckPoint(name="A", order=1)
-    cp_b = CheckPoint(name="B", order=1)
+    event_id = await current_event_id(pg_session)
+    cp_a = CheckPoint(name="A", order=1, event_id=event_id)
+    cp_b = CheckPoint(name="B", order=2, event_id=event_id)
     pg_session.add_all([cp_a, cp_b])
     await pg_session.flush()
     act_a = await _make_activity_on_checkpoint(pg_session, cp_a)
@@ -488,12 +532,28 @@ async def test_score_per_checkpoint_keyed_by_id_not_order(pg_session):
     assert team.total == pytest.approx(70)
 
 
+async def test_an_edition_rejects_two_posts_with_the_same_order(pg_session):
+    """uq_checkpoint_event_order: within one edition, order identifies a post."""
+    event_id = await current_event_id(pg_session)
+    pg_session.add_all(
+        [
+            CheckPoint(name="A", order=1, event_id=event_id),
+            CheckPoint(name="B", order=1, event_id=event_id),
+        ]
+    )
+
+    with pytest.raises(IntegrityError):
+        await pg_session.flush()
+    await pg_session.rollback()
+
+
 async def test_score_per_checkpoint_ordered_by_current_order(pg_session):
     from datetime import datetime
 
     team = await _make_team(pg_session)
-    cp1 = CheckPoint(name="C1", order=1)
-    cp2 = CheckPoint(name="C2", order=2)
+    event_id = await current_event_id(pg_session)
+    cp1 = CheckPoint(name="C1", order=1, event_id=event_id)
+    cp2 = CheckPoint(name="C2", order=2, event_id=event_id)
     pg_session.add_all([cp1, cp2])
     await pg_session.flush()
     act1 = await _make_activity_on_checkpoint(pg_session, cp1)
@@ -918,9 +978,30 @@ async def test_get_global_ranking_counts_active_dynamic_awards(pg_session):
             result_data={"assigned_points": 100},
             final_score=100,
         )
-    pg_session.add(DynamicAward(team_id=charged.id, points=-10, is_active=True))
-    pg_session.add(DynamicAward(team_id=charged.id, points=-10, is_active=True))
-    pg_session.add(DynamicAward(team_id=charged.id, points=-50, is_active=False))
+    pg_session.add(
+        DynamicAward(
+            team_id=charged.id,
+            points=-10,
+            is_active=True,
+            event_id=await current_event_id(pg_session),
+        )
+    )
+    pg_session.add(
+        DynamicAward(
+            team_id=charged.id,
+            points=-10,
+            is_active=True,
+            event_id=await current_event_id(pg_session),
+        )
+    )
+    pg_session.add(
+        DynamicAward(
+            team_id=charged.id,
+            points=-50,
+            is_active=False,
+            event_id=await current_event_id(pg_session),
+        )
+    )
     await pg_session.flush()
 
     svc = ScoringService(pg_session)
@@ -938,7 +1019,14 @@ async def test_get_global_ranking_counts_active_dynamic_awards(pg_session):
 
 async def test_get_global_ranking_scores_a_team_with_only_awards(pg_session):
     penalised = await _make_team(pg_session, "Gave up immediately")
-    pg_session.add(DynamicAward(team_id=penalised.id, points=-30, is_active=True))
+    pg_session.add(
+        DynamicAward(
+            team_id=penalised.id,
+            points=-30,
+            is_active=True,
+            event_id=await current_event_id(pg_session),
+        )
+    )
     await pg_session.flush()
 
     svc = ScoringService(pg_session)
@@ -1157,12 +1245,10 @@ async def test_penalty_counts_reject_unknown_key(pg_session):
 
 
 async def test_deleted_global_rule_does_not_break_edit_or_reprice(pg_session):
-    from app.crud.crud_activity import rally_event
     from app.models.dynamic_scoring import PENALTY_COUNTER_RULE_TYPE, DynamicRule
 
-    event = await rally_event.get_current(pg_session)
     rule = DynamicRule(
-        event_id=event.id if event else None,
+        event_id=await current_event_id(pg_session),
         rule_type=PENALTY_COUNTER_RULE_TYPE,
         name="Atraso",
         points=15.0,

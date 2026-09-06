@@ -21,6 +21,7 @@ from app.core.observability import traced
 from app.crud._event_scope import current_event_id
 from app.crud.crud_activity import activity_result as activity_result_crud
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
+from app.crud.crud_rally_settings import rally_settings as rally_settings_crud
 from app.crud.crud_team import team as team_crud
 from app.crud.crud_versus import versus
 from app.db.locks import lock_team_ranking
@@ -294,12 +295,11 @@ class ScoringService:
         if self._settings is not None and sa_inspect(self._settings).expired:
             self._settings = None
         if self._settings is None:
-            stmt = select(RallySettings)
-            self._settings = (await self.db.scalars(stmt)).first()
-            if not self._settings:
-                self._settings = RallySettings()
-                self.db.add(self._settings)
-                await self.db.flush()
+            # Via the CRUD, not a bare ``select(RallySettings)``: that took the
+            # first row in the table regardless of edition, so scoring could
+            # price this event's results with a past event's settings — and the
+            # row it created had no event at all.
+            self._settings = await rally_settings_crud.get_or_create(self.db)
         if self._settings is None:
             raise RallyError("Failed to get or create rally settings")
         return self._settings
