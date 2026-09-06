@@ -662,8 +662,11 @@ async def test_evaluate_result_skips_unknown_trigger(
 async def test_load_auto_definitions_filters_active_auto_with_trigger(pg_session) -> None:
     """Only active + auto + trigger-having badge definitions come back --
     exercises the actual SQL predicate, not a mocked stand-in."""
+    from app.crud import current_event_id
     from app.models.badge_definition import BadgeDefinition
 
+    # Badge catalogues are per-edition; event_id is NOT NULL.
+    event_id = await current_event_id(pg_session)
     matching = BadgeDefinition(
         code="auto_win",
         name="Auto Win",
@@ -671,6 +674,7 @@ async def test_load_auto_definitions_filters_active_auto_with_trigger(pg_session
         is_auto=True,
         trigger_type=BadgeTrigger.WIN_ACTIVITY.value,
         color="#fff",
+        event_id=event_id,
     )
     inactive = BadgeDefinition(
         code="inactive_auto",
@@ -679,6 +683,7 @@ async def test_load_auto_definitions_filters_active_auto_with_trigger(pg_session
         is_auto=True,
         trigger_type=BadgeTrigger.WIN_ACTIVITY.value,
         color="#fff",
+        event_id=event_id,
     )
     manual = BadgeDefinition(
         code="manual",
@@ -687,6 +692,7 @@ async def test_load_auto_definitions_filters_active_auto_with_trigger(pg_session
         is_auto=False,
         trigger_type=None,
         color="#fff",
+        event_id=event_id,
     )
     no_trigger = BadgeDefinition(
         code="no_trigger",
@@ -695,6 +701,7 @@ async def test_load_auto_definitions_filters_active_auto_with_trigger(pg_session
         is_auto=True,
         trigger_type=None,
         color="#fff",
+        event_id=event_id,
     )
     pg_session.add_all([matching, inactive, manual, no_trigger])
     await pg_session.commit()
