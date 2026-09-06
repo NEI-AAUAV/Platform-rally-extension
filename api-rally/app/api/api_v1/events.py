@@ -32,6 +32,14 @@ class RotationScheduleResponse(BaseModel):
     rounds: list[list[dict[str, Any]]]
 
 
+class CloneStructureResponse(BaseModel):
+    """How many rows of each kind the clone created."""
+
+    event_id: int
+    source_event_id: int
+    created: dict[str, int]
+
+
 class EventController:
     """REST controller for rally event editions."""
 
@@ -79,6 +87,14 @@ class EventController:
             self.set_current_event,
             methods=["POST"],
             name="set_current_event",
+            tags=["Events"],
+            responses=EVENT_NOT_FOUND_RESPONSES,
+        )
+        self.router.add_api_route(
+            "/events/{event_id}/clone-from/{source_event_id}",
+            self.clone_event_structure,
+            methods=["POST"],
+            name="clone_event_structure",
             tags=["Events"],
             responses=EVENT_NOT_FOUND_RESPONSES,
         )
@@ -156,6 +172,24 @@ class EventController:
         if event is None:
             raise RallyNotFoundError(EVENT_NOT_FOUND)
         return RallyEventResponse.model_validate(event)
+
+    async def clone_event_structure(
+        self,
+        event_id: int,
+        source_event_id: int,
+        _admin: Annotated[DetailedUser, Depends(get_admin)],
+        _auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[EventService, Depends(get_event_service)],
+    ) -> CloneStructureResponse:
+        """Seed an empty edition from a previous one (admin/manager only).
+
+        Copies structure only — route, activities, badges, rules, settings.
+        Teams and everything they did stay in the source edition.
+        """
+        created = await service.clone_structure(event_id, source_event_id)
+        return CloneStructureResponse(
+            event_id=event_id, source_event_id=source_event_id, created=created
+        )
 
     async def generate_rotation_schedule(
         self,

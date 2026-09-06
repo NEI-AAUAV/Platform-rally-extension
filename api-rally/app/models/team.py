@@ -34,9 +34,10 @@ class Team(Base):
     # Official team photo (R2 public URL). Shown on the team page, leaderboard
     # and team cards. Empty string when unset (falls back to a placeholder).
     photo_url: Mapped[str] = mapped_column(String(500), nullable=False, default="")
-    # Event scoping: nullable so existing single-event rows remain valid.
-    event_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=True, index=True
+    # Every team belongs to exactly one edition; nothing is shared across
+    # events (see migration 0055).
+    event_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=False, index=True
     )
     # Staggered start: minutes added to the event's start time for this team
     # only. Every team walks the same route, but spreading the departures stops

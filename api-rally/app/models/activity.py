@@ -39,10 +39,10 @@ class Activity(Base):
     checkpoint_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey(f"{settings.SCHEMA_NAME}.checkpoints.id"), nullable=True
     )
-    # Event scoping: nullable so existing single-event rows remain valid; new
-    # rows are stamped with the current event id.
-    event_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=True, index=True
+    # Every activity belongs to exactly one edition; rows are stamped with the
+    # current event id on create (see migration 0055).
+    event_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=False, index=True
     )
 
     # Configuration specific to activity type

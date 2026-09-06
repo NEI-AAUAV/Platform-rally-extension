@@ -53,48 +53,6 @@ class TestGetOrCreate:
         ).all()
         assert len(rows) == 1
 
-    async def test_adopts_legacy_unscoped_row(self, pg_session):
-        """A pre-existing settings row with event_id=NULL (single-event era)
-        must be adopted onto the current event instead of creating a second,
-        duplicate row."""
-        event = await _make_event(pg_session)
-        legacy = RallySettings(
-            event_id=None,
-            max_teams=99,
-            max_members_per_team=5,
-            enable_versus=False,
-            penalty_per_puke=-1,
-            penalty_per_not_drinking=-1,
-            bonus_per_extra_shot=1,
-            max_extra_shots_per_member=1,
-            checkpoint_order_matters=True,
-            enable_staff_scoring=True,
-            show_live_leaderboard=True,
-            show_team_details=True,
-            show_checkpoint_map=True,
-            participant_view_enabled=False,
-            show_route_mode="focused",
-            show_score_mode="hidden",
-            rally_theme="legacy",
-            event_name="Legacy Rally",
-            event_subtitle="",
-            accent_color="",
-            banner_url="",
-            logo_url="",
-            favicon_url="",
-            public_access_enabled=True,
-            home_layout=[],
-            ticker_items=[],
-        )
-        pg_session.add(legacy)
-        await pg_session.commit()
-
-        settings = await rally_settings.get_or_create(pg_session)
-
-        assert settings.id == legacy.id
-        assert settings.event_id == event.id
-        assert settings.max_teams == 99  # legacy values preserved, not defaults
-
     async def test_syncs_timing_from_event_on_change(self, pg_session):
         """Rally timing must mirror the event's start/end time even after the
         settings row already exists -- an event edit propagates on next read."""

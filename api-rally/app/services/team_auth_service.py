@@ -102,7 +102,7 @@ async def validate_team_token(db: AsyncSession, token: str) -> TeamTokenData:
         or team.auth_version != payload["auth_version"]
         or current_event_id is None
         or payload["event_id"] != current_event_id
-        or (team.event_id is not None and team.event_id != current_event_id)
+        or team.event_id != current_event_id
     ):
         logger.info("Team token revoked or outside current edition: team_id=%s", payload["team_id"])
         raise RallyUnauthorizedError("Team session expired, please log in again")

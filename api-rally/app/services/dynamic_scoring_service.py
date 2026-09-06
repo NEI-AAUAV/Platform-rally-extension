@@ -27,7 +27,7 @@ class DynamicScoringService:
         event_id = event.id if event else None
         stmt = select(DynamicRule).where(
             DynamicRule.is_active.is_(True),
-            (DynamicRule.event_id == event_id) | (DynamicRule.event_id.is_(None)),
+            DynamicRule.event_id == event_id,
         )
         return list((await self._db.scalars(stmt)).all())
 

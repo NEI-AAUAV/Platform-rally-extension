@@ -214,6 +214,7 @@ class TestManualArrival:
                 is_active=True,
                 name="Prova",
                 activity_type="generic",
+                event_id=event.id,
             )
         )
         await pg_session.commit()

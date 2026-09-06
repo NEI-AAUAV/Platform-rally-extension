@@ -34,7 +34,7 @@ class CRUDRallyStaffAssignment(
             .join(CheckPoint, RallyStaffAssignment.checkpoint_id == CheckPoint.id)
             .where(
                 RallyStaffAssignment.user_id == user_id,
-                (CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None)),
+                CheckPoint.event_id == event_id,
             )
         )
         result: RallyStaffAssignment | None = await db.scalar(stmt)
@@ -60,7 +60,7 @@ class CRUDRallyStaffAssignment(
         stmt = (
             select(RallyStaffAssignment)
             .join(CheckPoint, RallyStaffAssignment.checkpoint_id == CheckPoint.id)
-            .where((CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None)))
+            .where(CheckPoint.event_id == event_id)
             .options(selectinload(RallyStaffAssignment.checkpoint))
         )
         return (await db.scalars(stmt)).all()

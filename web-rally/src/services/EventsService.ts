@@ -1,5 +1,10 @@
 import { client } from "@/client/client.gen";
-import type { RallyEvent, RallyEventCreate, RallyEventUpdate } from "@/types/event";
+import type {
+  CloneStructureResult,
+  RallyEvent,
+  RallyEventCreate,
+  RallyEventUpdate,
+} from "@/types/event";
 
 /**
  * Rally event (edition) management. Hand-written (the /events endpoints are not
@@ -48,5 +53,21 @@ export class EventsService {
       path: { event_id: eventId },
     });
     return data as RallyEvent;
+  }
+
+  /**
+   * Seed an empty edition from a previous one: route, activities, badges,
+   * rules and settings are copied as new rows. Teams and their results stay in
+   * the source edition.
+   */
+  public static async cloneEventStructure(
+    eventId: number,
+    sourceEventId: number,
+  ): Promise<CloneStructureResult> {
+    const { data } = await client.post<CloneStructureResult>({
+      url: "/api/rally/v1/events/{event_id}/clone-from/{source_event_id}",
+      path: { event_id: eventId, source_event_id: sourceEventId },
+    });
+    return data as CloneStructureResult;
   }
 }

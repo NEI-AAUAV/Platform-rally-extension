@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
 from app.models.activity import Activity, EventType, RallyEvent
+from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.dynamic_scoring import DynamicAward
 from app.models.team import Team
@@ -85,11 +86,16 @@ async def _set_settings(pg_session, **overrides):
 
 
 async def _make_activity(pg_session, checkpoint_id, is_active=True):
+    # An activity's edition is its checkpoint's; event_id is NOT NULL.
+    event_id = await pg_session.scalar(
+        select(CheckPoint.event_id).where(CheckPoint.id == checkpoint_id)
+    )
     activity_obj = Activity(
         checkpoint_id=checkpoint_id,
         is_active=is_active,
         name="Activity",
         activity_type="generic",
+        event_id=event_id,
     )
     pg_session.add(activity_obj)
     await pg_session.commit()
@@ -288,6 +294,7 @@ async def test_arrive_no_activities_auto_completes_after_prior_advance(pg_sessio
         activity_type="general",
         config={},
         is_active=True,
+        event_id=cp1.event_id,
     )
     pg_session.add(act1)
     await pg_session.commit()

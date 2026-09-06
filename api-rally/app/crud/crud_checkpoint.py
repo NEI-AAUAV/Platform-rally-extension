@@ -15,8 +15,8 @@ _UNSTAGED_SORT_KEY = 1_000_000
 
 
 def _event_filter(event_id: int) -> "ColumnElement[bool]":
-    """Match the current event's checkpoints, including legacy NULL rows."""
-    return (CheckPoint.event_id == event_id) | (CheckPoint.event_id.is_(None))
+    """Match the current event's checkpoints."""
+    return CheckPoint.event_id == event_id
 
 
 def _published_filter() -> "ColumnElement[bool]":

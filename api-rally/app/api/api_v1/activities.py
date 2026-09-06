@@ -188,9 +188,7 @@ class ActivityController:
         edition's rows returned on every call.
         """
         event_id = await current_event_id(db)
-        current_event_team_ids = select(Team.id).where(
-            (Team.event_id == event_id) | (Team.event_id.is_(None))
-        )
+        current_event_team_ids = select(Team.id).where(Team.event_id == event_id)
         stmt = (
             select(ActivityResult)
             .options(joinedload(ActivityResult.activity), joinedload(ActivityResult.team))

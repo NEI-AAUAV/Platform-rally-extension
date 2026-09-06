@@ -60,7 +60,7 @@ class CRUDVersus:
         event_id = await current_event_id(db)
         # A versus group is meaningful only within the current edition.  Do
         # not let an ID from an archived event create a cross-edition match.
-        if team_a.event_id not in (None, event_id) or team_b.event_id not in (None, event_id):
+        if team_a.event_id != event_id or team_b.event_id != event_id:
             raise RallyNotFoundError("One or both teams not found")
         if team_a.event_id != team_b.event_id:
             raise RallyValidationError("Teams must belong to the same event")
@@ -83,15 +83,15 @@ class CRUDVersus:
         """Get the opponent team in the same versus group"""
         event_id = await current_event_id(db)
         team = await db.get(Team, team_id)
-        if not team or team.versus_group_id is None or team.event_id not in (None, event_id):
+        if not team or team.versus_group_id is None or team.event_id != event_id:
             return None
 
         result = await db.execute(
             select(Team)
             .where(Team.id != team_id)
             .where(Team.versus_group_id == team.versus_group_id)
-            # Pairing already rejects cross-event groups, so matching this team's
-            # event_id is enough. SQLAlchemy emits ``IS NULL`` when it is None.
+            # Pairing already rejects cross-event groups, so matching this
+            # team's event_id is enough.
             .where(Team.event_id == team.event_id)
         )
         return result.scalar_one_or_none()
@@ -102,7 +102,7 @@ class CRUDVersus:
             await db.scalars(
                 select(Team).where(
                     Team.versus_group_id.isnot(None),
-                    (Team.event_id == event_id) | (Team.event_id.is_(None)),
+                    Team.event_id == event_id,
                 )
             )
         ).all()
@@ -126,7 +126,7 @@ class CRUDVersus:
                     select(Team)
                     .where(
                         Team.versus_group_id == group_id,
-                        (Team.event_id == event_id) | (Team.event_id.is_(None)),
+                        Team.event_id == event_id,
                     )
                     .order_by(Team.id)
                     .execution_options(populate_existing=True)

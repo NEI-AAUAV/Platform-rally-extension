@@ -70,9 +70,9 @@ class CheckPoint(Base):
         DateTime(timezone=True), nullable=True, default=None
     )
     arrival_radius_m: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
-    # Event scoping: nullable so existing single-event rows remain valid.
-    event_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=True, index=True
+    # Every checkpoint belongs to exactly one edition (see migration 0055).
+    event_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"), nullable=False, index=True
     )
 
     # Relationship to staff assignments

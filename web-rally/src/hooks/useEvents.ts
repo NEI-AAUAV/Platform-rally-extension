@@ -49,5 +49,17 @@ export function useEventMutations() {
     },
   });
 
-  return { create, update, setCurrent };
+  const clone = useMutation({
+    mutationFn: ({ id, sourceId }: { id: number; sourceId: number }) =>
+      EventsService.cloneEventStructure(id, sourceId),
+    onSuccess: () => {
+      invalidate();
+      // The clone writes the target edition's route and activities; if it is
+      // the current one, the cached lists are now stale.
+      void qc.invalidateQueries({ queryKey: ["checkpoints"] });
+      void qc.invalidateQueries({ queryKey: ["activities"] });
+    },
+  });
+
+  return { create, update, setCurrent, clone };
 }

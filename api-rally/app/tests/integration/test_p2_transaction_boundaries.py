@@ -34,12 +34,12 @@ async def _event(pg_session, name: str, *, current: bool) -> RallyEvent:
 # P2a — rally_settings.get_or_create no longer commits on the hot read path
 # --------------------------------------------------------------------------- #
 async def test_get_or_create_does_not_commit_callers_pending_work(pg_session):
-    await _event(pg_session, "Edição", current=True)
+    event = await _event(pg_session, "Edição", current=True)
     # Prime the row so this call takes the "already exists" fast path.
     await rally_settings.get_or_create(pg_session)
 
     # Caller stages a row, then calls get_or_create as if it were a plain read.
-    pending = Team(name="Pending Team", access_code="P2-PEND", event_id=None)
+    pending = Team(name="Pending Team", access_code="P2-PEND", event_id=event.id)
     pg_session.add(pending)
     await pg_session.flush()
 
@@ -141,7 +141,7 @@ async def test_reservation_loss_does_not_discard_caller_pending_rows(pg_session,
     from app.api.api_v1.idempotency import compute_fingerprint, reserve_idempotency_key
     from app.models.idempotency_key import IdempotencyKey
 
-    await _event(pg_session, "Idem Edição", current=True)
+    event = await _event(pg_session, "Idem Edição", current=True)
     fp = compute_fingerprint({"team_id": 1})
     key = "p2-reserve-race"
 
@@ -159,7 +159,7 @@ async def test_reservation_loss_does_not_discard_caller_pending_rows(pg_session,
     await pg_session.commit()
 
     # Caller stages domain work first.
-    pending = Team(name="Idem Pending", access_code="P2-IDEM", event_id=None)
+    pending = Team(name="Idem Pending", access_code="P2-IDEM", event_id=event.id)
     pg_session.add(pending)
     await pg_session.flush()
 

@@ -7,7 +7,7 @@ field maps 1-to-1 with legacy ``BadgeType`` enum values, ensuring existing
 
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.config import settings
@@ -20,17 +20,24 @@ DEFAULT_BADGE_COLOR = "#8b5cf6"
 
 class BadgeDefinition(Base):
     __tablename__ = "badge_definitions"
-    __table_args__: Any = {"schema": settings.SCHEMA_NAME}
+    # Badge codes are unique within an event, not globally, so each edition
+    # can carry its own catalogue (and be cloned from a previous one).
+    __table_args__: Any = (
+        UniqueConstraint("event_id", "code", name="uq_badge_definition_event_code"),
+        {"schema": settings.SCHEMA_NAME},
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    # NULL = global/seeded badge visible in every event. Admin-created badges
-    # are stamped with the current event so per-edition catalogues stay apart.
-    event_id: Mapped[int | None] = mapped_column(
+    # Every badge belongs to one edition: there is no global catalogue, so a
+    # new event either defines its own badges or clones them (migration 0055).
+    event_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(f"{settings.SCHEMA_NAME}.rally_events.id"),
-        nullable=True,
+        nullable=False,
     )
-    code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    # Unique per event, not globally — otherwise cloning an edition collides on
+    # the first code. See uq_badge_definition_event_code in __table_args__.
+    code: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     icon_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
