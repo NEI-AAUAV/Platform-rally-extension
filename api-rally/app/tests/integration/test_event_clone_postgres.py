@@ -126,11 +126,12 @@ async def test_clone_refuses_a_target_that_already_has_a_route(pg_session) -> No
     source = await _make_event(pg_session, "2025", is_current=True)
     await _populate(pg_session, source)
     target = await _make_event(pg_session, "2026")
-    await EventService(pg_session).clone_structure(target.id, source.id)
+    service = EventService(pg_session)
+    await service.clone_structure(target.id, source.id)
 
     # A second clone would stack a duplicate route on top of the first.
     with pytest.raises(RallyValidationError):
-        await EventService(pg_session).clone_structure(target.id, source.id)
+        await service.clone_structure(target.id, source.id)
 
 
 async def test_clone_refuses_the_same_event(pg_session) -> None:

@@ -21,7 +21,6 @@ from app.core.observability import traced
 from app.crud._event_scope import current_event_id
 from app.crud.crud_activity import activity_result as activity_result_crud
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
-from app.crud.crud_rally_settings import rally_settings as rally_settings_crud
 from app.crud.crud_team import team as team_crud
 from app.crud.crud_versus import versus
 from app.db.locks import lock_team_ranking
@@ -295,11 +294,21 @@ class ScoringService:
         if self._settings is not None and sa_inspect(self._settings).expired:
             self._settings = None
         if self._settings is None:
-            # Via the CRUD, not a bare ``select(RallySettings)``: that took the
-            # first row in the table regardless of edition, so scoring could
-            # price this event's results with a past event's settings — and the
-            # row it created had no event at all.
-            self._settings = await rally_settings_crud.get_or_create(self.db)
+            # Scoped to the edition. A bare ``select(RallySettings)`` took the
+            # first row in the table whatever its event, so scoring could price
+            # this event's results with a past event's settings.
+            #
+            # Deliberately not crud.rally_settings.get_or_create: that commits
+            # when it bootstraps, and this is reached from inside scoring
+            # transactions that own their own commit boundary (see the P1/P2
+            # transaction-boundary tests). Flush only, as before.
+            event_id = await current_event_id(self.db)
+            stmt = select(RallySettings).where(RallySettings.event_id == event_id)
+            self._settings = (await self.db.scalars(stmt)).first()
+            if not self._settings:
+                self._settings = RallySettings(event_id=event_id)
+                self.db.add(self._settings)
+                await self.db.flush()
         if self._settings is None:
             raise RallyError("Failed to get or create rally settings")
         return self._settings

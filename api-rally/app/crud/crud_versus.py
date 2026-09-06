@@ -62,8 +62,6 @@ class CRUDVersus:
         # not let an ID from an archived event create a cross-edition match.
         if team_a.event_id != event_id or team_b.event_id != event_id:
             raise RallyNotFoundError("One or both teams not found")
-        if team_a.event_id != team_b.event_id:
-            raise RallyValidationError("Teams must belong to the same event")
 
         if team_a.versus_group_id is not None:
             raise RallyValidationError(f"Team {team_a_id} is already in a versus group")
