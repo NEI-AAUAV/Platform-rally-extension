@@ -245,6 +245,7 @@ def test_apply_modifiers_is_deterministic_with_bonuses(base_score: float) -> Non
         "max_bonus_points": 5,
         "bonus_per_shot": 4.0,
     }
-    assert activity.apply_modifiers(base_score, modifiers) == activity.apply_modifiers(
-        base_score, modifiers
-    )
+    first = activity.apply_modifiers(base_score, modifiers)
+    second = activity.apply_modifiers(base_score, modifiers)
+
+    assert first == second

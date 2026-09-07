@@ -444,7 +444,7 @@ class ScoringService:
         self, activity: Activity, counts: dict[str, int], *, strict: bool = True
     ) -> dict[str, int]:
         """Price staff-entered occurrence counts into points to deduct."""
-        return await self._price_counts(
+        return self._price_counts(
             activity,
             counts,
             prices=await self.penalty_prices(activity, include_inactive=not strict),
@@ -462,7 +462,7 @@ class ScoringService:
         (``config.max_bonus_points``) is applied at scoring time, not here, so
         the stored breakdown stays an honest itemisation of what was awarded.
         """
-        return await self._price_counts(
+        return self._price_counts(
             activity,
             counts,
             prices=await self.bonus_prices(activity, include_inactive=not strict),
@@ -470,7 +470,7 @@ class ScoringService:
             kind="bonus",
         )
 
-    async def _price_counts(
+    def _price_counts(
         self,
         activity: Activity,
         counts: dict[str, int],

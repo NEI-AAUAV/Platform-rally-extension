@@ -112,8 +112,7 @@ export function useExtraShotsAndPenalties(
   // configured 0 stays a real ceiling instead of falling through — the same
   // precedence ScoringService._resolve_bonus_cap applies server-side, which is
   // what actually truncates. This copy only drives the display and the warning.
-  const effectiveMaxBonusPoints =
-    maxBonusPoints === undefined ? getDefaultMaxBonusPoints(settings) : maxBonusPoints;
+  const effectiveMaxBonusPoints = maxBonusPoints ?? getDefaultMaxBonusPoints(settings);
 
   const allBonusCounters = [...bonusCounters, ...globalBonusCounters];
   const bonusTotal = allBonusCounters.reduce(

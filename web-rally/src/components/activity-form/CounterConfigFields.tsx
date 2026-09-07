@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/themes/bloody";
@@ -14,9 +14,9 @@ export function slugify(label: string): string {
       .toLowerCase()
       .normalize("NFD")
       .replace(/[̀-ͯ]/g, "") // strip diacritics (á -> a)
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+/, "")
-      .replace(/_+$/, "") || "counter"
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+      .join("_") || "counter"
   );
 }
 
@@ -46,6 +46,17 @@ type Props = Readonly<{
  * list mechanics (add/remove/re-slug on rename) live here once.
  */
 export default function CounterConfigFields({ counters, onChange, copy, children }: Props) {
+  // React keys for the rows. The configs themselves have no stable identity —
+  // `key` is re-slugged on every rename and two blank rows slug the same — so
+  // rows get a client-side id that follows them across add/remove instead.
+  const rowIdsRef = useRef<string[]>([]);
+  const nextRowIdRef = useRef(0);
+  while (rowIdsRef.current.length < counters.length) {
+    rowIdsRef.current.push(`row-${nextRowIdRef.current++}`);
+  }
+  rowIdsRef.current.length = counters.length;
+  const rowIds = rowIdsRef.current;
+
   const addCounter = () => {
     onChange([...counters, { key: `counter_${counters.length + 1}`, label: "", points: 5 }]);
   };
@@ -55,6 +66,7 @@ export default function CounterConfigFields({ counters, onChange, copy, children
   };
 
   const removeCounter = (index: number) => {
+    rowIdsRef.current.splice(index, 1);
     onChange(counters.filter((_, i) => i !== index));
   };
 
@@ -65,61 +77,56 @@ export default function CounterConfigFields({ counters, onChange, copy, children
         <p className="mt-1 text-xs text-muted-foreground">{copy.description}</p>
       </div>
 
-      {counters.map(
-        (
-          counter,
-          index, // NOSONAR
-        ) => (
-          <div key={index} className="flex flex-wrap items-end gap-2">
-            <div className="min-w-[10rem] flex-1">
-              <label
-                htmlFor={`${copy.idPrefix}-label-${index}`}
-                className="mb-1 block text-xs text-muted-foreground"
-              >
-                {copy.labelFieldLabel}
-              </label>
-              <Input
-                id={`${copy.idPrefix}-label-${index}`}
-                value={counter.label}
-                placeholder={copy.labelPlaceholder}
-                onChange={(e) =>
-                  updateCounter(index, {
-                    label: e.target.value,
-                    key: slugify(e.target.value),
-                  })
-                }
-                className="border-border bg-card"
-              />
-            </div>
-            <div className="w-28">
-              <label
-                htmlFor={`${copy.idPrefix}-points-${index}`}
-                className="mb-1 block text-xs text-muted-foreground"
-              >
-                {copy.pointsFieldLabel}
-              </label>
-              <Input
-                id={`${copy.idPrefix}-points-${index}`}
-                type="number"
-                min={0}
-                value={counter.points}
-                onChange={(e) =>
-                  updateCounter(index, { points: Number.parseInt(e.target.value, 10) || 0 })
-                }
-                className="border-border bg-card"
-              />
-            </div>
-            <BloodyButton
-              type="button"
-              variant="neutral"
-              onClick={() => removeCounter(index)}
-              aria-label={copy.removeButtonLabel(counter.label || String(index + 1))}
+      {counters.map((counter, index) => (
+        <div key={rowIds[index]} className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[10rem] flex-1">
+            <label
+              htmlFor={`${copy.idPrefix}-label-${index}`}
+              className="mb-1 block text-xs text-muted-foreground"
             >
-              <Trash2 className="h-4 w-4" />
-            </BloodyButton>
+              {copy.labelFieldLabel}
+            </label>
+            <Input
+              id={`${copy.idPrefix}-label-${index}`}
+              value={counter.label}
+              placeholder={copy.labelPlaceholder}
+              onChange={(e) =>
+                updateCounter(index, {
+                  label: e.target.value,
+                  key: slugify(e.target.value),
+                })
+              }
+              className="border-border bg-card"
+            />
           </div>
-        ),
-      )}
+          <div className="w-28">
+            <label
+              htmlFor={`${copy.idPrefix}-points-${index}`}
+              className="mb-1 block text-xs text-muted-foreground"
+            >
+              {copy.pointsFieldLabel}
+            </label>
+            <Input
+              id={`${copy.idPrefix}-points-${index}`}
+              type="number"
+              min={0}
+              value={counter.points}
+              onChange={(e) =>
+                updateCounter(index, { points: Number.parseInt(e.target.value, 10) || 0 })
+              }
+              className="border-border bg-card"
+            />
+          </div>
+          <BloodyButton
+            type="button"
+            variant="neutral"
+            onClick={() => removeCounter(index)}
+            aria-label={copy.removeButtonLabel(counter.label || String(index + 1))}
+          >
+            <Trash2 className="h-4 w-4" />
+          </BloodyButton>
+        </div>
+      ))}
 
       <BloodyButton type="button" variant="neutral" onClick={addCounter}>
         <Plus className="h-4 w-4" />

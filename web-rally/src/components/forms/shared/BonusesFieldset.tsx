@@ -118,9 +118,9 @@ export default function BonusesFieldset({
         O bónus aumenta a pontuação final. Bónus total: {awarded} pontos
       </p>
       {isOverCap && (
-        <p className="mt-1 text-sm text-amber-600" role="status">
+        <output className="mt-1 block text-sm text-amber-600">
           Introduziste {total} pontos de bónus; serão contados apenas {maxBonusPoints}.
-        </p>
+        </output>
       )}
     </fieldset>
   );

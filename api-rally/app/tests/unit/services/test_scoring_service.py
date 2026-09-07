@@ -1799,16 +1799,17 @@ async def test_bonus_counts_reject_unknown_key(pg_session):
     team = await _make_team(pg_session, "Unknown Bonus")
     activity = await _make_activity(pg_session, config=_bonus_activity_config())
 
+    payload = ActivityResultCreate(
+        activity_id=activity.id,
+        team_id=team.id,
+        result_data={"assigned_points": 50},
+        bonus_counts={"made_up_bonus": 9999},
+        is_completed=True,
+    )
+    service = ScoringService(pg_session)
+
     with pytest.raises(RallyValidationError, match="Unknown bonus type"):
-        await ScoringService(pg_session).create_result(
-            ActivityResultCreate(
-                activity_id=activity.id,
-                team_id=team.id,
-                result_data={"assigned_points": 50},
-                bonus_counts={"made_up_bonus": 9999},
-                is_completed=True,
-            )
-        )
+        await service.create_result(payload)
 
 
 async def test_bonus_counts_reject_negative_count(pg_session):
@@ -2312,16 +2313,17 @@ async def test_deleted_rule_is_not_offered_to_a_new_evaluation(pg_session):
     team = await _make_team(pg_session, "New Eval Deleted")
     activity = await _make_activity(pg_session, config={"min_points": 0, "max_points": 100})
 
+    payload = ActivityResultCreate(
+        activity_id=activity.id,
+        team_id=team.id,
+        result_data={"assigned_points": 50},
+        bonus_counts={f"gb_{rule.id}": 1},
+        is_completed=True,
+    )
+    service = ScoringService(pg_session)
+
     with pytest.raises(RallyValidationError, match="Unknown bonus type"):
-        await ScoringService(pg_session).create_result(
-            ActivityResultCreate(
-                activity_id=activity.id,
-                team_id=team.id,
-                result_data={"assigned_points": 50},
-                bonus_counts={f"gb_{rule.id}": 1},
-                is_completed=True,
-            )
-        )
+        await service.create_result(payload)
 
 
 async def test_switched_off_rule_is_not_offered_to_a_new_evaluation(pg_session):
@@ -2334,13 +2336,14 @@ async def test_switched_off_rule_is_not_offered_to_a_new_evaluation(pg_session):
     team = await _make_team(pg_session, "New Eval Off")
     activity = await _make_activity(pg_session, config={"min_points": 0, "max_points": 100})
 
+    payload = ActivityResultCreate(
+        activity_id=activity.id,
+        team_id=team.id,
+        result_data={"assigned_points": 50},
+        bonus_counts={f"gb_{rule.id}": 1},
+        is_completed=True,
+    )
+    service = ScoringService(pg_session)
+
     with pytest.raises(RallyValidationError, match="Unknown bonus type"):
-        await ScoringService(pg_session).create_result(
-            ActivityResultCreate(
-                activity_id=activity.id,
-                team_id=team.id,
-                result_data={"assigned_points": 50},
-                bonus_counts={f"gb_{rule.id}": 1},
-                is_completed=True,
-            )
-        )
+        await service.create_result(payload)

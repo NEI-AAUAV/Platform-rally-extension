@@ -45,15 +45,14 @@ export function getPenaltyValues(settings?: RallySettingsResponse | null) {
  * The event-wide ceiling on the performance bonus, used by any activity that
  * sets no `config.max_bonus_points` of its own.
  *
- * `undefined` means uncapped, and `0` is a real ceiling — so this checks for
- * null rather than falsiness. It is also the only ceiling global bonus rules
+ * `undefined` means uncapped, and `0` is a real ceiling — so this coalesces on
+ * nullish rather than falsy. It is also the only ceiling global bonus rules
  * ever get, since they apply at every checkpoint.
  */
 export function getDefaultMaxBonusPoints(
   settings?: RallySettingsResponse | null,
 ): number | undefined {
-  const value = settings?.default_max_bonus_points;
-  return value === null || value === undefined ? undefined : value;
+  return settings?.default_max_bonus_points ?? undefined;
 }
 
 /**

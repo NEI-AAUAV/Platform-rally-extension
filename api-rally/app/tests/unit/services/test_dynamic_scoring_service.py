@@ -177,7 +177,8 @@ class TestActiveVersusDeleted:
 
         await service.update_rule(rule.id, is_active=False)
         after_off = await service.list_rules(include_inactive=True)
-        assert [r.is_active for r in after_off] == [False], "the row must survive being switched off"
+        # The row must survive being switched off — that is the whole bug.
+        assert [r.is_active for r in after_off] == [False]
 
         await service.update_rule(rule.id, is_active=True)
         after_on = await service.list_rules()

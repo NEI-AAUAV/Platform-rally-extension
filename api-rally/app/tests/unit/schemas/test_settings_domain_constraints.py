@@ -74,6 +74,29 @@ class TestCounts:
             RallySettingsUpdate(**_settings(**{field: -1}))
 
 
+class TestBonusCeiling:
+    """The event-wide ceiling on the performance bonus.
+
+    None and 0 are different answers here, which is why the field is nullable
+    rather than defaulted: None means "no ceiling", 0 means "no bonus".
+    """
+
+    def test_absent_means_no_ceiling(self):
+        assert RallySettingsUpdate(**_settings()).default_max_bonus_points is None
+
+    def test_explicit_none_is_accepted(self):
+        parsed = RallySettingsUpdate(**_settings(default_max_bonus_points=None))
+        assert parsed.default_max_bonus_points is None
+
+    def test_zero_is_a_real_ceiling(self):
+        parsed = RallySettingsUpdate(**_settings(default_max_bonus_points=0))
+        assert parsed.default_max_bonus_points == 0
+
+    def test_a_negative_ceiling_is_rejected(self):
+        with pytest.raises(ValidationError):
+            RallySettingsUpdate(**_settings(default_max_bonus_points=-1))
+
+
 class TestModeEnums:
     """A free-form string here silently changes what the server reveals.
 
