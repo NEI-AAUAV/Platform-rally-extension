@@ -200,4 +200,19 @@ describe("BooleanForm", () => {
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={true} />);
     expect(screen.getByRole("button", { name: /A guardar/ })).toBeInTheDocument();
   });
+
+  it("hides the extra-shots and drinking-penalty fields in a peddy-paper event", () => {
+    mockUseRallySettings.mockReturnValue({
+      settings: {
+        event_type: "peddy_paper",
+        raw_settings: {
+          extra_shots_penalty_per_member: 1,
+          penalty_values: { vomit: 50, not_drinking: 20 },
+        },
+      },
+    });
+    render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
+    expect(screen.queryByLabelText("Shots extra")).not.toBeInTheDocument();
+    expect(screen.queryByText("Penalizações")).not.toBeInTheDocument();
+  });
 });

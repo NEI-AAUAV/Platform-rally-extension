@@ -26,9 +26,11 @@ export default function BooleanForm({
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
+    showExtraShots,
     penaltyValues,
     showVomitPenalty,
     showNotDrinkingPenalty,
+    showPenalties,
     globalPenaltyCounters,
     bonuses,
     setBonuses,
@@ -113,24 +115,28 @@ export default function BooleanForm({
         </div>
       </div>
 
-      <ExtraShotsField
-        idPrefix="extra-shots-input"
-        extraShots={extraShots}
-        onChange={setExtraShots}
-        maxExtraShots={maxExtraShots}
-        maxExtraShotsPerMember={maxExtraShotsPerMember}
-      />
+      {showExtraShots && (
+        <ExtraShotsField
+          idPrefix="extra-shots-input"
+          extraShots={extraShots}
+          onChange={setExtraShots}
+          maxExtraShots={maxExtraShots}
+          maxExtraShotsPerMember={maxExtraShotsPerMember}
+        />
+      )}
 
-      <PenaltiesFieldset
-        idPrefix="boolean"
-        penalties={penalties}
-        onChange={setPenalties}
-        penaltyValues={penaltyValues}
-        penaltyCounters={penaltyCounters}
-        globalPenaltyCounters={globalPenaltyCounters}
-        showVomitPenalty={showVomitPenalty}
-        showNotDrinkingPenalty={showNotDrinkingPenalty}
-      />
+      {showPenalties && (
+        <PenaltiesFieldset
+          idPrefix="boolean"
+          penalties={penalties}
+          onChange={setPenalties}
+          penaltyValues={penaltyValues}
+          penaltyCounters={penaltyCounters}
+          globalPenaltyCounters={globalPenaltyCounters}
+          showVomitPenalty={showVomitPenalty}
+          showNotDrinkingPenalty={showNotDrinkingPenalty}
+        />
+      )}
 
       {showBonuses && (
         <BonusesFieldset

@@ -32,9 +32,11 @@ export default function TimeBasedForm({
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
+    showExtraShots,
     penaltyValues,
     showVomitPenalty,
     showNotDrinkingPenalty,
+    showPenalties,
     globalPenaltyCounters,
     bonuses,
     setBonuses,
@@ -124,24 +126,28 @@ export default function TimeBasedForm({
         />
       </div>
 
-      <ExtraShotsField
-        idPrefix="timebased"
-        extraShots={extraShots}
-        onChange={setExtraShots}
-        maxExtraShots={maxExtraShots}
-        maxExtraShotsPerMember={maxExtraShotsPerMember}
-      />
+      {showExtraShots && (
+        <ExtraShotsField
+          idPrefix="timebased"
+          extraShots={extraShots}
+          onChange={setExtraShots}
+          maxExtraShots={maxExtraShots}
+          maxExtraShotsPerMember={maxExtraShotsPerMember}
+        />
+      )}
 
-      <PenaltiesFieldset
-        idPrefix="timebased"
-        penalties={penalties}
-        onChange={setPenalties}
-        penaltyValues={penaltyValues}
-        penaltyCounters={penaltyCounters}
-        globalPenaltyCounters={globalPenaltyCounters}
-        showVomitPenalty={showVomitPenalty}
-        showNotDrinkingPenalty={showNotDrinkingPenalty}
-      />
+      {showPenalties && (
+        <PenaltiesFieldset
+          idPrefix="timebased"
+          penalties={penalties}
+          onChange={setPenalties}
+          penaltyValues={penaltyValues}
+          penaltyCounters={penaltyCounters}
+          globalPenaltyCounters={globalPenaltyCounters}
+          showVomitPenalty={showVomitPenalty}
+          showNotDrinkingPenalty={showNotDrinkingPenalty}
+        />
+      )}
 
       {showBonuses && (
         <BonusesFieldset
