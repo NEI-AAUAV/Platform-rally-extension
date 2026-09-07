@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import Scoreboard from '@/pages/scoreboard/index';
+import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import Scoreboard from "@/pages/scoreboard/index";
 
 const {
   mockUseRallySettings,
@@ -19,47 +19,49 @@ const {
   mockGetCheckpoints: vi.fn(),
 }));
 
-vi.mock('@/hooks/useRallySettings', () => ({
+vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));
 
-vi.mock('@/stores/useUserStore', () => ({
+vi.mock("@/stores/useUserStore", () => ({
   useUserStore: (selector: (state: unknown) => unknown) => selector(mockUseUserStore()),
 }));
 
-vi.mock('@/hooks/useTeamAuth', () => ({
+vi.mock("@/hooks/useTeamAuth", () => ({
   default: () => mockUseTeamAuth(),
 }));
 
-vi.mock('@/hooks/useScoreboardStream', () => ({
+vi.mock("@/hooks/useScoreboardStream", () => ({
   default: (...args: unknown[]) => mockUseScoreboardStream(...args),
 }));
 
-vi.mock('@/hooks/useEventTerms', () => ({
-  default: () => ({ event: 'rally', checkpoint: 'posto', checkpoints: 'postos' }),
+vi.mock("@/hooks/useEventTerms", () => ({
+  default: () => ({ event: "rally", checkpoint: "posto", checkpoints: "postos" }),
 }));
 
-vi.mock('@/client', () => ({
+vi.mock("@/client", () => ({
   getCheckpoints: (...args: unknown[]) => mockGetCheckpoints(...args),
   getTeams: (...args: unknown[]) => mockGetTeams(...args),
 }));
 
-vi.mock('@tanstack/react-router', () => ({
+vi.mock("@tanstack/react-router", () => ({
   Navigate: ({ to }: { to: string }) => <div>Navigate to {to}</div>,
-  Link: ({ to, children }: { to: string; children: React.ReactNode }) => <a href={to}>{children}</a>,
+  Link: ({ to, children }: { to: string; children: React.ReactNode }) => (
+    <a href={to}>{children}</a>
+  ),
 }));
 
-vi.mock('@/pages/scoreboard/components/ScoreList', () => ({
+vi.mock("@/pages/scoreboard/components/ScoreList", () => ({
   Podium: ({ teams }: { teams: { name: string }[] }) => (
-    <div>Podium: {teams.map((t) => t.name).join(', ')}</div>
+    <div>Podium: {teams.map((t) => t.name).join(", ")}</div>
   ),
   ScoreRows: ({ teams }: { teams: { name: string }[] }) => (
-    <div>ScoreRows: {teams.map((t) => t.name).join(', ')}</div>
+    <div>ScoreRows: {teams.map((t) => t.name).join(", ")}</div>
   ),
   ScoreboardSkeleton: () => <div>ScoreboardSkeleton</div>,
 }));
 
-vi.mock('@/components/shared', () => ({
+vi.mock("@/components/shared", () => ({
   ProvisionalBadge: () => <div>ProvisionalBadge</div>,
   FreshnessIndicator: () => <div>Freshness</div>,
 }));
@@ -71,7 +73,7 @@ function renderWithClient(ui: React.ReactElement) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
-describe('Scoreboard index', () => {
+describe("Scoreboard index", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseRallySettings.mockReturnValue({ settings: {} });
@@ -81,64 +83,64 @@ describe('Scoreboard index', () => {
     mockGetCheckpoints.mockResolvedValue({ data: [] });
   });
 
-  it('shows a hidden notice when score mode hidden for unprivileged users', () => {
-    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: 'hidden' } });
+  it("shows a hidden notice when score mode hidden for unprivileged users", () => {
+    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: "hidden" } });
     renderWithClient(<Scoreboard />);
-    expect(screen.getByText('Pontuação oculta')).toBeInTheDocument();
+    expect(screen.getByText("Pontuação oculta")).toBeInTheDocument();
   });
 
-  it('shows restricted notice for individual mode without team auth', () => {
-    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: 'individual' } });
+  it("shows restricted notice for individual mode without team auth", () => {
+    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: "individual" } });
     renderWithClient(<Scoreboard />);
-    expect(screen.getByText('Pontuação restrita')).toBeInTheDocument();
+    expect(screen.getByText("Pontuação restrita")).toBeInTheDocument();
   });
 
-  it('shows disabled notice when live leaderboard is off', () => {
+  it("shows disabled notice when live leaderboard is off", () => {
     mockUseRallySettings.mockReturnValue({ settings: { show_live_leaderboard: false } });
     renderWithClient(<Scoreboard />);
-    expect(screen.getByText('Leaderboard indisponível')).toBeInTheDocument();
+    expect(screen.getByText("Leaderboard indisponível")).toBeInTheDocument();
   });
 
-  it('shows empty state when there are no teams', async () => {
+  it("shows empty state when there are no teams", async () => {
     mockGetTeams.mockResolvedValue({ data: [] });
     renderWithClient(<Scoreboard />);
-    expect(await screen.findByText('Ainda não há equipas classificadas.')).toBeInTheDocument();
+    expect(await screen.findByText("Ainda não há equipas classificadas.")).toBeInTheDocument();
   });
 
-  it('renders podium and score rows for teams', async () => {
+  it("renders podium and score rows for teams", async () => {
     mockGetTeams.mockResolvedValue({
       data: [
-        { id: 1, name: 'A', classification: 1, total: 100 },
-        { id: 2, name: 'B', classification: 2, total: 90 },
-        { id: 3, name: 'C', classification: 3, total: 80 },
-        { id: 4, name: 'D', classification: 4, total: 70 },
+        { id: 1, name: "A", classification: 1, total: 100 },
+        { id: 2, name: "B", classification: 2, total: 90 },
+        { id: 3, name: "C", classification: 3, total: 80 },
+        { id: 4, name: "D", classification: 4, total: 70 },
       ],
     });
     renderWithClient(<Scoreboard />);
     expect(await screen.findByText(/Podium:/)).toBeInTheDocument();
     expect(screen.getByText(/ScoreRows: D/)).toBeInTheDocument();
-    expect(screen.getByText('Entrar com a Equipa')).toBeInTheDocument();
+    expect(screen.getByText("Entrar com a Equipa")).toBeInTheDocument();
   });
 
-  it('shows own team card when teamData matches a team', async () => {
+  it("shows own team card when teamData matches a team", async () => {
     mockUseTeamAuth.mockReturnValue({ isAuthenticated: true, teamData: { team_id: 2 } });
     mockGetTeams.mockResolvedValue({
       data: [
-        { id: 1, name: 'A', classification: 1, total: 100 },
-        { id: 2, name: 'B', classification: 2, total: 90 },
+        { id: 1, name: "A", classification: 1, total: 100 },
+        { id: 2, name: "B", classification: 2, total: 90 },
       ],
     });
     renderWithClient(<Scoreboard />);
     await screen.findByText(/Podium:/);
-    expect(screen.getByText('#2')).toBeInTheDocument();
-    expect(screen.getByText('Ver progresso')).toBeInTheDocument();
+    expect(screen.getByText("#2")).toBeInTheDocument();
+    expect(screen.getByText("Ver progresso")).toBeInTheDocument();
   });
 
-  it('allows privileged users to view scoreboard even when hidden', async () => {
-    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: 'hidden' } });
-    mockUseUserStore.mockReturnValue({ scopes: ['admin'] });
+  it("allows privileged users to view scoreboard even when hidden", async () => {
+    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: "hidden" } });
+    mockUseUserStore.mockReturnValue({ scopes: ["admin"] });
     mockGetTeams.mockResolvedValue({ data: [] });
     renderWithClient(<Scoreboard />);
-    expect(await screen.findByText('Ainda não há equipas classificadas.')).toBeInTheDocument();
+    expect(await screen.findByText("Ainda não há equipas classificadas.")).toBeInTheDocument();
   });
 });

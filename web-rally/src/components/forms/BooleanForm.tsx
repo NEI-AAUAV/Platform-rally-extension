@@ -17,7 +17,6 @@ export default function BooleanForm({
   maxBonusPoints,
 }: BaseActivityFormProps) {
   const [isSuccessChecked, setIsSuccessChecked] = useState(false);
-  const [attempts, setAttempts] = useState<number>(1);
   const [notes, setNotes] = useState<string>("");
 
   const {
@@ -27,9 +26,11 @@ export default function BooleanForm({
     setPenalties,
     maxExtraShots,
     maxExtraShotsPerMember,
+    showExtraShots,
     penaltyValues,
     showVomitPenalty,
     showNotDrinkingPenalty,
+    showPenalties,
     globalPenaltyCounters,
     bonuses,
     setBonuses,
@@ -47,7 +48,6 @@ export default function BooleanForm({
   useEffect(() => {
     if (existingResult?.result_data) {
       setIsSuccessChecked((existingResult.result_data.success as boolean) || false);
-      setAttempts((existingResult.result_data.attempts as number) || 1);
       setNotes((existingResult.result_data.notes as string) || "");
     }
   }, [existingResult]);
@@ -60,7 +60,6 @@ export default function BooleanForm({
     onSubmit({
       result_data: {
         success: isSuccessChecked,
-        attempts: attempts,
         notes: notes,
       },
       extra_shots: extraShots,
@@ -116,40 +115,28 @@ export default function BooleanForm({
         </div>
       </div>
 
-      <div>
-        <label htmlFor="attempts-input" className="mb-2 block text-sm font-medium text-foreground">
-          Tentativas
-        </label>
-        <input
-          id="attempts-input"
-          type="number"
-          min="1"
-          value={attempts}
-          onChange={(e) => setAttempts(Number.parseInt(e.target.value, 10) || 1)}
-          className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
-          placeholder="Número de tentativas"
+      {showExtraShots && (
+        <ExtraShotsField
+          idPrefix="extra-shots-input"
+          extraShots={extraShots}
+          onChange={setExtraShots}
+          maxExtraShots={maxExtraShots}
+          maxExtraShotsPerMember={maxExtraShotsPerMember}
         />
-        <p className="mt-1 text-sm text-muted-foreground">Quantas tentativas fez a equipa?</p>
-      </div>
+      )}
 
-      <ExtraShotsField
-        idPrefix="extra-shots-input"
-        extraShots={extraShots}
-        onChange={setExtraShots}
-        maxExtraShots={maxExtraShots}
-        maxExtraShotsPerMember={maxExtraShotsPerMember}
-      />
-
-      <PenaltiesFieldset
-        idPrefix="boolean"
-        penalties={penalties}
-        onChange={setPenalties}
-        penaltyValues={penaltyValues}
-        penaltyCounters={penaltyCounters}
-        globalPenaltyCounters={globalPenaltyCounters}
-        showVomitPenalty={showVomitPenalty}
-        showNotDrinkingPenalty={showNotDrinkingPenalty}
-      />
+      {showPenalties && (
+        <PenaltiesFieldset
+          idPrefix="boolean"
+          penalties={penalties}
+          onChange={setPenalties}
+          penaltyValues={penaltyValues}
+          penaltyCounters={penaltyCounters}
+          globalPenaltyCounters={globalPenaltyCounters}
+          showVomitPenalty={showVomitPenalty}
+          showNotDrinkingPenalty={showNotDrinkingPenalty}
+        />
+      )}
 
       {showBonuses && (
         <BonusesFieldset

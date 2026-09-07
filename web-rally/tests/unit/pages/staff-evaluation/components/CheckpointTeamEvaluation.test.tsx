@@ -1,8 +1,8 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import CheckpointTeamEvaluation from '@/pages/staff-evaluation/components/CheckpointTeamEvaluation';
-import { useUserStore } from '@/stores/useUserStore';
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import CheckpointTeamEvaluation from "@/pages/staff-evaluation/components/CheckpointTeamEvaluation";
+import { useUserStore } from "@/stores/useUserStore";
 
 function renderWithQueryClient(ui: React.ReactElement) {
   const queryClient = new QueryClient({
@@ -29,57 +29,57 @@ const {
   mockGetMyCheckpoint: vi.fn(),
 }));
 
-vi.mock('@/client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/client')>();
+vi.mock("@/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/client")>();
   return {
     ...actual,
     getMyCheckpoint: () => mockGetMyCheckpoint(),
   };
 });
 
-vi.mock('@tanstack/react-router', () => ({
+vi.mock("@tanstack/react-router", () => ({
   useParams: (...args: unknown[]) => mockUseParams(...args),
   useNavigate: () => mockUseNavigate,
 }));
 
-vi.mock('@/hooks/useUser', () => ({
+vi.mock("@/hooks/useUser", () => ({
   default: () => mockUseUser(),
 }));
 
-vi.mock('@/hooks/useRallySettings', () => ({
+vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));
 
-vi.mock('@/hooks/useRallyEventStream', () => ({
+vi.mock("@/hooks/useRallyEventStream", () => ({
   default: (...args: unknown[]) => mockUseRallyEventStream(...args),
 }));
 
-vi.mock('@/pages/staff-evaluation/components/useCheckpointEvaluation', () => ({
+vi.mock("@/pages/staff-evaluation/components/useCheckpointEvaluation", () => ({
   useCheckpointEvaluation: (...args: unknown[]) => mockUseCheckpointEvaluation(...args),
 }));
 
-vi.mock('@/components/checkin/StaffCheckinScanner', () => ({
+vi.mock("@/components/checkin/StaffCheckinScanner", () => ({
   StaffCheckinScanner: ({ onTeamIdentified }: { onTeamIdentified: (id: number) => void }) => (
     <button onClick={() => onTeamIdentified(1)}>scan-team</button>
   ),
 }));
 
-vi.mock('@/pages/staff-evaluation/components/TeamActivitiesList', () => ({
+vi.mock("@/pages/staff-evaluation/components/TeamActivitiesList", () => ({
   TeamActivitiesList: ({ team }: { team: { name: string } }) => (
     <div data-testid="team-activities">{team.name}</div>
   ),
 }));
 
-vi.mock('@/pages/staff-evaluation/components/OfflineQueueBanner', () => ({
+vi.mock("@/pages/staff-evaluation/components/OfflineQueueBanner", () => ({
   default: () => null,
 }));
 
 const baseHookState = {
-  checkpoint: { id: 1, name: 'CP1', order: 2 },
+  checkpoint: { id: 1, name: "CP1", order: 2 },
   checkpointTeams: [
-    { id: 1, name: 'Team A', last_checkpoint_number: 1 },
-    { id: 2, name: 'Team B', last_checkpoint_number: 0 },
-    { id: 3, name: 'Team C', last_checkpoint_number: 2 },
+    { id: 1, name: "Team A", last_checkpoint_number: 1 },
+    { id: 2, name: "Team B", last_checkpoint_number: 0 },
+    { id: 3, name: "Team C", last_checkpoint_number: 2 },
   ],
   teamEvaluationStatus: {},
   teamActivities: [],
@@ -95,86 +95,86 @@ const baseHookState = {
   dismissWarning: vi.fn(),
 };
 
-describe('CheckpointTeamEvaluation', () => {
+describe("CheckpointTeamEvaluation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseUser.mockReturnValue({ isRallyAdmin: true });
-    mockUseParams.mockReturnValue({ checkpointId: '1' });
-    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: 'visible' } });
+    mockUseParams.mockReturnValue({ checkpointId: "1" });
+    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: "visible" } });
     mockUseCheckpointEvaluation.mockReturnValue(baseHookState);
   });
 
-  it('renders foreign post warning when non-admin accesses another post', async () => {
-    useUserStore.setState({ token: 'staff-token' });
+  it("renders foreign post warning when non-admin accesses another post", async () => {
+    useUserStore.setState({ token: "staff-token" });
     mockUseUser.mockReturnValue({ isRallyAdmin: false });
-    mockGetMyCheckpoint.mockResolvedValue({ data: { id: 2, name: 'Outro Posto' } });
+    mockGetMyCheckpoint.mockResolvedValue({ data: { id: 2, name: "Outro Posto" } });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    expect(await screen.findByText('Este não é o teu posto')).toBeInTheDocument();
+    expect(await screen.findByText("Este não é o teu posto")).toBeInTheDocument();
   });
 
-  it('renders not-found state when checkpoint is missing', () => {
+  it("renders not-found state when checkpoint is missing", () => {
     mockUseCheckpointEvaluation.mockReturnValue({ ...baseHookState, checkpoint: undefined });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    expect(screen.getByText('Posto não encontrado')).toBeInTheDocument();
+    expect(screen.getByText("Posto não encontrado")).toBeInTheDocument();
   });
 
-  it('renders team sections, splitting by checkpoint status', () => {
+  it("renders team sections, splitting by checkpoint status", () => {
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    expect(screen.getByText('Equipas para avaliar')).toBeInTheDocument();
-    expect(screen.getByText('Team A')).toBeInTheDocument();
-    expect(screen.getByText('Team B')).toBeInTheDocument();
-    expect(screen.getByText('Team C')).toBeInTheDocument();
+    expect(screen.getByText("Equipas para avaliar")).toBeInTheDocument();
+    expect(screen.getByText("Team A")).toBeInTheDocument();
+    expect(screen.getByText("Team B")).toBeInTheDocument();
+    expect(screen.getByText("Team C")).toBeInTheDocument();
   });
 
-  it('shows no-teams message when checkpointTeams is empty', () => {
+  it("shows no-teams message when checkpointTeams is empty", () => {
     mockUseCheckpointEvaluation.mockReturnValue({ ...baseHookState, checkpointTeams: [] });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    expect(screen.getByText('Nenhuma equipa disponível')).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma equipa disponível")).toBeInTheDocument();
   });
 
-  it('shows team activities detail view when a team is selected', () => {
+  it("shows team activities detail view when a team is selected", () => {
     mockUseCheckpointEvaluation.mockReturnValue({
       ...baseHookState,
-      selectedTeam: { id: 1, name: 'Team A' },
+      selectedTeam: { id: 1, name: "Team A" },
       showTeamList: false,
     });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    expect(screen.getByTestId('team-activities')).toHaveTextContent('Team A');
+    expect(screen.getByTestId("team-activities")).toHaveTextContent("Team A");
   });
 
-  it('shows loading spinner while team activities load', () => {
+  it("shows loading spinner while team activities load", () => {
     mockUseCheckpointEvaluation.mockReturnValue({
       ...baseHookState,
-      selectedTeam: { id: 1, name: 'Team A' },
+      selectedTeam: { id: 1, name: "Team A" },
       showTeamList: false,
       teamActivitiesLoading: true,
     });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    expect(screen.getByText('A carregar atividades...')).toBeInTheDocument();
+    expect(screen.getByText("A carregar atividades...")).toBeInTheDocument();
   });
 
-  it('calls backToTeams when back button clicked', () => {
+  it("calls backToTeams when back button clicked", () => {
     const backToTeams = vi.fn();
     mockUseCheckpointEvaluation.mockReturnValue({
       ...baseHookState,
-      selectedTeam: { id: 1, name: 'Team A' },
+      selectedTeam: { id: 1, name: "Team A" },
       showTeamList: false,
       backToTeams,
     });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    fireEvent.click(screen.getByText('Voltar às equipas'));
+    fireEvent.click(screen.getByText("Voltar às equipas"));
     expect(backToTeams).toHaveBeenCalled();
   });
 
-  it('selects team when scanner identifies a team', () => {
+  it("selects team when scanner identifies a team", () => {
     const selectTeam = vi.fn();
     mockUseCheckpointEvaluation.mockReturnValue({ ...baseHookState, selectTeam });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    fireEvent.click(screen.getByText('scan-team'));
+    fireEvent.click(screen.getByText("scan-team"));
     expect(selectTeam).toHaveBeenCalledWith(baseHookState.checkpointTeams[0]);
   });
 
-  it('does not select a team when scanner reports an unknown team id', () => {
+  it("does not select a team when scanner reports an unknown team id", () => {
     const selectTeam = vi.fn();
     mockUseCheckpointEvaluation.mockReturnValue({
       ...baseHookState,
@@ -182,33 +182,33 @@ describe('CheckpointTeamEvaluation', () => {
       checkpointTeams: [],
     });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    fireEvent.click(screen.getByText('scan-team'));
+    fireEvent.click(screen.getByText("scan-team"));
     expect(selectTeam).not.toHaveBeenCalled();
   });
 
-  it('falls back to order 0 and empty teams when checkpoint.order and checkpointTeams are missing', () => {
+  it("falls back to order 0 and empty teams when checkpoint.order and checkpointTeams are missing", () => {
     mockUseCheckpointEvaluation.mockReturnValue({
       ...baseHookState,
-      checkpoint: { id: 1, name: 'CP1' },
+      checkpoint: { id: 1, name: "CP1" },
       checkpointTeams: undefined,
     });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    expect(screen.getByText('Nenhuma equipa disponível')).toBeInTheDocument();
-    expect(screen.getByText('0/0')).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma equipa disponível")).toBeInTheDocument();
+    expect(screen.getByText("0/0")).toBeInTheDocument();
   });
 
-  it('renders team activities with empty array fallback when teamActivities is undefined', () => {
+  it("renders team activities with empty array fallback when teamActivities is undefined", () => {
     mockUseCheckpointEvaluation.mockReturnValue({
       ...baseHookState,
-      selectedTeam: { id: 1, name: 'Team A' },
+      selectedTeam: { id: 1, name: "Team A" },
       showTeamList: false,
       teamActivities: undefined,
     });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    expect(screen.getByTestId('team-activities')).toHaveTextContent('Team A');
+    expect(screen.getByTestId("team-activities")).toHaveTextContent("Team A");
   });
 
-  it('shows warning dialog when showWarningDialog is true', () => {
+  it("shows warning dialog when showWarningDialog is true", () => {
     mockUseCheckpointEvaluation.mockReturnValue({
       ...baseHookState,
       showWarningDialog: true,
@@ -222,6 +222,6 @@ describe('CheckpointTeamEvaluation', () => {
       },
     });
     renderWithQueryClient(<CheckpointTeamEvaluation />);
-    expect(screen.getByText('Avaliações incompletas detetadas')).toBeInTheDocument();
+    expect(screen.getByText("Avaliações incompletas detetadas")).toBeInTheDocument();
   });
 });

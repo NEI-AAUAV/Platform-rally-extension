@@ -276,7 +276,6 @@ class BooleanResult(BaseModel):
     """Schema for boolean activity results"""
 
     success: bool
-    attempts: int = Field(default=1, ge=1)
     notes: str | None = None
 
 

@@ -1,8 +1,8 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useCheckpointEvaluation } from '@/pages/staff-evaluation/components/useCheckpointEvaluation';
-import { ApiError } from '@/services/apiClient';
+import { renderHook, waitFor, act } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useCheckpointEvaluation } from "@/pages/staff-evaluation/components/useCheckpointEvaluation";
+import { ApiError } from "@/services/apiClient";
 
 const {
   mockGetCheckpoints,
@@ -28,7 +28,7 @@ const {
   mockEnqueue: vi.fn(),
 }));
 
-vi.mock('@/client', () => ({
+vi.mock("@/client", () => ({
   getCheckpoints: mockGetCheckpoints,
   getTeams: mockGetTeams,
   getActivities: mockGetActivities,
@@ -37,19 +37,19 @@ vi.mock('@/client', () => ({
   evaluateTeamActivity: mockEvaluateTeamActivity,
 }));
 
-vi.mock('@/stores/useUserStore', () => ({
+vi.mock("@/stores/useUserStore", () => ({
   useUserStore: () => mockUseUserStore(),
 }));
 
-vi.mock('@/hooks/useUser', () => ({
+vi.mock("@/hooks/useUser", () => ({
   default: () => mockUseUser(),
 }));
 
-vi.mock('@/hooks/use-toast', () => ({
+vi.mock("@/hooks/use-toast", () => ({
   useAppToast: () => mockUseAppToast(),
 }));
 
-vi.mock('@/offline/evalQueue', () => ({
+vi.mock("@/offline/evalQueue", () => ({
   enqueue: (...args: unknown[]) => mockEnqueue(...args),
 }));
 
@@ -58,13 +58,13 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
-const checkpoint = { id: 1, name: 'CP1', order: 2 };
-const teams = [{ id: 1, name: 'Team A', last_checkpoint_number: 1 }] as any[];
+const checkpoint = { id: 1, name: "CP1", order: 2 };
+const teams = [{ id: 1, name: "Team A", last_checkpoint_number: 1 }] as any[];
 
-describe('useCheckpointEvaluation', () => {
+describe("useCheckpointEvaluation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseUserStore.mockReturnValue({ token: 'tok' });
+    mockUseUserStore.mockReturnValue({ token: "tok" });
     mockUseUser.mockReturnValue({ isRallyAdmin: false });
     mockUseAppToast.mockReturnValue({ success: vi.fn(), error: vi.fn() });
     mockGetCheckpoints.mockResolvedValue({ data: [checkpoint] });
@@ -73,14 +73,14 @@ describe('useCheckpointEvaluation', () => {
     mockGetAllActivityResults.mockResolvedValue({ data: [] });
   });
 
-  it('loads checkpoint and teams', async () => {
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+  it("loads checkpoint and teams", async () => {
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
     await waitFor(() => expect(result.current.checkpointTeams).toEqual(teams));
   });
 
-  it('selectTeam and backToTeams toggle state', async () => {
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+  it("selectTeam and backToTeams toggle state", async () => {
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     act(() => result.current.selectTeam(teams[0]!));
@@ -92,95 +92,113 @@ describe('useCheckpointEvaluation', () => {
     expect(result.current.showTeamList).toBe(true);
   });
 
-  it('dismissWarning resets dialog state', async () => {
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+  it("dismissWarning resets dialog state", async () => {
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
     act(() => result.current.dismissWarning());
     expect(result.current.showWarningDialog).toBe(false);
     expect(result.current.evaluationSummary).toBeNull();
   });
 
-  it('handles successful evaluation submit', async () => {
+  it("handles successful evaluation submit", async () => {
     mockEvaluateTeamActivity.mockResolvedValue({ data: { id: 1 } });
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     await act(async () => {
-      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalty_counts: {} });
+      await result.current.handleEvaluateActivity(1, 1, {
+        result_data: {},
+        extra_shots: 0,
+        penalty_counts: {},
+      });
     });
     expect(mockEvaluateTeamActivity).toHaveBeenCalled();
   });
 
-  it('queues evaluation offline on network error', async () => {
-    mockEvaluateTeamActivity.mockRejectedValue(new TypeError('Failed to fetch'));
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+  it("queues evaluation offline on network error", async () => {
+    mockEvaluateTeamActivity.mockRejectedValue(new TypeError("Failed to fetch"));
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     await act(async () => {
-      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalty_counts: {} });
+      await result.current.handleEvaluateActivity(1, 1, {
+        result_data: {},
+        extra_shots: 0,
+        penalty_counts: {},
+      });
     });
     expect(mockEnqueue).toHaveBeenCalled();
   });
 
-  it('surfaces ApiError validation details on submit failure', async () => {
-    const apiError = new ApiError(422, { detail: 'invalid' });
+  it("surfaces ApiError validation details on submit failure", async () => {
+    const apiError = new ApiError(422, { detail: "invalid" });
     mockEvaluateTeamActivity.mockRejectedValue(apiError);
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     await act(async () => {
-      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalty_counts: {} });
+      await result.current.handleEvaluateActivity(1, 1, {
+        result_data: {},
+        extra_shots: 0,
+        penalty_counts: {},
+      });
     });
     expect(mockEvaluateTeamActivity).toHaveBeenCalled();
   });
 
-  it('rethrows a non-ApiError, non-network error via onError toast', async () => {
+  it("rethrows a non-ApiError, non-network error via onError toast", async () => {
     const mockToastError = vi.fn();
     mockUseAppToast.mockReturnValue({ success: vi.fn(), error: mockToastError });
-    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
-    mockEvaluateTeamActivity.mockRejectedValue(new Error('boom'));
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
+    mockEvaluateTeamActivity.mockRejectedValue(new Error("boom"));
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     await act(async () => {
-      await result.current.handleEvaluateActivity(1, 1, { result_data: {}, extra_shots: 0, penalty_counts: {} });
+      await result.current.handleEvaluateActivity(1, 1, {
+        result_data: {},
+        extra_shots: 0,
+        penalty_counts: {},
+      });
     });
 
     expect(mockEnqueue).not.toHaveBeenCalled();
     expect(mockToastError).toHaveBeenCalled();
   });
 
-  it('returns staff activities directly when staff endpoint succeeds and checkpoint matches', async () => {
+  it("returns staff activities directly when staff endpoint succeeds and checkpoint matches", async () => {
     mockUseUser.mockReturnValue({ isRallyAdmin: false });
     mockGetTeamActivitiesForEvaluation.mockResolvedValue({
       data: {
-        activities: [{ id: 10, evaluation_status: 'pending' }],
+        activities: [{ id: 10, evaluation_status: "pending" }],
         evaluation_summary: null,
       },
     });
-    const matchingTeam = { id: 1, name: 'Team A', last_checkpoint_number: 1 } as any;
+    const matchingTeam = { id: 1, name: "Team A", last_checkpoint_number: 1 } as any;
     mockGetTeams.mockResolvedValue({ data: [matchingTeam] });
 
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     act(() => result.current.selectTeam(matchingTeam));
 
-    await waitFor(() => expect(result.current.teamActivities).toEqual([
-      { id: 10, evaluation_status: 'pending' },
-    ]));
+    await waitFor(() =>
+      expect(result.current.teamActivities).toEqual([{ id: 10, evaluation_status: "pending" }]),
+    );
     expect(mockGetTeamActivitiesForEvaluation).toHaveBeenCalled();
   });
 
-  it('M7: falls back to general activities on a 404 from the staff endpoint', async () => {
+  it("M7: falls back to general activities on a 404 from the staff endpoint", async () => {
     mockUseUser.mockReturnValue({ isRallyAdmin: false });
-    mockGetTeamActivitiesForEvaluation.mockRejectedValue(new ApiError(404, { detail: 'not found' }));
+    mockGetTeamActivitiesForEvaluation.mockRejectedValue(
+      new ApiError(404, { detail: "not found" }),
+    );
     mockGetActivities.mockResolvedValue({ data: { activities: [{ id: 20, checkpoint_id: 1 }] } });
     mockGetAllActivityResults.mockResolvedValue({ data: [] });
-    const matchingTeam = { id: 1, name: 'Team A', last_checkpoint_number: 1 } as any;
+    const matchingTeam = { id: 1, name: "Team A", last_checkpoint_number: 1 } as any;
     mockGetTeams.mockResolvedValue({ data: [matchingTeam] });
 
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     act(() => result.current.selectTeam(matchingTeam));
@@ -189,15 +207,15 @@ describe('useCheckpointEvaluation', () => {
     expect(mockGetActivities).toHaveBeenCalled();
   });
 
-  it('M7 regression: a 403 from the staff endpoint propagates as a query error instead of silently falling back', async () => {
+  it("M7 regression: a 403 from the staff endpoint propagates as a query error instead of silently falling back", async () => {
     mockUseUser.mockReturnValue({ isRallyAdmin: false });
     mockGetTeamActivitiesForEvaluation.mockRejectedValue(
-      new ApiError(403, { detail: 'staff scoring desligado' }),
+      new ApiError(403, { detail: "staff scoring desligado" }),
     );
-    const matchingTeam = { id: 1, name: 'Team A', last_checkpoint_number: 1 } as any;
+    const matchingTeam = { id: 1, name: "Team A", last_checkpoint_number: 1 } as any;
     mockGetTeams.mockResolvedValue({ data: [matchingTeam] });
 
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     mockGetActivities.mockClear();
@@ -209,13 +227,13 @@ describe('useCheckpointEvaluation', () => {
     expect(mockGetActivities).not.toHaveBeenCalled();
   });
 
-  it('shows warning dialog when rally admin evaluates a team from a different checkpoint', async () => {
+  it("shows warning dialog when rally admin evaluates a team from a different checkpoint", async () => {
     mockUseUser.mockReturnValue({ isRallyAdmin: true });
-    const mismatchedTeam = { id: 2, name: 'Team B', last_checkpoint_number: 0 } as any;
+    const mismatchedTeam = { id: 2, name: "Team B", last_checkpoint_number: 0 } as any;
     mockGetTeams.mockResolvedValue({ data: [mismatchedTeam] });
     mockGetActivities.mockResolvedValue({ data: { activities: [] } });
 
-    const { result } = renderHook(() => useCheckpointEvaluation('1'), { wrapper });
+    const { result } = renderHook(() => useCheckpointEvaluation("1"), { wrapper });
     await waitFor(() => expect(result.current.checkpoint).toEqual(checkpoint));
 
     act(() => result.current.selectTeam(mismatchedTeam));

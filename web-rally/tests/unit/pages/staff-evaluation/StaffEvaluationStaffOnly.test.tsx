@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import StaffEvaluationPage from '@/pages/staff-evaluation/staff-only';
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import StaffEvaluationPage from "@/pages/staff-evaluation/staff-only";
 
 const { mockUseUserStore, mockNavigate, mockGetMyCheckpoint, mockUseQuery } = vi.hoisted(() => ({
   mockUseUserStore: vi.fn(),
@@ -9,41 +9,41 @@ const { mockUseUserStore, mockNavigate, mockGetMyCheckpoint, mockUseQuery } = vi
   mockUseQuery: vi.fn(),
 }));
 
-vi.mock('@/stores/useUserStore', () => ({
+vi.mock("@/stores/useUserStore", () => ({
   useUserStore: () => mockUseUserStore(),
 }));
 
-vi.mock('@tanstack/react-router', () => ({
+vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => mockNavigate,
 }));
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock("@tanstack/react-query", () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
 }));
 
-vi.mock('@/client', () => ({
+vi.mock("@/client", () => ({
   getMyCheckpoint: mockGetMyCheckpoint,
 }));
 
-describe('StaffEvaluationPage (staff-only)', () => {
+describe("StaffEvaluationPage (staff-only)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseUserStore.mockReturnValue({ token: 'tok' });
+    mockUseUserStore.mockReturnValue({ token: "tok" });
   });
 
-  it('shows no-checkpoint state when there is no myCheckpoint', () => {
+  it("shows no-checkpoint state when there is no myCheckpoint", () => {
     mockUseQuery.mockReturnValue({ data: undefined });
     render(<StaffEvaluationPage />);
-    expect(screen.getByText('Sem posto atribuído')).toBeInTheDocument();
+    expect(screen.getByText("Sem posto atribuído")).toBeInTheDocument();
   });
 
-  it('navigates and shows redirect message when checkpoint assigned', () => {
+  it("navigates and shows redirect message when checkpoint assigned", () => {
     mockUseQuery.mockReturnValue({ data: { id: 42 } });
     render(<StaffEvaluationPage />);
-    expect(screen.getByText('A redirecionar para a avaliação do teu posto...')).toBeInTheDocument();
+    expect(screen.getByText("A redirecionar para a avaliação do teu posto...")).toBeInTheDocument();
     expect(mockNavigate).toHaveBeenCalledWith({
-      to: '/staff-evaluation/checkpoint/$checkpointId',
-      params: { checkpointId: '42' },
+      to: "/staff-evaluation/checkpoint/$checkpointId",
+      params: { checkpointId: "42" },
     });
   });
 });

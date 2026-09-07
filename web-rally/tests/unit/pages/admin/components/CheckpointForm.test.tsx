@@ -254,9 +254,7 @@ describe("CheckpointForm", () => {
 
   it("hides 'Começar a preencher' once a draft is pending or while editing", () => {
     renderForm({ hasPendingDraft: true });
-    expect(
-      screen.queryByRole("button", { name: /Começar a preencher/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Começar a preencher/i })).not.toBeInTheDocument();
   });
 
   it("shows the cancel button once a draft is pending, even though not editing", () => {

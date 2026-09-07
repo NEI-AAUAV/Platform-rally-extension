@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import GuidePage from '@/pages/guide/index';
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import GuidePage from "@/pages/guide/index";
 
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({
@@ -16,64 +16,70 @@ const { mockUseGuideAccess, mockListGuideCheckpoints } = vi.hoisted(() => ({
   mockListGuideCheckpoints: vi.fn(),
 }));
 
-vi.mock('@/hooks/useGuideAccess', () => ({
+vi.mock("@/hooks/useGuideAccess", () => ({
   default: () => mockUseGuideAccess(),
 }));
 
-vi.mock('@/client', () => ({
+vi.mock("@/client", () => ({
   listGuideCheckpoints: (...args: unknown[]) => mockListGuideCheckpoints(...args),
 }));
 
-vi.mock('@/components/shared', () => ({
+vi.mock("@/components/shared", () => ({
   LoadingState: ({ message }: { message: string }) => <div>{message}</div>,
 }));
 
-vi.mock('@tanstack/react-router', () => ({
+vi.mock("@tanstack/react-router", () => ({
   Navigate: ({ to }: { to: string }) => <div>Navigate to {to}</div>,
 }));
 
-describe('GuidePage', () => {
+describe("GuidePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListGuideCheckpoints.mockResolvedValue({ data: [] });
   });
 
-  it('shows loading state while access is loading', () => {
+  it("shows loading state while access is loading", () => {
     mockUseGuideAccess.mockReturnValue({ isAllowed: false, isLoading: true });
     renderWithClient(<GuidePage />);
-    expect(screen.getByText('A carregar…')).toBeInTheDocument();
+    expect(screen.getByText("A carregar…")).toBeInTheDocument();
   });
 
-  it('redirects home when not allowed', () => {
+  it("redirects home when not allowed", () => {
     mockUseGuideAccess.mockReturnValue({ isAllowed: false, isLoading: false });
     renderWithClient(<GuidePage />);
-    expect(screen.getByText('Navigate to /')).toBeInTheDocument();
+    expect(screen.getByText("Navigate to /")).toBeInTheDocument();
   });
 
-  it('shows empty state when there are no checkpoints', async () => {
+  it("shows empty state when there are no checkpoints", async () => {
     mockUseGuideAccess.mockReturnValue({ isAllowed: true, isLoading: false });
     mockListGuideCheckpoints.mockResolvedValue({ data: [] });
     renderWithClient(<GuidePage />);
-    expect(await screen.findByText('Sem postos disponíveis')).toBeInTheDocument();
+    expect(await screen.findByText("Sem postos disponíveis")).toBeInTheDocument();
   });
 
-  it('renders checkpoint cards and expands to show media/indications', async () => {
+  it("renders checkpoint cards and expands to show media/indications", async () => {
     mockUseGuideAccess.mockReturnValue({ isAllowed: true, isLoading: false });
     mockListGuideCheckpoints.mockResolvedValue({
       data: [
         {
           id: 1,
-          name: 'Checkpoint A',
+          name: "Checkpoint A",
           order: 1,
           latitude: 40.1,
           longitude: -8.4,
-          description: 'A nice place',
+          description: "A nice place",
           indications: [
-            { id: 1, order: 1, hint: 'Look up', question: 'What color?', expected_answer: 'Blue' },
+            { id: 1, order: 1, hint: "Look up", question: "What color?", expected_answer: "Blue" },
           ],
           media: [
-            { id: 1, kind: 'photo', url: 'http://example.com/a.jpg', display_order: 1, caption: null },
-            { id: 2, kind: 'fun_fact', caption: 'Fun fact here', display_order: 1 },
+            {
+              id: 1,
+              kind: "photo",
+              url: "http://example.com/a.jpg",
+              display_order: 1,
+              caption: null,
+            },
+            { id: 2, kind: "fun_fact", caption: "Fun fact here", display_order: 1 },
           ],
         },
       ],
@@ -81,29 +87,29 @@ describe('GuidePage', () => {
     const user = userEvent.setup();
     renderWithClient(<GuidePage />);
 
-    const button = await screen.findByText('Checkpoint A');
+    const button = await screen.findByText("Checkpoint A");
     expect(screen.getByText(/40.10000/)).toBeInTheDocument();
 
     await user.click(button);
 
-    expect(screen.getByText('A nice place')).toBeInTheDocument();
-    expect(screen.getByText('Look up')).toBeInTheDocument();
-    expect(screen.getByText('What color?')).toBeInTheDocument();
-    expect(screen.getByText('Blue')).toBeInTheDocument();
-    expect(screen.getByText('Fun fact here')).toBeInTheDocument();
+    expect(screen.getByText("A nice place")).toBeInTheDocument();
+    expect(screen.getByText("Look up")).toBeInTheDocument();
+    expect(screen.getByText("What color?")).toBeInTheDocument();
+    expect(screen.getByText("Blue")).toBeInTheDocument();
+    expect(screen.getByText("Fun fact here")).toBeInTheDocument();
 
-    const image = screen.getByAltText('Foto 1');
-    await user.click(image.closest('button')!);
-    expect(screen.getByLabelText('Fechar imagem ampliada')).toBeInTheDocument();
+    const image = screen.getByAltText("Foto 1");
+    await user.click(image.closest("button")!);
+    expect(screen.getByLabelText("Fechar imagem ampliada")).toBeInTheDocument();
   });
 
-  it('renders media empty state when a checkpoint has no media', async () => {
+  it("renders media empty state when a checkpoint has no media", async () => {
     mockUseGuideAccess.mockReturnValue({ isAllowed: true, isLoading: false });
     mockListGuideCheckpoints.mockResolvedValue({
       data: [
         {
           id: 2,
-          name: 'Checkpoint B',
+          name: "Checkpoint B",
           order: 2,
           latitude: null,
           longitude: null,
@@ -116,33 +122,33 @@ describe('GuidePage', () => {
     const user = userEvent.setup();
     renderWithClient(<GuidePage />);
 
-    const button = await screen.findByText('Checkpoint B');
+    const button = await screen.findByText("Checkpoint B");
     await user.click(button);
-    expect(screen.getByText('Sem media disponível')).toBeInTheDocument();
+    expect(screen.getByText("Sem media disponível")).toBeInTheDocument();
   });
 
-  it('shows every checkpoint, with the current one highlighted and expanded by default', async () => {
+  it("shows every checkpoint, with the current one highlighted and expanded by default", async () => {
     mockUseGuideAccess.mockReturnValue({ isAllowed: true, isLoading: false });
     mockListGuideCheckpoints.mockResolvedValue({
       data: [
         {
           id: 1,
-          name: 'Checkpoint A',
+          name: "Checkpoint A",
           order: 1,
           latitude: null,
           longitude: null,
-          description: 'Já resolvido',
+          description: "Já resolvido",
           indications: [],
           media: [],
           is_current: false,
         },
         {
           id: 2,
-          name: 'Checkpoint B',
+          name: "Checkpoint B",
           order: 2,
           latitude: null,
           longitude: null,
-          description: 'A equipa está aqui agora',
+          description: "A equipa está aqui agora",
           indications: [],
           media: [],
           is_current: true,
@@ -151,29 +157,29 @@ describe('GuidePage', () => {
     });
     renderWithClient(<GuidePage />);
 
-    expect(await screen.findByText('Checkpoint A')).toBeInTheDocument();
-    expect(screen.getByText('Checkpoint B')).toBeInTheDocument();
-    expect(screen.getByText('Atual')).toBeInTheDocument();
+    expect(await screen.findByText("Checkpoint A")).toBeInTheDocument();
+    expect(screen.getByText("Checkpoint B")).toBeInTheDocument();
+    expect(screen.getByText("Atual")).toBeInTheDocument();
 
     // Current post starts expanded (its description shows without a click);
     // the other stays collapsed.
-    expect(screen.getByText('A equipa está aqui agora')).toBeInTheDocument();
-    expect(screen.queryByText('Já resolvido')).not.toBeInTheDocument();
+    expect(screen.getByText("A equipa está aqui agora")).toBeInTheDocument();
+    expect(screen.queryByText("Já resolvido")).not.toBeInTheDocument();
   });
 
-  it('shows the staff script and the challenge brief to whoever is at the post', async () => {
+  it("shows the staff script and the challenge brief to whoever is at the post", async () => {
     mockUseGuideAccess.mockReturnValue({ isAllowed: true, isLoading: false });
     mockListGuideCheckpoints.mockResolvedValue({
       data: [
         {
           id: 3,
-          name: 'Cantina de Santiago',
+          name: "Cantina de Santiago",
           order: 3,
           latitude: null,
           longitude: null,
           description: null,
-          staff_script: 'Relembrar que existem cantinas',
-          challenge_brief: 'Perguntas dois a dois; falha bebe',
+          staff_script: "Relembrar que existem cantinas",
+          challenge_brief: "Perguntas dois a dois; falha bebe",
           indications: [],
           media: [],
         },
@@ -182,9 +188,9 @@ describe('GuidePage', () => {
     const user = userEvent.setup();
     renderWithClient(<GuidePage />);
 
-    await user.click(await screen.findByText('Cantina de Santiago'));
+    await user.click(await screen.findByText("Cantina de Santiago"));
 
-    expect(screen.getByText('Relembrar que existem cantinas')).toBeInTheDocument();
-    expect(screen.getByText('Perguntas dois a dois; falha bebe')).toBeInTheDocument();
+    expect(screen.getByText("Relembrar que existem cantinas")).toBeInTheDocument();
+    expect(screen.getByText("Perguntas dois a dois; falha bebe")).toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Checkpoints from '@/pages/checkpoints/index';
+import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Checkpoints from "@/pages/checkpoints/index";
 
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({
@@ -19,44 +19,42 @@ const { mockGetCheckpoints, mockUseRallySettings, mockUseTeamAuth, mockUseUserSt
   }),
 );
 
-vi.mock('@/client', () => ({
+vi.mock("@/client", () => ({
   getCheckpoints: (...args: unknown[]) => mockGetCheckpoints(...args),
 }));
 
-vi.mock('@/hooks/useRallySettings', () => ({
+vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));
 
-vi.mock('@/hooks/useEventTerms', () => ({
-  default: () => ({ event: 'rally', checkpoint: 'posto', checkpoints: 'postos' }),
+vi.mock("@/hooks/useEventTerms", () => ({
+  default: () => ({ event: "rally", checkpoint: "posto", checkpoints: "postos" }),
 }));
 
-vi.mock('@/hooks/useTeamAuth', () => ({
+vi.mock("@/hooks/useTeamAuth", () => ({
   default: () => mockUseTeamAuth(),
 }));
 
-vi.mock('@/components/shared', () => ({
+vi.mock("@/components/shared", () => ({
   LoadingState: ({ message }: { message: string }) => <div>{message}</div>,
 }));
 
-vi.mock('@/stores/useUserStore', () => ({
+vi.mock("@/stores/useUserStore", () => ({
   useUserStore: (selector: (state: unknown) => unknown) => selector(mockUseUserStore()),
 }));
 
-vi.mock('@tanstack/react-router', () => ({
+vi.mock("@tanstack/react-router", () => ({
   Navigate: ({ to }: { to: string }) => <div>Navigate to {to}</div>,
 }));
 
-vi.mock('@/pages/checkpoints/components', () => ({
+vi.mock("@/pages/checkpoints/components", () => ({
   CheckpointList: ({ checkpoints }: { checkpoints: { id: number; name: string }[] }) => (
-    <div>
-      CheckpointList: {checkpoints.map((c) => c.name).join(', ')}
-    </div>
+    <div>CheckpointList: {checkpoints.map((c) => c.name).join(", ")}</div>
   ),
   MapSection: () => <div>MapSection</div>,
 }));
 
-describe('Checkpoints index', () => {
+describe("Checkpoints index", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseRallySettings.mockReturnValue({ settings: { show_checkpoint_map: true } });
@@ -65,41 +63,41 @@ describe('Checkpoints index', () => {
     mockGetCheckpoints.mockResolvedValue({ data: [] });
   });
 
-  it('redirects team users when checkpoint map is not public and user unprivileged', () => {
+  it("redirects team users when checkpoint map is not public and user unprivileged", () => {
     mockUseRallySettings.mockReturnValue({ settings: { show_checkpoint_map: false } });
     mockUseTeamAuth.mockReturnValue({ isAuthenticated: true });
     mockUseUserStore.mockReturnValue({ scopes: [] });
     renderWithClient(<Checkpoints />);
-    expect(screen.getByText('Navigate to /team-progress')).toBeInTheDocument();
+    expect(screen.getByText("Navigate to /team-progress")).toBeInTheDocument();
   });
 
-  it('shows loading state while fetching checkpoints', () => {
+  it("shows loading state while fetching checkpoints", () => {
     mockGetCheckpoints.mockReturnValue(new Promise(() => {}));
     renderWithClient(<Checkpoints />);
-    expect(screen.getByText('A carregar postos...')).toBeInTheDocument();
+    expect(screen.getByText("A carregar postos...")).toBeInTheDocument();
   });
 
-  it('renders sorted checkpoints once loaded', async () => {
+  it("renders sorted checkpoints once loaded", async () => {
     mockGetCheckpoints.mockResolvedValue({
       data: [
-        { id: 2, name: 'Second', order: 2 },
-        { id: 1, name: 'First', order: 1 },
+        { id: 2, name: "Second", order: 2 },
+        { id: 1, name: "First", order: 1 },
       ],
     });
     renderWithClient(<Checkpoints />);
     await waitFor(() => {
-      expect(screen.getByText('CheckpointList: First, Second')).toBeInTheDocument();
+      expect(screen.getByText("CheckpointList: First, Second")).toBeInTheDocument();
     });
   });
 
-  it('allows privileged staff to see postos even when map is not public', async () => {
+  it("allows privileged staff to see postos even when map is not public", async () => {
     mockUseRallySettings.mockReturnValue({ settings: { show_checkpoint_map: false } });
     mockUseTeamAuth.mockReturnValue({ isAuthenticated: true });
-    mockUseUserStore.mockReturnValue({ scopes: ['rally-staff'] });
+    mockUseUserStore.mockReturnValue({ scopes: ["rally-staff"] });
     mockGetCheckpoints.mockResolvedValue({ data: [] });
     renderWithClient(<Checkpoints />);
     await waitFor(() => {
-      expect(screen.getByText('CheckpointList:')).toBeInTheDocument();
+      expect(screen.getByText("CheckpointList:")).toBeInTheDocument();
     });
   });
 });

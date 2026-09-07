@@ -40,7 +40,6 @@ class BooleanActivity(BaseActivity):
             "type": "object",
             "properties": {
                 "success": {"type": "boolean"},
-                "attempts": {"type": "integer", "minimum": 1},
                 "notes": {"type": "string"},
             },
             "required": ["success"],

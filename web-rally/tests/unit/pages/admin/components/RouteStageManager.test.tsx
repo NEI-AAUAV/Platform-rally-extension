@@ -112,9 +112,11 @@ describe("RouteStageManager", () => {
     fireEvent.click(button);
 
     await waitFor(() =>
-      expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
-        body: expect.objectContaining({ name: "Bares" }),
-      })),
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({ name: "Bares" }),
+        }),
+      ),
     );
   });
 
@@ -168,9 +170,7 @@ describe("RouteStageManager", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apagar etapa Universidade" }));
 
     await waitFor(() => expect(mockDelete).toHaveBeenCalledWith({ path: { id: 1 } }));
-    expect(mockToast.success).toHaveBeenCalledWith(
-      "Etapa apagada — os postos ficaram sem etapa",
-    );
+    expect(mockToast.success).toHaveBeenCalledWith("Etapa apagada — os postos ficaram sem etapa");
   });
 
   it("surfaces a failed create as an error toast", async () => {

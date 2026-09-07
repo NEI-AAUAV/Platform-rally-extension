@@ -1,50 +1,22 @@
-import type { ComponentProps } from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
-import TeamVsForm from '@/components/forms/TeamVsForm';
-import type { ListingTeam } from '@/client';
-
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { vi, describe, it, expect, beforeEach } from "vitest";
+import { mockUseRallySettings, mockToast } from "../../rallyFormMocks";
+import TeamVsForm from "@/components/forms/TeamVsForm";
+import type { ListingTeam } from "@/client";
 
 // Use vi.hoisted() so these are initialized before vi.mock factories run
-const { mockUseRallySettings, mockToast, mockGetTeamOpponent, mockGetTeams } = vi.hoisted(() => ({
-  mockUseRallySettings: vi.fn(),
-  mockToast: { error: vi.fn(), success: vi.fn() },
+const { mockGetTeamOpponent, mockGetTeams } = vi.hoisted(() => ({
   mockGetTeamOpponent: vi.fn(),
   mockGetTeams: vi.fn(),
 }));
 
-// Mock dependencies
-vi.mock('@/components/themes/bloody', () => ({
-  BloodyButton: ({ children, ...props }: ComponentProps<'button'>) => <button {...props}>{children}</button>,
-}));
-
-vi.mock('@/hooks/useGlobalPenaltyCounters', () => ({
-  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
-  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
-  globalCounterKey: (id: number) => 'g_' + id,
-}));
-
-vi.mock("@/hooks/useGlobalBonusCounters", () => ({
-  useGlobalBonusCounters: () => ({ globalBonusCounters: [], isLoading: false }),
-  default: () => ({ globalBonusCounters: [], isLoading: false }),
-  globalBonusKey: (id: number) => "gb_" + id,
-}));
-
-vi.mock('@/hooks/useRallySettings', () => ({
-  default: () => mockUseRallySettings(),
-}));
-
-vi.mock('@/hooks/use-toast', () => ({
-  useAppToast: () => mockToast,
-}));
-
-vi.mock('@/client', () => ({
+vi.mock("@/client", () => ({
   getTeamOpponent: mockGetTeamOpponent,
   getTeams: mockGetTeams,
 }));
 
-describe('TeamVsForm', () => {
-  const mockTeam = { id: 1, name: 'Team A' } as ListingTeam;
+describe("TeamVsForm", () => {
+  const mockTeam = { id: 1, name: "Team A" } as ListingTeam;
   const mockOnSubmit = vi.fn();
 
   beforeEach(() => {
@@ -60,13 +32,13 @@ describe('TeamVsForm', () => {
     mockGetTeamOpponent.mockResolvedValue({ data: {} });
     mockGetTeams.mockResolvedValue({
       data: [
-        { id: 2, name: 'Team B' },
-        { id: 3, name: 'Team C' },
+        { id: 2, name: "Team B" },
+        { id: 3, name: "Team C" },
       ],
     });
   });
 
-  it('renders correctly with tiered scoring', async () => {
+  it("renders correctly with tiered scoring", async () => {
     const config = {
       base_points: 10,
       completion_points: 20,
@@ -74,38 +46,28 @@ describe('TeamVsForm', () => {
     };
 
     render(
-      <TeamVsForm
-        team={mockTeam}
-        config={config}
-        onSubmit={mockOnSubmit}
-        isSubmitting={false}
-      />
+      <TeamVsForm team={mockTeam} config={config} onSubmit={mockOnSubmit} isSubmitting={false} />,
     );
 
-    expect(screen.getByText('Resultado do confronto')).toBeInTheDocument();
-    expect(screen.getByText('Desafio concluído?')).toBeInTheDocument();
-    expect(screen.getByText('Pontuação estimada')).toBeInTheDocument();
+    expect(screen.getByText("Resultado do confronto")).toBeInTheDocument();
+    expect(screen.getByText("Desafio concluído?")).toBeInTheDocument();
+    expect(screen.getByText("Pontuação estimada")).toBeInTheDocument();
     // Base points (10) + Completion (20) + Win (30) = 60
-    expect(screen.getByText('60 pts')).toBeInTheDocument();
+    expect(screen.getByText("60 pts")).toBeInTheDocument();
   });
 
-  it('renders correctly without tiered scoring (backwards compatibility)', async () => {
+  it("renders correctly without tiered scoring (backwards compatibility)", async () => {
     const config = { win_points: 100 }; // No base/completion
 
     render(
-      <TeamVsForm
-        team={mockTeam}
-        config={config}
-        onSubmit={mockOnSubmit}
-        isSubmitting={false}
-      />
+      <TeamVsForm team={mockTeam} config={config} onSubmit={mockOnSubmit} isSubmitting={false} />,
     );
 
-    expect(screen.queryByText('Desafio concluído?')).not.toBeInTheDocument();
-    expect(screen.queryByText('Pontuação estimada')).not.toBeInTheDocument();
+    expect(screen.queryByText("Desafio concluído?")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pontuação estimada")).not.toBeInTheDocument();
   });
 
-  it('updates completed state and score preview', async () => {
+  it("updates completed state and score preview", async () => {
     const config = {
       base_points: 10,
       completion_points: 20,
@@ -113,26 +75,21 @@ describe('TeamVsForm', () => {
     };
 
     render(
-      <TeamVsForm
-        team={mockTeam}
-        config={config}
-        onSubmit={mockOnSubmit}
-        isSubmitting={false}
-      />
+      <TeamVsForm team={mockTeam} config={config} onSubmit={mockOnSubmit} isSubmitting={false} />,
     );
 
     // Initial state: Completed (true) -> 60 pts
-    expect(screen.getByText('60 pts')).toBeInTheDocument();
+    expect(screen.getByText("60 pts")).toBeInTheDocument();
 
     // Click toggle to turn off completed
-    fireEvent.click(screen.getByTestId('toggle-completed'));
+    fireEvent.click(screen.getByTestId("toggle-completed"));
 
     // Should now be incomplete -> 40 pts (10 base + 30 win)
-    expect(screen.getByText('Não completou o desafio')).toBeInTheDocument();
-    expect(screen.getByText('40 pts')).toBeInTheDocument();
+    expect(screen.getByText("Não completou o desafio")).toBeInTheDocument();
+    expect(screen.getByText("40 pts")).toBeInTheDocument();
   });
 
-  it('updates score based on result selection', async () => {
+  it("updates score based on result selection", async () => {
     const config = {
       base_points: 10,
       completion_points: 20,
@@ -142,45 +99,35 @@ describe('TeamVsForm', () => {
     };
 
     render(
-      <TeamVsForm
-        team={mockTeam}
-        config={config}
-        onSubmit={mockOnSubmit}
-        isSubmitting={false}
-      />
+      <TeamVsForm team={mockTeam} config={config} onSubmit={mockOnSubmit} isSubmitting={false} />,
     );
 
     // Initial (Win): 60 pts
-    expect(screen.getByText('60 pts')).toBeInTheDocument();
+    expect(screen.getByText("60 pts")).toBeInTheDocument();
 
     // Change to Draw
-    fireEvent.change(screen.getByTestId('select-result'), {
-      target: { value: 'draw' },
+    fireEvent.change(screen.getByTestId("select-result"), {
+      target: { value: "draw" },
     });
     // Draw (15) + Base (10) + Completion (20) = 45
-    expect(screen.getByText('45 pts')).toBeInTheDocument();
+    expect(screen.getByText("45 pts")).toBeInTheDocument();
 
     // Change to Lose
-    fireEvent.change(screen.getByTestId('select-result'), {
-      target: { value: 'lose' },
+    fireEvent.change(screen.getByTestId("select-result"), {
+      target: { value: "lose" },
     });
     // Lose (5) + Base (10) + Completion (20) = 35
-    expect(screen.getByText('35 pts')).toBeInTheDocument();
+    expect(screen.getByText("35 pts")).toBeInTheDocument();
   });
 
-  it('submits correct data including completed status', async () => {
+  it("submits correct data including completed status", async () => {
     const config = {
       base_points: 10,
       completion_points: 20,
     };
 
     render(
-      <TeamVsForm
-        team={mockTeam}
-        config={config}
-        onSubmit={mockOnSubmit}
-        isSubmitting={false}
-      />
+      <TeamVsForm team={mockTeam} config={config} onSubmit={mockOnSubmit} isSubmitting={false} />,
     );
 
     // Wait for teams to load
@@ -189,19 +136,20 @@ describe('TeamVsForm', () => {
     });
 
     // Select opponent
-    fireEvent.change(screen.getAllByRole('combobox')[1]!, { // Opponent select
-      target: { value: '2' }
+    fireEvent.change(screen.getAllByRole("combobox")[1]!, {
+      // Opponent select
+      target: { value: "2" },
     });
 
     // Submit
-    fireEvent.click(screen.getByText('Submeter avaliação'));
+    fireEvent.click(screen.getByText("Submeter avaliação"));
 
     expect(mockOnSubmit).toHaveBeenCalledWith({
       result_data: {
-        result: 'win', // default
+        result: "win", // default
         completed: true, // default
         opponent_team_id: 2,
-        notes: '',
+        notes: "",
       },
       extra_shots: 0,
       penalty_counts: {},
@@ -209,91 +157,77 @@ describe('TeamVsForm', () => {
     });
   });
 
-  it('pre-selects opponent if API returns one', async () => {
+  it("pre-selects opponent if API returns one", async () => {
     mockGetTeamOpponent.mockResolvedValue({
-      data: { opponent_id: 3, opponent_name: 'Team C' },
+      data: { opponent_id: 3, opponent_name: "Team C" },
     });
 
-    render(
-      <TeamVsForm
-        team={mockTeam}
-        onSubmit={mockOnSubmit}
-        isSubmitting={false}
-        config={{}}
-      />
-    );
-
+    render(<TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />);
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Team C')).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Team C")).toBeInTheDocument();
       // Should see "Opponent automatically set"
       expect(screen.getByText(/Adversário definido automaticamente/i)).toBeInTheDocument();
     });
   });
 
-  it('falls back to manual selection when fetchPreselectedOpponent throws', async () => {
-    mockGetTeamOpponent.mockRejectedValue(new Error('network error'));
+  it("falls back to manual selection when fetchPreselectedOpponent throws", async () => {
+    mockGetTeamOpponent.mockRejectedValue(new Error("network error"));
 
-    render(
-      <TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />
-    );
+    render(<TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />);
 
     await waitFor(() => {
       expect(mockGetTeams).toHaveBeenCalled();
     });
-    expect(screen.getByText('Seleciona a equipa adversária')).toBeInTheDocument();
+    expect(screen.getByText("Seleciona a equipa adversária")).toBeInTheDocument();
   });
 
-  it('shows loading text and disables select while teams are loading', async () => {
+  it("shows loading text and disables select while teams are loading", async () => {
     let resolveTeams: (value: { data: ListingTeam[] }) => void = () => {};
     mockGetTeams.mockReturnValue(
       new Promise((resolve) => {
         resolveTeams = resolve;
-      })
+      }),
     );
 
-    render(
-      <TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />
-    );
+    render(<TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />);
 
     await waitFor(() => {
-      expect(screen.getByText('A carregar equipas...')).toBeInTheDocument();
+      expect(screen.getByText("A carregar equipas...")).toBeInTheDocument();
     });
 
-    resolveTeams({ data: [{ id: 2, name: 'Team B' } as ListingTeam] });
+    resolveTeams({ data: [{ id: 2, name: "Team B" } as ListingTeam] });
 
     await waitFor(() => {
-      expect(screen.getByText('Seleciona a equipa adversária')).toBeInTheDocument();
+      expect(screen.getByText("Seleciona a equipa adversária")).toBeInTheDocument();
     });
   });
 
-  it('shows toast error and allows retry when loading teams fails', async () => {
-    mockGetTeams.mockRejectedValue(new Error('failed to load'));
+  it("shows toast error and allows retry when loading teams fails", async () => {
+    mockGetTeams.mockRejectedValue(new Error("failed to load"));
 
-    render(
-      <TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />
-    );
+    render(<TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />);
 
     await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith('Falha ao carregar lista de equipas');
+      expect(mockToast.error).toHaveBeenCalledWith("Falha ao carregar lista de equipas");
     });
   });
 
-  it('does not fetch anything when team has no id', () => {
+  it("does not fetch anything when team has no id", () => {
     render(
       <TeamVsForm
         team={{} as ListingTeam}
         onSubmit={mockOnSubmit}
         isSubmitting={false}
         config={{}}
-      />
+      />,
     );
 
     expect(mockGetTeamOpponent).not.toHaveBeenCalled();
     expect(mockGetTeams).not.toHaveBeenCalled();
   });
 
-  it('prefills state from existingResult including opponent lookup from teams list', async () => {
+  it("prefills state from existingResult including opponent lookup from teams list", async () => {
     render(
       <TeamVsForm
         team={mockTeam}
@@ -303,25 +237,25 @@ describe('TeamVsForm', () => {
         existingResult={
           {
             result_data: {
-              result: 'draw',
+              result: "draw",
               completed: false,
               opponent_team_id: 2,
-              notes: 'existing notes',
+              notes: "existing notes",
             },
             extra_shots: 0,
             penalty_counts: {},
           } as any
         }
-      />
+      />,
     );
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Team B')).toBeInTheDocument();
+      expect(screen.getByDisplayValue("Team B")).toBeInTheDocument();
     });
-    expect(screen.getByDisplayValue('existing notes')).toBeInTheDocument();
+    expect(screen.getByDisplayValue("existing notes")).toBeInTheDocument();
   });
 
-  it('prefills notes and result even without opponent_team_id in existingResult', async () => {
+  it("prefills notes and result even without opponent_team_id in existingResult", async () => {
     render(
       <TeamVsForm
         team={mockTeam}
@@ -330,28 +264,26 @@ describe('TeamVsForm', () => {
         config={{}}
         existingResult={
           {
-            result_data: { result: 'lose', notes: 'no opponent set' },
+            result_data: { result: "lose", notes: "no opponent set" },
             extra_shots: 0,
             penalty_counts: {},
           } as any
         }
-      />
+      />,
     );
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('no opponent set')).toBeInTheDocument();
+      expect(screen.getByDisplayValue("no opponent set")).toBeInTheDocument();
     });
-    expect(screen.getByTestId('select-result')).toHaveValue('lose');
+    expect(screen.getByTestId("select-result")).toHaveValue("lose");
   });
 
-  it('manually selects an opponent after preselection, clearing preselected state', async () => {
+  it("manually selects an opponent after preselection, clearing preselected state", async () => {
     mockGetTeamOpponent.mockResolvedValue({
-      data: { opponent_id: 3, opponent_name: 'Team C' },
+      data: { opponent_id: 3, opponent_name: "Team C" },
     });
 
-    render(
-      <TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />
-    );
+    render(<TeamVsForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} config={{}} />);
 
     await waitFor(() => {
       expect(screen.getByText(/Adversário definido automaticamente/i)).toBeInTheDocument();
