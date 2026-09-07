@@ -53,27 +53,25 @@ describe("BooleanForm", () => {
   it("renders without crashing", () => {
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
     expect(screen.getByRole("checkbox")).toBeInTheDocument();
-    expect(screen.getByLabelText("Tentativas")).toBeInTheDocument();
   });
 
   it("submits with default values", () => {
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
     fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith({
-      result_data: { success: false, attempts: 1, notes: "" },
+      result_data: { success: false, notes: "" },
       extra_shots: 0,
       penalty_counts: {},
       bonus_counts: {},
     });
   });
 
-  it("toggles success checkbox and updates attempts", () => {
+  it("toggles the success checkbox", () => {
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.change(screen.getByLabelText("Tentativas"), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith({
-      result_data: { success: true, attempts: 3, notes: "" },
+      result_data: { success: true, notes: "" },
       extra_shots: 0,
       penalty_counts: {},
       bonus_counts: {},
@@ -94,7 +92,7 @@ describe("BooleanForm", () => {
     fireEvent.change(screen.getByLabelText("Contagem de Performance"), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith({
-      result_data: { success: false, attempts: 1, notes: "" },
+      result_data: { success: false, notes: "" },
       extra_shots: 0,
       penalty_counts: {},
       // The count, not 6 points and not the capped 5: the server prices and caps.
@@ -141,12 +139,6 @@ describe("BooleanForm", () => {
     );
   });
 
-  it("falls back to 1 attempt when input is invalid", () => {
-    render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
-    fireEvent.change(screen.getByLabelText("Tentativas"), { target: { value: "abc" } });
-    expect(screen.getByLabelText("Tentativas")).toHaveValue(1);
-  });
-
   it("prefills fields from existingResult", () => {
     render(
       <BooleanForm
@@ -155,14 +147,14 @@ describe("BooleanForm", () => {
         isSubmitting={false}
         existingResult={
           {
-            result_data: { success: true, attempts: 5, notes: "prior notes" },
+            result_data: { success: true, notes: "prior notes" },
             extra_shots: 2,
             penalties: { vomit: 1 },
           } as unknown as ActivityResultResponse
         }
       />,
     );
-    expect(screen.getByLabelText("Tentativas")).toHaveValue(5);
+    expect(screen.getByRole("checkbox")).toBeChecked();
     expect(screen.getByDisplayValue("prior notes")).toBeInTheDocument();
   });
 
