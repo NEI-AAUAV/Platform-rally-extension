@@ -86,6 +86,22 @@ class ActivityResponse(ActivityBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+def _reject_negative_values(value: dict[str, int] | None) -> dict[str, int] | None:
+    """Guard for the bonus/count maps: no entry may be negative.
+
+    A negative bonus is a penalty wearing the wrong hat, and a negative count
+    is meaningless. The scorer clamps the bonus total at zero anyway, but
+    rejecting it here means a bad sign surfaces as an error rather than a
+    silent no-op.
+    """
+    if value is None:
+        return value
+    negative = sorted(key for key, points in value.items() if points < 0)
+    if negative:
+        raise ValueError(f"Values cannot be negative: {', '.join(negative)}")
+    return value
+
+
 class ActivityResultBase(BaseModel):
     """Base activity result schema"""
 
@@ -100,17 +116,28 @@ class ActivityResultBase(BaseModel):
     # writable for admin/legacy callers, but `penalty_counts` wins when both
     # are present -- a client must not be able to name its own deduction.
     penalty_counts: dict[str, int] | None = None
+    # The additive mirror of the two fields above: points awarded for
+    # performance, and the counts staff entered for them. Same rule --
+    # ``bonus_counts`` is what staff send, the server prices it, and
+    # ``bonuses`` is admin/legacy-only.
+    bonuses: dict[str, int] = Field(default_factory=dict)
+    bonus_counts: dict[str, int] | None = None
+
+    _no_negative_bonuses = field_validator("bonuses")(_reject_negative_values)
+    _no_negative_counts = field_validator("penalty_counts", "bonus_counts")(_reject_negative_values)
 
 
 class ActivityResultEvaluation(BaseModel):
     """What a staff member submits when evaluating a team at a checkpoint.
 
-    Deliberately has no ``penalties`` field. Staff submit occurrence *counts*
-    ("2 vomits"); the server prices them from RallySettings /
-    ``Activity.config.penalty_counters`` / active DynamicRule rows and writes
-    the resulting points itself. Accepting points here would let the request
-    body name its own deduction — no amount of client-side validation can
-    close that, since the client is what would be sending the number.
+    Deliberately has no ``penalties`` or ``bonuses`` field. Staff submit
+    occurrence *counts* ("2 vomits", "3 for performance"); the server prices
+    them from RallySettings / ``Activity.config.penalty_counters`` /
+    ``Activity.config.bonus_counters`` / active DynamicRule rows and writes the
+    resulting points itself. Accepting points here would let the request body
+    name its own deduction — or, on the bonus side, its own award — and no
+    amount of client-side validation can close that, since the client is what
+    would be sending the number.
 
     The internal ``ActivityResultCreate``/``ActivityResultUpdate`` schemas do
     still carry ``penalties``, for admin tooling and service-to-service calls
@@ -120,6 +147,7 @@ class ActivityResultEvaluation(BaseModel):
     result_data: dict[str, Any] = Field(default_factory=dict)
     extra_shots: int = Field(default=0, ge=0)
     penalty_counts: dict[str, int] | None = None
+    bonus_counts: dict[str, int] | None = None
 
 
 class ActivityResultCreate(ActivityResultBase):
@@ -138,7 +166,12 @@ class ActivityResultUpdate(BaseModel):
     extra_shots: int | None = Field(None, ge=0)
     penalties: dict[str, int] | None = None
     penalty_counts: dict[str, int] | None = None
+    bonuses: dict[str, int] | None = None
+    bonus_counts: dict[str, int] | None = None
     is_completed: bool | None = None
+
+    _no_negative_bonuses = field_validator("bonuses")(_reject_negative_values)
+    _no_negative_counts = field_validator("penalty_counts", "bonus_counts")(_reject_negative_values)
 
 
 class ActivityResultStaffUpdate(BaseModel):
@@ -153,12 +186,15 @@ class ActivityResultStaffUpdate(BaseModel):
     "change my counts" from "set an arbitrary point total".
 
     Mirrors ``ActivityResultEvaluation`` (the create-time staff schema):
-    counts, never points, and no ``is_completed`` toggle.
+    counts, never points, and no ``is_completed`` toggle. ``bonuses`` is
+    excluded for exactly the same reason ``penalties`` is — it is the very
+    thing the negative-penalty hole was being used to fabricate.
     """
 
     result_data: dict[str, Any] | None = None
     extra_shots: int | None = Field(None, ge=0)
     penalty_counts: dict[str, int] | None = None
+    bonus_counts: dict[str, int] | None = None
 
 
 class ActivityResultResponse(ActivityResultBase):

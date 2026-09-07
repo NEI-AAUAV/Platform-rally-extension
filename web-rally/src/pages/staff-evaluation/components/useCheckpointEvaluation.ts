@@ -334,6 +334,7 @@ export function useCheckpointEvaluation(checkpointId: string | undefined) {
         // Counts, not points: the server prices them. Sending pre-multiplied
         // points let the client name its own deduction.
         penalty_counts: resultData?.penalty_counts ?? {},
+        bonus_counts: resultData?.bonus_counts ?? {},
       };
       try {
         const { data } = await withNetworkTimeout(

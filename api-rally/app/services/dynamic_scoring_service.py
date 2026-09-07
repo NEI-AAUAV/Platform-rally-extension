@@ -7,6 +7,7 @@ from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud import current_event_id
 from app.models.dynamic_scoring import (
     PENALTY_COUNTER_RULE_TYPE,
+    RULE_TYPES,
     DynamicAward,
     DynamicRule,
 )
@@ -24,6 +25,8 @@ class DynamicScoringService:
 
     async def list_rules(self) -> list[DynamicRule]:
         event_id = await current_event_id(self._db)
+        # Both rule types, so the staff form can split them into its penalty
+        # and bonus sections.
         stmt = select(DynamicRule).where(
             DynamicRule.is_active.is_(True),
             DynamicRule.event_id == event_id,
@@ -31,11 +34,14 @@ class DynamicScoringService:
         return list((await self._db.scalars(stmt)).all())
 
     async def create_rule(self, **fields: object) -> DynamicRule:
-        # rule_type is fixed: the only kind of rule now is a global penalty counter.
-        fields.pop("rule_type", None)
+        # Defaults to a penalty counter so callers predating bonus rules keep
+        # creating what they always created.
+        rule_type = fields.pop("rule_type", None) or PENALTY_COUNTER_RULE_TYPE
+        if rule_type not in RULE_TYPES:
+            raise RallyValidationError(f"Unknown rule type: {rule_type}")
         rule = DynamicRule(
             event_id=await current_event_id(self._db),
-            rule_type=PENALTY_COUNTER_RULE_TYPE,
+            rule_type=str(rule_type),
             **fields,
         )
         self._db.add(rule)
@@ -47,6 +53,9 @@ class DynamicScoringService:
         rule = await self._db.get(DynamicRule, rule_id)
         if not rule:
             raise RallyNotFoundError(RULE_NOT_FOUND)
+        # The type is immutable after creation: results already scored carry
+        # the key it produced (``g_<id>`` vs ``gb_<id>``), so flipping it would
+        # orphan them on one side and double-count them on the other.
         fields.pop("rule_type", None)
         for field, value in fields.items():
             setattr(rule, field, value)

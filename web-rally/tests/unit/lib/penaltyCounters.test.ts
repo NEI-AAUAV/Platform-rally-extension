@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { parsePenaltyCounters } from "@/lib/penaltyCounters";
+import {
+  parseBonusCounters,
+  parseMaxBonusPoints,
+  parsePenaltyCounters,
+} from "@/lib/penaltyCounters";
 
 describe("parsePenaltyCounters", () => {
   it("reads a well-formed penalty_counters array", () => {
@@ -37,5 +41,67 @@ describe("parsePenaltyCounters", () => {
       ],
     };
     expect(parsePenaltyCounters(config)).toEqual([{ key: "good", label: "Good", points: 3 }]);
+  });
+});
+
+describe("parseBonusCounters", () => {
+  it("reads a well-formed bonus_counters array", () => {
+    const config = {
+      bonus_counters: [{ key: "perf", label: "Performance", points: 2 }],
+    };
+    expect(parseBonusCounters(config)).toEqual([{ key: "perf", label: "Performance", points: 2 }]);
+  });
+
+  it("does not confuse the two counter lists", () => {
+    const config = {
+      penalty_counters: [{ key: "falha", label: "Falha", points: 4 }],
+      bonus_counters: [{ key: "perf", label: "Performance", points: 2 }],
+    };
+    expect(parseBonusCounters(config).map((c) => c.key)).toEqual(["perf"]);
+    expect(parsePenaltyCounters(config).map((c) => c.key)).toEqual(["falha"]);
+  });
+
+  it("returns an empty array when config has no bonus_counters", () => {
+    expect(parseBonusCounters({})).toEqual([]);
+    expect(parseBonusCounters(null)).toEqual([]);
+    expect(parseBonusCounters(undefined)).toEqual([]);
+  });
+
+  it("tolerates bonus_counters that isn't an array", () => {
+    expect(parseBonusCounters({ bonus_counters: "oops" })).toEqual([]);
+  });
+
+  it("drops malformed entries and keeps the good ones", () => {
+    const config = {
+      bonus_counters: [
+        { key: "perf", label: "Performance", points: 2 },
+        { key: "", label: "No key", points: 1 },
+        { label: "Missing key", points: 1 },
+        { key: "no_points", label: "No points" },
+        null,
+      ],
+    };
+    expect(parseBonusCounters(config)).toEqual([{ key: "perf", label: "Performance", points: 2 }]);
+  });
+});
+
+describe("parseMaxBonusPoints", () => {
+  it("reads a numeric cap", () => {
+    expect(parseMaxBonusPoints({ max_bonus_points: 5 })).toBe(5);
+  });
+
+  it("keeps a cap of zero, which is a real cap and not 'unset'", () => {
+    expect(parseMaxBonusPoints({ max_bonus_points: 0 })).toBe(0);
+  });
+
+  it("returns undefined when there is no cap", () => {
+    expect(parseMaxBonusPoints({})).toBeUndefined();
+    expect(parseMaxBonusPoints(null)).toBeUndefined();
+  });
+
+  it("ignores values that aren't usable numbers", () => {
+    expect(parseMaxBonusPoints({ max_bonus_points: "5" })).toBeUndefined();
+    expect(parseMaxBonusPoints({ max_bonus_points: -1 })).toBeUndefined();
+    expect(parseMaxBonusPoints({ max_bonus_points: Number.NaN })).toBeUndefined();
   });
 });

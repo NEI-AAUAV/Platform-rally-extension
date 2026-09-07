@@ -45,7 +45,7 @@ function renderWithClient(ui: React.ReactElement) {
 const rule = (overrides: Partial<any> = {}) => ({
   id: 1,
   name: 'Rule One',
-  rule_type: 'bonus',
+  rule_type: 'penalty_counter',
   points: 10,
   description: 'desc',
   is_active: true,
@@ -95,6 +95,48 @@ describe('DynamicScoringTab', () => {
     expect(
       screen.getByText(/−10 pts por ocorrência · todos os postos · desc/),
     ).toBeInTheDocument();
+  });
+
+  it('files a bonus rule under the bonus section, not the penalty one', async () => {
+    // One endpoint serves both kinds; each section shows only its own.
+    mockListDynamicRules.mockResolvedValue({
+      data: [rule(), rule({ id: 2, name: 'Criatividade', rule_type: 'bonus_counter', points: 3 })],
+    });
+    renderWithClient(<DynamicScoringTab />);
+
+    expect(await screen.findByText('Criatividade')).toBeInTheDocument();
+    expect(screen.getByText(/\+3 pts por ocorrência · todos os postos/)).toBeInTheDocument();
+    expect(screen.getByText(/−10 pts por ocorrência · todos os postos/)).toBeInTheDocument();
+  });
+
+  it('shows both sections with their own empty states', async () => {
+    mockListDynamicRules.mockResolvedValue({ data: [] });
+    renderWithClient(<DynamicScoringTab />);
+
+    expect(await screen.findByText('Sem penalizações globais definidas.')).toBeInTheDocument();
+    expect(screen.getByText('Sem bónus globais definidos.')).toBeInTheDocument();
+  });
+
+  it('creates a rule of the section it was submitted from', async () => {
+    mockCreateDynamicRule.mockResolvedValue({ data: {} });
+    renderWithClient(<DynamicScoringTab />);
+
+    fireEvent.click(screen.getByText('Novo bónus'));
+    fireEvent.change(screen.getByPlaceholderText('ex: Criatividade'), {
+      target: { value: 'Criatividade' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('ex: 10'), { target: { value: '3' } });
+    fireEvent.click(screen.getByText('Criar'));
+
+    await waitFor(() =>
+      expect(mockCreateDynamicRule).toHaveBeenCalledWith({
+        body: expect.objectContaining({
+          name: 'Criatividade',
+          rule_type: 'bonus_counter',
+          points: 3,
+        }),
+      }),
+    );
   });
 
   it('renders a list of active awards with team names', async () => {

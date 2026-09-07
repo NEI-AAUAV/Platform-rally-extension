@@ -19,7 +19,14 @@ import ActivityTypeInfo from "@/components/activity-form/ActivityTypeInfo";
 import { ActivityConfigFields } from "@/components/activity-form/ActivityConfigFields";
 import PenaltyCounterConfigFields from "@/components/activity-form/PenaltyCounterConfigFields";
 import QuizQuestionConfigFields from "@/components/activity-form/QuizQuestionConfigFields";
-import { parsePenaltyCounters, type PenaltyCounterConfig } from "@/lib/penaltyCounters";
+import {
+  parseBonusCounters,
+  parseMaxBonusPoints,
+  parsePenaltyCounters,
+  type BonusCounterConfig,
+  type PenaltyCounterConfig,
+} from "@/lib/penaltyCounters";
+import BonusCounterConfigFields from "@/components/activity-form/BonusCounterConfigFields";
 import {
   parseAnswersPerQuestion,
   parseQuizQuestions,
@@ -141,6 +148,12 @@ export default function ActivityForm({
   const [penaltyCounters, setPenaltyCounters] = useState<PenaltyCounterConfig[]>(() =>
     parsePenaltyCounters(initialData?.config),
   );
+  const [bonusCounters, setBonusCounters] = useState<BonusCounterConfig[]>(() =>
+    parseBonusCounters(initialData?.config),
+  );
+  const [maxBonusPoints, setMaxBonusPoints] = useState<number | undefined>(() =>
+    parseMaxBonusPoints(initialData?.config),
+  );
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(() =>
     parseQuizQuestions(initialData?.config),
   );
@@ -153,13 +166,15 @@ export default function ActivityForm({
     if (initialData?.config !== undefined) {
       setConfigData(initialData.config as Record<string, ConfigValue>);
       setPenaltyCounters(parsePenaltyCounters(initialData.config));
+      setBonusCounters(parseBonusCounters(initialData.config));
+      setMaxBonusPoints(parseMaxBonusPoints(initialData.config));
       setQuizQuestions(parseQuizQuestions(initialData.config));
       setAnswersPerQuestion(parseAnswersPerQuestion(initialData.config));
     }
   }, [initialData?.config]);
 
   const handleSubmit = (data: ActivityForm) => {
-    // penalty_counters/quiz_questions are arrays, not the primitive
+    // penalty_counters/bonus_counters/quiz_questions are arrays, not the primitive
     // ConfigValue every other config field is — kept in their own state and
     // merged in here rather than threaded through ActivityConfigFields'
     // per-type switch.
@@ -168,6 +183,10 @@ export default function ActivityForm({
       config: {
         ...configData,
         penalty_counters: penaltyCounters,
+        bonus_counters: bonusCounters,
+        // Omitted entirely when unset, so "no cap" stays distinguishable from
+        // a cap of 0 all the way down to the scorer.
+        ...(maxBonusPoints === undefined ? {} : { max_bonus_points: maxBonusPoints }),
         ...(watchActivityType === ActivityType.SCORE_BASED
           ? { quiz_questions: quizQuestions, quiz_answers_per_question: answersPerQuestion }
           : {}),
@@ -306,6 +325,26 @@ export default function ActivityForm({
           )}
 
           <PenaltyCounterConfigFields counters={penaltyCounters} onChange={setPenaltyCounters} />
+
+          <BonusCounterConfigFields counters={bonusCounters} onChange={setBonusCounters} />
+
+          <div className="w-full max-w-xs">
+            <label htmlFor="max-bonus-points" className="mb-1 block text-xs text-muted-foreground">
+              Máximo de pontos de bónus (opcional)
+            </label>
+            <Input
+              id="max-bonus-points"
+              type="number"
+              min={0}
+              value={maxBonusPoints ?? ""}
+              placeholder="Sem limite"
+              onChange={(e) => {
+                const raw = e.target.value;
+                setMaxBonusPoints(raw === "" ? undefined : Number.parseInt(raw, 10) || 0);
+              }}
+              className="border-border bg-card"
+            />
+          </div>
 
           <div className="flex gap-4 pt-4">
             <BloodyButton type="submit" disabled={isLoading} className="flex-1">

@@ -16,15 +16,62 @@ import {
 } from "@/client";
 
 type RuleForm = { name: string; points: string; description: string };
+
+/**
+ * A global rule is either a deduction or an award. The type is fixed at
+ * creation (the API drops it on update), because results already scored carry
+ * the key it produced — `g_<id>` for a penalty, `gb_<id>` for a bonus.
+ */
+type RuleKind = "penalty_counter" | "bonus_counter";
+
+type RuleCopy = Readonly<{
+  heading: string;
+  addLabel: string;
+  blurb: string;
+  pointsLabel: string;
+  createErrorLabel: string;
+  emptyLabel: string;
+  noun: string;
+  sign: string;
+  namePlaceholder: string;
+}>;
+
+const RULE_COPY: Record<RuleKind, RuleCopy> = {
+  penalty_counter: {
+    heading: "Penalizações globais",
+    addLabel: "Nova penalização",
+    blurb:
+      "Contadores disponíveis ao staff na avaliação de qualquer posto. Cada ocorrência registada desconta os pontos indicados.",
+    pointsLabel: "Pontos a descontar por ocorrência *",
+    createErrorLabel: "Erro ao criar penalização.",
+    emptyLabel: "Sem penalizações globais definidas.",
+    noun: "penalização",
+    sign: "−",
+    namePlaceholder: "ex: Atraso no posto",
+  },
+  bonus_counter: {
+    heading: "Bónus globais",
+    addLabel: "Novo bónus",
+    blurb:
+      "Contadores disponíveis ao staff na avaliação de qualquer posto. Cada ocorrência registada acrescenta os pontos indicados, até ao máximo definido em cada prova.",
+    pointsLabel: "Pontos a atribuir por ocorrência *",
+    createErrorLabel: "Erro ao criar bónus.",
+    emptyLabel: "Sem bónus globais definidos.",
+    noun: "bónus",
+    sign: "+",
+    namePlaceholder: "ex: Criatividade",
+  },
+};
 type AwardForm = { team_id: string; points: string; reason: string };
 
 const EMPTY_RULE: RuleForm = { name: "", points: "", description: "" };
 const EMPTY_AWARD: AwardForm = { team_id: "", points: "", reason: "" };
 
-function RulesSection() {
+function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<RuleForm>(EMPTY_RULE);
+  const copy = RULE_COPY[kind];
 
   const { data: rules = [] } = useQuery<DynamicRuleResponse[]>({
     queryKey: ["dynamic-rules"],
@@ -32,6 +79,8 @@ function RulesSection() {
       const { data } = await listDynamicRules();
       return data ?? [];
     },
+    // One endpoint serves both sections; each shows only its own kind.
+    select: (data) => data.filter((rule) => rule.rule_type === kind),
   });
 
   const createMutation = useMutation({
@@ -39,6 +88,7 @@ function RulesSection() {
       createDynamicRule({
         body: {
           name: form.name.trim(),
+          rule_type: kind,
           points: Math.abs(Number.parseFloat(form.points)),
           description: form.description || undefined,
           is_active: true,
@@ -66,20 +116,16 @@ function RulesSection() {
     <section className="space-y-3">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">Penalizações globais</h3>
+          <h3 className="text-sm font-semibold">{copy.heading}</h3>
           <button
             type="button"
             className="rally-press ml-auto flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
             onClick={() => setShowForm((v) => !v)}
           >
-            <Plus className="h-3.5 w-3.5" /> Nova penalização
+            <Plus className="h-3.5 w-3.5" /> {copy.addLabel}
           </button>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Contadores disponíveis ao staff na avaliação de <strong>qualquer posto</strong>. Cada
-          ocorrência registada desconta os pontos indicados. As restantes penalizações são
-          específicas de cada prova.
-        </p>
+        <p className="text-xs text-muted-foreground">{copy.blurb}</p>
       </div>
 
       {showForm && (
@@ -89,15 +135,13 @@ function RulesSection() {
               <span className="text-xs text-muted-foreground">Nome *</span>
               <input
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="ex: Atraso no posto"
+                placeholder={copy.namePlaceholder}
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </label>
             <label data-admin-search-key="rule_points" className="space-y-1">
-              <span className="text-xs text-muted-foreground">
-                Pontos a descontar por ocorrência *
-              </span>
+              <span className="text-xs text-muted-foreground">{copy.pointsLabel}</span>
               <input
                 type="number"
                 min="0"
@@ -119,7 +163,7 @@ function RulesSection() {
           </div>
           {createMutation.isError && (
             <div className="flex items-center gap-2 text-xs text-red-500">
-              <AlertCircle className="h-4 w-4" /> Erro ao criar penalização.
+              <AlertCircle className="h-4 w-4" /> {copy.createErrorLabel}
             </div>
           )}
           <div className="flex gap-2">
@@ -146,9 +190,7 @@ function RulesSection() {
       )}
 
       {rules.length === 0 && !showForm && (
-        <p className="py-4 text-center text-xs text-muted-foreground">
-          Sem penalizações globais definidas.
-        </p>
+        <p className="py-4 text-center text-xs text-muted-foreground">{copy.emptyLabel}</p>
       )}
 
       <ul className="space-y-2">
@@ -157,14 +199,15 @@ function RulesSection() {
             <div className="min-w-0 flex-1">
               <p className="font-semibold leading-tight">{rule.name}</p>
               <p className="text-xs text-muted-foreground">
-                −{Math.abs(rule.points)} pts por ocorrência · todos os postos
+                {copy.sign}
+                {Math.abs(rule.points)} pts por ocorrência · todos os postos
                 {rule.description ? ` · ${rule.description}` : ""}
               </p>
             </div>
             <button
               type="button"
               title={rule.is_active ? "Desativar" : "Ativar"}
-              aria-label={`${rule.is_active ? "Desativar" : "Ativar"} penalização ${rule.name}`}
+              aria-label={`${rule.is_active ? "Desativar" : "Ativar"} ${copy.noun} ${rule.name}`}
               className="rounded-lg p-2 text-muted-foreground hover:bg-accent"
               onClick={() => toggleMutation.mutate({ id: rule.id, is_active: !rule.is_active })}
             >
@@ -177,10 +220,11 @@ function RulesSection() {
             <button
               type="button"
               title="Eliminar"
-              aria-label={`Eliminar penalização ${rule.name}`}
+              aria-label={`Eliminar ${copy.noun} ${rule.name}`}
               className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
               onClick={() => {
-                if (confirm(`Eliminar penalização "${rule.name}"?`)) deleteMutation.mutate(rule.id);
+                if (confirm(`Eliminar ${copy.noun} "${rule.name}"?`))
+                  deleteMutation.mutate(rule.id);
               }}
             >
               <Trash2 className="h-4 w-4" />
@@ -362,7 +406,9 @@ export default function DynamicScoringTab() {
         <Zap className="h-5 w-5 text-amber-500" />
         <h2 className="text-lg font-semibold">Pontuação Dinâmica</h2>
       </div>
-      <RulesSection />
+      <RulesSection kind="penalty_counter" />
+      <div className="border-t border-border" />
+      <RulesSection kind="bonus_counter" />
       <div className="border-t border-border" />
       <AwardsSection teams={teams} />
     </div>

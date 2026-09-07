@@ -1,7 +1,7 @@
 """Dynamic scoring endpoints (D4).
 
 DynamicRule management:
-  GET  /dynamic-rules              — list rules for current event (public)
+  GET  /dynamic-rules              — list rules (penalty + bonus) for current event (public)
   POST /dynamic-rules              — create rule (admin)
   PUT  /dynamic-rules/{id}         — update rule (admin)
   DELETE /dynamic-rules/{id}       — delete rule (admin)
@@ -12,7 +12,7 @@ DynamicAward management:
   DELETE /dynamic-awards/{id}      — remove an award (admin)
 """
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -25,16 +25,24 @@ from app.services.dynamic_scoring_service import DynamicScoringService
 
 
 class DynamicRuleCreate(BaseModel):
-    """A global penalty counter — "cada X = -N pontos", shown to staff at every
-    checkpoint. ``points`` is the magnitude deducted per occurrence (positive)."""
+    """A global counter shown to staff at every checkpoint.
+
+    ``rule_type`` picks the side: ``penalty_counter`` ("cada X = -N pontos") or
+    ``bonus_counter`` ("cada X = +N pontos"). ``points`` is the magnitude
+    applied per occurrence, always positive. Defaults to a penalty counter, so
+    clients written before bonus rules existed keep working unchanged.
+    """
 
     name: str
     description: str | None = None
+    rule_type: Literal["penalty_counter", "bonus_counter"] = "penalty_counter"
     points: float = 0.0
     is_active: bool = True
 
 
 class DynamicRuleUpdate(BaseModel):
+    """No ``rule_type``: the type is fixed at creation (see the service)."""
+
     name: str | None = None
     description: str | None = None
     points: float | None = None

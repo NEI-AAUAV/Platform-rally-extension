@@ -7,11 +7,18 @@ application session uses autoflush=False, so award mutations must be flushed
 before score recomputation queries run.
 """
 
+import pytest
 from sqlalchemy import select
 
+from app.core.exceptions import RallyValidationError
 from app.crud.crud_team import team as crud_team
 from app.models.activity import RallyEvent
-from app.models.dynamic_scoring import DynamicAward, DynamicRule
+from app.models.dynamic_scoring import (
+    BONUS_COUNTER_RULE_TYPE,
+    PENALTY_COUNTER_RULE_TYPE,
+    DynamicAward,
+    DynamicRule,
+)
 from app.schemas.team import TeamCreate
 from app.services.dynamic_scoring_service import DynamicScoringService
 from app.services.scoring_service import ScoringService
@@ -63,6 +70,66 @@ class TestListRules:
 
         # then
         assert "Other Event Bonus" not in {r.name for r in rules}
+
+
+class TestRuleTypes:
+    async def test_create_defaults_to_a_penalty_counter(self, pg_session) -> None:
+        """Callers written before bonus rules existed keep creating penalties."""
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+
+        rule = await service.create_rule(name="Atraso", points=4.0)
+
+        assert rule.rule_type == PENALTY_COUNTER_RULE_TYPE
+
+    async def test_create_accepts_a_bonus_counter(self, pg_session) -> None:
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+
+        rule = await service.create_rule(
+            name="Criatividade", points=3.0, rule_type=BONUS_COUNTER_RULE_TYPE
+        )
+
+        assert rule.rule_type == BONUS_COUNTER_RULE_TYPE
+
+    async def test_create_rejects_an_unknown_rule_type(self, pg_session) -> None:
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+
+        with pytest.raises(RallyValidationError, match="Unknown rule type"):
+            await service.create_rule(name="???", points=1.0, rule_type="teleport")
+
+    async def test_list_returns_both_kinds(self, pg_session) -> None:
+        """The staff form needs both so it can split them into two sections."""
+        event = await _make_event(pg_session)
+        pg_session.add_all(
+            [
+                DynamicRule(name="Atraso", event_id=event.id, rule_type=PENALTY_COUNTER_RULE_TYPE),
+                DynamicRule(
+                    name="Criatividade", event_id=event.id, rule_type=BONUS_COUNTER_RULE_TYPE
+                ),
+            ]
+        )
+        await pg_session.commit()
+
+        rules = await DynamicScoringService(pg_session).list_rules()
+
+        assert {r.name for r in rules} == {"Atraso", "Criatividade"}
+
+    async def test_update_cannot_flip_the_rule_type(self, pg_session) -> None:
+        """Results already scored carry the key this type produced."""
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+        rule = await service.create_rule(
+            name="Criatividade", points=3.0, rule_type=BONUS_COUNTER_RULE_TYPE
+        )
+
+        updated = await service.update_rule(
+            rule.id, name="Criatividade II", rule_type=PENALTY_COUNTER_RULE_TYPE
+        )
+
+        assert updated.name == "Criatividade II"
+        assert updated.rule_type == BONUS_COUNTER_RULE_TYPE
 
 
 class TestManualAwardsFlushBeforeScoring:

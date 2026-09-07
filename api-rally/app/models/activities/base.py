@@ -75,9 +75,38 @@ class BaseActivity(ABC):
 
             raw_score += extra_shots * bonus_per_shot
 
+        # Apply performance bonuses (priced server-side, capped by config)
+        raw_score += self._bonus_total(modifiers)
+
         # Apply penalties
         penalties = modifiers.get("penalties", {})
         for _penalty_type, penalty_value in penalties.items():
             raw_score -= penalty_value
 
         return max(0.0, float(raw_score)), float(raw_score)
+
+    @staticmethod
+    def _bonus_total(modifiers: dict[str, Any]) -> float:
+        """Points to add for staff-awarded performance bonuses.
+
+        ``modifiers['bonuses']`` is {bonus_key: points}, already priced by
+        ScoringService from the activity's ``config.bonus_counters`` and the
+        event's bonus DynamicRules — staff submit counts, never points.
+
+        Two clamps, both deliberate:
+
+        - ``max_bonus_points`` (from the activity config) truncates the sum, so
+          "up to 5 points for performance" is a guarantee rather than a
+          convention a staff member can overshoot. Absent means uncapped.
+        - the total floors at 0, so a negative value can never turn the bonus
+          into a covert penalty. Pricing already takes ``abs()``, but this is
+          the same class of hole that ActivityResultStaffUpdate exists to close
+          on the penalties side, and it costs one call to shut here too.
+        """
+        bonus_total = sum(float(value) for value in modifiers.get("bonuses", {}).values())
+
+        max_bonus = modifiers.get("max_bonus_points")
+        if max_bonus is not None:
+            bonus_total = min(bonus_total, float(max_bonus))
+
+        return max(0.0, bonus_total)

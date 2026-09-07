@@ -8,7 +8,11 @@ import {
 } from "./index";
 import type { ActivityResponse, ActivityResultResponse } from "@/client";
 import type { FormSubmitHandler, Team } from "@/types/forms";
-import { parsePenaltyCounters } from "@/lib/penaltyCounters";
+import {
+  parseBonusCounters,
+  parseMaxBonusPoints,
+  parsePenaltyCounters,
+} from "@/lib/penaltyCounters";
 import { parseAnswersPerQuestion, parseQuizQuestions } from "@/lib/quizQuestions";
 
 interface ActivityWithStatus extends ActivityResponse {
@@ -65,6 +69,8 @@ export default function ActivityEvaluationForm({
   onCaptured,
 }: ActivityEvaluationFormProps) {
   const penaltyCounters = parsePenaltyCounters(activity.config);
+  const bonusCounters = parseBonusCounters(activity.config);
+  const maxBonusPoints = parseMaxBonusPoints(activity.config);
   const quizQuestions = parseQuizQuestions(activity.config);
   const answersPerQuestion = parseAnswersPerQuestion(activity.config);
 
@@ -78,6 +84,8 @@ export default function ActivityEvaluationForm({
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
             penaltyCounters={penaltyCounters}
+            bonusCounters={bonusCounters}
+            maxBonusPoints={maxBonusPoints}
           />
         );
 
@@ -89,6 +97,8 @@ export default function ActivityEvaluationForm({
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
             penaltyCounters={penaltyCounters}
+            bonusCounters={bonusCounters}
+            maxBonusPoints={maxBonusPoints}
             quizQuestions={quizQuestions}
             answersPerQuestion={answersPerQuestion}
           />
@@ -102,6 +112,8 @@ export default function ActivityEvaluationForm({
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
             penaltyCounters={penaltyCounters}
+            bonusCounters={bonusCounters}
+            maxBonusPoints={maxBonusPoints}
           />
         );
 
@@ -114,6 +126,8 @@ export default function ActivityEvaluationForm({
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
             penaltyCounters={penaltyCounters}
+            bonusCounters={bonusCounters}
+            maxBonusPoints={maxBonusPoints}
           />
         );
 
@@ -126,6 +140,8 @@ export default function ActivityEvaluationForm({
             onSubmit={onSubmit}
             isSubmitting={isSubmitting}
             penaltyCounters={penaltyCounters}
+            bonusCounters={bonusCounters}
+            maxBonusPoints={maxBonusPoints}
           />
         );
 

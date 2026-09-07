@@ -6,6 +6,7 @@ import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShots
 import { useAppToast } from "@/hooks/use-toast";
 import ExtraShotsField from "@/components/forms/shared/ExtraShotsField";
 import PenaltiesFieldset from "@/components/forms/shared/PenaltiesFieldset";
+import BonusesFieldset from "@/components/forms/shared/BonusesFieldset";
 import NotesField from "@/components/forms/shared/NotesField";
 import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import type { TeamVsFormProps } from "@/types/forms";
@@ -47,6 +48,8 @@ export default function TeamVsForm({
   onSubmit,
   isSubmitting,
   penaltyCounters = [],
+  bonusCounters = [],
+  maxBonusPoints,
 }: TeamVsFormProps) {
   const [result, setResult] = useState<string>("win");
   const [completed, setCompleted] = useState<boolean>(true);
@@ -71,9 +74,19 @@ export default function TeamVsForm({
     showVomitPenalty,
     showNotDrinkingPenalty,
     globalPenaltyCounters,
+    bonuses,
+    setBonuses,
+    showBonuses,
+    globalBonusCounters,
     showPenalties,
     validateExtraShots,
-  } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
+  } = useExtraShotsAndPenalties(
+    team,
+    existingResult,
+    penaltyCounters,
+    bonusCounters,
+    maxBonusPoints,
+  );
 
   // Fetch opponent when team is available, then fetch teams if needed
   useEffect(() => {
@@ -176,6 +189,7 @@ export default function TeamVsForm({
       },
       extra_shots: extraShots,
       penalty_counts: penalties,
+      bonus_counts: bonuses,
     });
   };
 
@@ -328,6 +342,17 @@ export default function TeamVsForm({
           globalPenaltyCounters={globalPenaltyCounters}
           showVomitPenalty={showVomitPenalty}
           showNotDrinkingPenalty={showNotDrinkingPenalty}
+        />
+      )}
+
+      {showBonuses && (
+        <BonusesFieldset
+          idPrefix="teamvs"
+          bonuses={bonuses}
+          onChange={setBonuses}
+          bonusCounters={bonusCounters}
+          globalBonusCounters={globalBonusCounters}
+          maxBonusPoints={maxBonusPoints}
         />
       )}
 

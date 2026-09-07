@@ -59,6 +59,11 @@ export interface BaseActivityConfig {
   // type-specific scoring above, so it lives on every config regardless of
   // type. See lib/penaltyCounters.ts for the shape and how it's consumed.
   penalty_counters?: Array<{ key: string; label: string; points: number }>;
+  // The additive mirror: per-activity "each X earns Y points" counters, used
+  // for performance/tie-break awards. Same shape, opposite sign at scoring.
+  bonus_counters?: Array<{ key: string; label: string; points: number }>;
+  // Ceiling on the summed bonus. Absent means uncapped; 0 is a real cap.
+  max_bonus_points?: number;
 }
 
 // Activity type configurations with specific properties

@@ -2,7 +2,7 @@
 
 ## 📋 Visão Geral
 
-O sistema de pontuação do Rally é baseado em diferentes tipos de atividades, cada uma com sua própria lógica de cálculo. Todas as atividades podem receber modificadores (bonus e penalizações) que afetam a pontuação final.
+O sistema de pontuação do Rally é baseado em diferentes tipos de atividades, cada uma com sua própria lógica de cálculo. Todas as atividades podem receber modificadores (shots extra, bónus de performance e penalizações) que afetam a pontuação final.
 
 ## 🎯 Tipos de Atividades
 
@@ -251,7 +251,45 @@ if "not_drinking" in penalties:
     final_score -= penalty_value
 ```
 
-### 4. ⚠️ Outras Penalizações
+### 4. 🌟 Bónus de Performance
+
+**Descrição:** Pontos extra que o staff atribui por performance, contados como ocorrências. Servem sobretudo para desempatar equipas que completaram o mesmo desafio.
+
+**Configuração:** `bonus_counters` na config da atividade, e opcionalmente `max_bonus_points` como teto.
+
+```json
+{
+  "bonus_counters": [
+    { "key": "performance", "label": "Performance", "points": 1 }
+  ],
+  "max_bonus_points": 5
+}
+```
+
+Também existem **bónus globais**, definidos uma vez por evento (`DynamicRule` com `rule_type="bonus_counter"`) e disponíveis em todos os postos. Chegam à pontuação sob a chave `gb_<id>`, distinta do `g_<id>` das penalizações globais.
+
+**Fórmula:**
+```python
+bonus_total = sum(bonuses.values())
+if max_bonus_points is not None:
+    bonus_total = min(bonus_total, max_bonus_points)
+final_score += max(0, bonus_total)
+```
+
+O bónus é somado **antes** do piso de 0, tal como os extra shots, por isso compensa penalizações em vez de ser empilhado por cima do piso.
+
+**Importante:** o staff submete *contagens*, nunca pontos. O servidor é que multiplica pela cotação (`ScoringService.resolve_bonus_points`) e aplica o teto — os schemas de staff não têm sequer um campo `bonuses`.
+
+#### Exemplo Prático:
+**Desafio sim/não com desempate:**
+- Config: `success_points=5`, `bonus_counters=[{performance, 1 pt}]`, `max_bonus_points=5`
+- Equipa A: bebeu tudo, 0 de performance → 5 pontos
+- Equipa B: bebeu tudo, 3 de performance → 8 pontos
+- Equipa C: bebeu tudo, 40 de performance → 10 pontos (teto de 5)
+
+---
+
+### 5. ⚠️ Outras Penalizações
 **Descrição:** Penalizações customizadas por tipo de infração.
 
 **Fórmula:**
@@ -300,7 +338,7 @@ Pontuação base: 55 pontos
 | **TeamVs** | `win_points`, `draw_points`, ou `lose_points` |
 | **General** | Pontos atribuídos pelo staff (dentro do range) |
 
-**Todas as atividades:** `pontuação_base + modificadores`
+**Todas as atividades:** `max(0, base + extra_shots + bónus − penalizações)`
 
 ---
 

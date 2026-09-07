@@ -1,14 +1,21 @@
 import { useEffect, useState } from "react";
 import { getExtraShotsConfig, getPenaltyValues } from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
+import { useGlobalBonusCounters } from "@/hooks/useGlobalBonusCounters";
 import { useGlobalPenaltyCounters } from "@/hooks/useGlobalPenaltyCounters";
 import { useAppToast } from "@/hooks/use-toast";
 import { hasDrinkingMechanics as formatHasDrinkingMechanics } from "@/lib/eventTerms";
 import { getTeamSize } from "@/types/forms";
 import type { BaseActivityFormProps } from "@/types/forms";
-import type { PenaltyCounterConfig, PenaltyCountMap } from "@/lib/penaltyCounters";
+import type {
+  BonusCountMap,
+  BonusCounterConfig,
+  PenaltyCounterConfig,
+  PenaltyCountMap,
+} from "@/lib/penaltyCounters";
 
 type PenaltyMap = PenaltyCountMap;
+type BonusMap = BonusCountMap;
 
 export interface UseExtraShotsAndPenaltiesResult {
   extraShots: number;
@@ -32,6 +39,20 @@ export interface UseExtraShotsAndPenaltiesResult {
   penaltyCounters: readonly PenaltyCounterConfig[];
   /** Counters that apply at every checkpoint (admin-defined DynamicRule rows). */
   globalPenaltyCounters: readonly PenaltyCounterConfig[];
+  /**
+   * Bonus occurrence counts, the additive mirror of `penalties`. Submit as
+   * `bonus_counts`; the server prices them and applies `max_bonus_points`.
+   */
+  bonuses: BonusMap;
+  setBonuses: (value: BonusMap) => void;
+  showBonuses: boolean;
+  /** This activity's own counters (from config.bonus_counters), if any. */
+  bonusCounters: readonly BonusCounterConfig[];
+  globalBonusCounters: readonly BonusCounterConfig[];
+  /** Ceiling on the summed bonus (config.max_bonus_points); undefined = none. */
+  maxBonusPoints?: number;
+  /** Points the entered counts are worth, before the cap — for display. */
+  bonusTotal: number;
   validateExtraShots: () => boolean;
 }
 
@@ -39,12 +60,16 @@ export function useExtraShotsAndPenalties(
   team: BaseActivityFormProps["team"],
   existingResult: BaseActivityFormProps["existingResult"],
   penaltyCounters: readonly PenaltyCounterConfig[] = [],
+  bonusCounters: readonly BonusCounterConfig[] = [],
+  maxBonusPoints?: number,
 ): UseExtraShotsAndPenaltiesResult {
   const [extraShots, setExtraShots] = useState<number>(0);
   const [penalties, setPenalties] = useState<PenaltyMap>({});
+  const [bonuses, setBonuses] = useState<BonusMap>({});
   const toast = useAppToast();
   const { settings } = useRallySettings();
   const { globalPenaltyCounters } = useGlobalPenaltyCounters();
+  const { globalBonusCounters } = useGlobalBonusCounters();
 
   const teamSize = getTeamSize(team);
   const extraShotsConfig = getExtraShotsConfig(settings);
@@ -71,6 +96,16 @@ export function useExtraShotsAndPenalties(
     penaltyCounters.length > 0 ||
     globalPenaltyCounters.length > 0;
 
+  // A performance bonus is not a drinking mechanic, so it is not gated on the
+  // event format the way extra shots are — only on something being configured.
+  const showBonuses = bonusCounters.length > 0 || globalBonusCounters.length > 0;
+
+  const allBonusCounters = [...bonusCounters, ...globalBonusCounters];
+  const bonusTotal = allBonusCounters.reduce(
+    (sum, counter) => sum + (bonuses[counter.key] ?? 0) * counter.points,
+    0,
+  );
+
   useEffect(() => {
     if (existingResult) {
       setExtraShots(existingResult.extra_shots || 0);
@@ -79,6 +114,7 @@ export function useExtraShotsAndPenalties(
       // by dividing the stored points by the *current* price, which rewrote
       // the count whenever an admin changed that price.
       setPenalties(existingResult.penalty_counts || {});
+      setBonuses(existingResult.bonus_counts || {});
     }
     // Only re-derive when the result identity changes.
   }, [existingResult]);
@@ -107,6 +143,13 @@ export function useExtraShotsAndPenalties(
     showPenalties,
     penaltyCounters,
     globalPenaltyCounters,
+    bonuses,
+    setBonuses,
+    showBonuses,
+    bonusCounters,
+    globalBonusCounters,
+    maxBonusPoints,
+    bonusTotal,
     validateExtraShots,
   };
 }

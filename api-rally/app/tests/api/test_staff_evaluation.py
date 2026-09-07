@@ -38,14 +38,14 @@ async def _make_team(pg_session, name="TeamA"):
     return await crud_team.create(pg_session, obj_in=TeamCreate(name=name), commit=True)
 
 
-async def _make_activity(pg_session, checkpoint_id):
+async def _make_activity(pg_session, checkpoint_id, config: dict | None = None):
     return await crud_activity.create(
         pg_session,
         obj_in=ActivityCreate(
             name="Activity",
             activity_type=ActivityType.GENERAL,
             checkpoint_id=checkpoint_id,
-            config={},
+            config=config or {},
         ),
     )
 
@@ -324,6 +324,95 @@ class TestPenaltyPricingIsServerSide:
         assert row.penalty_counts == {"vomit": 2}
         assert row.penalties == {"vomit": 20}
         assert row.final_score == 30
+
+
+class TestBonusCountsOverTheWire:
+    """The bonus half of the same boundary: counts in, server-priced points out."""
+
+    BONUS_CONFIG = {
+        "min_points": 0,
+        "max_points": 100,
+        "bonus_counters": [{"key": "perf", "label": "Performance", "points": 2}],
+        "max_bonus_points": 5,
+    }
+
+    async def _setup(self, pg_session, as_admin, name):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        as_admin.staff_checkpoint_id = checkpoint.id
+        team_obj = await _make_team(pg_session, name)
+        activity_obj = await _make_activity(pg_session, checkpoint.id, self.BONUS_CONFIG)
+        return team_obj, activity_obj
+
+    @staticmethod
+    async def _row(pg_session, activity_id, team_id):
+        return (
+            await pg_session.scalars(
+                select(ActivityResult).where(
+                    ActivityResult.activity_id == activity_id,
+                    ActivityResult.team_id == team_id,
+                )
+            )
+        ).first()
+
+    async def test_bonus_counts_are_priced_and_capped(self, pg_session, pg_client, as_admin):
+        team_obj, activity_obj = await self._setup(pg_session, as_admin, "Bonus Wire")
+
+        resp = pg_client.post(
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
+            json={
+                "result_data": {"assigned_points": 50},
+                "extra_shots": 0,
+                "bonus_counts": {"perf": 2},
+            },
+        )
+        assert resp.status_code == 200
+
+        row = await self._row(pg_session, activity_obj.id, team_obj.id)
+        assert row.bonus_counts == {"perf": 2}
+        assert row.bonuses == {"perf": 4}
+        assert row.final_score == 54
+
+    async def test_submitted_bonus_points_are_ignored(self, pg_session, pg_client, as_admin):
+        """A request body must not be able to name its own award."""
+        team_obj, activity_obj = await self._setup(pg_session, as_admin, "Greedy Wire")
+
+        resp = pg_client.post(
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
+            json={
+                "result_data": {"assigned_points": 50},
+                "extra_shots": 0,
+                # Not part of the staff schema: it must be ignored, not applied.
+                "bonuses": {"perf": 9999},
+            },
+        )
+        assert resp.status_code == 200
+
+        row = await self._row(pg_session, activity_obj.id, team_obj.id)
+        assert row.bonuses == {}
+        assert row.final_score == 50
+
+    async def test_editing_reprices_the_bonus(self, pg_session, pg_client, as_admin):
+        team_obj, activity_obj = await self._setup(pg_session, as_admin, "Edit Wire")
+
+        pg_client.post(
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{activity_obj.id}/evaluate",
+            json={"result_data": {"assigned_points": 50}, "bonus_counts": {"perf": 1}},
+        )
+        row = await self._row(pg_session, activity_obj.id, team_obj.id)
+        assert row.final_score == 52
+
+        resp = pg_client.put(
+            f"/api/rally/v1/staff/teams/{team_obj.id}/activities/"
+            f"{activity_obj.id}/evaluate/{row.id}",
+            json={"result_data": {"assigned_points": 50}, "bonus_counts": {"perf": 4}},
+        )
+        assert resp.status_code == 200
+
+        await pg_session.refresh(row)
+        assert row.bonus_counts == {"perf": 4}
+        # 8 points of bonus, truncated to the configured ceiling of 5.
+        assert row.final_score == 55
 
 
 class TestConcurrentEvaluation:

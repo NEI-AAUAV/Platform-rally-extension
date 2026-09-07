@@ -211,6 +211,87 @@ describe("ActivityCreateForm", () => {
     expect(screen.getByDisplayValue("Falha na baliza")).toBeInTheDocument();
   });
 
+  it("merges bonus counters and the cap into config on submit", async () => {
+    const onSubmit = vi.fn();
+    render(<ActivityCreateForm checkpoints={checkpoints} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ex: Cabo de Guerra"), {
+      target: { value: "Bebe tudo" },
+    });
+    fireEvent.click(screen.getByText("Adicionar bónus"));
+    fireEvent.change(screen.getByLabelText("Nome do bónus"), { target: { value: "Performance" } });
+    fireEvent.change(screen.getByLabelText("Pontos por ocorrência"), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText("Máximo de pontos de bónus (opcional)"), {
+      target: { value: "5" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            bonus_counters: [{ key: "performance", label: "Performance", points: 1 }],
+            max_bonus_points: 5,
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("omits max_bonus_points entirely when no cap is entered", async () => {
+    const onSubmit = vi.fn();
+    render(<ActivityCreateForm checkpoints={checkpoints} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ex: Cabo de Guerra"), {
+      target: { value: "Sem teto" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(onSubmit.mock.calls[0][0].config).not.toHaveProperty("max_bonus_points");
+  });
+
+  it("keeps a cap of zero, which is a real cap and not 'unset'", async () => {
+    const onSubmit = vi.fn();
+    render(<ActivityCreateForm checkpoints={checkpoints} onSubmit={onSubmit} onCancel={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Ex: Cabo de Guerra"), {
+      target: { value: "Teto zero" },
+    });
+    fireEvent.change(screen.getByLabelText("Máximo de pontos de bónus (opcional)"), {
+      target: { value: "0" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ config: expect.objectContaining({ max_bonus_points: 0 }) }),
+      ),
+    );
+  });
+
+  it("seeds the bonus editor and the cap from initialData.config when editing", () => {
+    render(
+      <ActivityCreateForm
+        checkpoints={checkpoints}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        initialData={{
+          name: "Existing",
+          checkpoint_id: 1,
+          activity_type: ActivityType.BOOLEAN,
+          config: {
+            bonus_counters: [{ key: "perf", label: "Performance", points: 1 }],
+            max_bonus_points: 5,
+          } as unknown as Record<string, string | number | boolean>,
+        }}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("Performance")).toBeInTheDocument();
+    expect(screen.getByLabelText("Máximo de pontos de bónus (opcional)")).toHaveValue(5);
+  });
+
   it("prefills configData from initialData.config", () => {
     render(
       <ActivityCreateForm

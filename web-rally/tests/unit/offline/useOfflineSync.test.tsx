@@ -79,7 +79,12 @@ describe('useOfflineSync', () => {
     await waitFor(() =>
       expect(h.evaluateTeamActivity).toHaveBeenCalledWith({
         path: { team_id: 1, activity_id: 2 },
-        body: { result_data: { a: 1 }, extra_shots: 2, penalty_counts: { p: 1 } },
+        body: {
+          result_data: { a: 1 },
+          extra_shots: 2,
+          penalty_counts: { p: 1 },
+          bonus_counts: {},
+        },
         headers: { 'Idempotency-Key': 'key-1' },
       }),
     )
@@ -100,7 +105,7 @@ describe('useOfflineSync', () => {
     await waitFor(() =>
       expect(h.evaluateTeamActivity).toHaveBeenCalledWith({
         path: { team_id: 1, activity_id: 2 },
-        body: { result_data: {}, extra_shots: 0, penalty_counts: {} },
+        body: { result_data: {}, extra_shots: 0, penalty_counts: {}, bonus_counts: {} },
         headers: { 'Idempotency-Key': 'key-2' },
       }),
     )

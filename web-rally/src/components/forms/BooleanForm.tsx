@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
 import ExtraShotsField from "@/components/forms/shared/ExtraShotsField";
 import PenaltiesFieldset from "@/components/forms/shared/PenaltiesFieldset";
+import BonusesFieldset from "@/components/forms/shared/BonusesFieldset";
 import NotesField from "@/components/forms/shared/NotesField";
 import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import type { BaseActivityFormProps } from "@/types/forms";
@@ -12,6 +13,8 @@ export default function BooleanForm({
   onSubmit,
   isSubmitting,
   penaltyCounters = [],
+  bonusCounters = [],
+  maxBonusPoints,
 }: BaseActivityFormProps) {
   const [isSuccessChecked, setIsSuccessChecked] = useState(false);
   const [attempts, setAttempts] = useState<number>(1);
@@ -28,8 +31,18 @@ export default function BooleanForm({
     showVomitPenalty,
     showNotDrinkingPenalty,
     globalPenaltyCounters,
+    bonuses,
+    setBonuses,
+    showBonuses,
+    globalBonusCounters,
     validateExtraShots,
-  } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
+  } = useExtraShotsAndPenalties(
+    team,
+    existingResult,
+    penaltyCounters,
+    bonusCounters,
+    maxBonusPoints,
+  );
 
   useEffect(() => {
     if (existingResult?.result_data) {
@@ -52,6 +65,7 @@ export default function BooleanForm({
       },
       extra_shots: extraShots,
       penalty_counts: penalties,
+      bonus_counts: bonuses,
     });
   };
 
@@ -136,6 +150,17 @@ export default function BooleanForm({
         showVomitPenalty={showVomitPenalty}
         showNotDrinkingPenalty={showNotDrinkingPenalty}
       />
+
+      {showBonuses && (
+        <BonusesFieldset
+          idPrefix="boolean"
+          bonuses={bonuses}
+          onChange={setBonuses}
+          bonusCounters={bonusCounters}
+          globalBonusCounters={globalBonusCounters}
+          maxBonusPoints={maxBonusPoints}
+        />
+      )}
 
       <NotesField idPrefix="notes" notes={notes} onChange={setNotes} />
 

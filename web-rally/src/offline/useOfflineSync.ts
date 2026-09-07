@@ -17,6 +17,7 @@ async function replayOne(item: QueuedEval): Promise<void> {
     extra_shots: item.resultData?.extra_shots ?? 0,
     // Counts, priced server-side — same contract as the online submit.
     penalty_counts: item.resultData?.penalty_counts ?? {},
+    bonus_counts: item.resultData?.bonus_counts ?? {},
   };
   await evaluateTeamActivity({
     path: { team_id: item.teamId, activity_id: item.activityId },
