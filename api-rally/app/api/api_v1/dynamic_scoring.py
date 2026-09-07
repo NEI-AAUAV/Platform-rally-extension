@@ -140,9 +140,21 @@ class DynamicScoringController:
         )
 
     async def list_dynamic_rules(
-        self, service: Annotated[DynamicScoringService, Depends(get_dynamic_scoring_service)]
+        self,
+        service: Annotated[DynamicScoringService, Depends(get_dynamic_scoring_service)],
+        include_inactive: bool = False,
     ) -> list[DynamicRuleResponse]:
-        rules = await service.list_rules()
+        """Rules of the current event; deleted ones never appear.
+
+        ``include_inactive`` is for the admin screen, which has to keep showing
+        a rule it has switched off — otherwise the switch has nothing left to
+        switch back on. The staff form omits it and sees only live rules.
+
+        Stays public, like the listing already was: a rule that is switched off
+        is no more sensitive than one that is on, and the active ones are
+        public already.
+        """
+        rules = await service.list_rules(include_inactive=include_inactive)
         return [DynamicRuleResponse.model_validate(r) for r in rules]
 
     async def create_dynamic_rule(

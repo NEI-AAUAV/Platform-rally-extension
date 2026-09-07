@@ -189,9 +189,11 @@ describe("ActivityEvaluationForm", () => {
       />,
     );
     const form = screen.getByTestId("time-based-form");
-    expect(JSON.parse(form.dataset.penaltyCounters!)).toHaveLength(1);
-    expect(JSON.parse(form.dataset.penaltyCounters!)[0].key).toBe("falha");
-    expect(JSON.parse(form.dataset.bonusCounters!)[0].key).toBe("perf");
+    const parseKeys = (raw?: string): string[] =>
+      (JSON.parse(raw ?? "[]") as { key: string }[]).map((counter) => counter.key);
+
+    expect(parseKeys(form.dataset.penaltyCounters)).toEqual(["falha"]);
+    expect(parseKeys(form.dataset.bonusCounters)).toEqual(["perf"]);
   });
 
   it("parses config.quiz_questions and passes it to ScoreBasedForm only", () => {

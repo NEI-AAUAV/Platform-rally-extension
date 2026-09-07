@@ -38,6 +38,12 @@ class RallySettings(Base):
     penalty_per_not_drinking = Column(Integer, nullable=False, default=-2)
     bonus_per_extra_shot = Column(Integer, nullable=False, default=1)
     max_extra_shots_per_member = Column(Integer, nullable=False, default=5)
+    # Event-wide ceiling on the performance bonus, used by any activity that
+    # does not set its own `config.max_bonus_points`. Nullable on purpose:
+    # NULL is "no ceiling", 0 is a real ceiling of zero — the same distinction
+    # the per-activity value draws, which is why the "0 disables it"
+    # convention used by hint_penalty/skip_penalty does not fit here.
+    default_max_bonus_points = Column(Integer, nullable=True, default=None)
 
     # Checkpoint behavior
     checkpoint_order_matters = Column(Boolean, nullable=False, default=True)

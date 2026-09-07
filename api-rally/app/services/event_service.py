@@ -189,6 +189,12 @@ class EventService:
         # are reached through Any rather than widening the TypeVar bound.
         columns: Any = model
         stmt = select(model).where(columns.event_id == event_id)
+        # A tombstoned row is kept only so results already scored with it can
+        # still be priced (see DynamicScoringService.delete_rule). Carrying it
+        # into a new edition would resurrect a rule the admin deleted.
+        deleted_at = getattr(model, "deleted_at", None)
+        if deleted_at is not None:
+            stmt = stmt.where(deleted_at.is_(None))
         order = getattr(model, "order", None)
         if order is not None:
             stmt = stmt.order_by(order)

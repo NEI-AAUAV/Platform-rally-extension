@@ -285,13 +285,34 @@ class ScoringService:
             "extra_shots": capped_extra_shots,
             "penalties": penalties or {},
             "bonuses": bonuses or {},
-            # None means "no cap"; 0 is a real cap and must survive the trip.
-            "max_bonus_points": (config or {}).get("max_bonus_points"),
+            "max_bonus_points": self._resolve_bonus_cap(config, settings),
         }
         if capped_extra_shots:
             modifiers["bonus_per_shot"] = settings.bonus_per_extra_shot
         final, raw = instance.apply_modifiers(base_score, modifiers)
         return ScoreBreakdown(final=final, raw=raw)
+
+    @staticmethod
+    def _resolve_bonus_cap(
+        config: dict[str, Any] | None, settings: RallySettings
+    ) -> float | None:
+        """Ceiling on the summed bonus: the activity's own, else the event's.
+
+        ``None`` means uncapped; 0 is a real ceiling and must survive the trip.
+        That is why this tests for the *key* rather than the value — reading a
+        configured 0 as "unset" would silently fall back to the event default
+        and award points the activity said it never wanted.
+
+        The event default is also the only ceiling global bonus rules ever get:
+        they apply at every checkpoint, so an activity that configures no cap
+        of its own would otherwise award them without bound.
+        """
+        if config is not None and "max_bonus_points" in config:
+            cap = config["max_bonus_points"]
+            return None if cap is None else float(cap)
+
+        default = settings.default_max_bonus_points
+        return None if default is None else float(default)
 
     async def _get_settings(self) -> RallySettings:
         """Get rally settings from database (cached for this service instance).
@@ -368,6 +389,13 @@ class ScoringService:
         Filtering by ``rule_type`` is what keeps the two sides apart: this used
         to take every active rule, so once bonus rules existed they would have
         been priced as deductions.
+
+        ``include_inactive`` drops *every* state filter, deleted rules included.
+        That is deliberate and is the whole reason deletion is a tombstone
+        rather than a DELETE: a result already scored with a rule carries its
+        key, and editing or repricing that result has to be able to price the
+        key back. Without the flag (a fresh evaluation) only live, switched-on
+        rules are offered.
         """
         event_id = await current_event_id(self.db)
         filters: list[ColumnElement[bool]] = [
@@ -376,6 +404,7 @@ class ScoringService:
         ]
         if not include_inactive:
             filters.append(DynamicRule.is_active.is_(True))
+            filters.append(DynamicRule.deleted_at.is_(None))
         return (await self.db.scalars(select(DynamicRule).where(*filters))).all()
 
     async def bonus_prices(

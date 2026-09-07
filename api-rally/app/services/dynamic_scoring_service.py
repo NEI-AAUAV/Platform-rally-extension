@@ -1,6 +1,8 @@
 """Business rules and persistence for dynamic scoring rules and awards."""
 
-from sqlalchemy import select
+from datetime import UTC, datetime
+
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
@@ -23,15 +25,25 @@ class DynamicScoringService:
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
 
-    async def list_rules(self) -> list[DynamicRule]:
+    async def list_rules(self, *, include_inactive: bool = False) -> list[DynamicRule]:
+        """Rules of the current event, both types.
+
+        Both types, so the staff form can split them into its penalty and bonus
+        sections. Deleted rules never appear.
+
+        ``include_inactive`` is what the admin passes: without it a rule
+        switched off vanished from the very screen holding its switch, so there
+        was nothing left to switch back on and the toggle behaved like a delete.
+        The staff form calls without it and keeps seeing only live rules.
+        """
         event_id = await current_event_id(self._db)
-        # Both rule types, so the staff form can split them into its penalty
-        # and bonus sections.
-        stmt = select(DynamicRule).where(
-            DynamicRule.is_active.is_(True),
+        filters: list[ColumnElement[bool]] = [
             DynamicRule.event_id == event_id,
-        )
-        return list((await self._db.scalars(stmt)).all())
+            DynamicRule.deleted_at.is_(None),
+        ]
+        if not include_inactive:
+            filters.append(DynamicRule.is_active.is_(True))
+        return list((await self._db.scalars(select(DynamicRule).where(*filters))).all())
 
     async def create_rule(self, **fields: object) -> DynamicRule:
         # Defaults to a penalty counter so callers predating bonus rules keep
@@ -64,15 +76,20 @@ class DynamicScoringService:
         return rule
 
     async def delete_rule(self, rule_id: int) -> None:
-        """Soft-delete: results already priced with this rule's ``g_<id>``
-        key keep a price (via ``penalty_prices(include_inactive=True)``) so
-        editing them or running a retroactive recompute doesn't 500. A hard
-        delete would orphan that key immediately.
+        """Soft-delete: results already priced with this rule's ``g_<id>`` /
+        ``gb_<id>`` key keep a price (via ``penalty_prices`` /
+        ``bonus_prices`` with ``include_inactive=True``) so editing them or
+        running a retroactive recompute doesn't 500. A hard delete would orphan
+        that key immediately.
+
+        Writes the tombstone and leaves ``is_active`` alone: that flag is the
+        admin's switch, and overwriting it here is what made "off" and
+        "deleted" the same state.
         """
         rule = await self._db.get(DynamicRule, rule_id)
         if not rule:
             raise RallyNotFoundError(RULE_NOT_FOUND)
-        rule.is_active = False
+        rule.deleted_at = datetime.now(UTC)
         await self._db.commit()
 
     async def list_awards(self, *, team_id: int | None) -> list[DynamicAward]:

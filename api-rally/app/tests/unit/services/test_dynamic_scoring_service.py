@@ -132,6 +132,80 @@ class TestRuleTypes:
         assert updated.rule_type == BONUS_COUNTER_RULE_TYPE
 
 
+class TestActiveVersusDeleted:
+    """``is_active`` is the admin's switch; ``deleted_at`` is the tombstone.
+
+    They used to be the same flag, which is why switching a rule off made it
+    vanish from the screen holding its switch — indistinguishable from a
+    delete, and impossible to undo.
+    """
+
+    async def test_list_excludes_inactive_rules_by_default(self, pg_session) -> None:
+        event = await _make_event(pg_session)
+        pg_session.add_all(
+            [
+                DynamicRule(name="Ligada", event_id=event.id, is_active=True),
+                DynamicRule(name="Desligada", event_id=event.id, is_active=False),
+            ]
+        )
+        await pg_session.commit()
+
+        rules = await DynamicScoringService(pg_session).list_rules()
+
+        assert {r.name for r in rules} == {"Ligada"}
+
+    async def test_list_includes_inactive_when_asked(self, pg_session) -> None:
+        """The admin has to keep seeing a rule it switched off."""
+        event = await _make_event(pg_session)
+        pg_session.add_all(
+            [
+                DynamicRule(name="Ligada", event_id=event.id, is_active=True),
+                DynamicRule(name="Desligada", event_id=event.id, is_active=False),
+            ]
+        )
+        await pg_session.commit()
+
+        rules = await DynamicScoringService(pg_session).list_rules(include_inactive=True)
+
+        assert {r.name for r in rules} == {"Ligada", "Desligada"}
+
+    async def test_toggling_a_rule_off_and_on_round_trips(self, pg_session) -> None:
+        """The reported symptom: the switch only ever went one way."""
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+        rule = await service.create_rule(name="Atraso", points=4.0)
+
+        await service.update_rule(rule.id, is_active=False)
+        after_off = await service.list_rules(include_inactive=True)
+        assert [r.is_active for r in after_off] == [False], "the row must survive being switched off"
+
+        await service.update_rule(rule.id, is_active=True)
+        after_on = await service.list_rules()
+        assert [r.name for r in after_on] == ["Atraso"]
+
+    async def test_delete_marks_the_rule_deleted_without_touching_is_active(
+        self, pg_session
+    ) -> None:
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+        rule = await service.create_rule(name="Atraso", points=4.0)
+
+        await service.delete_rule(rule.id)
+        await pg_session.refresh(rule)
+
+        assert rule.deleted_at is not None
+        assert rule.is_active is True, "the switch keeps the admin's last intent"
+
+    async def test_a_deleted_rule_is_gone_even_with_include_inactive(self, pg_session) -> None:
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+        rule = await service.create_rule(name="Atraso", points=4.0)
+        await service.delete_rule(rule.id)
+
+        assert await service.list_rules() == []
+        assert await service.list_rules(include_inactive=True) == []
+
+
 class TestManualAwardsFlushBeforeScoring:
     async def test_create_award_is_visible_to_scorer_before_recompute(
         self, pg_session, monkeypatch

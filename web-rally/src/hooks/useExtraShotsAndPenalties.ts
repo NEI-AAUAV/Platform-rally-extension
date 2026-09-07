@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { getExtraShotsConfig, getPenaltyValues } from "@/config/rallyDefaults";
+import {
+  getDefaultMaxBonusPoints,
+  getExtraShotsConfig,
+  getPenaltyValues,
+} from "@/config/rallyDefaults";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useGlobalBonusCounters } from "@/hooks/useGlobalBonusCounters";
 import { useGlobalPenaltyCounters } from "@/hooks/useGlobalPenaltyCounters";
@@ -49,7 +53,10 @@ export interface UseExtraShotsAndPenaltiesResult {
   /** This activity's own counters (from config.bonus_counters), if any. */
   bonusCounters: readonly BonusCounterConfig[];
   globalBonusCounters: readonly BonusCounterConfig[];
-  /** Ceiling on the summed bonus (config.max_bonus_points); undefined = none. */
+  /**
+   * Ceiling on the summed bonus, already resolved: the activity's own when it
+   * sets one, else the event default. undefined = no ceiling anywhere.
+   */
   maxBonusPoints?: number;
   /** Points the entered counts are worth, before the cap — for display. */
   bonusTotal: number;
@@ -100,6 +107,14 @@ export function useExtraShotsAndPenalties(
   // event format the way extra shots are — only on something being configured.
   const showBonuses = bonusCounters.length > 0 || globalBonusCounters.length > 0;
 
+  // The activity's own ceiling wins when it sets one; otherwise the event's
+  // default applies. Tested against undefined rather than falsiness so a
+  // configured 0 stays a real ceiling instead of falling through — the same
+  // precedence ScoringService._resolve_bonus_cap applies server-side, which is
+  // what actually truncates. This copy only drives the display and the warning.
+  const effectiveMaxBonusPoints =
+    maxBonusPoints === undefined ? getDefaultMaxBonusPoints(settings) : maxBonusPoints;
+
   const allBonusCounters = [...bonusCounters, ...globalBonusCounters];
   const bonusTotal = allBonusCounters.reduce(
     (sum, counter) => sum + (bonuses[counter.key] ?? 0) * counter.points,
@@ -148,7 +163,7 @@ export function useExtraShotsAndPenalties(
     showBonuses,
     bonusCounters,
     globalBonusCounters,
-    maxBonusPoints,
+    maxBonusPoints: effectiveMaxBonusPoints,
     bonusTotal,
     validateExtraShots,
   };

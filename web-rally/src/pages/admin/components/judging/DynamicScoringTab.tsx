@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Zap, Plus, Trash2, AlertCircle, ToggleLeft, ToggleRight } from "lucide-react";
 import {
+  viewRallySettings,
+  updateRallySettings,
+  type RallySettingsUpdate,
   listDynamicRules,
   createDynamicRule,
   updateDynamicRule,
@@ -67,6 +70,89 @@ type AwardForm = { team_id: string; points: string; reason: string };
 const EMPTY_RULE: RuleForm = { name: "", points: "", description: "" };
 const EMPTY_AWARD: AwardForm = { team_id: "", points: "", reason: "" };
 
+const SETTINGS_ADMIN_KEY = ["rallySettings-admin"] as const;
+
+/**
+ * The event-wide ceiling on the performance bonus.
+ *
+ * It belongs on this tab because this is where global bonus rules are created,
+ * and those apply at every checkpoint with no ceiling of their own: on a prova
+ * that configures none, the bonus was unbounded. A prova that sets its own
+ * ceiling still wins — this is the default, not a second limit.
+ */
+function BonusCeilingCard() {
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const { data: settings } = useQuery({
+    queryKey: SETTINGS_ADMIN_KEY,
+    queryFn: async () => {
+      const { data } = await viewRallySettings();
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const stored = settings?.default_max_bonus_points;
+  const value = draft ?? (stored === null || stored === undefined ? "" : String(stored));
+
+  const saveMutation = useMutation({
+    // Echo the whole config back with only this field changed: the settings
+    // PUT takes the full object, so a partial body would drop everything else.
+    mutationFn: async () => {
+      if (!settings) throw new Error("Settings not loaded");
+      const payload: RallySettingsUpdate = {
+        ...settings,
+        default_max_bonus_points: value === "" ? null : Number.parseInt(value, 10) || 0,
+      };
+      return (await updateRallySettings({ body: payload })).data;
+    },
+    onSuccess: () => {
+      setDraft(null);
+      void qc.invalidateQueries({ queryKey: SETTINGS_ADMIN_KEY });
+      void qc.invalidateQueries({ queryKey: ["rallySettings-public"] });
+    },
+  });
+
+  return (
+    <section className="rally-surface space-y-2 p-4">
+      <h3 className="text-sm font-semibold">Teto de bónus por prova</h3>
+      <p className="text-xs text-muted-foreground">
+        Máximo de pontos de bónus que uma equipa pode receber numa prova. Vale para as provas que
+        não definam o seu próprio teto — incluindo os bónus globais abaixo, que de outra forma não
+        teriam limite. Em branco significa sem limite.
+      </p>
+      <div className="flex items-end gap-2">
+        <label data-admin-search-key="default_max_bonus_points" className="space-y-1">
+          <span className="text-xs text-muted-foreground">Pontos</span>
+          <input
+            type="number"
+            min="0"
+            aria-label="Teto de bónus por prova"
+            className="w-28 rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder="Sem limite"
+            value={value}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+        </label>
+        <button
+          type="button"
+          className="rally-press rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          disabled={!settings || saveMutation.isPending || draft === null}
+          onClick={() => saveMutation.mutate()}
+        >
+          {saveMutation.isPending ? "A guardar…" : "Guardar"}
+        </button>
+      </div>
+      {saveMutation.isError && (
+        <div className="flex items-center gap-2 text-xs text-red-500">
+          <AlertCircle className="h-4 w-4" /> Erro ao guardar o teto de bónus.
+        </div>
+      )}
+    </section>
+  );
+}
+
 function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -74,9 +160,12 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
   const copy = RULE_COPY[kind];
 
   const { data: rules = [] } = useQuery<DynamicRuleResponse[]>({
-    queryKey: ["dynamic-rules"],
+    // Its own key: the staff form caches the active-only listing under
+    // ["dynamic-rules", ...], and serving it this one would put switched-off
+    // rules in front of staff at a checkpoint.
+    queryKey: ["dynamic-rules", "admin"],
     queryFn: async () => {
-      const { data } = await listDynamicRules();
+      const { data } = await listDynamicRules({ query: { include_inactive: true } });
       return data ?? [];
     },
     // One endpoint serves both sections; each shows only its own kind.
@@ -195,9 +284,21 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
 
       <ul className="space-y-2">
         {rules.map((rule) => (
-          <li key={rule.id} className="rally-surface flex items-center gap-3 p-3">
+          <li
+            key={rule.id}
+            className={`rally-surface flex items-center gap-3 p-3 ${
+              rule.is_active ? "" : "opacity-60"
+            }`}
+          >
             <div className="min-w-0 flex-1">
-              <p className="font-semibold leading-tight">{rule.name}</p>
+              <p className="font-semibold leading-tight">
+                {rule.name}
+                {!rule.is_active && (
+                  <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                    Inativa
+                  </span>
+                )}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {copy.sign}
                 {Math.abs(rule.points)} pts por ocorrência · todos os postos
@@ -223,8 +324,11 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
               aria-label={`Eliminar ${copy.noun} ${rule.name}`}
               className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
               onClick={() => {
-                if (confirm(`Eliminar ${copy.noun} "${rule.name}"?`))
-                  deleteMutation.mutate(rule.id);
+                const message =
+                  `Eliminar definitivamente ${copy.noun} "${rule.name}"?\n\n` +
+                  "Deixa de aparecer, mas os resultados já pontuados com ela mantêm os pontos. " +
+                  "Para a suspender temporariamente, usa o interruptor.";
+                if (confirm(message)) deleteMutation.mutate(rule.id);
               }}
             >
               <Trash2 className="h-4 w-4" />
@@ -406,6 +510,8 @@ export default function DynamicScoringTab() {
         <Zap className="h-5 w-5 text-amber-500" />
         <h2 className="text-lg font-semibold">Pontuação Dinâmica</h2>
       </div>
+      <BonusCeilingCard />
+      <div className="border-t border-border" />
       <RulesSection kind="penalty_counter" />
       <div className="border-t border-border" />
       <RulesSection kind="bonus_counter" />

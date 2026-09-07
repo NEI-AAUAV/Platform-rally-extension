@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/themes/bloody";
@@ -35,6 +36,8 @@ type Props = Readonly<{
   counters: readonly PenaltyCounterConfig[];
   onChange: (counters: PenaltyCounterConfig[]) => void;
   copy: CounterCopy;
+  /** Extra controls that belong to this list — e.g. the bonus ceiling. */
+  children?: ReactNode;
 }>;
 
 /**
@@ -42,7 +45,7 @@ type Props = Readonly<{
  * differ only in wording and in which config key they are merged into, so the
  * list mechanics (add/remove/re-slug on rename) live here once.
  */
-export default function CounterConfigFields({ counters, onChange, copy }: Props) {
+export default function CounterConfigFields({ counters, onChange, copy, children }: Props) {
   const addCounter = () => {
     onChange([...counters, { key: `counter_${counters.length + 1}`, label: "", points: 5 }]);
   };
@@ -122,6 +125,8 @@ export default function CounterConfigFields({ counters, onChange, copy }: Props)
         <Plus className="h-4 w-4" />
         <span className="ml-1.5">{copy.addButtonLabel}</span>
       </BloodyButton>
+
+      {children}
     </div>
   );
 }

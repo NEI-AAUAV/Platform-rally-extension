@@ -188,6 +188,10 @@ class RallySettingsBase(BaseModel):
     penalty_per_not_drinking: NonPositiveInt
     bonus_per_extra_shot: int
     max_extra_shots_per_member: NonNegativeInt
+    # Ceiling on the summed performance bonus for any activity that sets no
+    # `config.max_bonus_points` of its own. None means uncapped; 0 is a real
+    # cap. Also the only ceiling global bonus rules ever have.
+    default_max_bonus_points: Annotated[int, Field(ge=0)] | None = None
 
     # Checkpoint behavior
     checkpoint_order_matters: bool

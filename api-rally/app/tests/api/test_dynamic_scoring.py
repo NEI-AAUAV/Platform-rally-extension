@@ -92,7 +92,11 @@ async def test_delete_rule_not_found(pg_session, pg_client, as_admin):
 async def test_delete_rule_is_soft_delete_and_hidden_from_list(pg_session, pg_client, as_admin):
     """Regression: deleting a rule mustn't hard-delete the row — results
     already priced with its ``g_<id>`` key would lose their price on the next
-    edit or retroactive recompute. It must still disappear from the active list.
+    edit or retroactive recompute. It must still disappear from every listing.
+
+    The tombstone is ``deleted_at``, not ``is_active``: that flag is the
+    admin's switch, and writing it here is what used to make "switched off"
+    and "deleted" the same state.
     """
     await _make_event(pg_session)
     created = pg_client.post(
@@ -103,15 +107,59 @@ async def test_delete_rule_is_soft_delete_and_hidden_from_list(pg_session, pg_cl
     resp = pg_client.delete(f"/api/rally/v1/dynamic-rules/{created['id']}")
     assert resp.status_code == 204
 
-    listed = pg_client.get("/api/rally/v1/dynamic-rules")
-    assert listed.status_code == 200
-    assert all(rule["id"] != created["id"] for rule in listed.json())
+    for url in (
+        "/api/rally/v1/dynamic-rules",
+        "/api/rally/v1/dynamic-rules?include_inactive=true",
+    ):
+        listed = pg_client.get(url)
+        assert listed.status_code == 200
+        assert all(rule["id"] != created["id"] for rule in listed.json()), url
 
     from app.models.dynamic_scoring import DynamicRule
 
     row = await pg_session.get(DynamicRule, created["id"])
     assert row is not None
-    assert row.is_active is False
+    assert row.deleted_at is not None
+    assert row.is_active is True
+
+
+async def test_switched_off_rule_is_listed_only_with_include_inactive(
+    pg_session, pg_client, as_admin
+):
+    """The bug behind "the switch only deletes": the admin read the same
+    active-only listing the staff form does, so a rule it switched off vanished
+    from the screen holding its switch."""
+    await _make_event(pg_session)
+    created = pg_client.post(
+        "/api/rally/v1/dynamic-rules",
+        json={"name": "Regra a desligar", "points": 20.0},
+    ).json()
+
+    toggled = pg_client.put(
+        f"/api/rally/v1/dynamic-rules/{created['id']}", json={"is_active": False}
+    )
+    assert toggled.status_code == 200
+
+    default_listing = pg_client.get("/api/rally/v1/dynamic-rules").json()
+    assert all(rule["id"] != created["id"] for rule in default_listing)
+
+    admin_listing = pg_client.get("/api/rally/v1/dynamic-rules?include_inactive=true").json()
+    row = next(rule for rule in admin_listing if rule["id"] == created["id"])
+    assert row["is_active"] is False
+
+
+async def test_a_switched_off_rule_can_be_switched_back_on(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+    created = pg_client.post(
+        "/api/rally/v1/dynamic-rules",
+        json={"name": "Regra reversível", "points": 20.0},
+    ).json()
+
+    pg_client.put(f"/api/rally/v1/dynamic-rules/{created['id']}", json={"is_active": False})
+    pg_client.put(f"/api/rally/v1/dynamic-rules/{created['id']}", json={"is_active": True})
+
+    listed = pg_client.get("/api/rally/v1/dynamic-rules").json()
+    assert [rule["id"] for rule in listed] == [created["id"]]
 
 
 # ---------- DynamicAward ----------

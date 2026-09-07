@@ -248,7 +248,7 @@ describe("ActivityCreateForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Criar" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0].config).not.toHaveProperty("max_bonus_points");
+    expect(onSubmit.mock.calls[0]?.[0]?.config).not.toHaveProperty("max_bonus_points");
   });
 
   it("keeps a cap of zero, which is a real cap and not 'unset'", async () => {

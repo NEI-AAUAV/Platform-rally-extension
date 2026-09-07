@@ -59,7 +59,15 @@ class DynamicRule(Base):
         String(64), nullable=False, default=PENALTY_COUNTER_RULE_TYPE
     )
     points: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    # Two independent axes, and conflating them is what broke the admin's
+    # toggle: ``is_active`` is the on/off switch a person flips, ``deleted_at``
+    # is the tombstone. Neither deletes the row — results already scored carry
+    # the key this rule produced, and pricing that key back is what keeps an
+    # edit or a retroactive recompute from failing on it.
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
 
 class DynamicAward(Base):

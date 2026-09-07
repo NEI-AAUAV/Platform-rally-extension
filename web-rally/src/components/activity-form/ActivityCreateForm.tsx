@@ -326,25 +326,12 @@ export default function ActivityForm({
 
           <PenaltyCounterConfigFields counters={penaltyCounters} onChange={setPenaltyCounters} />
 
-          <BonusCounterConfigFields counters={bonusCounters} onChange={setBonusCounters} />
-
-          <div className="w-full max-w-xs">
-            <label htmlFor="max-bonus-points" className="mb-1 block text-xs text-muted-foreground">
-              Máximo de pontos de bónus (opcional)
-            </label>
-            <Input
-              id="max-bonus-points"
-              type="number"
-              min={0}
-              value={maxBonusPoints ?? ""}
-              placeholder="Sem limite"
-              onChange={(e) => {
-                const raw = e.target.value;
-                setMaxBonusPoints(raw === "" ? undefined : Number.parseInt(raw, 10) || 0);
-              }}
-              className="border-border bg-card"
-            />
-          </div>
+          <BonusCounterConfigFields
+            counters={bonusCounters}
+            onChange={setBonusCounters}
+            maxBonusPoints={maxBonusPoints}
+            onMaxBonusPointsChange={setMaxBonusPoints}
+          />
 
           <div className="flex gap-4 pt-4">
             <BloodyButton type="submit" disabled={isLoading} className="flex-1">

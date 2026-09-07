@@ -2136,3 +2136,211 @@ async def test_boolean_activity_scores_five_plus_capped_performance(pg_session):
     assert scores["Bebeu tudo"] == pytest.approx(5)
     assert scores["Bebeu tudo e brilhou"] == pytest.approx(8)
     assert scores["Staff generoso demais"] == pytest.approx(10), "capped at 5 + 5"
+
+
+# ---------------------------------------------------------------------------
+# Event-wide bonus ceiling (rally_settings.default_max_bonus_points)
+# ---------------------------------------------------------------------------
+
+
+async def _set_event_bonus_cap(db, cap: int | None) -> None:
+    from sqlalchemy import select as sa_select
+
+    from app.models.rally_settings import RallySettings
+
+    await ScoringService(db)._get_settings()
+    settings = (await db.scalars(sa_select(RallySettings))).first()
+    settings.default_max_bonus_points = cap
+    await db.commit()
+
+
+async def _score_with_bonus(db, activity, team, count: int = 6) -> float:
+    await ScoringService(db).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            bonus_counts={"perf": count},
+            is_completed=True,
+        )
+    )
+    result = (await db.scalars(_select_result(activity.id, team.id))).first()
+    return result.final_score
+
+
+async def test_event_default_cap_applies_when_the_activity_sets_none(pg_session):
+    await _set_event_bonus_cap(pg_session, 5)
+    team = await _make_team(pg_session, "Event Cap")
+    activity = await _make_activity(pg_session, config=_bonus_activity_config())
+
+    # 6 occurrences x 2 points = 12, truncated to the event's 5.
+    assert await _score_with_bonus(pg_session, activity, team) == pytest.approx(55)
+
+
+async def test_activity_cap_overrides_the_event_default(pg_session):
+    await _set_event_bonus_cap(pg_session, 5)
+    team = await _make_team(pg_session, "Activity Cap Wins")
+    activity = await _make_activity(
+        pg_session, config=_bonus_activity_config(max_bonus_points=8)
+    )
+
+    assert await _score_with_bonus(pg_session, activity, team) == pytest.approx(58)
+
+
+async def test_activity_cap_of_zero_is_not_read_as_unset(pg_session):
+    """A configured 0 must not fall through to the event default.
+
+    Reading the value instead of the key would treat "no bonus on this prova"
+    as "no opinion", and hand the team the event's ceiling instead.
+    """
+    await _set_event_bonus_cap(pg_session, 5)
+    team = await _make_team(pg_session, "Zero Cap")
+    activity = await _make_activity(
+        pg_session, config=_bonus_activity_config(max_bonus_points=0)
+    )
+
+    assert await _score_with_bonus(pg_session, activity, team) == pytest.approx(50)
+
+
+async def test_no_cap_anywhere_leaves_the_bonus_uncapped(pg_session):
+    await _set_event_bonus_cap(pg_session, None)
+    team = await _make_team(pg_session, "No Cap")
+    activity = await _make_activity(pg_session, config=_bonus_activity_config())
+
+    assert await _score_with_bonus(pg_session, activity, team) == pytest.approx(62)
+
+
+async def test_event_default_cap_bounds_a_global_bonus_rule(pg_session):
+    """The hole this setting exists for.
+
+    A global bonus rule applies at every checkpoint and has no ceiling of its
+    own, so on an activity that configures nothing it was unbounded.
+    """
+    from app.models.dynamic_scoring import BONUS_COUNTER_RULE_TYPE, DynamicRule
+
+    rule = DynamicRule(
+        event_id=await current_event_id(pg_session),
+        name="Criatividade",
+        rule_type=BONUS_COUNTER_RULE_TYPE,
+        points=10,
+        is_active=True,
+    )
+    pg_session.add(rule)
+    await pg_session.commit()
+    await _set_event_bonus_cap(pg_session, 5)
+
+    team = await _make_team(pg_session, "Global Capped")
+    activity = await _make_activity(pg_session, config={"min_points": 0, "max_points": 100})
+
+    await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            bonus_counts={f"gb_{rule.id}": 3},  # 30 points before the ceiling
+            is_completed=True,
+        )
+    )
+
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    assert result.final_score == pytest.approx(55)
+
+
+# ---------------------------------------------------------------------------
+# A tombstoned rule still prices what it already scored
+# ---------------------------------------------------------------------------
+
+
+async def _make_bonus_rule(db, *, name: str = "Criatividade", points: float = 5.0):
+    from app.models.dynamic_scoring import BONUS_COUNTER_RULE_TYPE, DynamicRule
+
+    rule = DynamicRule(
+        event_id=await current_event_id(db),
+        name=name,
+        rule_type=BONUS_COUNTER_RULE_TYPE,
+        points=points,
+        is_active=True,
+    )
+    db.add(rule)
+    await db.commit()
+    await db.refresh(rule)
+    return rule
+
+
+async def test_deleted_rule_still_prices_an_existing_result_on_reprice(pg_session):
+    """The reason deletion is a tombstone and not a DELETE.
+
+    A result scored with the rule carries its key; repricing has to be able to
+    price that key back, or the admin's "recalcular classificação" would either
+    500 or silently zero the team's points.
+    """
+    from app.services.dynamic_scoring_service import DynamicScoringService
+
+    rule = await _make_bonus_rule(pg_session)
+    key = f"gb_{rule.id}"
+    team = await _make_team(pg_session, "Tombstoned Bonus")
+    activity = await _make_activity(pg_session, config={"min_points": 0, "max_points": 100})
+
+    await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            bonus_counts={key: 2},
+            is_completed=True,
+        )
+    )
+
+    await DynamicScoringService(pg_session).delete_rule(rule.id)
+
+    repriced = await ScoringService(pg_session).reprice_all_results()
+    await pg_session.commit()
+
+    assert repriced == 1
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    await pg_session.refresh(result)
+    assert result.bonus_counts == {key: 2}
+    assert result.final_score == pytest.approx(60)
+
+
+async def test_deleted_rule_is_not_offered_to_a_new_evaluation(pg_session):
+    from app.services.dynamic_scoring_service import DynamicScoringService
+
+    rule = await _make_bonus_rule(pg_session)
+    await DynamicScoringService(pg_session).delete_rule(rule.id)
+
+    team = await _make_team(pg_session, "New Eval Deleted")
+    activity = await _make_activity(pg_session, config={"min_points": 0, "max_points": 100})
+
+    with pytest.raises(RallyValidationError, match="Unknown bonus type"):
+        await ScoringService(pg_session).create_result(
+            ActivityResultCreate(
+                activity_id=activity.id,
+                team_id=team.id,
+                result_data={"assigned_points": 50},
+                bonus_counts={f"gb_{rule.id}": 1},
+                is_completed=True,
+            )
+        )
+
+
+async def test_switched_off_rule_is_not_offered_to_a_new_evaluation(pg_session):
+    """Switched off is hidden from staff, but for a different reason than
+    deleted — the rule stays on the admin's list, ready to be switched back."""
+    rule = await _make_bonus_rule(pg_session)
+    rule.is_active = False
+    await pg_session.commit()
+
+    team = await _make_team(pg_session, "New Eval Off")
+    activity = await _make_activity(pg_session, config={"min_points": 0, "max_points": 100})
+
+    with pytest.raises(RallyValidationError, match="Unknown bonus type"):
+        await ScoringService(pg_session).create_result(
+            ActivityResultCreate(
+                activity_id=activity.id,
+                team_id=team.id,
+                result_data={"assigned_points": 50},
+                bonus_counts={f"gb_{rule.id}": 1},
+                is_completed=True,
+            )
+        )

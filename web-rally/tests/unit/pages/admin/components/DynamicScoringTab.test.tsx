@@ -13,6 +13,8 @@ const {
   mockCreateDynamicAward,
   mockDeleteDynamicAward,
   mockGetTeams,
+  mockViewRallySettings,
+  mockUpdateRallySettings,
 } = vi.hoisted(() => ({
   mockListDynamicRules: vi.fn(),
   mockCreateDynamicRule: vi.fn(),
@@ -22,6 +24,8 @@ const {
   mockCreateDynamicAward: vi.fn(),
   mockDeleteDynamicAward: vi.fn(),
   mockGetTeams: vi.fn(),
+  mockViewRallySettings: vi.fn(),
+  mockUpdateRallySettings: vi.fn(),
 }));
 
 vi.mock('@/client', () => ({
@@ -33,6 +37,8 @@ vi.mock('@/client', () => ({
   createDynamicAward: (...args: unknown[]) => mockCreateDynamicAward(...args),
   deleteDynamicAward: (...args: unknown[]) => mockDeleteDynamicAward(...args),
   getTeams: (...args: unknown[]) => mockGetTeams(...args),
+  viewRallySettings: (...args: unknown[]) => mockViewRallySettings(...args),
+  updateRallySettings: (...args: unknown[]) => mockUpdateRallySettings(...args),
 }));
 
 function renderWithClient(ui: React.ReactElement) {
@@ -50,6 +56,12 @@ const rule = (overrides: Partial<any> = {}) => ({
   description: 'desc',
   is_active: true,
   is_automatic: false,
+  ...overrides,
+});
+
+const settings = (overrides: Partial<any> = {}) => ({
+  max_teams: 14,
+  default_max_bonus_points: null,
   ...overrides,
 });
 
@@ -77,6 +89,8 @@ describe('DynamicScoringTab', () => {
     mockDeleteDynamicRule.mockResolvedValue({ data: null });
     mockCreateDynamicAward.mockResolvedValue({ data: award() });
     mockDeleteDynamicAward.mockResolvedValue({ data: null });
+    mockViewRallySettings.mockResolvedValue({ data: settings() });
+    mockUpdateRallySettings.mockResolvedValue({ data: settings() });
   });
 
   it('renders heading and empty states', async () => {
@@ -135,6 +149,67 @@ describe('DynamicScoringTab', () => {
           rule_type: 'bonus_counter',
           points: 3,
         }),
+      }),
+    );
+  });
+
+  it('asks for the inactive rules too, so its own switch has something to flip', async () => {
+    renderWithClient(<DynamicScoringTab />);
+
+    await waitFor(() => expect(mockListDynamicRules).toHaveBeenCalled());
+    expect(mockListDynamicRules).toHaveBeenCalledWith({ query: { include_inactive: true } });
+  });
+
+  it('keeps a switched-off rule on the list, marked inactive', async () => {
+    mockListDynamicRules.mockResolvedValue({ data: [rule({ is_active: false })] });
+    renderWithClient(<DynamicScoringTab />);
+
+    expect(await screen.findByText('Rule One')).toBeInTheDocument();
+    expect(screen.getByText('Inativa')).toBeInTheDocument();
+  });
+
+  it('switches a rule back on', async () => {
+    mockListDynamicRules.mockResolvedValue({ data: [rule({ is_active: false })] });
+    renderWithClient(<DynamicScoringTab />);
+
+    fireEvent.click(await screen.findByLabelText('Ativar penalização Rule One'));
+
+    await waitFor(() =>
+      expect(mockUpdateDynamicRule).toHaveBeenCalledWith({
+        path: { rule_id: 1 },
+        body: { is_active: true },
+      }),
+    );
+  });
+
+  it('saves the event bonus ceiling with the full settings object', async () => {
+    renderWithClient(<DynamicScoringTab />);
+
+    const input = await screen.findByLabelText('Teto de bónus por prova');
+    fireEvent.change(input, { target: { value: '5' } });
+    fireEvent.click(screen.getByText('Guardar'));
+
+    await waitFor(() =>
+      expect(mockUpdateRallySettings).toHaveBeenCalledWith({
+        // The settings PUT takes the whole object: a partial body would drop
+        // every other setting.
+        body: { max_teams: 14, default_max_bonus_points: 5 },
+      }),
+    );
+  });
+
+  it('clears the ceiling back to "no limit" when the field is emptied', async () => {
+    mockViewRallySettings.mockResolvedValue({ data: settings({ default_max_bonus_points: 5 }) });
+    renderWithClient(<DynamicScoringTab />);
+
+    const input = await screen.findByLabelText('Teto de bónus por prova');
+    await waitFor(() => expect(input).toHaveValue(5));
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.click(screen.getByText('Guardar'));
+
+    await waitFor(() =>
+      expect(mockUpdateRallySettings).toHaveBeenCalledWith({
+        body: { max_teams: 14, default_max_bonus_points: null },
       }),
     );
   });
