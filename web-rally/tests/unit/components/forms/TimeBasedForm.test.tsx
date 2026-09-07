@@ -1,37 +1,26 @@
-import type { ComponentProps } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
+import { mockTeam, mockUseRallySettings, mockToast, peddyPaperSettings } from "./formTestMocks";
 import TimeBasedForm from "@/components/forms/TimeBasedForm";
-import type { Team } from "@/types/forms";
 
-const { mockUseRallySettings, mockToast } = vi.hoisted(() => ({
-  mockUseRallySettings: vi.fn(),
-  mockToast: { error: vi.fn(), success: vi.fn() },
-}));
+vi.mock("@/components/themes/bloody", async () => (await import("./formTestMocks")).bloodyMock);
 
-vi.mock("@/components/themes/bloody", () => ({
-  BloodyButton: (props: ComponentProps<"button">) => <button {...props} />,
-}));
+vi.mock(
+  "@/hooks/useGlobalPenaltyCounters",
+  async () => (await import("./formTestMocks")).globalPenaltyCountersMock,
+);
 
-vi.mock("@/hooks/useGlobalPenaltyCounters", () => ({
-  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
-  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
-  globalCounterKey: (id: number) => "g_" + id,
-}));
+vi.mock(
+  "@/hooks/useGlobalBonusCounters",
+  async () => (await import("./formTestMocks")).globalBonusCountersMock,
+);
 
-vi.mock("@/hooks/useGlobalBonusCounters", () => ({
-  useGlobalBonusCounters: () => ({ globalBonusCounters: [], isLoading: false }),
-  default: () => ({ globalBonusCounters: [], isLoading: false }),
-  globalBonusKey: (id: number) => "gb_" + id,
-}));
+vi.mock(
+  "@/hooks/useRallySettings",
+  async () => (await import("./formTestMocks")).rallySettingsMock,
+);
 
-vi.mock("@/hooks/useRallySettings", () => ({
-  default: () => mockUseRallySettings(),
-}));
-
-vi.mock("@/hooks/use-toast", () => ({
-  useAppToast: () => mockToast,
-}));
+vi.mock("@/hooks/use-toast", async () => (await import("./formTestMocks")).toastMock);
 
 vi.mock("@/components/shared", () => ({
   StopwatchWidget: ({ onUseTime }: { onUseTime: (s: number) => void }) => (
@@ -40,7 +29,6 @@ vi.mock("@/components/shared", () => ({
 }));
 
 describe("TimeBasedForm", () => {
-  const mockTeam = { id: 1, name: "Team A", num_members: 4 } as unknown as Team;
   const mockOnSubmit = vi.fn();
 
   beforeEach(() => {
@@ -144,15 +132,7 @@ describe("TimeBasedForm", () => {
   });
 
   it("hides the extra-shots and drinking-penalty fields in a peddy-paper event", () => {
-    mockUseRallySettings.mockReturnValue({
-      settings: {
-        event_type: "peddy_paper",
-        raw_settings: {
-          extra_shots_penalty_per_member: 1,
-          penalty_values: { vomit: 50, not_drinking: 20 },
-        },
-      },
-    });
+    mockUseRallySettings.mockReturnValue(peddyPaperSettings());
     render(<TimeBasedForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
     expect(screen.queryByLabelText("Shots extra")).not.toBeInTheDocument();
     expect(screen.queryByText("Penalizações")).not.toBeInTheDocument();
