@@ -1,61 +1,63 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import HowItWorks, { HowItWorks as HowItWorksNamed } from '@/pages/home/HowItWorks';
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import HowItWorks, { HowItWorks as HowItWorksNamed } from "@/pages/home/HowItWorks";
 
 // useEventTerms pulls from useRallySettings (React Query), which needs a
 // QueryClientProvider this test doesn't set up. Mock it with the fixed terms
 // this copy already assumes.
-vi.mock('@/hooks/useEventTerms', () => ({
+vi.mock("@/hooks/useEventTerms", () => ({
   default: () => ({
-    checkpoint: 'posto',
-    checkpoints: 'postos',
-    activity: 'desafio',
-    activities: 'desafios',
-    event: 'peddy-paper',
-    checkpointGender: 'm',
+    checkpoint: "posto",
+    checkpoints: "postos",
+    activity: "desafio",
+    activities: "desafios",
+    event: "peddy-paper",
+    checkpointGender: "m",
   }),
 }));
 
-describe('HowItWorks', () => {
-  it('renders the section heading', () => {
+describe("HowItWorks", () => {
+  it("renders the section heading", () => {
     render(<HowItWorks />);
-    expect(screen.getByRole('heading', { name: 'Como funciona' })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Como funciona" })).toBeInTheDocument();
   });
 
-  it('renders all three steps with titles and bodies', () => {
+  it("renders all three steps with titles and bodies", () => {
     render(<HowItWorks />);
-    expect(screen.getByText('Entra com a equipa')).toBeInTheDocument();
+    expect(screen.getByText("Entra com a equipa")).toBeInTheDocument();
     expect(
-      screen.getByText('Usa o código da tua equipa para aceder ao percurso e ao progresso ao vivo.'),
+      screen.getByText(
+        "Usa o código da tua equipa para aceder ao percurso e ao progresso ao vivo.",
+      ),
     ).toBeInTheDocument();
 
-    expect(screen.getByText('Percorre os postos')).toBeInTheDocument();
+    expect(screen.getByText("Percorre os postos")).toBeInTheDocument();
     expect(
-      screen.getByText('Vai a cada posto, completa o desafio e faz check-in com o QR code.'),
+      screen.getByText("Vai a cada posto, completa o desafio e faz check-in com o QR code."),
     ).toBeInTheDocument();
 
-    expect(screen.getByText('Sobe na classificação')).toBeInTheDocument();
+    expect(screen.getByText("Sobe na classificação")).toBeInTheDocument();
     expect(
-      screen.getByText('Cada posto soma pontos. Acompanha a pontuação e luta pelo pódio.'),
+      screen.getByText("Cada posto soma pontos. Acompanha a pontuação e luta pelo pódio."),
     ).toBeInTheDocument();
   });
 
-  it('renders step numbers 1, 2 and 3', () => {
+  it("renders step numbers 1, 2 and 3", () => {
     render(<HowItWorks />);
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
   });
 
-  it('exposes both a named and default export referring to the same component', () => {
+  it("exposes both a named and default export referring to the same component", () => {
     expect(HowItWorksNamed).toBe(HowItWorks);
   });
 
-  it('links the section to its heading via aria-labelledby', () => {
+  it("links the section to its heading via aria-labelledby", () => {
     render(<HowItWorks />);
-    const heading = screen.getByRole('heading', { name: 'Como funciona' });
-    const section = heading.closest('section');
-    expect(section).toHaveAttribute('aria-labelledby', 'how-heading');
-    expect(heading).toHaveAttribute('id', 'how-heading');
+    const heading = screen.getByRole("heading", { name: "Como funciona" });
+    const section = heading.closest("section");
+    expect(section).toHaveAttribute("aria-labelledby", "how-heading");
+    expect(heading).toHaveAttribute("id", "how-heading");
   });
 });

@@ -1,37 +1,8 @@
-import type { ComponentProps } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
+import { mockUseRallySettings, mockToast, noDrinkingSettings } from "../../rallyFormMocks";
 import ScoreBasedForm from "@/components/forms/ScoreBasedForm";
 import type { Team } from "@/types/forms";
-
-const { mockUseRallySettings, mockToast } = vi.hoisted(() => ({
-  mockUseRallySettings: vi.fn(),
-  mockToast: { error: vi.fn(), success: vi.fn() },
-}));
-
-vi.mock("@/components/themes/bloody", () => ({
-  BloodyButton: (props: ComponentProps<"button">) => <button {...props} />,
-}));
-
-vi.mock("@/hooks/useGlobalPenaltyCounters", () => ({
-  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
-  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
-  globalCounterKey: (id: number) => `g_${id}`,
-}));
-
-vi.mock("@/hooks/useGlobalBonusCounters", () => ({
-  useGlobalBonusCounters: () => ({ globalBonusCounters: [], isLoading: false }),
-  default: () => ({ globalBonusCounters: [], isLoading: false }),
-  globalBonusKey: (id: number) => "gb_" + id,
-}));
-
-vi.mock("@/hooks/useRallySettings", () => ({
-  default: () => mockUseRallySettings(),
-}));
-
-vi.mock("@/hooks/use-toast", () => ({
-  useAppToast: () => mockToast,
-}));
 
 describe("ScoreBasedForm", () => {
   const mockTeam = { id: 1, name: "Team A", num_members: 4 } as unknown as Team;
@@ -39,9 +10,7 @@ describe("ScoreBasedForm", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseRallySettings.mockReturnValue({
-      settings: { raw_settings: { extra_shots_penalty_per_member: 0, penalty_values: {} } },
-    });
+    mockUseRallySettings.mockReturnValue(noDrinkingSettings());
   });
 
   it("renders without crashing", () => {

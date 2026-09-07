@@ -1,32 +1,8 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mockUseRallySettings, mockToast } from "../rallyFormMocks";
 import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShotsAndPenalties";
 import type { Team } from "@/types/forms";
-
-const { mockUseRallySettings, mockToast } = vi.hoisted(() => ({
-  mockUseRallySettings: vi.fn(),
-  mockToast: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() },
-}));
-
-vi.mock("@/hooks/useGlobalPenaltyCounters", () => ({
-  useGlobalPenaltyCounters: () => ({ globalPenaltyCounters: [], isLoading: false }),
-  default: () => ({ globalPenaltyCounters: [], isLoading: false }),
-  globalCounterKey: (id: number) => `g_${id}`,
-}));
-
-vi.mock("@/hooks/useGlobalBonusCounters", () => ({
-  useGlobalBonusCounters: () => ({ globalBonusCounters: [], isLoading: false }),
-  default: () => ({ globalBonusCounters: [], isLoading: false }),
-  globalBonusKey: (id: number) => "gb_" + id,
-}));
-
-vi.mock("@/hooks/useRallySettings", () => ({
-  default: () => mockUseRallySettings(),
-}));
-
-vi.mock("@/hooks/use-toast", () => ({
-  useAppToast: () => mockToast,
-}));
 
 describe("useExtraShotsAndPenalties", () => {
   beforeEach(() => {

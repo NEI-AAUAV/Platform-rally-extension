@@ -1,11 +1,11 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi } from 'vitest';
-import { CheckpointTimelineItem } from '@/pages/teams/[id]/CheckpointTimelineItem';
-import type { DetailedTeam, DetailedCheckPoint } from '@/client';
-import type { EvaluationResult } from '@/pages/teams/[id]/teamDetails.types';
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi } from "vitest";
+import { CheckpointTimelineItem } from "@/pages/teams/[id]/CheckpointTimelineItem";
+import type { DetailedTeam, DetailedCheckPoint } from "@/client";
+import type { EvaluationResult } from "@/pages/teams/[id]/teamDetails.types";
 
-vi.mock('@/components/shared', () => ({
+vi.mock("@/components/shared", () => ({
   CheckpointDiscovery: () => <div data-testid="discovery" />,
   ProvisionalBadge: () => <span data-testid="provisional">*</span>,
 }));
@@ -13,13 +13,13 @@ vi.mock('@/components/shared', () => ({
 const baseTeam = {
   score_per_checkpoint: [10],
   last_checkpoint_number: 1,
-  times: ['2024-01-01T10:00:00Z'],
+  times: ["2024-01-01T10:00:00Z"],
 } as unknown as DetailedTeam;
 
-const checkpoint = { id: 1, order: 1, name: 'Posto 1' } as DetailedCheckPoint;
+const checkpoint = { id: 1, order: 1, name: "Posto 1" } as DetailedCheckPoint;
 
-describe('CheckpointTimelineItem', () => {
-  it('renders basic checkpoint info', () => {
+describe("CheckpointTimelineItem", () => {
+  it("renders basic checkpoint info", () => {
     render(
       <CheckpointTimelineItem
         team={baseTeam}
@@ -34,12 +34,12 @@ describe('CheckpointTimelineItem', () => {
         onToggle={vi.fn()}
       />,
     );
-    expect(screen.getByText('Checkpoint 1')).toBeInTheDocument();
-    expect(screen.getByText('Posto 1')).toBeInTheDocument();
+    expect(screen.getByText("Checkpoint 1")).toBeInTheDocument();
+    expect(screen.getByText("Posto 1")).toBeInTheDocument();
     expect(screen.getByText(/10 pts/)).toBeInTheDocument();
   });
 
-  it('marks the current checkpoint', () => {
+  it("marks the current checkpoint", () => {
     const team = { ...baseTeam, last_checkpoint_number: 0, times: [] } as unknown as DetailedTeam;
     render(
       <CheckpointTimelineItem
@@ -55,17 +55,17 @@ describe('CheckpointTimelineItem', () => {
         onToggle={vi.fn()}
       />,
     );
-    expect(screen.getByText('Current')).toBeInTheDocument();
-    expect(screen.getByText('Not evaluated yet')).toBeInTheDocument();
+    expect(screen.getByText("Current")).toBeInTheDocument();
+    expect(screen.getByText("Not evaluated yet")).toBeInTheDocument();
   });
 
-  it('toggles expansion and shows activity results when clicked', async () => {
+  it("toggles expansion and shows activity results when clicked", async () => {
     const onToggle = vi.fn();
     const activityResults = [
       {
-        activity: { id: 1, checkpoint_id: 1, name: 'Act 1', activity_type: 'ScoreBasedActivity' },
+        activity: { id: 1, checkpoint_id: 1, name: "Act 1", activity_type: "ScoreBasedActivity" },
         final_score: 20,
-        completed_at: '2024-01-01T10:05:00Z',
+        completed_at: "2024-01-01T10:05:00Z",
       },
     ] as unknown as EvaluationResult[];
 
@@ -85,23 +85,23 @@ describe('CheckpointTimelineItem', () => {
       />,
     );
 
-    expect(screen.getByText('1 activity')).toBeInTheDocument();
-    await user.click(screen.getByText('Checkpoint 1').closest('button')!);
+    expect(screen.getByText("1 activity")).toBeInTheDocument();
+    await user.click(screen.getByText("Checkpoint 1").closest("button")!);
     expect(onToggle).toHaveBeenCalledWith(0);
   });
 
-  it('renders activity cards when expanded', () => {
+  it("renders activity cards when expanded", () => {
     const activityResults = [
       {
         activity: {
           id: 1,
           checkpoint_id: 1,
-          name: 'Act 1',
-          description: 'Desc',
-          activity_type: 'TimeBasedActivity',
+          name: "Act 1",
+          description: "Desc",
+          activity_type: "TimeBasedActivity",
         },
         final_score: 20,
-        completed_at: '2024-01-01T10:05:00Z',
+        completed_at: "2024-01-01T10:05:00Z",
       },
     ] as unknown as EvaluationResult[];
 
@@ -120,22 +120,22 @@ describe('CheckpointTimelineItem', () => {
       />,
     );
 
-    expect(screen.getByText('Act 1')).toBeInTheDocument();
-    expect(screen.getByText('Desc')).toBeInTheDocument();
-    expect(screen.getAllByTestId('provisional').length).toBeGreaterThan(0);
+    expect(screen.getByText("Act 1")).toBeInTheDocument();
+    expect(screen.getByText("Desc")).toBeInTheDocument();
+    expect(screen.getAllByTestId("provisional").length).toBeGreaterThan(0);
   });
 
-  it('deduplicates multiple results for the same activity, keeping the latest', () => {
+  it("deduplicates multiple results for the same activity, keeping the latest", () => {
     const activityResults = [
       {
-        activity: { id: 1, checkpoint_id: 1, name: 'Act 1', activity_type: 'ScoreBasedActivity' },
+        activity: { id: 1, checkpoint_id: 1, name: "Act 1", activity_type: "ScoreBasedActivity" },
         final_score: 5,
-        completed_at: '2024-01-01T09:00:00Z',
+        completed_at: "2024-01-01T09:00:00Z",
       },
       {
-        activity: { id: 1, checkpoint_id: 1, name: 'Act 1', activity_type: 'ScoreBasedActivity' },
+        activity: { id: 1, checkpoint_id: 1, name: "Act 1", activity_type: "ScoreBasedActivity" },
         final_score: 15,
-        completed_at: '2024-01-01T11:00:00Z',
+        completed_at: "2024-01-01T11:00:00Z",
       },
     ] as unknown as EvaluationResult[];
 
@@ -154,14 +154,14 @@ describe('CheckpointTimelineItem', () => {
       />,
     );
 
-    expect(screen.getByText('15 pts')).toBeInTheDocument();
+    expect(screen.getByText("15 pts")).toBeInTheDocument();
   });
 
   it("labels the row by the post's own order, not its position in the list", () => {
     // The row used to be numbered `index + 1` and look the post up by that
     // number, so it printed a literal `Checkpoint N` whenever the lookup
     // missed. The post is passed in now, so its order is the label.
-    const third = { id: 3, order: 3, name: 'Posto 3' } as DetailedCheckPoint;
+    const third = { id: 3, order: 3, name: "Posto 3" } as DetailedCheckPoint;
     render(
       <CheckpointTimelineItem
         team={baseTeam}
@@ -176,15 +176,15 @@ describe('CheckpointTimelineItem', () => {
         onToggle={vi.fn()}
       />,
     );
-    expect(screen.getByText('Checkpoint 3')).toBeInTheDocument();
-    expect(screen.getByText('Posto 3')).toBeInTheDocument();
+    expect(screen.getByText("Checkpoint 3")).toBeInTheDocument();
+    expect(screen.getByText("Posto 3")).toBeInTheDocument();
   });
 
-  it('withholds the gallery for a post the server redacted', () => {
+  it("withholds the gallery for a post the server redacted", () => {
     const redacted = {
       id: 4,
       order: 4,
-      name: 'Posto 4',
+      name: "Posto 4",
       is_redacted: true,
     } as unknown as DetailedCheckPoint;
     render(
@@ -201,6 +201,6 @@ describe('CheckpointTimelineItem', () => {
         onToggle={vi.fn()}
       />,
     );
-    expect(screen.queryByTestId('discovery')).not.toBeInTheDocument();
+    expect(screen.queryByTestId("discovery")).not.toBeInTheDocument();
   });
 });

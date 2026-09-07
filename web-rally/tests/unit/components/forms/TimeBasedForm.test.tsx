@@ -1,26 +1,14 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import { mockTeam, mockUseRallySettings, mockToast, peddyPaperSettings } from "./formTestMocks";
+import {
+  mockTeam,
+  mockUseRallySettings,
+  mockToast,
+  peddyPaperSettings,
+  expectNoDrinkingFields,
+  noDrinkingSettings,
+} from "../../rallyFormMocks";
 import TimeBasedForm from "@/components/forms/TimeBasedForm";
-
-vi.mock("@/components/themes/bloody", async () => (await import("./formTestMocks")).bloodyMock);
-
-vi.mock(
-  "@/hooks/useGlobalPenaltyCounters",
-  async () => (await import("./formTestMocks")).globalPenaltyCountersMock,
-);
-
-vi.mock(
-  "@/hooks/useGlobalBonusCounters",
-  async () => (await import("./formTestMocks")).globalBonusCountersMock,
-);
-
-vi.mock(
-  "@/hooks/useRallySettings",
-  async () => (await import("./formTestMocks")).rallySettingsMock,
-);
-
-vi.mock("@/hooks/use-toast", async () => (await import("./formTestMocks")).toastMock);
 
 vi.mock("@/components/shared", () => ({
   StopwatchWidget: ({ onUseTime }: { onUseTime: (s: number) => void }) => (
@@ -33,9 +21,7 @@ describe("TimeBasedForm", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseRallySettings.mockReturnValue({
-      settings: { raw_settings: { extra_shots_penalty_per_member: 0, penalty_values: {} } },
-    });
+    mockUseRallySettings.mockReturnValue(noDrinkingSettings());
   });
 
   it("renders without crashing", () => {
@@ -134,7 +120,6 @@ describe("TimeBasedForm", () => {
   it("hides the extra-shots and drinking-penalty fields in a peddy-paper event", () => {
     mockUseRallySettings.mockReturnValue(peddyPaperSettings());
     render(<TimeBasedForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
-    expect(screen.queryByLabelText("Shots extra")).not.toBeInTheDocument();
-    expect(screen.queryByText("Penalizações")).not.toBeInTheDocument();
+    expectNoDrinkingFields();
   });
 });

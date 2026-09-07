@@ -1,21 +1,21 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
 
-const h = vi.hoisted(() => ({ useAuthSync: vi.fn() }))
+const h = vi.hoisted(() => ({ useAuthSync: vi.fn() }));
 
-vi.mock('@/auth/useAuthSync', () => ({ useAuthSync: h.useAuthSync }))
+vi.mock("@/auth/useAuthSync", () => ({ useAuthSync: h.useAuthSync }));
 
-import AuthSyncGate from '@/auth/AuthSyncGate'
+import AuthSyncGate from "@/auth/AuthSyncGate";
 
-describe('AuthSyncGate', () => {
-  it('invokes useAuthSync and renders children', () => {
+describe("AuthSyncGate", () => {
+  it("invokes useAuthSync and renders children", () => {
     render(
       <AuthSyncGate>
         <div>child content</div>
       </AuthSyncGate>,
-    )
+    );
 
-    expect(h.useAuthSync).toHaveBeenCalled()
-    expect(screen.getByText('child content')).toBeInTheDocument()
-  })
-})
+    expect(h.useAuthSync).toHaveBeenCalled();
+    expect(screen.getByText("child content")).toBeInTheDocument();
+  });
+});

@@ -1,8 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import DynamicScoringTab from '@/pages/admin/components/judging/DynamicScoringTab';
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import DynamicScoringTab from "@/pages/admin/components/judging/DynamicScoringTab";
 
 const {
   mockListDynamicRules,
@@ -28,7 +28,7 @@ const {
   mockUpdateRallySettings: vi.fn(),
 }));
 
-vi.mock('@/client', () => ({
+vi.mock("@/client", () => ({
   listDynamicRules: (...args: unknown[]) => mockListDynamicRules(...args),
   createDynamicRule: (...args: unknown[]) => mockCreateDynamicRule(...args),
   updateDynamicRule: (...args: unknown[]) => mockUpdateDynamicRule(...args),
@@ -50,10 +50,10 @@ function renderWithClient(ui: React.ReactElement) {
 
 const rule = (overrides: Partial<any> = {}) => ({
   id: 1,
-  name: 'Rule One',
-  rule_type: 'penalty_counter',
+  name: "Rule One",
+  rule_type: "penalty_counter",
   points: 10,
-  description: 'desc',
+  description: "desc",
   is_active: true,
   is_automatic: false,
   ...overrides,
@@ -69,18 +69,18 @@ const award = (overrides: Partial<any> = {}) => ({
   id: 1,
   team_id: 1,
   points: 20,
-  reason: 'good job',
+  reason: "good job",
   rule_id: null,
   is_active: true,
   ...overrides,
 });
 
-const team = (overrides: Partial<any> = {}) => ({ id: 1, name: 'Team Alpha', ...overrides });
+const team = (overrides: Partial<any> = {}) => ({ id: 1, name: "Team Alpha", ...overrides });
 
-describe('DynamicScoringTab', () => {
+describe("DynamicScoringTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     mockListDynamicRules.mockResolvedValue({ data: [] });
     mockListDynamicAwards.mockResolvedValue({ data: [] });
     mockGetTeams.mockResolvedValue({ data: [] });
@@ -93,86 +93,84 @@ describe('DynamicScoringTab', () => {
     mockUpdateRallySettings.mockResolvedValue({ data: settings() });
   });
 
-  it('renders heading and empty states', async () => {
+  it("renders heading and empty states", async () => {
     renderWithClient(<DynamicScoringTab />);
-    expect(screen.getByText('Pontuação Dinâmica')).toBeInTheDocument();
+    expect(screen.getByText("Pontuação Dinâmica")).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText('Sem penalizações globais definidas.')).toBeInTheDocument();
+      expect(screen.getByText("Sem penalizações globais definidas.")).toBeInTheDocument();
     });
-    expect(screen.getByText('Sem prémios ativos.')).toBeInTheDocument();
+    expect(screen.getByText("Sem prémios ativos.")).toBeInTheDocument();
   });
 
-  it('renders a list of rules', async () => {
+  it("renders a list of rules", async () => {
     mockListDynamicRules.mockResolvedValue({ data: [rule()] });
     renderWithClient(<DynamicScoringTab />);
-    expect(await screen.findByText('Rule One')).toBeInTheDocument();
-    expect(
-      screen.getByText(/−10 pts por ocorrência · todos os postos · desc/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Rule One")).toBeInTheDocument();
+    expect(screen.getByText(/−10 pts por ocorrência · todos os postos · desc/)).toBeInTheDocument();
   });
 
-  it('files a bonus rule under the bonus section, not the penalty one', async () => {
+  it("files a bonus rule under the bonus section, not the penalty one", async () => {
     // One endpoint serves both kinds; each section shows only its own.
     mockListDynamicRules.mockResolvedValue({
-      data: [rule(), rule({ id: 2, name: 'Criatividade', rule_type: 'bonus_counter', points: 3 })],
+      data: [rule(), rule({ id: 2, name: "Criatividade", rule_type: "bonus_counter", points: 3 })],
     });
     renderWithClient(<DynamicScoringTab />);
 
-    expect(await screen.findByText('Criatividade')).toBeInTheDocument();
+    expect(await screen.findByText("Criatividade")).toBeInTheDocument();
     expect(screen.getByText(/\+3 pts por ocorrência · todos os postos/)).toBeInTheDocument();
     expect(screen.getByText(/−10 pts por ocorrência · todos os postos/)).toBeInTheDocument();
   });
 
-  it('shows both sections with their own empty states', async () => {
+  it("shows both sections with their own empty states", async () => {
     mockListDynamicRules.mockResolvedValue({ data: [] });
     renderWithClient(<DynamicScoringTab />);
 
-    expect(await screen.findByText('Sem penalizações globais definidas.')).toBeInTheDocument();
-    expect(screen.getByText('Sem bónus globais definidos.')).toBeInTheDocument();
+    expect(await screen.findByText("Sem penalizações globais definidas.")).toBeInTheDocument();
+    expect(screen.getByText("Sem bónus globais definidos.")).toBeInTheDocument();
   });
 
-  it('creates a rule of the section it was submitted from', async () => {
+  it("creates a rule of the section it was submitted from", async () => {
     mockCreateDynamicRule.mockResolvedValue({ data: {} });
     renderWithClient(<DynamicScoringTab />);
 
-    fireEvent.click(screen.getByText('Novo bónus'));
-    fireEvent.change(screen.getByPlaceholderText('ex: Criatividade'), {
-      target: { value: 'Criatividade' },
+    fireEvent.click(screen.getByText("Novo bónus"));
+    fireEvent.change(screen.getByPlaceholderText("ex: Criatividade"), {
+      target: { value: "Criatividade" },
     });
-    fireEvent.change(screen.getByPlaceholderText('ex: 10'), { target: { value: '3' } });
-    fireEvent.click(screen.getByText('Criar'));
+    fireEvent.change(screen.getByPlaceholderText("ex: 10"), { target: { value: "3" } });
+    fireEvent.click(screen.getByText("Criar"));
 
     await waitFor(() =>
       expect(mockCreateDynamicRule).toHaveBeenCalledWith({
         body: expect.objectContaining({
-          name: 'Criatividade',
-          rule_type: 'bonus_counter',
+          name: "Criatividade",
+          rule_type: "bonus_counter",
           points: 3,
         }),
       }),
     );
   });
 
-  it('asks for the inactive rules too, so its own switch has something to flip', async () => {
+  it("asks for the inactive rules too, so its own switch has something to flip", async () => {
     renderWithClient(<DynamicScoringTab />);
 
     await waitFor(() => expect(mockListDynamicRules).toHaveBeenCalled());
     expect(mockListDynamicRules).toHaveBeenCalledWith({ query: { include_inactive: true } });
   });
 
-  it('keeps a switched-off rule on the list, marked inactive', async () => {
+  it("keeps a switched-off rule on the list, marked inactive", async () => {
     mockListDynamicRules.mockResolvedValue({ data: [rule({ is_active: false })] });
     renderWithClient(<DynamicScoringTab />);
 
-    expect(await screen.findByText('Rule One')).toBeInTheDocument();
-    expect(screen.getByText('Inativa')).toBeInTheDocument();
+    expect(await screen.findByText("Rule One")).toBeInTheDocument();
+    expect(screen.getByText("Inativa")).toBeInTheDocument();
   });
 
-  it('switches a rule back on', async () => {
+  it("switches a rule back on", async () => {
     mockListDynamicRules.mockResolvedValue({ data: [rule({ is_active: false })] });
     renderWithClient(<DynamicScoringTab />);
 
-    fireEvent.click(await screen.findByLabelText('Ativar penalização Rule One'));
+    fireEvent.click(await screen.findByLabelText("Ativar penalização Rule One"));
 
     await waitFor(() =>
       expect(mockUpdateDynamicRule).toHaveBeenCalledWith({
@@ -182,12 +180,12 @@ describe('DynamicScoringTab', () => {
     );
   });
 
-  it('saves the event bonus ceiling with the full settings object', async () => {
+  it("saves the event bonus ceiling with the full settings object", async () => {
     renderWithClient(<DynamicScoringTab />);
 
-    const input = await screen.findByLabelText('Teto de bónus por prova');
-    fireEvent.change(input, { target: { value: '5' } });
-    fireEvent.click(screen.getByText('Guardar'));
+    const input = await screen.findByLabelText("Teto de bónus por prova");
+    fireEvent.change(input, { target: { value: "5" } });
+    fireEvent.click(screen.getByText("Guardar"));
 
     await waitFor(() =>
       expect(mockUpdateRallySettings).toHaveBeenCalledWith({
@@ -202,10 +200,10 @@ describe('DynamicScoringTab', () => {
     mockViewRallySettings.mockResolvedValue({ data: settings({ default_max_bonus_points: 5 }) });
     renderWithClient(<DynamicScoringTab />);
 
-    const input = await screen.findByLabelText('Teto de bónus por prova');
+    const input = await screen.findByLabelText("Teto de bónus por prova");
     await waitFor(() => expect(input).toHaveValue(5));
-    fireEvent.change(input, { target: { value: '' } });
-    fireEvent.click(screen.getByText('Guardar'));
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.click(screen.getByText("Guardar"));
 
     await waitFor(() =>
       expect(mockUpdateRallySettings).toHaveBeenCalledWith({
@@ -214,67 +212,67 @@ describe('DynamicScoringTab', () => {
     );
   });
 
-  it('renders a list of active awards with team names', async () => {
+  it("renders a list of active awards with team names", async () => {
     mockGetTeams.mockResolvedValue({ data: [team()] });
     mockListDynamicAwards.mockResolvedValue({ data: [award()] });
     renderWithClient(<DynamicScoringTab />);
-    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
+    expect(await screen.findByText("Team Alpha")).toBeInTheDocument();
     expect(screen.getByText(/\+20 pts · good job/)).toBeInTheDocument();
   });
 
-  it('does not show inactive awards', async () => {
+  it("does not show inactive awards", async () => {
     mockListDynamicAwards.mockResolvedValue({ data: [award({ is_active: false })] });
     renderWithClient(<DynamicScoringTab />);
-    expect(await screen.findByText('Sem prémios ativos.')).toBeInTheDocument();
+    expect(await screen.findByText("Sem prémios ativos.")).toBeInTheDocument();
   });
 
-  it('opens and cancels the new rule form', async () => {
+  it("opens and cancels the new rule form", async () => {
     renderWithClient(<DynamicScoringTab />);
-    fireEvent.click(screen.getByText('Nova penalização'));
-    expect(screen.getByPlaceholderText('ex: Atraso no posto')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Cancelar'));
-    expect(screen.queryByPlaceholderText('ex: Atraso no posto')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Nova penalização"));
+    expect(screen.getByPlaceholderText("ex: Atraso no posto")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Cancelar"));
+    expect(screen.queryByPlaceholderText("ex: Atraso no posto")).not.toBeInTheDocument();
   });
 
-  it('creates a new rule via the form', async () => {
+  it("creates a new rule via the form", async () => {
     renderWithClient(<DynamicScoringTab />);
-    fireEvent.click(screen.getByText('Nova penalização'));
-    fireEvent.change(screen.getByPlaceholderText('ex: Atraso no posto'), {
-      target: { value: 'New Rule' },
+    fireEvent.click(screen.getByText("Nova penalização"));
+    fireEvent.change(screen.getByPlaceholderText("ex: Atraso no posto"), {
+      target: { value: "New Rule" },
     });
-    fireEvent.change(screen.getByPlaceholderText('ex: 10'), { target: { value: '25' } });
-    fireEvent.click(screen.getByText('Criar'));
+    fireEvent.change(screen.getByPlaceholderText("ex: 10"), { target: { value: "25" } });
+    fireEvent.click(screen.getByText("Criar"));
     await waitFor(() => expect(mockCreateDynamicRule).toHaveBeenCalled());
     expect(mockCreateDynamicRule).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: expect.objectContaining({ name: 'New Rule', points: 25 }),
+        body: expect.objectContaining({ name: "New Rule", points: 25 }),
       }),
     );
   });
 
-  it('disables create rule button until name and points are filled', () => {
+  it("disables create rule button until name and points are filled", () => {
     renderWithClient(<DynamicScoringTab />);
-    fireEvent.click(screen.getByText('Nova penalização'));
-    expect(screen.getByText('Criar')).toBeDisabled();
+    fireEvent.click(screen.getByText("Nova penalização"));
+    expect(screen.getByText("Criar")).toBeDisabled();
   });
 
-  it('shows error message when rule creation fails', async () => {
-    mockCreateDynamicRule.mockRejectedValue(new Error('failed'));
+  it("shows error message when rule creation fails", async () => {
+    mockCreateDynamicRule.mockRejectedValue(new Error("failed"));
     renderWithClient(<DynamicScoringTab />);
-    fireEvent.click(screen.getByText('Nova penalização'));
-    fireEvent.change(screen.getByPlaceholderText('ex: Atraso no posto'), {
-      target: { value: 'X' },
+    fireEvent.click(screen.getByText("Nova penalização"));
+    fireEvent.change(screen.getByPlaceholderText("ex: Atraso no posto"), {
+      target: { value: "X" },
     });
-    fireEvent.change(screen.getByPlaceholderText('ex: 10'), { target: { value: '5' } });
-    fireEvent.click(screen.getByText('Criar'));
-    expect(await screen.findByText('Erro ao criar penalização.')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("ex: 10"), { target: { value: "5" } });
+    fireEvent.click(screen.getByText("Criar"));
+    expect(await screen.findByText("Erro ao criar penalização.")).toBeInTheDocument();
   });
 
-  it('toggles a rule active state', async () => {
+  it("toggles a rule active state", async () => {
     mockListDynamicRules.mockResolvedValue({ data: [rule()] });
     renderWithClient(<DynamicScoringTab />);
-    expect(await screen.findByText('Rule One')).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Desativar'));
+    expect(await screen.findByText("Rule One")).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle("Desativar"));
     await waitFor(() =>
       expect(mockUpdateDynamicRule).toHaveBeenCalledWith({
         path: { rule_id: 1 },
@@ -283,42 +281,42 @@ describe('DynamicScoringTab', () => {
     );
   });
 
-  it('deletes a rule after confirm', async () => {
+  it("deletes a rule after confirm", async () => {
     mockListDynamicRules.mockResolvedValue({ data: [rule()] });
     renderWithClient(<DynamicScoringTab />);
-    expect(await screen.findByText('Rule One')).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Eliminar'));
+    expect(await screen.findByText("Rule One")).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle("Eliminar"));
     await waitFor(() =>
       expect(mockDeleteDynamicRule).toHaveBeenCalledWith({ path: { rule_id: 1 } }),
     );
   });
 
-  it('does not delete a rule when confirm is cancelled', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it("does not delete a rule when confirm is cancelled", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
     mockListDynamicRules.mockResolvedValue({ data: [rule()] });
     renderWithClient(<DynamicScoringTab />);
-    expect(await screen.findByText('Rule One')).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Eliminar'));
+    expect(await screen.findByText("Rule One")).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle("Eliminar"));
     expect(mockDeleteDynamicRule).not.toHaveBeenCalled();
   });
 
-  it('opens and cancels the new award form', async () => {
+  it("opens and cancels the new award form", async () => {
     renderWithClient(<DynamicScoringTab />);
-    fireEvent.click(screen.getByText('Novo prémio'));
-    expect(screen.getByPlaceholderText('ex: -10 ou 50')).toBeInTheDocument();
-    fireEvent.click(screen.getAllByText('Cancelar')[0]!);
-    expect(screen.queryByPlaceholderText('ex: -10 ou 50')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Novo prémio"));
+    expect(screen.getByPlaceholderText("ex: -10 ou 50")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByText("Cancelar")[0]!);
+    expect(screen.queryByPlaceholderText("ex: -10 ou 50")).not.toBeInTheDocument();
   });
 
-  it('creates a new award via the form', async () => {
+  it("creates a new award via the form", async () => {
     mockGetTeams.mockResolvedValue({ data: [team()] });
     renderWithClient(<DynamicScoringTab />);
-    expect(await screen.findByText('Novo prémio')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Novo prémio'));
-    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getAllByRole('combobox')[0]!, '1');
-    fireEvent.change(screen.getByPlaceholderText('ex: -10 ou 50'), { target: { value: '15' } });
-    fireEvent.click(screen.getAllByText('Criar')[0]!);
+    expect(await screen.findByText("Novo prémio")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Novo prémio"));
+    expect(await screen.findByText("Team Alpha")).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getAllByRole("combobox")[0]!, "1");
+    fireEvent.change(screen.getByPlaceholderText("ex: -10 ou 50"), { target: { value: "15" } });
+    fireEvent.click(screen.getAllByText("Criar")[0]!);
     await waitFor(() => expect(mockCreateDynamicAward).toHaveBeenCalled());
     expect(mockCreateDynamicAward).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -327,34 +325,34 @@ describe('DynamicScoringTab', () => {
     );
   });
 
-  it('shows error message when award creation fails', async () => {
+  it("shows error message when award creation fails", async () => {
     mockGetTeams.mockResolvedValue({ data: [team()] });
-    mockCreateDynamicAward.mockRejectedValue(new Error('failed'));
+    mockCreateDynamicAward.mockRejectedValue(new Error("failed"));
     renderWithClient(<DynamicScoringTab />);
-    expect(await screen.findByText('Novo prémio')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Novo prémio'));
-    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getAllByRole('combobox')[0]!, '1');
-    fireEvent.change(screen.getByPlaceholderText('ex: -10 ou 50'), { target: { value: '15' } });
-    fireEvent.click(screen.getAllByText('Criar')[0]!);
-    expect(await screen.findByText('Erro ao criar prémio.')).toBeInTheDocument();
+    expect(await screen.findByText("Novo prémio")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Novo prémio"));
+    expect(await screen.findByText("Team Alpha")).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getAllByRole("combobox")[0]!, "1");
+    fireEvent.change(screen.getByPlaceholderText("ex: -10 ou 50"), { target: { value: "15" } });
+    fireEvent.click(screen.getAllByText("Criar")[0]!);
+    expect(await screen.findByText("Erro ao criar prémio.")).toBeInTheDocument();
   });
 
-  it('revokes an award after confirm', async () => {
+  it("revokes an award after confirm", async () => {
     mockGetTeams.mockResolvedValue({ data: [team()] });
     mockListDynamicAwards.mockResolvedValue({ data: [award()] });
     renderWithClient(<DynamicScoringTab />);
-    expect(await screen.findByText('Team Alpha')).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Revogar'));
+    expect(await screen.findByText("Team Alpha")).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle("Revogar"));
     await waitFor(() =>
       expect(mockDeleteDynamicAward).toHaveBeenCalledWith({ path: { award_id: 1 } }),
     );
   });
 
-  it('falls back to id-based label when team not found', async () => {
+  it("falls back to id-based label when team not found", async () => {
     mockGetTeams.mockResolvedValue({ data: [] });
     mockListDynamicAwards.mockResolvedValue({ data: [award({ team_id: 99 })] });
     renderWithClient(<DynamicScoringTab />);
-    expect(await screen.findByText('#99')).toBeInTheDocument();
+    expect(await screen.findByText("#99")).toBeInTheDocument();
   });
 });

@@ -27,11 +27,7 @@ vi.mock("@/client", () => ({
 }));
 
 import { useArrivalSync } from "@/offline/useArrivalSync";
-import {
-  ARRIVAL_QUEUE_CHANGED_EVENT,
-  enqueueArrival,
-  listArrivals,
-} from "@/offline/arrivalQueue";
+import { ARRIVAL_QUEUE_CHANGED_EVENT, enqueueArrival, listArrivals } from "@/offline/arrivalQueue";
 
 function setOnline(online: boolean) {
   Object.defineProperty(navigator, "onLine", {

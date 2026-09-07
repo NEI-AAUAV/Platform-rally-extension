@@ -25,9 +25,7 @@ describe("ActivityConfigFields", () => {
         updateConfig={vi.fn()}
       />,
     );
-    expect(
-      screen.getByText("Configurações de Atividade Baseada em Pontuação"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Configurações de Atividade Baseada em Pontuação")).toBeInTheDocument();
     expect(screen.getByLabelText("Pontuação Máxima")).toBeInTheDocument();
     expect(screen.getByLabelText("Pontuação Base")).toBeInTheDocument();
   });

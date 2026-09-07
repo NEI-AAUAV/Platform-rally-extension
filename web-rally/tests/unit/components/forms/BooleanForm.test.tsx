@@ -6,28 +6,10 @@ import {
   mockToast,
   drinkingSettings,
   peddyPaperSettings,
-} from "./formTestMocks";
+  expectNoDrinkingFields,
+} from "../../rallyFormMocks";
 import BooleanForm from "@/components/forms/BooleanForm";
 import type { ActivityResultResponse } from "@/client";
-
-vi.mock("@/components/themes/bloody", async () => (await import("./formTestMocks")).bloodyMock);
-
-vi.mock(
-  "@/hooks/useGlobalPenaltyCounters",
-  async () => (await import("./formTestMocks")).globalPenaltyCountersMock,
-);
-
-vi.mock(
-  "@/hooks/useGlobalBonusCounters",
-  async () => (await import("./formTestMocks")).globalBonusCountersMock,
-);
-
-vi.mock(
-  "@/hooks/useRallySettings",
-  async () => (await import("./formTestMocks")).rallySettingsMock,
-);
-
-vi.mock("@/hooks/use-toast", async () => (await import("./formTestMocks")).toastMock);
 
 describe("BooleanForm", () => {
   const mockOnSubmit = vi.fn();
@@ -191,7 +173,6 @@ describe("BooleanForm", () => {
   it("hides the extra-shots and drinking-penalty fields in a peddy-paper event", () => {
     mockUseRallySettings.mockReturnValue(peddyPaperSettings());
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
-    expect(screen.queryByLabelText("Shots extra")).not.toBeInTheDocument();
-    expect(screen.queryByText("Penalizações")).not.toBeInTheDocument();
+    expectNoDrinkingFields();
   });
 });

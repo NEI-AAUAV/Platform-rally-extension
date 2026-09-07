@@ -91,7 +91,9 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Número de vezes que vomitou"), { target: { value: "4" } });
+    fireEvent.change(screen.getByLabelText("Número de vezes que vomitou"), {
+      target: { value: "4" },
+    });
     expect(onChange).toHaveBeenCalledWith({ vomit: 4, not_drinking: 2 });
   });
 
@@ -107,7 +109,9 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Número de vezes que vomitou"), { target: { value: "abc" } });
+    fireEvent.change(screen.getByLabelText("Número de vezes que vomitou"), {
+      target: { value: "abc" },
+    });
     expect(onChange).toHaveBeenCalledWith({ vomit: 0 });
   });
 
@@ -205,7 +209,9 @@ describe("PenaltiesFieldset", () => {
         penaltyCounters={[{ key: "falha_baliza", label: "Falha na baliza", points: 4 }]}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Contagem de Falha na baliza"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("Contagem de Falha na baliza"), {
+      target: { value: "3" },
+    });
     expect(onChange).toHaveBeenCalledWith({ vomit: 1, falha_baliza: 3 });
   });
 
