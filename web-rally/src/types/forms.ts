@@ -1,5 +1,5 @@
 import type { ActivityResultResponse, ListingTeam, DetailedTeam } from "@/client";
-import type { PenaltyCounterConfig } from "@/lib/penaltyCounters";
+import type { BonusCounterConfig, PenaltyCounterConfig } from "@/lib/penaltyCounters";
 
 /**
  * Result data structure for form submissions
@@ -22,6 +22,11 @@ export interface ActivityResultData {
    * prices them; the client never multiplies. See lib/penaltyCounters.ts.
    */
   penalty_counts: Record<string, number>;
+  /**
+   * The additive mirror of penalty_counts; priced and capped by the server.
+   * Optional: submissions queued offline before bonuses existed have none.
+   */
+  bonus_counts?: Record<string, number>;
 }
 
 /**
@@ -44,6 +49,10 @@ export interface BaseActivityFormProps {
   readonly isSubmitting: boolean;
   /** This activity's own penalty counters (config.penalty_counters), if any. */
   readonly penaltyCounters?: readonly PenaltyCounterConfig[];
+  /** This activity's own bonus counters (config.bonus_counters), if any. */
+  readonly bonusCounters?: readonly BonusCounterConfig[];
+  /** Ceiling on the summed bonus (config.max_bonus_points); undefined = none. */
+  readonly maxBonusPoints?: number;
 }
 
 /**

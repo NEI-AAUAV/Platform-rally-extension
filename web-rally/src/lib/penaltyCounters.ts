@@ -22,12 +22,42 @@ export interface PenaltyCounterConfig {
   points: number;
 }
 
-export type PenaltyCountMap = Record<string, number>;
+/**
+ * A bonus counter has the same shape as a penalty counter — a label, a key and
+ * a per-occurrence value. Only the sign of its effect differs, and that is
+ * decided by which config field it came from, not by the entry itself.
+ */
+export type BonusCounterConfig = PenaltyCounterConfig;
 
-/** Reads `config.penalty_counters`, tolerating missing/malformed JSON. */
-export function parsePenaltyCounters(config: unknown): PenaltyCounterConfig[] {
+export type PenaltyCountMap = Record<string, number>;
+export type BonusCountMap = Record<string, number>;
+
+/**
+ * The dict key a counter's occurrences are stored under, derived from its
+ * label: lowercase, spaces to underscores, stripped of anything that isn't a
+ * letter/digit/underscore. Never shown to staff.
+ *
+ * Lives here rather than beside the editor that calls it because a component
+ * file that also exports a plain function breaks React Fast Refresh, and the
+ * lint that enforces that runs with --max-warnings 0.
+ */
+export function counterKeyFromLabel(label: string): string {
+  return (
+    label
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // strip diacritics (á -> a)
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+/, "")
+      .replace(/_+$/, "") || "counter"
+  );
+}
+
+/** Reads one counter list off a config, tolerating missing/malformed JSON. */
+function parseCounterList(config: unknown, field: string): PenaltyCounterConfig[] {
   if (!config || typeof config !== "object") return [];
-  const raw = (config as Record<string, unknown>).penalty_counters;
+  const raw = (config as Record<string, unknown>)[field];
   if (!Array.isArray(raw)) return [];
   return raw.filter(
     (item): item is PenaltyCounterConfig =>
@@ -38,4 +68,27 @@ export function parsePenaltyCounters(config: unknown): PenaltyCounterConfig[] {
       typeof (item as PenaltyCounterConfig).label === "string" &&
       typeof (item as PenaltyCounterConfig).points === "number",
   );
+}
+
+/** Reads `config.penalty_counters`, tolerating missing/malformed JSON. */
+export function parsePenaltyCounters(config: unknown): PenaltyCounterConfig[] {
+  return parseCounterList(config, "penalty_counters");
+}
+
+/** Reads `config.bonus_counters`, tolerating missing/malformed JSON. */
+export function parseBonusCounters(config: unknown): BonusCounterConfig[] {
+  return parseCounterList(config, "bonus_counters");
+}
+
+/**
+ * Reads `config.max_bonus_points` — the ceiling on the summed bonus.
+ *
+ * `undefined` means uncapped. `0` is a real cap and must survive the trip, so
+ * this checks the type rather than truthiness. The server truncates regardless;
+ * the value is read here only to show the ceiling and warn before submitting.
+ */
+export function parseMaxBonusPoints(config: unknown): number | undefined {
+  if (!config || typeof config !== "object") return undefined;
+  const raw = (config as Record<string, unknown>).max_bonus_points;
+  return typeof raw === "number" && Number.isFinite(raw) && raw >= 0 ? raw : undefined;
 }

@@ -5,6 +5,7 @@ import { useExtraShotsAndPenalties, getSubmitLabel } from "@/hooks/useExtraShots
 import { useAppToast } from "@/hooks/use-toast";
 import ExtraShotsField from "@/components/forms/shared/ExtraShotsField";
 import PenaltiesFieldset from "@/components/forms/shared/PenaltiesFieldset";
+import BonusesFieldset from "@/components/forms/shared/BonusesFieldset";
 import NotesField from "@/components/forms/shared/NotesField";
 import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import type { BaseActivityFormProps } from "@/types/forms";
@@ -15,6 +16,8 @@ export default function TimeBasedForm({
   onSubmit,
   isSubmitting,
   penaltyCounters = [],
+  bonusCounters = [],
+  maxBonusPoints,
 }: BaseActivityFormProps) {
   // Keep as string to allow clearing input and typing like ".5" or "03"
   const [completionTime, setCompletionTime] = useState<string>("");
@@ -33,8 +36,18 @@ export default function TimeBasedForm({
     showVomitPenalty,
     showNotDrinkingPenalty,
     globalPenaltyCounters,
+    bonuses,
+    setBonuses,
+    showBonuses,
+    globalBonusCounters,
     validateExtraShots,
-  } = useExtraShotsAndPenalties(team, existingResult, penaltyCounters);
+  } = useExtraShotsAndPenalties(
+    team,
+    existingResult,
+    penaltyCounters,
+    bonusCounters,
+    maxBonusPoints,
+  );
 
   useEffect(() => {
     if (existingResult?.result_data) {
@@ -70,6 +83,7 @@ export default function TimeBasedForm({
       },
       extra_shots: extraShots,
       penalty_counts: penalties,
+      bonus_counts: bonuses,
     });
   };
 
@@ -128,6 +142,17 @@ export default function TimeBasedForm({
         showVomitPenalty={showVomitPenalty}
         showNotDrinkingPenalty={showNotDrinkingPenalty}
       />
+
+      {showBonuses && (
+        <BonusesFieldset
+          idPrefix="timebased"
+          bonuses={bonuses}
+          onChange={setBonuses}
+          bonusCounters={bonusCounters}
+          globalBonusCounters={globalBonusCounters}
+          maxBonusPoints={maxBonusPoints}
+        />
+      )}
 
       <NotesField idPrefix="timebased" notes={notes} onChange={setNotes} />
 

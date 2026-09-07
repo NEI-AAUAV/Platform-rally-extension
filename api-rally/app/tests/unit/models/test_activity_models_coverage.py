@@ -1,7 +1,7 @@
 """Unit tests filling coverage gaps for simple activity model classes.
 
 Covers: BooleanActivity, DeferredJudgedActivity, TimeBasedActivity,
-ScoreBasedActivity, BaseActivity.apply_modifiers penalty branch, and the
+ScoreBasedActivity, BaseActivity.apply_modifiers penalty/bonus branches, and the
 draw/lose branches of TeamVsActivity.get_score_breakdown.
 """
 
@@ -190,6 +190,45 @@ class TestApplyModifiersPenaltyBranch:
             {"extra_shots": 0, "penalties": {"a": 10, "b": 20}},
         )
         assert result == pytest.approx(70.0)
+
+
+class TestApplyModifiersBonusBranch:
+    def test_apply_modifiers_adds_multiple_bonuses(self):
+        activity = ScoreBasedActivity({})
+        result, _ = activity.apply_modifiers(
+            100.0,
+            {"extra_shots": 0, "penalties": {}, "bonuses": {"a": 3, "b": 4}},
+        )
+        assert result == pytest.approx(107.0)
+
+    def test_absent_bonuses_leave_the_score_untouched(self):
+        activity = ScoreBasedActivity({})
+        result, _ = activity.apply_modifiers(100.0, {"extra_shots": 0, "penalties": {}})
+        assert result == pytest.approx(100.0)
+
+    def test_empty_bonuses_leave_the_score_untouched(self):
+        activity = ScoreBasedActivity({})
+        result, _ = activity.apply_modifiers(
+            100.0, {"extra_shots": 0, "penalties": {}, "bonuses": {}}
+        )
+        assert result == pytest.approx(100.0)
+
+    def test_zero_cap_removes_the_bonus_entirely(self):
+        """max_bonus_points=0 must cap, not read as "no cap set"."""
+        activity = ScoreBasedActivity({})
+        result, _ = activity.apply_modifiers(
+            100.0,
+            {"extra_shots": 0, "penalties": {}, "bonuses": {"a": 9}, "max_bonus_points": 0},
+        )
+        assert result == pytest.approx(100.0)
+
+    def test_negative_bonus_cannot_act_as_a_penalty(self):
+        activity = ScoreBasedActivity({})
+        result, _ = activity.apply_modifiers(
+            100.0,
+            {"extra_shots": 0, "penalties": {}, "bonuses": {"sneaky": -50}},
+        )
+        assert result == pytest.approx(100.0)
 
 
 class TestTeamVsScoreBreakdownOutcomeBranches:

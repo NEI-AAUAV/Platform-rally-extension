@@ -169,3 +169,83 @@ def test_apply_modifiers_is_deterministic(base_score: float) -> None:
     first = activity.apply_modifiers(base_score, modifiers)
     second = activity.apply_modifiers(base_score, modifiers)
     assert first == second
+
+
+@given(
+    base_score=nonneg_float,
+    bonuses=st.dictionaries(st.text(min_size=1, max_size=10), nonneg_int, max_size=5),
+)
+@settings(max_examples=200)
+def test_bonuses_never_decrease_score(base_score: float, bonuses: dict[str, int]) -> None:
+    """Awarding any set of non-negative bonuses never lowers the score below the
+    unbonused result — the additive mirror of test_penalties_never_increase_score."""
+    activity = ScoreBasedActivity({})
+    unbonused, _ = activity.apply_modifiers(base_score, {"extra_shots": 0, "penalties": {}})
+    bonused, _ = activity.apply_modifiers(
+        base_score, {"extra_shots": 0, "penalties": {}, "bonuses": bonuses}
+    )
+
+    assert bonused >= unbonused
+
+
+@given(
+    base_score=nonneg_float,
+    bonuses=st.dictionaries(st.text(min_size=1, max_size=10), nonneg_int, min_size=1, max_size=5),
+    cap=st.floats(min_value=0.0, max_value=50.0, allow_nan=False, allow_infinity=False),
+)
+@settings(max_examples=200)
+def test_bonus_total_never_exceeds_the_cap(
+    base_score: float, bonuses: dict[str, int], cap: float
+) -> None:
+    """max_bonus_points truncates the summed bonus, whatever the counters add up to.
+
+    This is what makes "até 5 pontos por performance" a guarantee rather than a
+    convention a staff member can overshoot.
+    """
+    activity = ScoreBasedActivity({})
+    unbonused, _ = activity.apply_modifiers(base_score, {"extra_shots": 0, "penalties": {}})
+    _, raw = activity.apply_modifiers(
+        base_score,
+        {"extra_shots": 0, "penalties": {}, "bonuses": bonuses, "max_bonus_points": cap},
+    )
+
+    assert raw <= unbonused + cap + 1e-9
+
+
+@given(
+    base_score=nonneg_float,
+    bonus=nonneg_int,
+    penalty=st.integers(min_value=0, max_value=10_000),
+)
+@settings(max_examples=200)
+def test_bonus_applies_before_the_zero_floor(base_score: float, bonus: int, penalty: int) -> None:
+    """A bonus offsets penalties rather than being stacked on top of the floor.
+
+    ``raw`` is base + bonus - penalty (what the excess-penalty award reads),
+    and the persisted score is that value floored at 0.
+    """
+    activity = ScoreBasedActivity({})
+    clamped, raw = activity.apply_modifiers(
+        base_score,
+        {"extra_shots": 0, "penalties": {"p": penalty}, "bonuses": {"b": bonus}},
+    )
+
+    assert raw == pytest.approx(base_score + bonus - penalty)
+    assert clamped == pytest.approx(max(0.0, raw))
+
+
+@given(base_score=nonneg_float)
+@settings(max_examples=50)
+def test_apply_modifiers_is_deterministic_with_bonuses(base_score: float) -> None:
+    activity = ScoreBasedActivity({})
+    modifiers: dict[str, Any] = {
+        "extra_shots": 3,
+        "penalties": {"vomit": 5},
+        "bonuses": {"performance": 4},
+        "max_bonus_points": 5,
+        "bonus_per_shot": 4.0,
+    }
+    first = activity.apply_modifiers(base_score, modifiers)
+    second = activity.apply_modifiers(base_score, modifiers)
+
+    assert first == second

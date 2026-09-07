@@ -1,8 +1,11 @@
 """Dynamic scoring models (D4).
 
-DynamicRule  — an event-wide penalty counter ("cada X = -N pontos") that shows
-               up in every staff evaluation form, alongside the activity's own
-               config.penalty_counters. rule_type is fixed at "penalty_counter".
+DynamicRule  — an event-wide counter that shows up in every staff evaluation
+               form, alongside the activity's own config.penalty_counters /
+               config.bonus_counters. ``rule_type`` says which side it is on:
+               "penalty_counter" ("cada X = -N pontos") or "bonus_counter"
+               ("cada X = +N pontos"). It is fixed at creation, because
+               results already scored carry the key it produced.
 DynamicAward — a score adjustment folded into team.total by
                ScoringService.update_team_scores(). Two sources:
                - admin one-off bonus/penalty for a team;
@@ -21,17 +24,23 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.config import settings
 from app.models.base import Base
 
-#: The only rule_type there is now — an event-wide penalty counter.
+#: An event-wide penalty counter: each occurrence deducts ``points``.
 PENALTY_COUNTER_RULE_TYPE = "penalty_counter"
+#: An event-wide bonus counter: each occurrence adds ``points``.
+BONUS_COUNTER_RULE_TYPE = "bonus_counter"
+#: Every rule_type a rule may be created with.
+RULE_TYPES = (PENALTY_COUNTER_RULE_TYPE, BONUS_COUNTER_RULE_TYPE)
 
 
 class DynamicRule(Base):
-    """An event-wide penalty counter shown in every staff evaluation.
+    """An event-wide counter shown in every staff evaluation.
 
-    ``name`` is the label staff see, ``points`` is the magnitude deducted per
-    occurrence (stored positive), ``is_active`` controls whether it appears in
-    the form. The staff form multiplies the entered count by ``points`` and
-    submits the total under the key ``g_<id>`` in the result's penalties dict.
+    ``name`` is the label staff see, ``points`` is the magnitude applied per
+    occurrence (stored positive whichever side it is on), ``is_active``
+    controls whether it appears in the form. Staff submit the *count*; the
+    server prices it and files it under ``g_<id>`` in the result's penalties
+    dict for a penalty rule, or ``gb_<id>`` in its bonuses dict for a bonus
+    rule. The two prefixes keep the namespaces from ever colliding.
     """
 
     __tablename__ = "dynamic_rules"
@@ -50,7 +59,15 @@ class DynamicRule(Base):
         String(64), nullable=False, default=PENALTY_COUNTER_RULE_TYPE
     )
     points: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    # Two independent axes, and conflating them is what broke the admin's
+    # toggle: ``is_active`` is the on/off switch a person flips, ``deleted_at``
+    # is the tombstone. Neither deletes the row — results already scored carry
+    # the key this rule produced, and pricing that key back is what keeps an
+    # edit or a retroactive recompute from failing on it.
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
 
 class DynamicAward(Base):

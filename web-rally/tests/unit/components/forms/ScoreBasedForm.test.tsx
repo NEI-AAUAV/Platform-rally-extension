@@ -19,6 +19,12 @@ vi.mock("@/hooks/useGlobalPenaltyCounters", () => ({
   globalCounterKey: (id: number) => `g_${id}`,
 }));
 
+vi.mock("@/hooks/useGlobalBonusCounters", () => ({
+  useGlobalBonusCounters: () => ({ globalBonusCounters: [], isLoading: false }),
+  default: () => ({ globalBonusCounters: [], isLoading: false }),
+  globalBonusKey: (id: number) => "gb_" + id,
+}));
+
 vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));
@@ -51,6 +57,7 @@ describe("ScoreBasedForm", () => {
       result_data: { achieved_points: 42, notes: "" },
       extra_shots: 0,
       penalty_counts: {},
+      bonus_counts: {},
     });
   });
 
@@ -119,6 +126,7 @@ describe("ScoreBasedForm", () => {
         result_data: { achieved_points: 1, quiz_correct: { q1: 1 }, notes: "" },
         extra_shots: 0,
         penalty_counts: {},
+        bonus_counts: {},
       });
     });
 
@@ -210,6 +218,7 @@ describe("ScoreBasedForm", () => {
         result_data: { achieved_points: 3, quiz_correct: { q1: 2, q2: 1 }, notes: "" },
         extra_shots: 0,
         penalty_counts: {},
+        bonus_counts: {},
       });
     });
 

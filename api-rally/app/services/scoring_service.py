@@ -36,7 +36,12 @@ from app.events import (
 )
 from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
 from app.models.activity_factory import ActivityFactory
-from app.models.dynamic_scoring import DynamicAward, DynamicRule
+from app.models.dynamic_scoring import (
+    BONUS_COUNTER_RULE_TYPE,
+    PENALTY_COUNTER_RULE_TYPE,
+    DynamicAward,
+    DynamicRule,
+)
 from app.models.evaluation_history import EvaluationAction, EvaluationHistory
 from app.models.rally_settings import RallySettings
 from app.models.team import Team
@@ -86,6 +91,7 @@ _AUDITED_FIELDS = (
     "extra_shots",
     "result_data",
     "penalties",
+    "bonuses",
 )
 
 _ACTIVITY_SCORING_LOCK_NAMESPACE = 41_205
@@ -209,6 +215,7 @@ class ScoringService:
         team_size: int,
         extra_shots: int = 0,
         penalties: dict[str, Any] | None = None,
+        bonuses: dict[str, Any] | None = None,
         all_times: list[float] | None = None,
     ) -> float:
         """Persisted per-activity score (floored at 0). See compute_score_breakdown."""
@@ -219,6 +226,7 @@ class ScoringService:
             team_size=team_size,
             extra_shots=extra_shots,
             penalties=penalties,
+            bonuses=bonuses,
             all_times=all_times,
         )
         return breakdown.final
@@ -232,6 +240,7 @@ class ScoringService:
         team_size: int,
         extra_shots: int = 0,
         penalties: dict[str, Any] | None = None,
+        bonuses: dict[str, Any] | None = None,
         all_times: list[float] | None = None,
     ) -> "ScoreBreakdown":
         """Single source of truth for scoring a result.
@@ -275,11 +284,33 @@ class ScoringService:
         modifiers: dict[str, Any] = {
             "extra_shots": capped_extra_shots,
             "penalties": penalties or {},
+            "bonuses": bonuses or {},
+            "max_bonus_points": self._resolve_bonus_cap(config, settings),
         }
         if capped_extra_shots:
             modifiers["bonus_per_shot"] = settings.bonus_per_extra_shot
         final, raw = instance.apply_modifiers(base_score, modifiers)
         return ScoreBreakdown(final=final, raw=raw)
+
+    @staticmethod
+    def _resolve_bonus_cap(config: dict[str, Any] | None, settings: RallySettings) -> float | None:
+        """Ceiling on the summed bonus: the activity's own, else the event's.
+
+        ``None`` means uncapped; 0 is a real ceiling and must survive the trip.
+        That is why this tests for the *key* rather than the value — reading a
+        configured 0 as "unset" would silently fall back to the event default
+        and award points the activity said it never wanted.
+
+        The event default is also the only ceiling global bonus rules ever get:
+        they apply at every checkpoint, so an activity that configures no cap
+        of its own would otherwise award them without bound.
+        """
+        if config is not None and "max_bonus_points" in config:
+            cap = config["max_bonus_points"]
+            return None if cap is None else float(cap)
+
+        default = settings.default_max_bonus_points
+        return None if default is None else float(default)
 
     async def _get_settings(self) -> RallySettings:
         """Get rally settings from database (cached for this service instance).
@@ -341,13 +372,69 @@ class ScoringService:
                 if isinstance(key, str) and key and isinstance(points, int | float):
                     prices[key] = abs(float(points))
 
-        event_id = await current_event_id(self.db)
-        rule_filters: list[ColumnElement[bool]] = [DynamicRule.event_id == event_id]
-        if not include_inactive:
-            rule_filters.append(DynamicRule.is_active.is_(True))
-        rules = (await self.db.scalars(select(DynamicRule).where(*rule_filters))).all()
-        for rule in rules:
+        for rule in await self._rules_of_type(
+            PENALTY_COUNTER_RULE_TYPE, include_inactive=include_inactive
+        ):
             prices[f"g_{rule.id}"] = abs(float(rule.points))
+
+        return prices
+
+    async def _rules_of_type(
+        self, rule_type: str, *, include_inactive: bool
+    ) -> Sequence[DynamicRule]:
+        """Event-wide dynamic rules of one kind.
+
+        Filtering by ``rule_type`` is what keeps the two sides apart: this used
+        to take every active rule, so once bonus rules existed they would have
+        been priced as deductions.
+
+        ``include_inactive`` drops *every* state filter, deleted rules included.
+        That is deliberate and is the whole reason deletion is a tombstone
+        rather than a DELETE: a result already scored with a rule carries its
+        key, and editing or repricing that result has to be able to price the
+        key back. Without the flag (a fresh evaluation) only live, switched-on
+        rules are offered.
+        """
+        event_id = await current_event_id(self.db)
+        filters: list[ColumnElement[bool]] = [
+            DynamicRule.event_id == event_id,
+            DynamicRule.rule_type == rule_type,
+        ]
+        if not include_inactive:
+            filters.append(DynamicRule.is_active.is_(True))
+            filters.append(DynamicRule.deleted_at.is_(None))
+        return (await self.db.scalars(select(DynamicRule).where(*filters))).all()
+
+    async def bonus_prices(
+        self, activity: Activity, *, include_inactive: bool = False
+    ) -> dict[str, float]:
+        """Points awarded per occurrence, keyed by bonus key.
+
+        The additive mirror of :meth:`penalty_prices`. Two sources: the
+        activity's own ``config.bonus_counters`` and the event's bonus
+        DynamicRules, the latter keyed ``gb_<id>`` so they can never collide
+        with a penalty rule's ``g_<id>``.
+
+        No drinking-mechanics gate: a performance bonus is not a drinking
+        mechanic, so unlike extra shots it stays available in peddy-paper and
+        olympic events.
+        """
+        prices: dict[str, float] = {}
+
+        counters = (activity.config or {}).get("bonus_counters")
+        if isinstance(counters, list):
+            for counter in counters:
+                if not isinstance(counter, dict):
+                    continue
+                key = counter.get("key")
+                points = counter.get("points")
+                if isinstance(key, str) and key and isinstance(points, int | float):
+                    prices[key] = abs(float(points))
+
+        for rule in await self._rules_of_type(
+            BONUS_COUNTER_RULE_TYPE, include_inactive=include_inactive
+        ):
+            prices[f"gb_{rule.id}"] = abs(float(rule.points))
 
         return prices
 
@@ -355,17 +442,58 @@ class ScoringService:
         self, activity: Activity, counts: dict[str, int], *, strict: bool = True
     ) -> dict[str, int]:
         """Price staff-entered occurrence counts into points to deduct."""
+        return self._price_counts(
+            activity,
+            counts,
+            prices=await self.penalty_prices(activity, include_inactive=not strict),
+            strict=strict,
+            kind="penalty",
+        )
+
+    async def resolve_bonus_points(
+        self, activity: Activity, counts: dict[str, int], *, strict: bool = True
+    ) -> dict[str, int]:
+        """Price staff-entered occurrence counts into points to award.
+
+        Same contract as :meth:`resolve_penalty_points`, and for the same
+        reason: staff submit counts, the server owns the arithmetic. The cap
+        (``config.max_bonus_points``) is applied at scoring time, not here, so
+        the stored breakdown stays an honest itemisation of what was awarded.
+        """
+        return self._price_counts(
+            activity,
+            counts,
+            prices=await self.bonus_prices(activity, include_inactive=not strict),
+            strict=strict,
+            kind="bonus",
+        )
+
+    def _price_counts(
+        self,
+        activity: Activity,
+        counts: dict[str, int],
+        *,
+        prices: dict[str, float],
+        strict: bool,
+        kind: str,
+    ) -> dict[str, int]:
+        """Multiply staff-entered counts by the server-held prices.
+
+        ``strict=False`` prices an unknown key at 0 instead of rejecting it, so
+        editing a result whose rule was since deleted (or whose counter was
+        removed from the activity config) doesn't 500.
+        """
         if not counts:
             return {}
 
-        prices = await self.penalty_prices(activity, include_inactive=not strict)
         unknown = sorted(key for key in counts if key not in prices)
         if unknown:
             if strict:
-                raise RallyValidationError(f"Unknown penalty type(s): {', '.join(unknown)}")
+                raise RallyValidationError(f"Unknown {kind} type(s): {', '.join(unknown)}")
             logger.warning(
-                "Pricing orphaned penalty key(s) %s at 0 for activity %s "
+                "Pricing orphaned %s key(s) %s at 0 for activity %s "
                 "(rule deleted/deactivated or removed from activity config)",
+                kind,
                 ", ".join(unknown),
                 activity.id,
             )
@@ -375,7 +503,9 @@ class ScoringService:
             if count is None:
                 continue
             if count < 0:
-                raise RallyValidationError(f"Penalty count for '{key}' cannot be negative")
+                raise RallyValidationError(
+                    f"{kind.capitalize()} count for '{key}' cannot be negative"
+                )
             if count:
                 points[key] = round(count * prices.get(key, 0.0))
         return points
@@ -752,6 +882,7 @@ class ScoringService:
             team_size=await self._team_size(result.team_id),
             extra_shots=result.extra_shots,
             penalties=result.penalties,
+            bonuses=result.bonuses,
             all_times=all_times,
         )
         result.final_score = breakdown.final
@@ -856,6 +987,7 @@ class ScoringService:
                 team1_extra_shots=obj_in.extra_shots,
                 team1_penalties=obj_in.penalties,
                 team1_penalty_counts=obj_in.penalty_counts,
+                team1_bonus_counts=obj_in.bonus_counts,
                 allow_update=False,
                 commit=commit,
             )
@@ -870,6 +1002,12 @@ class ScoringService:
             await self.resolve_penalty_points(activity, penalty_counts)
             if penalty_counts
             else obj_in.penalties
+        )
+        bonus_counts = obj_in.bonus_counts or {}
+        bonuses = (
+            await self.resolve_bonus_points(activity, bonus_counts)
+            if bonus_counts
+            else obj_in.bonuses
         )
         is_time_based = activity.activity_type == ActivityType.TIME_BASED.value
         completion_time = obj_in.result_data.get("completion_time_seconds")
@@ -886,12 +1024,15 @@ class ScoringService:
             team_size=await self._team_size(obj_in.team_id),
             extra_shots=obj_in.extra_shots,
             penalties=penalties,
+            bonuses=bonuses,
             all_times=all_times,
         )
 
         db_obj = activity_result_crud.build(obj_in, breakdown.final)
         db_obj.penalties = dict(penalties)
         db_obj.penalty_counts = dict(penalty_counts)
+        db_obj.bonuses = dict(bonuses)
+        db_obj.bonus_counts = dict(bonus_counts)
         self._set_activity_specific_scores(db_obj, activity, obj_in.result_data)
         await activity_result_crud.persist(self.db, db_obj, commit=False)
 
@@ -974,6 +1115,7 @@ class ScoringService:
             team1_extra_shots=pending_update.get("extra_shots"),
             team1_penalties=pending_update.get("penalties"),
             team1_penalty_counts=pending_update.get("penalty_counts"),
+            team1_bonus_counts=pending_update.get("bonus_counts"),
             editor=editor,
             allow_update=True,
             commit=commit,
@@ -1010,17 +1152,16 @@ class ScoringService:
         before = _snapshot_result(db_obj) if editor is not None else None
         update_data = activity_result_crud.apply_update(db_obj, obj_in)
 
-        if "penalty_counts" in update_data:
-            activity_for_pricing = await self.db.get(Activity, db_obj.activity_id)
-            if activity_for_pricing is not None:
-                db_obj.penalties = dict(
-                    await self.resolve_penalty_points(
-                        activity_for_pricing, db_obj.penalty_counts or {}, strict=False
-                    )
-                )
-                update_data["penalties"] = db_obj.penalties
+        await self._reprice_changed_counts(db_obj, update_data)
 
-        scoring_fields = {"result_data", "extra_shots", "penalties", "penalty_counts"}
+        scoring_fields = {
+            "result_data",
+            "extra_shots",
+            "penalties",
+            "penalty_counts",
+            "bonuses",
+            "bonus_counts",
+        }
         totals: dict[int, float] = {}
         if scoring_fields & update_data.keys():
             activity = await self.db.get(Activity, db_obj.activity_id)
@@ -1060,6 +1201,38 @@ class ScoringService:
             activity_id=db_obj.activity_id,
         )
         return db_obj
+
+    async def _reprice_changed_counts(
+        self, db_obj: ActivityResult, update_data: dict[str, Any]
+    ) -> None:
+        """Re-derive the points maps for whichever count maps this update wrote.
+
+        Non-strict: a key whose rule was deleted (or whose counter was dropped
+        from the activity config) prices at 0 rather than failing the edit.
+        The recomputed points go back into ``update_data`` so the caller sees
+        them as changed scoring fields.
+        """
+        changed = {"penalty_counts", "bonus_counts"} & update_data.keys()
+        if not changed:
+            return
+
+        activity = await self.db.get(Activity, db_obj.activity_id)
+        if activity is None:
+            return
+
+        if "penalty_counts" in changed:
+            db_obj.penalties = dict(
+                await self.resolve_penalty_points(
+                    activity, db_obj.penalty_counts or {}, strict=False
+                )
+            )
+            update_data["penalties"] = db_obj.penalties
+
+        if "bonus_counts" in changed:
+            db_obj.bonuses = dict(
+                await self.resolve_bonus_points(activity, db_obj.bonus_counts or {}, strict=False)
+            )
+            update_data["bonuses"] = db_obj.bonuses
 
     async def _stage_deferred_result_update(
         self, db_obj: ActivityResult, totals: dict[int, float], *, stage_events: bool = True
@@ -1186,6 +1359,7 @@ class ScoringService:
                     team_size=team_size_cache[result.team_id],
                     extra_shots=result.extra_shots,
                     penalties=result.penalties,
+                    bonuses=result.bonuses,
                     all_times=all_times,
                 )
                 result.final_score = breakdown.final
@@ -1265,6 +1439,10 @@ class ScoringService:
                             activity, result.penalty_counts, strict=False
                         )
                     )
+                if result.bonus_counts:
+                    result.bonuses = dict(
+                        await self.resolve_bonus_points(activity, result.bonus_counts, strict=False)
+                    )
                 breakdown = await self.compute_score_breakdown(
                     activity_type=activity.activity_type,
                     config=activity.config,
@@ -1272,6 +1450,7 @@ class ScoringService:
                     team_size=team_size_cache[result.team_id],
                     extra_shots=result.extra_shots,
                     penalties=result.penalties,
+                    bonuses=result.bonuses,
                     all_times=all_times,
                 )
                 result.final_score = breakdown.final
@@ -1467,6 +1646,7 @@ class ScoringService:
         extra_shots: int | None = None,
         penalties: dict[str, int] | None = None,
         penalty_counts: dict[str, int] | None = None,
+        bonus_counts: dict[str, int] | None = None,
     ) -> tuple[type[ActivityResultCreatedEvent | ActivityResultUpdatedEvent], ActivityResult]:
         """Create or update one side of a TeamVs pair inside the caller's SAVEPOINT.
 
@@ -1481,6 +1661,7 @@ class ScoringService:
                 extra_shots=extra_shots or 0,
                 penalties=penalties or {},
                 penalty_counts=penalty_counts,
+                bonus_counts=bonus_counts,
             )
             result = await self.create_result(
                 create,
@@ -1499,6 +1680,8 @@ class ScoringService:
             fields["penalties"] = penalties
         if penalty_counts is not None:
             fields["penalty_counts"] = penalty_counts
+        if bonus_counts is not None:
+            fields["bonus_counts"] = bonus_counts
         result = await self.update_result(
             existing,
             ActivityResultUpdate(**fields),
@@ -1565,6 +1748,7 @@ class ScoringService:
         team1_extra_shots: int | None = None,
         team1_penalties: dict[str, int] | None = None,
         team1_penalty_counts: dict[str, int] | None = None,
+        team1_bonus_counts: dict[str, int] | None = None,
         editor: EvaluationEditor | None = None,
         allow_update: bool = False,
         commit: bool = True,
@@ -1639,6 +1823,7 @@ class ScoringService:
                     extra_shots=team1_extra_shots,
                     penalties=team1_penalties,
                     penalty_counts=team1_penalty_counts,
+                    bonus_counts=team1_bonus_counts,
                 )
                 result_events.append((event1, result1))
 

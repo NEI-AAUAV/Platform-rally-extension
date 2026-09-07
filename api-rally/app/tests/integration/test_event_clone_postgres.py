@@ -5,6 +5,8 @@ seeds next year's route from last year's without sharing rows: the copy must be
 independent, and it must not drag along anything that *happened* in the source.
 """
 
+from datetime import UTC, datetime
+
 import pytest
 from sqlalchemy import func, select
 
@@ -139,3 +141,24 @@ async def test_clone_refuses_the_same_event(pg_session) -> None:
 
     with pytest.raises(RallyValidationError):
         await EventService(pg_session).clone_structure(event.id, event.id)
+
+
+async def test_clone_leaves_deleted_dynamic_rules_behind(pg_session) -> None:
+    """A tombstoned rule is kept only so results already scored with it can
+    still be priced (DynamicScoringService.delete_rule). Carrying it into a new
+    edition would resurrect a rule the admin deleted."""
+    source = await _make_event(pg_session, "2025", is_current=True)
+    await _populate(pg_session, source)
+    pg_session.add(
+        DynamicRule(name="Regra apagada", event_id=source.id, deleted_at=datetime.now(UTC))
+    )
+    await pg_session.commit()
+    target = await _make_event(pg_session, "2026")
+
+    created = await EventService(pg_session).clone_structure(target.id, source.id)
+
+    assert created["dynamic_rules"] == 1
+    names = (
+        await pg_session.scalars(select(DynamicRule.name).where(DynamicRule.event_id == target.id))
+    ).all()
+    assert list(names) == ["Bonus"]

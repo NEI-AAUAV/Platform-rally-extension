@@ -7,11 +7,18 @@ application session uses autoflush=False, so award mutations must be flushed
 before score recomputation queries run.
 """
 
+import pytest
 from sqlalchemy import select
 
+from app.core.exceptions import RallyValidationError
 from app.crud.crud_team import team as crud_team
 from app.models.activity import RallyEvent
-from app.models.dynamic_scoring import DynamicAward, DynamicRule
+from app.models.dynamic_scoring import (
+    BONUS_COUNTER_RULE_TYPE,
+    PENALTY_COUNTER_RULE_TYPE,
+    DynamicAward,
+    DynamicRule,
+)
 from app.schemas.team import TeamCreate
 from app.services.dynamic_scoring_service import DynamicScoringService
 from app.services.scoring_service import ScoringService
@@ -63,6 +70,141 @@ class TestListRules:
 
         # then
         assert "Other Event Bonus" not in {r.name for r in rules}
+
+
+class TestRuleTypes:
+    async def test_create_defaults_to_a_penalty_counter(self, pg_session) -> None:
+        """Callers written before bonus rules existed keep creating penalties."""
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+
+        rule = await service.create_rule(name="Atraso", points=4.0)
+
+        assert rule.rule_type == PENALTY_COUNTER_RULE_TYPE
+
+    async def test_create_accepts_a_bonus_counter(self, pg_session) -> None:
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+
+        rule = await service.create_rule(
+            name="Criatividade", points=3.0, rule_type=BONUS_COUNTER_RULE_TYPE
+        )
+
+        assert rule.rule_type == BONUS_COUNTER_RULE_TYPE
+
+    async def test_create_rejects_an_unknown_rule_type(self, pg_session) -> None:
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+
+        with pytest.raises(RallyValidationError, match="Unknown rule type"):
+            await service.create_rule(name="???", points=1.0, rule_type="teleport")
+
+    async def test_list_returns_both_kinds(self, pg_session) -> None:
+        """The staff form needs both so it can split them into two sections."""
+        event = await _make_event(pg_session)
+        pg_session.add_all(
+            [
+                DynamicRule(name="Atraso", event_id=event.id, rule_type=PENALTY_COUNTER_RULE_TYPE),
+                DynamicRule(
+                    name="Criatividade", event_id=event.id, rule_type=BONUS_COUNTER_RULE_TYPE
+                ),
+            ]
+        )
+        await pg_session.commit()
+
+        rules = await DynamicScoringService(pg_session).list_rules()
+
+        assert {r.name for r in rules} == {"Atraso", "Criatividade"}
+
+    async def test_update_cannot_flip_the_rule_type(self, pg_session) -> None:
+        """Results already scored carry the key this type produced."""
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+        rule = await service.create_rule(
+            name="Criatividade", points=3.0, rule_type=BONUS_COUNTER_RULE_TYPE
+        )
+
+        updated = await service.update_rule(
+            rule.id, name="Criatividade II", rule_type=PENALTY_COUNTER_RULE_TYPE
+        )
+
+        assert updated.name == "Criatividade II"
+        assert updated.rule_type == BONUS_COUNTER_RULE_TYPE
+
+
+class TestActiveVersusDeleted:
+    """``is_active`` is the admin's switch; ``deleted_at`` is the tombstone.
+
+    They used to be the same flag, which is why switching a rule off made it
+    vanish from the screen holding its switch — indistinguishable from a
+    delete, and impossible to undo.
+    """
+
+    async def test_list_excludes_inactive_rules_by_default(self, pg_session) -> None:
+        event = await _make_event(pg_session)
+        pg_session.add_all(
+            [
+                DynamicRule(name="Ligada", event_id=event.id, is_active=True),
+                DynamicRule(name="Desligada", event_id=event.id, is_active=False),
+            ]
+        )
+        await pg_session.commit()
+
+        rules = await DynamicScoringService(pg_session).list_rules()
+
+        assert {r.name for r in rules} == {"Ligada"}
+
+    async def test_list_includes_inactive_when_asked(self, pg_session) -> None:
+        """The admin has to keep seeing a rule it switched off."""
+        event = await _make_event(pg_session)
+        pg_session.add_all(
+            [
+                DynamicRule(name="Ligada", event_id=event.id, is_active=True),
+                DynamicRule(name="Desligada", event_id=event.id, is_active=False),
+            ]
+        )
+        await pg_session.commit()
+
+        rules = await DynamicScoringService(pg_session).list_rules(include_inactive=True)
+
+        assert {r.name for r in rules} == {"Ligada", "Desligada"}
+
+    async def test_toggling_a_rule_off_and_on_round_trips(self, pg_session) -> None:
+        """The reported symptom: the switch only ever went one way."""
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+        rule = await service.create_rule(name="Atraso", points=4.0)
+
+        await service.update_rule(rule.id, is_active=False)
+        after_off = await service.list_rules(include_inactive=True)
+        # The row must survive being switched off — that is the whole bug.
+        assert [r.is_active for r in after_off] == [False]
+
+        await service.update_rule(rule.id, is_active=True)
+        after_on = await service.list_rules()
+        assert [r.name for r in after_on] == ["Atraso"]
+
+    async def test_delete_marks_the_rule_deleted_without_touching_is_active(
+        self, pg_session
+    ) -> None:
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+        rule = await service.create_rule(name="Atraso", points=4.0)
+
+        await service.delete_rule(rule.id)
+        await pg_session.refresh(rule)
+
+        assert rule.deleted_at is not None
+        assert rule.is_active is True, "the switch keeps the admin's last intent"
+
+    async def test_a_deleted_rule_is_gone_even_with_include_inactive(self, pg_session) -> None:
+        await _make_event(pg_session)
+        service = DynamicScoringService(pg_session)
+        rule = await service.create_rule(name="Atraso", points=4.0)
+        await service.delete_rule(rule.id)
+
+        assert await service.list_rules() == []
+        assert await service.list_rules(include_inactive=True) == []
 
 
 class TestManualAwardsFlushBeforeScoring:

@@ -5,10 +5,16 @@ import ActivityEvaluationForm from "@/components/forms/ActivityEvaluationForm";
 import type { Team } from "@/types/forms";
 
 vi.mock("@/components/forms/TimeBasedForm", () => ({
-  default: (props: { penaltyCounters?: unknown[] }) => (
+  default: (props: {
+    penaltyCounters?: unknown[];
+    bonusCounters?: unknown[];
+    maxBonusPoints?: number;
+  }) => (
     <div
       data-testid="time-based-form"
       data-penalty-counters={JSON.stringify(props.penaltyCounters)}
+      data-bonus-counters={JSON.stringify(props.bonusCounters)}
+      data-max-bonus-points={String(props.maxBonusPoints)}
     />
   ),
 }));
@@ -129,6 +135,65 @@ describe("ActivityEvaluationForm", () => {
       />,
     );
     expect(screen.getByTestId("time-based-form").dataset.penaltyCounters).toBe("[]");
+  });
+
+  it("parses config.bonus_counters and max_bonus_points and passes them down", () => {
+    render(
+      <ActivityEvaluationForm
+        activity={{
+          ...baseActivity,
+          config: {
+            bonus_counters: [{ key: "perf", label: "Performance", points: 2 }],
+            max_bonus_points: 5,
+          },
+        }}
+        team={mockTeam}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+      />,
+    );
+    const form = screen.getByTestId("time-based-form");
+    expect(form.dataset.bonusCounters).toBe(
+      JSON.stringify([{ key: "perf", label: "Performance", points: 2 }]),
+    );
+    expect(form.dataset.maxBonusPoints).toBe("5");
+  });
+
+  it("passes an empty array and no cap when no bonus is configured", () => {
+    render(
+      <ActivityEvaluationForm
+        activity={baseActivity}
+        team={mockTeam}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+      />,
+    );
+    const form = screen.getByTestId("time-based-form");
+    expect(form.dataset.bonusCounters).toBe("[]");
+    expect(form.dataset.maxBonusPoints).toBe("undefined");
+  });
+
+  it("keeps the two counter lists apart", () => {
+    render(
+      <ActivityEvaluationForm
+        activity={{
+          ...baseActivity,
+          config: {
+            penalty_counters: [{ key: "falha", label: "Falha", points: 4 }],
+            bonus_counters: [{ key: "perf", label: "Performance", points: 2 }],
+          },
+        }}
+        team={mockTeam}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+      />,
+    );
+    const form = screen.getByTestId("time-based-form");
+    const parseKeys = (raw?: string): string[] =>
+      (JSON.parse(raw ?? "[]") as { key: string }[]).map((counter) => counter.key);
+
+    expect(parseKeys(form.dataset.penaltyCounters)).toEqual(["falha"]);
+    expect(parseKeys(form.dataset.bonusCounters)).toEqual(["perf"]);
   });
 
   it("parses config.quiz_questions and passes it to ScoreBasedForm only", () => {

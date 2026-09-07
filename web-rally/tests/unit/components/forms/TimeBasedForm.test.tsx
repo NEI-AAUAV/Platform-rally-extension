@@ -19,6 +19,12 @@ vi.mock('@/hooks/useGlobalPenaltyCounters', () => ({
   globalCounterKey: (id: number) => 'g_' + id,
 }));
 
+vi.mock("@/hooks/useGlobalBonusCounters", () => ({
+  useGlobalBonusCounters: () => ({ globalBonusCounters: [], isLoading: false }),
+  default: () => ({ globalBonusCounters: [], isLoading: false }),
+  globalBonusKey: (id: number) => "gb_" + id,
+}));
+
 vi.mock('@/hooks/useRallySettings', () => ({
   default: () => mockUseRallySettings(),
 }));
@@ -59,6 +65,7 @@ describe('TimeBasedForm', () => {
       result_data: { completion_time_seconds: 12.34, notes: '' },
       extra_shots: 0,
       penalty_counts: {},
+      bonus_counts: {},
     });
   });
 
@@ -72,6 +79,7 @@ describe('TimeBasedForm', () => {
       result_data: { completion_time_seconds: 12.5, notes: '' },
       extra_shots: 0,
       penalty_counts: {},
+      bonus_counts: {},
     });
   });
 

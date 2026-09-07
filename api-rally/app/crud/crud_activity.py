@@ -109,6 +109,7 @@ class CRUDActivityResult:
             result_data=obj_in.result_data,
             extra_shots=obj_in.extra_shots,
             penalties=obj_in.penalties,
+            bonuses=obj_in.bonuses,
             final_score=final_score,
             is_completed=True,
             completed_at=func.now(),

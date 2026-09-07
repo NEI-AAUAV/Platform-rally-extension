@@ -24,6 +24,12 @@ vi.mock('@/hooks/useGlobalPenaltyCounters', () => ({
   globalCounterKey: (id: number) => 'g_' + id,
 }));
 
+vi.mock("@/hooks/useGlobalBonusCounters", () => ({
+  useGlobalBonusCounters: () => ({ globalBonusCounters: [], isLoading: false }),
+  default: () => ({ globalBonusCounters: [], isLoading: false }),
+  globalBonusKey: (id: number) => "gb_" + id,
+}));
+
 vi.mock('@/hooks/useRallySettings', () => ({
   default: () => mockUseRallySettings(),
 }));
@@ -199,6 +205,7 @@ describe('TeamVsForm', () => {
       },
       extra_shots: 0,
       penalty_counts: {},
+      bonus_counts: {},
     });
   });
 

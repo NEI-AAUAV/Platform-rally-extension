@@ -132,6 +132,17 @@ class ActivityResult(Base):
     penalty_counts: Mapped[dict[str, int]] = mapped_column(
         MutableDict.as_mutable(JSON), nullable=False, default=dict, server_default="{}"
     )
+    # The additive mirror of the two columns above: points *awarded* for
+    # performance, keyed by bonus type, and the counts staff entered for them.
+    # Same server-prices-the-counts rule (ScoringService.resolve_bonus_points),
+    # for the same reason. Unlike penalties these are always >= 0 — the scorer
+    # clamps the total at zero so a bonus can never act as a covert penalty.
+    bonuses: Mapped[dict[str, int]] = mapped_column(
+        MutableDict.as_mutable(JSON), nullable=False, default=dict, server_default="{}"
+    )
+    bonus_counts: Mapped[dict[str, int]] = mapped_column(
+        MutableDict.as_mutable(JSON), nullable=False, default=dict, server_default="{}"
+    )
 
     # Final calculated score
     final_score: Mapped[float | None] = mapped_column(Float, nullable=True)

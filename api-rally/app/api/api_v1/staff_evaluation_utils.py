@@ -198,9 +198,10 @@ async def create_activity_result(
         activity_id=activity_id,
         result_data=result_in.result_data,
         extra_shots=result_in.extra_shots,
-        # No `penalties`: the staff payload carries counts, and create_result
-        # prices them. See ActivityResultEvaluation.
+        # No `penalties`/`bonuses`: the staff payload carries counts, and
+        # create_result prices them. See ActivityResultEvaluation.
         penalty_counts=result_in.penalty_counts,
+        bonus_counts=result_in.bonus_counts,
     )
     return await scoring_service.create_result(result_create, commit=commit)
 
@@ -242,13 +243,15 @@ async def create_or_update_activity_result(
         # passed explicitly counts as "set" even when it is None — which is
         # why the modifiers are omitted rather than passed as None on the
         # versus-mirror path (set_extra_shots_on_update=False). That path
-        # writes the opponent's *outcome*; their extra shots and penalties are
-        # their own and must survive the mirror untouched.
+        # writes the opponent's *outcome*; their extra shots, penalties and
+        # bonuses are their own and must survive the mirror untouched.
         fields: dict[str, Any] = {"result_data": result_in.result_data}
         if set_extra_shots_on_update:
             fields["extra_shots"] = result_in.extra_shots
             if result_in.penalty_counts is not None:
                 fields["penalty_counts"] = result_in.penalty_counts
+            if result_in.bonus_counts is not None:
+                fields["bonus_counts"] = result_in.bonus_counts
         return ActivityResultUpdate(**fields)
 
     existing_result = await activity_result.get_by_activity_and_team(db, activity_id, team_id)

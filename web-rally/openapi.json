@@ -6222,18 +6222,41 @@
           "Dynamic Scoring"
         ],
         "summary": "List Dynamic Rules",
+        "description": "Rules of the current event; deleted ones never appear.\n\n``include_inactive`` is for the admin screen, which has to keep showing\na rule it has switched off \u2014 otherwise the switch has nothing left to\nswitch back on. The staff form omits it and sees only live rules.\n\nStays public, like the listing already was: a rule that is switched off\nis no more sensitive than one that is on, and the active ones are\npublic already.",
         "operationId": "list_dynamic_rules",
+        "parameters": [
+          {
+            "name": "include_inactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Inactive"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/DynamicRuleResponse"
                   },
-                  "type": "array",
                   "title": "Response List Dynamic Rules"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -6246,15 +6269,20 @@
         ],
         "summary": "Create Dynamic Rule",
         "operationId": "create_dynamic_rule",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DynamicRuleCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -6277,12 +6305,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/rally/v1/dynamic-rules/{rule_id}": {
@@ -7577,6 +7600,27 @@
               }
             ],
             "title": "Penalty Counts"
+          },
+          "bonuses": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Bonuses"
+          },
+          "bonus_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bonus Counts"
           }
         },
         "type": "object",
@@ -7613,11 +7657,25 @@
               }
             ],
             "title": "Penalty Counts"
+          },
+          "bonus_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bonus Counts"
           }
         },
         "type": "object",
         "title": "ActivityResultEvaluation",
-        "description": "What a staff member submits when evaluating a team at a checkpoint.\n\nDeliberately has no ``penalties`` field. Staff submit occurrence *counts*\n(\"2 vomits\"); the server prices them from RallySettings /\n``Activity.config.penalty_counters`` / active DynamicRule rows and writes\nthe resulting points itself. Accepting points here would let the request\nbody name its own deduction \u2014 no amount of client-side validation can\nclose that, since the client is what would be sending the number.\n\nThe internal ``ActivityResultCreate``/``ActivityResultUpdate`` schemas do\nstill carry ``penalties``, for admin tooling and service-to-service calls\nthat legitimately set points directly."
+        "description": "What a staff member submits when evaluating a team at a checkpoint.\n\nDeliberately has no ``penalties`` or ``bonuses`` field. Staff submit\noccurrence *counts* (\"2 vomits\", \"3 for performance\"); the server prices\nthem from RallySettings / ``Activity.config.penalty_counters`` /\n``Activity.config.bonus_counters`` / active DynamicRule rows and writes the\nresulting points itself. Accepting points here would let the request body\nname its own deduction \u2014 or, on the bonus side, its own award \u2014 and no\namount of client-side validation can close that, since the client is what\nwould be sending the number.\n\nThe internal ``ActivityResultCreate``/``ActivityResultUpdate`` schemas do\nstill carry ``penalties``, for admin tooling and service-to-service calls\nthat legitimately set points directly."
       },
       "ActivityResultResponse": {
         "properties": {
@@ -7662,6 +7720,27 @@
               }
             ],
             "title": "Penalty Counts"
+          },
+          "bonuses": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Bonuses"
+          },
+          "bonus_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bonus Counts"
           },
           "id": {
             "type": "integer",
@@ -7800,11 +7879,25 @@
               }
             ],
             "title": "Penalty Counts"
+          },
+          "bonus_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bonus Counts"
           }
         },
         "type": "object",
         "title": "ActivityResultStaffUpdate",
-        "description": "What a staff member submits when *editing* an existing evaluation.\n\nregression: the PUT endpoint used to accept ``ActivityResultUpdate``,\nwhich carries ``penalties`` (raw points, unvalidated) and ``is_completed``.\n``apply_modifiers`` does ``raw_score -= penalty_value``, so a negative\n``penalties`` value is a bonus a staff member could award themselves via\n``PUT .../evaluate/{id}`` \u2014 the ABAC rule that lets staff touch their own\ncheckpoint's results (``UPDATE_ACTIVITY_RESULT``) doesn't distinguish\n\"change my counts\" from \"set an arbitrary point total\".\n\nMirrors ``ActivityResultEvaluation`` (the create-time staff schema):\ncounts, never points, and no ``is_completed`` toggle."
+        "description": "What a staff member submits when *editing* an existing evaluation.\n\nregression: the PUT endpoint used to accept ``ActivityResultUpdate``,\nwhich carries ``penalties`` (raw points, unvalidated) and ``is_completed``.\n``apply_modifiers`` does ``raw_score -= penalty_value``, so a negative\n``penalties`` value is a bonus a staff member could award themselves via\n``PUT .../evaluate/{id}`` \u2014 the ABAC rule that lets staff touch their own\ncheckpoint's results (``UPDATE_ACTIVITY_RESULT``) doesn't distinguish\n\"change my counts\" from \"set an arbitrary point total\".\n\nMirrors ``ActivityResultEvaluation`` (the create-time staff schema):\ncounts, never points, and no ``is_completed`` toggle. ``bonuses`` is\nexcluded for exactly the same reason ``penalties`` is \u2014 it is the very\nthing the negative-penalty hole was being used to fabricate."
       },
       "ActivityResultUpdate": {
         "properties": {
@@ -7859,6 +7952,34 @@
               }
             ],
             "title": "Penalty Counts"
+          },
+          "bonuses": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bonuses"
+          },
+          "bonus_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bonus Counts"
           },
           "is_completed": {
             "anyOf": [
@@ -10235,6 +10356,15 @@
             ],
             "title": "Description"
           },
+          "rule_type": {
+            "type": "string",
+            "enum": [
+              "penalty_counter",
+              "bonus_counter"
+            ],
+            "title": "Rule Type",
+            "default": "penalty_counter"
+          },
           "points": {
             "type": "number",
             "title": "Points",
@@ -10251,7 +10381,7 @@
           "name"
         ],
         "title": "DynamicRuleCreate",
-        "description": "A global penalty counter \u2014 \"cada X = -N pontos\", shown to staff at every\ncheckpoint. ``points`` is the magnitude deducted per occurrence (positive)."
+        "description": "A global counter shown to staff at every checkpoint.\n\n``rule_type`` picks the side: ``penalty_counter`` (\"cada X = -N pontos\") or\n``bonus_counter`` (\"cada X = +N pontos\"). ``points`` is the magnitude\napplied per occurrence, always positive. Defaults to a penalty counter, so\nclients written before bonus rules existed keep working unchanged."
       },
       "DynamicRuleResponse": {
         "properties": {
@@ -10356,7 +10486,8 @@
           }
         },
         "type": "object",
-        "title": "DynamicRuleUpdate"
+        "title": "DynamicRuleUpdate",
+        "description": "No ``rule_type``: the type is fixed at creation (see the service)."
       },
       "EarnedBadge": {
         "properties": {
@@ -12207,6 +12338,18 @@
             "minimum": 0.0,
             "title": "Max Extra Shots Per Member"
           },
+          "default_max_bonus_points": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Max Bonus Points"
+          },
           "checkpoint_order_matters": {
             "type": "boolean",
             "title": "Checkpoint Order Matters"
@@ -12569,6 +12712,18 @@
             "type": "integer",
             "minimum": 0.0,
             "title": "Max Extra Shots Per Member"
+          },
+          "default_max_bonus_points": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Max Bonus Points"
           },
           "checkpoint_order_matters": {
             "type": "boolean",

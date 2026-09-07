@@ -14,7 +14,10 @@ async function mockSettings(page: Page) {
 }
 
 async function mockRules(page: Page, rules: unknown[]) {
-  await page.route("**/api/rally/v1/dynamic-rules", (route) => {
+  // Trailing "*" so the admin's ?include_inactive=true listing still matches:
+  // a glob without it misses the query string and the request falls through to
+  // the (absent) backend.
+  await page.route("**/api/rally/v1/dynamic-rules*", (route) => {
     if (route.request().method() === "GET") {
       return route.fulfill({
         status: 200,
@@ -57,7 +60,7 @@ test.describe("Admin scoring", () => {
     await mockAwards(page, []);
     await mockTeams(page, []);
     let capturedBody: unknown;
-    await page.route("**/api/rally/v1/dynamic-rules", (route) => {
+    await page.route("**/api/rally/v1/dynamic-rules*", (route) => {
       if (route.request().method() === "POST") {
         capturedBody = route.request().postDataJSON();
         return route.fulfill({
@@ -99,7 +102,7 @@ test.describe("Admin scoring", () => {
       {
         id: 1,
         name: "Melhor Claque",
-        rule_type: "bonus",
+        rule_type: "penalty_counter",
         points: 50,
         description: null,
         is_active: true,

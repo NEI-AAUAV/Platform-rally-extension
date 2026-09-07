@@ -20,6 +20,12 @@ vi.mock("@/hooks/useGlobalPenaltyCounters", () => ({
   globalCounterKey: (id: number) => `g_${id}`,
 }));
 
+vi.mock("@/hooks/useGlobalBonusCounters", () => ({
+  useGlobalBonusCounters: () => ({ globalBonusCounters: [], isLoading: false }),
+  default: () => ({ globalBonusCounters: [], isLoading: false }),
+  globalBonusKey: (id: number) => "gb_" + id,
+}));
+
 vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));
@@ -57,6 +63,7 @@ describe("BooleanForm", () => {
       result_data: { success: false, attempts: 1, notes: "" },
       extra_shots: 0,
       penalty_counts: {},
+      bonus_counts: {},
     });
   });
 
@@ -69,7 +76,55 @@ describe("BooleanForm", () => {
       result_data: { success: true, attempts: 3, notes: "" },
       extra_shots: 0,
       penalty_counts: {},
+      bonus_counts: {},
     });
+  });
+
+  it("submits the typed bonus count, leaving the pricing to the server", () => {
+    const bonusCounters = [{ key: "perf", label: "Performance", points: 2 }];
+    render(
+      <BooleanForm
+        team={mockTeam}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+        bonusCounters={bonusCounters}
+        maxBonusPoints={5}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Contagem de Performance"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
+    expect(mockOnSubmit).toHaveBeenCalledWith({
+      result_data: { success: false, attempts: 1, notes: "" },
+      extra_shots: 0,
+      penalty_counts: {},
+      // The count, not 6 points and not the capped 5: the server prices and caps.
+      bonus_counts: { perf: 3 },
+    });
+  });
+
+  it("hides the bonus section when no bonus counter is configured", () => {
+    render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
+    expect(screen.queryByText("Bónus de performance")).not.toBeInTheDocument();
+  });
+
+  it("prefills bonus counts from an existing result", () => {
+    render(
+      <BooleanForm
+        team={mockTeam}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+        bonusCounters={[{ key: "perf", label: "Performance", points: 2 }]}
+        existingResult={
+          {
+            result_data: {},
+            extra_shots: 0,
+            penalty_counts: {},
+            bonus_counts: { perf: 4 },
+          } as unknown as ActivityResultResponse
+        }
+      />,
+    );
+    expect(screen.getByLabelText("Contagem de Performance")).toHaveValue(4);
   });
 
   it("submits the typed penalty count, leaving the pricing to the server", () => {
@@ -77,7 +132,9 @@ describe("BooleanForm", () => {
     // rate: doing so let the request body name its own deduction, and made the
     // score depend on whether the client's settings fetch had succeeded.
     render(<BooleanForm team={mockTeam} onSubmit={mockOnSubmit} isSubmitting={false} />);
-    fireEvent.change(screen.getByLabelText("Número de vezes que vomitou"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("Número de vezes que vomitou"), {
+      target: { value: "2" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /Submeter avaliação/ }));
     expect(mockOnSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ penalty_counts: { vomit: 2 } }),
@@ -116,7 +173,11 @@ describe("BooleanForm", () => {
         onSubmit={mockOnSubmit}
         isSubmitting={false}
         existingResult={
-          { result_data: {}, extra_shots: 999, penalty_counts: {} } as unknown as ActivityResultResponse
+          {
+            result_data: {},
+            extra_shots: 999,
+            penalty_counts: {},
+          } as unknown as ActivityResultResponse
         }
       />,
     );
@@ -132,7 +193,11 @@ describe("BooleanForm", () => {
         onSubmit={mockOnSubmit}
         isSubmitting={false}
         existingResult={
-          { result_data: {}, extra_shots: 0, penalty_counts: {} } as unknown as ActivityResultResponse
+          {
+            result_data: {},
+            extra_shots: 0,
+            penalty_counts: {},
+          } as unknown as ActivityResultResponse
         }
       />,
     );
