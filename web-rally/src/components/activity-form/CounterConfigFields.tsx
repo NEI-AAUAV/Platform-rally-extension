@@ -2,23 +2,7 @@ import { useRef, type ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/themes/bloody";
-import type { PenaltyCounterConfig } from "@/lib/penaltyCounters";
-
-/** A key derived from the label: lowercase, spaces to underscores, stripped
- * of anything that isn't a letter/digit/underscore. Not shown to staff —
- * only used as the dict key the count is stored under. */
-export function slugify(label: string): string {
-  return (
-    label
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "") // strip diacritics (á -> a)
-      .split(/[^a-z0-9]+/)
-      .filter(Boolean)
-      .join("_") || "counter"
-  );
-}
+import { counterKeyFromLabel, type PenaltyCounterConfig } from "@/lib/penaltyCounters";
 
 export type CounterCopy = Readonly<{
   /** Distinguishes the two editors' input ids and labels on the same page. */
@@ -93,7 +77,7 @@ export default function CounterConfigFields({ counters, onChange, copy, children
               onChange={(e) =>
                 updateCounter(index, {
                   label: e.target.value,
-                  key: slugify(e.target.value),
+                  key: counterKeyFromLabel(e.target.value),
                 })
               }
               className="border-border bg-card"

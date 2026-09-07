@@ -293,9 +293,7 @@ class ScoringService:
         return ScoreBreakdown(final=final, raw=raw)
 
     @staticmethod
-    def _resolve_bonus_cap(
-        config: dict[str, Any] | None, settings: RallySettings
-    ) -> float | None:
+    def _resolve_bonus_cap(config: dict[str, Any] | None, settings: RallySettings) -> float | None:
         """Ceiling on the summed bonus: the activity's own, else the event's.
 
         ``None`` means uncapped; 0 is a real ceiling and must survive the trip.

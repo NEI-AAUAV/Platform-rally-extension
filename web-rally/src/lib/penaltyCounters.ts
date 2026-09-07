@@ -32,6 +32,28 @@ export type BonusCounterConfig = PenaltyCounterConfig;
 export type PenaltyCountMap = Record<string, number>;
 export type BonusCountMap = Record<string, number>;
 
+/**
+ * The dict key a counter's occurrences are stored under, derived from its
+ * label: lowercase, spaces to underscores, stripped of anything that isn't a
+ * letter/digit/underscore. Never shown to staff.
+ *
+ * Lives here rather than beside the editor that calls it because a component
+ * file that also exports a plain function breaks React Fast Refresh, and the
+ * lint that enforces that runs with --max-warnings 0.
+ */
+export function counterKeyFromLabel(label: string): string {
+  return (
+    label
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // strip diacritics (á -> a)
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+/, "")
+      .replace(/_+$/, "") || "counter"
+  );
+}
+
 /** Reads one counter list off a config, tolerating missing/malformed JSON. */
 function parseCounterList(config: unknown, field: string): PenaltyCounterConfig[] {
   if (!config || typeof config !== "object") return [];

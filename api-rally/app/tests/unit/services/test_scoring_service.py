@@ -2181,9 +2181,7 @@ async def test_event_default_cap_applies_when_the_activity_sets_none(pg_session)
 async def test_activity_cap_overrides_the_event_default(pg_session):
     await _set_event_bonus_cap(pg_session, 5)
     team = await _make_team(pg_session, "Activity Cap Wins")
-    activity = await _make_activity(
-        pg_session, config=_bonus_activity_config(max_bonus_points=8)
-    )
+    activity = await _make_activity(pg_session, config=_bonus_activity_config(max_bonus_points=8))
 
     assert await _score_with_bonus(pg_session, activity, team) == pytest.approx(58)
 
@@ -2196,9 +2194,7 @@ async def test_activity_cap_of_zero_is_not_read_as_unset(pg_session):
     """
     await _set_event_bonus_cap(pg_session, 5)
     team = await _make_team(pg_session, "Zero Cap")
-    activity = await _make_activity(
-        pg_session, config=_bonus_activity_config(max_bonus_points=0)
-    )
+    activity = await _make_activity(pg_session, config=_bonus_activity_config(max_bonus_points=0))
 
     assert await _score_with_bonus(pg_session, activity, team) == pytest.approx(50)
 
