@@ -478,11 +478,13 @@ class CheckpointService:
         about *this* edition's teams being under way, not about the
         organization ever having run an event.
 
-        "Under way" is more than a GPS arrival. A rally run purely through
-        staff evaluation writes no ``CheckpointArrival`` at all, so this used
-        to answer False for the whole event and let posts be published or
-        drafted — firing a resequence — while teams were mid-route. A skip, a
-        scored result, or any recorded visit counts just the same.
+        "Under way" is more than a GPS arrival. Back when staff evaluation
+        wrote no ``CheckpointArrival`` at all, a rally run purely that way
+        answered False for the whole event and let posts be published or
+        drafted — firing a resequence — while teams were mid-route. Every path
+        now records an arrival (``checkpoint_visits``), but the other signals
+        stay: a skip, a scored result, or any recorded visit counts just the
+        same.
         """
         event_id = await current_event_id(self._db)
         event_posts = select(CheckPoint.id).where(CheckPoint.event_id == event_id)

@@ -1,5 +1,4 @@
-from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
+from datetime import UTC, datetime
 
 from app.services.pace_service import TeamPace, rank_paces, team_start_time
 
@@ -10,16 +9,16 @@ def _pace(team_id: int, resolved: int, elapsed: float | None) -> TeamPace:
     return TeamPace(team_id, NOW, NOW, elapsed, resolved, 4, False, 0)
 
 
-def test_team_start_time_prefers_event_and_applies_offset():
-    team = SimpleNamespace(start_offset_minutes=15)
-    event = SimpleNamespace(start_time=NOW)
-    settings = SimpleNamespace(rally_start_time=NOW - timedelta(hours=1))
-    assert team_start_time(team, event, settings) == NOW + timedelta(minutes=15)
+def test_team_start_time_is_first_arrival():
+    assert team_start_time(NOW) == NOW
 
 
-def test_team_start_time_falls_back_to_first_arrival():
-    team = SimpleNamespace(start_offset_minutes=0)
-    assert team_start_time(team, None, SimpleNamespace(rally_start_time=None), NOW) == NOW
+def test_team_start_time_is_none_without_any_arrival():
+    assert team_start_time(None) is None
+
+
+def test_team_start_time_normalizes_naive_arrival_to_utc():
+    assert team_start_time(NOW.replace(tzinfo=None)) == NOW
 
 
 def test_pace_ranking_prioritizes_progress_then_time_and_unranks_no_progress():
