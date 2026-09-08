@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_team import team as team_crud
@@ -63,8 +63,17 @@ async def _timestamp_maps(
         .where(CheckpointArrival.team_id.in_(team_ids))
         .group_by(CheckpointArrival.team_id)
     )
+    # When the team stopped working at the post. That is ``completed_at`` — the
+    # moment staff submitted the evaluation — except for deferred judging,
+    # where ``completed_at`` is when the panel got round to watching the media,
+    # hours after the team left. Its ``created_at`` is the capture at the post,
+    # which is the moment the team was actually done.
+    finished_work_at = case(
+        (ActivityResult.judgment_status.is_not(None), ActivityResult.created_at),
+        else_=ActivityResult.completed_at,
+    )
     results = await db.execute(
-        select(ActivityResult.team_id, func.max(ActivityResult.completed_at))
+        select(ActivityResult.team_id, func.max(finished_work_at))
         .where(ActivityResult.team_id.in_(team_ids), ActivityResult.final_score.is_not(None))
         .group_by(ActivityResult.team_id)
     )
