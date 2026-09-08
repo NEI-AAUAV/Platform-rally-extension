@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.api.oidc import jwt_validator
 from app.core.config import SettingsDep
+from app.core.email_utils import normalize_email
 
 
 class ScopeEnum(str, Enum):
@@ -59,7 +60,7 @@ def build_auth_data(claims: dict[str, Any], settings: SettingsDep) -> AuthData:
     return AuthData(
         oidc_sub=claims["sub"],
         name=name,
-        email=claims.get("email"),
+        email=normalize_email(claims.get("email")),
         email_verified=bool(claims.get("email_verified", False)),
         scopes=map_groups_to_scopes(groups, settings),
     )

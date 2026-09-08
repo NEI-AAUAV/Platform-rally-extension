@@ -115,4 +115,115 @@ describe("BonusesFieldset", () => {
     expect(screen.queryByText(/máximo/)).not.toBeInTheDocument();
     expect(screen.getByText(/Bónus total: 100 pontos/)).toBeInTheDocument();
   });
+
+  describe("per-counter ceiling", () => {
+    const cappedCounters = [{ key: "perf", label: "Performance", points: 2, maxPoints: 6 }];
+
+    it("caps the input at the count that reaches the counter's own ceiling", () => {
+      render(
+        <BonusesFieldset
+          idPrefix="test"
+          bonuses={{}}
+          onChange={vi.fn()}
+          bonusCounters={cappedCounters}
+        />,
+      );
+      // 6 points at 2 points each = 3 occurrences.
+      expect(screen.getByLabelText("Contagem de Performance (máximo 3)")).toHaveAttribute(
+        "max",
+        "3",
+      );
+    });
+
+    it("states the ceiling next to the counter, so staff see it before typing", () => {
+      render(
+        <BonusesFieldset
+          idPrefix="test"
+          bonuses={{}}
+          onChange={vi.fn()}
+          bonusCounters={cappedCounters}
+        />,
+      );
+      expect(
+        screen.getByText(/Performance \(\+2 pts cada · máx\. 6 pts \(3x\)\)/),
+      ).toBeInTheDocument();
+    });
+
+    it("clamps a typed count above the ceiling instead of submitting it", () => {
+      const onChange = vi.fn();
+      render(
+        <BonusesFieldset
+          idPrefix="test"
+          bonuses={{}}
+          onChange={onChange}
+          bonusCounters={cappedCounters}
+        />,
+      );
+      fireEvent.change(screen.getByLabelText("Contagem de Performance (máximo 3)"), {
+        target: { value: "9" },
+      });
+      expect(onChange).toHaveBeenCalledWith({ perf: 3 });
+    });
+
+    it("says so once the ceiling is reached", () => {
+      render(
+        <BonusesFieldset
+          idPrefix="test"
+          bonuses={{ perf: 3 }}
+          onChange={vi.fn()}
+          bonusCounters={cappedCounters}
+        />,
+      );
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Limite atingido: máximo 6 pontos neste bónus.",
+      );
+    });
+
+    it("applies a global counter's own ceiling too", () => {
+      const onChange = vi.fn();
+      render(
+        <BonusesFieldset
+          idPrefix="test"
+          bonuses={{}}
+          onChange={onChange}
+          globalBonusCounters={[{ key: "gb_1", label: "Criatividade", points: 3, maxPoints: 6 }]}
+        />,
+      );
+      fireEvent.change(screen.getByLabelText("Contagem de Criatividade (máximo 2)"), {
+        target: { value: "5" },
+      });
+      expect(onChange).toHaveBeenCalledWith({ gb_1: 2 });
+    });
+
+    it("leaves a counter without a ceiling unbounded", () => {
+      const onChange = vi.fn();
+      render(
+        <BonusesFieldset
+          idPrefix="test"
+          bonuses={{}}
+          onChange={onChange}
+          bonusCounters={activityCounters}
+        />,
+      );
+      const input = screen.getByLabelText("Contagem de Performance");
+      expect(input).not.toHaveAttribute("max");
+      fireEvent.change(input, { target: { value: "99" } });
+      expect(onChange).toHaveBeenCalledWith({ perf: 99 });
+    });
+
+    it("keeps the per-counter ceiling separate from the ceiling on the total", () => {
+      render(
+        <BonusesFieldset
+          idPrefix="test"
+          bonuses={{ perf: 3 }}
+          onChange={vi.fn()}
+          bonusCounters={cappedCounters}
+          maxBonusPoints={4}
+        />,
+      );
+      // The counter's own ceiling let 6 points through; the total ceiling then
+      // truncates the award to 4.
+      expect(screen.getByText(/Bónus total: 4 pontos/)).toBeInTheDocument();
+    });
+  });
 });

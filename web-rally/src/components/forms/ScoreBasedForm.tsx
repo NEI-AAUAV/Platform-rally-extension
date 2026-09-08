@@ -8,6 +8,7 @@ import NotesField from "@/components/forms/shared/NotesField";
 import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import { countCorrect, type QuizQuestion } from "@/lib/quizQuestions";
 import type { BaseActivityFormProps } from "@/types/forms";
+import { displayCount, parseCount } from "./shared/numberField";
 
 /** Reads a possibly-legacy `quiz_correct` map — old results stored booleans
  * (single yes/no answer), current ones store counts (subgroups correct). */
@@ -140,8 +141,8 @@ export default function ScoreBasedForm({
                     type="number"
                     min={0}
                     max={answersPerQuestion}
-                    value={correct[question.key] ?? 0}
-                    onChange={(e) => setQuestionCorrect(question.key, Number(e.target.value))}
+                    value={displayCount(correct[question.key])}
+                    onChange={(e) => setQuestionCorrect(question.key, parseCount(e.target.value))}
                     className="h-8 w-16 rounded border border-border bg-muted p-1 text-center text-foreground"
                   />
                 ) : (
@@ -173,8 +174,8 @@ export default function ScoreBasedForm({
             id="score-achieved"
             type="number"
             min="0"
-            value={achievedPoints}
-            onChange={(e) => setAchievedPoints(Number(e.target.value))}
+            value={displayCount(achievedPoints)}
+            onChange={(e) => setAchievedPoints(parseCount(e.target.value))}
             className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
             placeholder="Introduz os pontos alcançados"
             required

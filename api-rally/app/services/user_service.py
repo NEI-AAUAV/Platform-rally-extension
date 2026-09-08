@@ -10,7 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.api import authentik_client
+from app.api.auth import ScopeEnum
+from app.core.email_utils import normalize_email
 from app.core.exceptions import RallyValidationError
+from app.crud.crud_rally_guide_assignment import rally_guide_assignment
+from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+from app.models.rally_guide_assignment import RallyGuideAssignment
+from app.models.rally_staff_assignment import RallyStaffAssignment
 from app.models.user import User
 from app.schemas.pagination import Page
 
@@ -42,9 +48,20 @@ class UserService:
         error, so an empty result is left untouched instead.
         """
         group_members = await authentik_client.list_group_members(group)
-        member_emails = {member.email for member in group_members if member.email}
+        # Normalized on both sides: mirrored rows store the lowercased address,
+        # while Authentik returns whatever case the account was created with.
+        # Comparing the two raw would read a current member as "no longer in the
+        # group" and revoke a scope that is still granted.
+        member_emails = {
+            normalized
+            for member in group_members
+            if (normalized := normalize_email(member.email)) is not None
+        }
 
         for member in group_members:
+            # Returns None for a member without an email: that row could never
+            # be matched again, so it is skipped rather than re-inserted on
+            # every request (see get_or_create_mirror).
             await crud.user.get_or_create_mirror(
                 self._db,
                 name=member.name,
@@ -57,14 +74,45 @@ class UserService:
 
         users = []
         for user in scoped_users:
-            if group_members and user.email not in member_emails:
+            if group_members and normalize_email(user.email) not in member_emails:
                 # No longer in the Authentik group: revoke the stale local
                 # scope so the mirror stays truthful even if this user never
-                # logs in again.
+                # logs in again. Dropping the scope is what removes them from
+                # the admin listing, which selects on scope.
                 await crud.user.revoke_scope(self._db, user=user, scope=scope)
+                await self._clear_assignments_for_revoked_scope(user=user, scope=scope)
                 continue
             users.append(user)
         return users
+
+    async def _clear_assignments_for_revoked_scope(self, *, user: User, scope: str) -> None:
+        """Drop the current event's post/team assignment for a revoked scope.
+
+        Revoking the scope alone already removes the person from the admin
+        listing (it selects on scope), but the assignment row survives, and
+        ``rally_staff_assignment.user_id`` is not a foreign key — so nothing
+        else cleans it up. Left behind it silently re-attaches the old post if
+        the person is added back to the group, and keeps the checkpoint looking
+        staffed by someone who no longer has access.
+
+        Only the current event is touched: assignments from finished editions
+        are that edition's record, not live access.
+        """
+        assignment: RallyStaffAssignment | RallyGuideAssignment | None
+        if scope == ScopeEnum.RALLY_STAFF.value:
+            assignment = await rally_staff_assignment.get_by_user_id(self._db, user.id)
+            # The legacy cached column reads as an access grant in older code
+            # paths; clear it alongside the row it mirrors.
+            user.staff_checkpoint_id = None
+            self._db.add(user)
+        elif scope == ScopeEnum.RALLY_GUIDE.value:
+            assignment = await rally_guide_assignment.get_by_user_id(self._db, user.id)
+        else:
+            return
+
+        if assignment is not None:
+            await self._db.delete(assignment)
+        await self._db.commit()
 
     async def list_checkpoint_assignments(
         self,

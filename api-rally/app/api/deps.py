@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncGenerator
 from typing import Annotated, Any
 
@@ -9,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.api.auth import AuthData, ScopeEnum, api_nei_auth, api_nei_auth_optional
-from app.core.config import SettingsDep
+from app.core.config import Settings, SettingsDep
 from app.core.exceptions import RallyUnauthorizedError
 from app.crud.crud_rally_guide_assignment import rally_guide_assignment
 from app.crud.crud_rally_staff_assignment import rally_staff_assignment
@@ -17,6 +18,8 @@ from app.db.session import SessionLocal
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.team_auth_service import validate_team_token
+
+logger = logging.getLogger(__name__)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -27,13 +30,31 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
 
 
-async def _adopt_email_placeholder(db: AsyncSession, auth: AuthData) -> Any | None:
+async def _adopt_email_placeholder(
+    db: AsyncSession, auth: AuthData, settings: Settings
+) -> Any | None:
     """Backfill: an email-matched placeholder mirrored eagerly from an
-    Authentik group (e.g. rally-staff) may exist before this first login."""
-    # never link accounts on an unverified email claim — an attacker
-    # could otherwise hijack a pre-mirrored placeholder's scopes by
-    # registering at the IdP with someone else's email string.
-    if not auth.email or not auth.email_verified:
+    Authentik group (e.g. rally-staff) may exist before this first login.
+
+    Skipping this creates a *second* user row for the same person, and since
+    ``rally_staff_assignment.user_id`` is not an FK, their checkpoint stays
+    attached to the placeholder — the new row shows up unassigned.
+
+    Linking on an unverified email is only safe while the IdP does not allow
+    someone to register with an arbitrary address: otherwise an attacker could
+    inherit a pre-mirrored placeholder's scopes by claiming its email. Authentik
+    omits ``email_verified`` unless the provider's scope mapping emits it, so
+    ``OIDC_TRUST_UNVERIFIED_EMAIL`` decides which risk a deployment takes.
+    """
+    if not auth.email:
+        return None
+    if not auth.email_verified and not settings.OIDC_TRUST_UNVERIFIED_EMAIL:
+        logger.warning(
+            "Refusing to adopt a mirrored placeholder for sub=%s: the token carries no "
+            "email_verified claim and OIDC_TRUST_UNVERIFIED_EMAIL is off. A duplicate user "
+            "row will be created instead.",
+            auth.oidc_sub,
+        )
         return None
     placeholder = await crud.user.get_by_email(db, email=auth.email)
     if placeholder is None or placeholder.authentik_sub is not None:
@@ -83,15 +104,18 @@ async def _load_checkpoint_assignments(
 async def get_current_user(
     auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
     db: Annotated[AsyncSession, Depends(get_db)],
+    settings: SettingsDep,
 ) -> DetailedUser:
     user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
     if user is None:
-        user = await _adopt_email_placeholder(db, auth)
+        user = await _adopt_email_placeholder(db, auth, settings)
 
     if user is None:
         # First login: mirror the authentik identity into a local user row.
         # Two concurrent first requests can race on the insert; the loser
-        # re-fetches the row the winner created.
+        # re-fetches the row the winner created. The unique email index can
+        # also reject the insert when a row for this address already exists
+        # and adoption declined it — retry by email so the request survives.
         try:
             user = await crud.user.create_for_oidc(
                 db,
@@ -103,6 +127,8 @@ async def get_current_user(
         except IntegrityError:
             await db.rollback()
             user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
+            if user is None and auth.email:
+                user = await crud.user.get_by_email(db, email=auth.email)
             if user is None:
                 raise HTTPException(status_code=500, detail="Failed to initialise user") from None
     else:
@@ -116,13 +142,14 @@ async def get_current_user(
 async def get_current_user_optional(
     auth: Annotated[AuthData | None, Security(api_nei_auth_optional, scopes=[])],
     db: Annotated[AsyncSession, Depends(get_db)],
+    settings: SettingsDep,
 ) -> DetailedUser | None:
     if not auth:
         return None
 
     user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
     if user is None:
-        user = await _adopt_email_placeholder(db, auth)
+        user = await _adopt_email_placeholder(db, auth, settings)
     if user is None:
         return None
 

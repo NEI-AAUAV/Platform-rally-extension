@@ -351,11 +351,18 @@ async def mirror_team_vs_result(
 async def check_and_advance_team(
     db: AsyncSession, team_id: int, activity_obj: Activity, *, commit: bool = True
 ) -> None:
-    """Advance the team past this checkpoint once ALL its activities are scored.
+    """Record that the team is at this checkpoint, from its first score there.
+
+    The visit is recorded on the *first* scored activity of the post, not the
+    last: the arrival row is what the race clock starts from, so stamping it
+    when the post ends charged the team's own time at the post to nobody.
+    Progress is a separate question — the post only counts as resolved once
+    every active activity there is scored (``route_progress._is_resolved``),
+    which this function does not decide.
 
     Idempotent: evaluating (or re-evaluating) an activity at a checkpoint the
-    team has already moved past never advances it again — otherwise each extra
-    evaluation at the same checkpoint would push the team one checkpoint
+    team has already been recorded at never records it again — otherwise each
+    extra evaluation at the same checkpoint would push the team one checkpoint
     further, skipping posts it never visited.
     """
     current_checkpoint_id = activity_obj.checkpoint_id
@@ -375,7 +382,6 @@ async def check_and_advance_team(
     if not team_obj:
         return
 
-    # Only advance once every activity at this checkpoint has a scored result.
     stmt = (
         select(ActivityResult)
         .options(joinedload(ActivityResult.activity))
@@ -394,19 +400,30 @@ async def check_and_advance_team(
     )
     pending = [a for a in checkpoint_activities if a.is_active and a.id not in scored_activity_ids]
 
-    if not pending:
+    if not scored_activity_ids:
         logger.debug(
-            f"Team {team_id} completed all activities at "
-            f"checkpoint {current_checkpoint_id}, recording the visit"
+            f"Team {team_id} has no scored result at checkpoint "
+            f"{current_checkpoint_id}, nothing to record"
         )
-        await checkin_team_to_checkpoint(
-            db, team_id, current_checkpoint_id, enforce_order=False, commit=commit
-        )
-    else:
-        logger.debug(
-            f"Team {team_id} still has {len(pending)} unscored activities at "
-            f"checkpoint {current_checkpoint_id}, not advancing"
-        )
+        return
+
+    # The team is at the post from its *first* evaluation. Waiting for the last
+    # one made ``arrived_at`` the moment the post ended rather than the moment
+    # the team got there, which is what the race clock starts from
+    # (``pace_service.team_start_time``), and kept the team invisible to the
+    # guide panel while a multi-activity post was being graded.
+    #
+    # This does not advance the team: a post with unscored active activities is
+    # not resolved by an arrival (``route_progress._is_resolved``), and the
+    # visit itself is idempotent on the arrival row's unique constraint, so the
+    # remaining evaluations at this post record nothing further.
+    logger.debug(
+        f"Team {team_id} scored at checkpoint {current_checkpoint_id} "
+        f"({len(pending)} activities still unscored), recording the visit"
+    )
+    await checkin_team_to_checkpoint(
+        db, team_id, current_checkpoint_id, enforce_order=False, commit=commit
+    )
 
 
 async def checkin_team_to_checkpoint(

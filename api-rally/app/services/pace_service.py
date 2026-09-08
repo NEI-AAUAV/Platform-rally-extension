@@ -1,23 +1,27 @@
-"""Derived, event-relative pace ranking; deliberately separate from scoring."""
+"""Derived pace ranking; deliberately separate from scoring.
+
+Race time runs from a team's first checkpoint arrival to its last progress
+event, so waiting around before post 1 costs nothing.
+"""
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_team import team as team_crud
-from app.models.activity import ActivityResult, RallyEvent
+from app.models.activity import ActivityResult
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.checkpoint_skip import CheckpointSkip
-from app.models.team import Team
 from app.services.route_progress import load_route_snapshot, progress_for_team
 
 
 @dataclass(frozen=True)
 class TeamPace:
     team_id: int
+    # First checkpoint arrival; None when the team has none on record.
     started_at: datetime | None
     last_progress_at: datetime | None
     elapsed_seconds: float | None
@@ -31,20 +35,18 @@ def _aware(value: datetime | None) -> datetime | None:
     return value if value is None or value.tzinfo is not None else value.replace(tzinfo=UTC)
 
 
-def team_start_time(
-    team: Team,
-    event: RallyEvent | None,
-    settings: Any,
-    first_arrived_at: datetime | None = None,
-) -> datetime | None:
-    """The team's scheduled start, with legacy-safe timing fallbacks."""
-    start = _aware(getattr(event, "start_time", None)) or _aware(
-        getattr(settings, "rally_start_time", None)
-    )
-    start = start or _aware(first_arrived_at)
-    if start is None:
-        return None
-    return start + timedelta(minutes=getattr(team, "start_offset_minutes", 0) or 0)
+def team_start_time(first_arrived_at: datetime | None) -> datetime | None:
+    """The team's clock starts at its first checkpoint arrival.
+
+    Deliberately not the event's scheduled start: a team that reaches post 1
+    late was not racing during that wait, so charging it that time would rank
+    it behind teams whose only advantage was starting on time. For the same
+    reason ``start_offset_minutes`` (staggered start) does not shift this — it
+    only gates check-in, via ``team_service.validate_rally_timing``.
+
+    A team with no arrival on record has no start, hence no elapsed time.
+    """
+    return _aware(first_arrived_at)
 
 
 async def _timestamp_maps(
@@ -61,8 +63,17 @@ async def _timestamp_maps(
         .where(CheckpointArrival.team_id.in_(team_ids))
         .group_by(CheckpointArrival.team_id)
     )
+    # When the team stopped working at the post. That is ``completed_at`` — the
+    # moment staff submitted the evaluation — except for deferred judging,
+    # where ``completed_at`` is when the panel got round to watching the media,
+    # hours after the team left. Its ``created_at`` is the capture at the post,
+    # which is the moment the team was actually done.
+    finished_work_at = case(
+        (ActivityResult.judgment_status.is_not(None), ActivityResult.created_at),
+        else_=ActivityResult.completed_at,
+    )
     results = await db.execute(
-        select(ActivityResult.team_id, func.max(ActivityResult.completed_at))
+        select(ActivityResult.team_id, func.max(finished_work_at))
         .where(ActivityResult.team_id.in_(team_ids), ActivityResult.final_score.is_not(None))
         .group_by(ActivityResult.team_id)
     )
@@ -99,14 +110,13 @@ async def _timestamp_maps(
 async def compute_paces(db: AsyncSession, settings: Any) -> list[TeamPace]:
     """Load all teams' derived pace with batched timestamp queries."""
     teams = list(await team_crud.get_multi(db))
-    event = await team_crud.get_current_event(db)
     ids = [team.id for team in teams]
     first_arrivals, last_arrivals, completions, skips = await _timestamp_maps(db, ids)
     route = await load_route_snapshot(db, settings)
     candidates: list[TeamPace] = []
     for team in teams:
         progress = await progress_for_team(db, team, settings, route=route)
-        started_at = team_start_time(team, event, settings, first_arrivals.get(team.id))
+        started_at = team_start_time(first_arrivals.get(team.id))
         stamps = (last_arrivals.get(team.id), completions.get(team.id), skips.get(team.id))
         last_progress_at = max((stamp for stamp in stamps if stamp is not None), default=None)
         elapsed = (

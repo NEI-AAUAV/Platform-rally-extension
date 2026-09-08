@@ -314,6 +314,124 @@ class TestCheckpointProgression:
         refreshed = await crud_team.get(pg_session, id=team.id)
         assert len(refreshed.times) == 2  # unchanged, still just cp1 + cp2
 
+    async def test_check_and_advance_team_keeps_the_earlier_checkin_time(self, pg_session):
+        """A QR scan (team's own or staff's) already stamps the arrival. The
+        evaluation that follows must not restamp it — the scan is the moment
+        the team got to the post, and it is what the clock runs from."""
+        from sqlalchemy import select
+
+        from app.models.checkpoint_arrival import CheckpointArrival
+
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        activity = await _make_activity(pg_session, cp.id)
+
+        await checkin_team_to_checkpoint(pg_session, team.id, cp.id)
+        arrived_at = await pg_session.scalar(
+            select(CheckpointArrival.arrived_at).where(
+                CheckpointArrival.team_id == team.id,
+                CheckpointArrival.checkpoint_id == cp.id,
+            )
+        )
+
+        from app.models.activity import ActivityResult
+
+        pg_session.add(
+            ActivityResult(
+                team_id=team.id,
+                activity_id=activity.id,
+                result_data={},
+                is_completed=True,
+                final_score=100,
+            )
+        )
+        await pg_session.commit()
+        await check_and_advance_team(pg_session, team.id, activity)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 1
+        assert (
+            await pg_session.scalar(
+                select(CheckpointArrival.arrived_at).where(
+                    CheckpointArrival.team_id == team.id,
+                    CheckpointArrival.checkpoint_id == cp.id,
+                )
+            )
+            == arrived_at
+        )
+
+    async def test_check_and_advance_team_records_visit_on_first_score(self, pg_session):
+        """A post with two activities is recorded as visited from the first
+        score: the arrival stamps when the team got there, not when the post
+        ended. It must not resolve the post while an activity is unscored."""
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        first = await _make_activity(pg_session, cp.id)
+        await _make_activity(pg_session, cp.id)
+        from app.models.activity import ActivityResult
+
+        pg_session.add(
+            ActivityResult(
+                team_id=team.id,
+                activity_id=first.id,
+                result_data={},
+                is_completed=True,
+                final_score=100,
+            )
+        )
+        await pg_session.commit()
+
+        await check_and_advance_team(pg_session, team.id, first)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 1
+        _, _, resolved = await compute_checkpoint_progress(pg_session, refreshed)
+        assert cp.order not in resolved
+
+    async def test_check_and_advance_team_does_not_restamp_on_second_score(self, pg_session):
+        """Scoring the rest of the post adds no second visit — the arrival row
+        already holds the team's arrival time and keeps this idempotent."""
+        event = await _make_event(pg_session)
+        await _activate_rally(pg_session, event)
+        cp = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        first = await _make_activity(pg_session, cp.id)
+        second = await _make_activity(pg_session, cp.id)
+        from app.models.activity import ActivityResult
+
+        pg_session.add(
+            ActivityResult(
+                team_id=team.id,
+                activity_id=first.id,
+                result_data={},
+                is_completed=True,
+                final_score=100,
+            )
+        )
+        await pg_session.commit()
+        await check_and_advance_team(pg_session, team.id, first)
+
+        pg_session.add(
+            ActivityResult(
+                team_id=team.id,
+                activity_id=second.id,
+                result_data={},
+                is_completed=True,
+                final_score=50,
+            )
+        )
+        await pg_session.commit()
+        await check_and_advance_team(pg_session, team.id, second)
+
+        refreshed = await crud_team.get(pg_session, id=team.id)
+        assert len(refreshed.times) == 1
+        _, _, resolved = await compute_checkpoint_progress(pg_session, refreshed)
+        assert cp.order in resolved
+
     async def test_check_and_advance_team_no_scored_results(self, pg_session):
         event = await _make_event(pg_session)
         await _activate_rally(pg_session, event)

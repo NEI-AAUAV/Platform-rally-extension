@@ -8,6 +8,7 @@ import BonusesFieldset from "@/components/forms/shared/BonusesFieldset";
 import NotesField from "@/components/forms/shared/NotesField";
 import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import type { GeneralFormProps } from "@/types/forms";
+import { displayCount, parseCount } from "./shared/numberField";
 
 // Helper function to safely extract default_points from config
 function getDefaultPoints(config: GeneralFormProps["config"]): number {
@@ -99,8 +100,8 @@ export default function GeneralForm({
           type="number"
           min={config.min_points || 0}
           max={config.max_points || 100}
-          value={assignedPoints}
-          onChange={(e) => setAssignedPoints(Number(e.target.value))}
+          value={displayCount(assignedPoints)}
+          onChange={(e) => setAssignedPoints(parseCount(e.target.value))}
           className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder={`Enter points (${config.min_points || 0}-${config.max_points || 100})`}
           required

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, Index, String, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,6 +12,21 @@ if TYPE_CHECKING:
 
 
 class User(Base):
+    # One row per person. Both provisioning paths key on email — the Authentik
+    # group mirror matches on it, and first login adopts the mirrored row by it
+    # — so without this index a missed match silently became a second account,
+    # stranding that person's checkpoint assignment on the older row.
+    # Partial: placeholder members created by an admin have no email at all.
+    __table_args__ = (
+        Index(
+            "ix_user_email_unique",
+            "email",
+            unique=True,
+            postgresql_where=text("email IS NOT NULL"),
+        ),
+        {"schema": settings.SCHEMA_NAME},
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     # OIDC subject from authentik; how a login is matched to a local user.
     authentik_sub: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)

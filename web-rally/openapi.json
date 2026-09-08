@@ -10370,6 +10370,18 @@
             "title": "Points",
             "default": 0.0
           },
+          "max_points": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Points"
+          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active",
@@ -10423,6 +10435,17 @@
             "type": "number",
             "title": "Points"
           },
+          "max_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Points"
+          },
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
@@ -10472,6 +10495,18 @@
               }
             ],
             "title": "Points"
+          },
+          "max_points": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Points"
           },
           "is_active": {
             "anyOf": [

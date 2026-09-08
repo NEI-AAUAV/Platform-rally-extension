@@ -11,6 +11,12 @@ export type CounterCopy = Readonly<{
   description: string;
   labelFieldLabel: string;
   pointsFieldLabel: string;
+  /**
+   * Label for the optional per-counter ceiling. Only the bonus editor sets it:
+   * a penalty has no such limit, and rendering a dead field there would invite
+   * an admin to configure something nothing reads.
+   */
+  maxPointsFieldLabel?: string;
   labelPlaceholder: string;
   addButtonLabel: string;
   removeButtonLabel: (name: string) => string;
@@ -101,6 +107,32 @@ export default function CounterConfigFields({ counters, onChange, copy, children
               className="border-border bg-card"
             />
           </div>
+          {copy.maxPointsFieldLabel && (
+            <div className="w-32">
+              <label
+                htmlFor={`${copy.idPrefix}-max-points-${index}`}
+                className="mb-1 block text-xs text-muted-foreground"
+              >
+                {copy.maxPointsFieldLabel}
+              </label>
+              <Input
+                id={`${copy.idPrefix}-max-points-${index}`}
+                type="number"
+                min={0}
+                value={counter.maxPoints ?? ""}
+                placeholder="Sem limite"
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  // Empty is "no ceiling"; 0 is a real ceiling, so the two must
+                  // not collapse into the same value.
+                  updateCounter(index, {
+                    maxPoints: raw === "" ? undefined : Math.max(0, Number.parseInt(raw, 10) || 0),
+                  });
+                }}
+                className="border-border bg-card"
+              />
+            </div>
+          )}
           <BloodyButton
             type="button"
             variant="neutral"

@@ -208,11 +208,12 @@ class TeamService:
         close the outer transaction), scores are appended inside the
         savepoint, then the whole thing commits and classification recomputes.
 
-        ``enforce_order`` is False only for the give-up path: ``SkipService``
-        has already run the reachability guard *and* written the skip row, so
-        the post is now resolved and ``_validate_checkpoint_order`` (which keys
-        off ``len(team.times)``) would wrongly reject the very append that moves
-        the team's pointer past it.
+        ``enforce_order`` is False for callers that have already run the
+        reachability guard themselves. The give-up path is the reason it
+        exists: ``SkipService`` runs the guard *and* writes the skip row, so
+        the post is already resolved by the time this runs and
+        ``_validate_checkpoint_order`` would wrongly reject the very append
+        that moves the team's pointer past it.
         """
         settings = await rally_settings.get_or_create(self._db)
         # Take the edition's team-write gate up front (see app.db.locks): it is

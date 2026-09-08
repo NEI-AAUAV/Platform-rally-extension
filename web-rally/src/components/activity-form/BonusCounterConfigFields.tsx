@@ -12,8 +12,12 @@ type Props = Readonly<{
 
 /** Per-activity "each X earns Y points" counters — e.g. "cada momento de
  * performance". Stored in `config.bonus_counters`; the staff evaluation form
- * renders one count input per entry (see BonusesFieldset), and the summed
- * award is truncated by `config.max_bonus_points`.
+ * renders one count input per entry (see BonusesFieldset).
+ *
+ * Two independent ceilings, and conflating them is what the per-counter field
+ * exists to fix: each entry's own `max_points` caps what that single bónus may
+ * ever award (the staff input stops there), while `config.max_bonus_points`
+ * below caps the sum of all of them.
  *
  * This is what makes a pass/fail challenge tie-breakable: "completou = 5
  * pontos, mais até 5 pontos por performance".
@@ -36,9 +40,10 @@ export default function BonusCounterConfigFields({
           idPrefix: "bonus-counter",
           title: "Contadores de bónus (opcional)",
           description:
-            "Pontos extra que o staff pode atribuir por performance — úteis para desempatar equipas que completaram o desafio na mesma. O total é limitado pelo máximo definido abaixo.",
+            "Pontos extra que o staff pode atribuir por performance — úteis para desempatar equipas que completaram o desafio na mesma. Cada bónus pode ter o seu próprio limite; o somatório de todos é ainda limitado pelo máximo definido abaixo.",
           labelFieldLabel: "Nome do bónus",
           pointsFieldLabel: "Pontos por ocorrência",
+          maxPointsFieldLabel: "Máx. deste bónus",
           labelPlaceholder: "Ex: Performance",
           addButtonLabel: "Adicionar bónus",
           removeButtonLabel: (name) => `Remover bónus ${name}`,

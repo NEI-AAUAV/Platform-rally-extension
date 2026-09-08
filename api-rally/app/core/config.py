@@ -196,6 +196,20 @@ class Settings(BaseSettings):
     OIDC_MANAGER_GROUP: str = os.getenv("OIDC_MANAGER_GROUP", "manager-rally")
     OIDC_STAFF_GROUP: str = os.getenv("OIDC_STAFF_GROUP", "rally-staff")
     OIDC_GUIDE_GROUP: str = os.getenv("OIDC_GUIDE_GROUP", "rally-guide")
+    ## Whether a first login may adopt a placeholder mirrored from an Authentik
+    ## group when the token carries no ``email_verified: true`` claim. Authentik
+    ## only emits that claim when the provider's scope mapping includes it, and
+    ## without adoption the login creates a SECOND user row for the same person,
+    ## orphaning their checkpoint assignment. Safe to trust here because the IdP
+    ## is closed (no self-registration) and addresses are organisation-issued;
+    ## set false for a deployment whose IdP allows arbitrary email registration.
+    OIDC_TRUST_UNVERIFIED_EMAIL: bool = os.getenv(
+        "OIDC_TRUST_UNVERIFIED_EMAIL", "true"
+    ).lower() in {
+        "1",
+        "true",
+        "yes",
+    }
 
     # Authentik management API (optional). When set, admins can search ALL
     # Authentik accounts (not only those mirrored locally after a first login)

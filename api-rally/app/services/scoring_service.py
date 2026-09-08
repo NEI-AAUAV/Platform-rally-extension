@@ -438,6 +438,43 @@ class ScoringService:
 
         return prices
 
+    async def bonus_caps(
+        self, activity: Activity, *, include_inactive: bool = False
+    ) -> dict[str, float]:
+        """Per-counter ceilings in points, keyed by bonus key.
+
+        The companion of :meth:`bonus_prices`, and a different rule from
+        ``max_bonus_points``: that one caps the *sum* of every bonus at a
+        checkpoint, this one caps what a single counter may ever contribute
+        ("performance vale no máximo 10 pontos"). Both apply; the individual
+        ceiling first, the total afterwards at scoring time.
+
+        Only keys that actually declare a ceiling appear, so a missing key is
+        "unlimited" — that keeps 0 usable as a real ceiling of zero. Malformed
+        or negative entries are dropped rather than raising: ``config`` is
+        free-form JSON that no schema validates, and a typo there must not make
+        an evaluation unsubmittable.
+        """
+        caps: dict[str, float] = {}
+
+        counters = (activity.config or {}).get("bonus_counters")
+        if isinstance(counters, list):
+            for counter in counters:
+                if not isinstance(counter, dict):
+                    continue
+                key = counter.get("key")
+                cap = counter.get("max_points")
+                if isinstance(key, str) and key and isinstance(cap, int | float) and cap >= 0:
+                    caps[key] = float(cap)
+
+        for rule in await self._rules_of_type(
+            BONUS_COUNTER_RULE_TYPE, include_inactive=include_inactive
+        ):
+            if rule.max_points is not None and rule.max_points >= 0:
+                caps[f"gb_{rule.id}"] = float(rule.max_points)
+
+        return caps
+
     async def resolve_penalty_points(
         self, activity: Activity, counts: dict[str, int], *, strict: bool = True
     ) -> dict[str, int]:
@@ -456,17 +493,33 @@ class ScoringService:
         """Price staff-entered occurrence counts into points to award.
 
         Same contract as :meth:`resolve_penalty_points`, and for the same
-        reason: staff submit counts, the server owns the arithmetic. The cap
-        (``config.max_bonus_points``) is applied at scoring time, not here, so
-        the stored breakdown stays an honest itemisation of what was awarded.
+        reason: staff submit counts, the server owns the arithmetic. The
+        *total* cap (``config.max_bonus_points``) is applied at scoring time,
+        not here, so the stored breakdown stays an honest itemisation of what
+        was awarded.
+
+        The per-counter ceiling (:meth:`bonus_caps`) is applied here, though,
+        and the difference is deliberate: it is a rule about what this counter
+        awards, not a truncation of the presented sum, so the breakdown should
+        already show the awarded value. Clamping rather than rejecting keeps an
+        edit made after an admin lowered the ceiling from failing outright —
+        the same reasoning as ``strict=False`` in :meth:`_price_counts`.
         """
-        return self._price_counts(
+        priced = self._price_counts(
             activity,
             counts,
             prices=await self.bonus_prices(activity, include_inactive=not strict),
             strict=strict,
             kind="bonus",
         )
+        if not priced:
+            return priced
+
+        caps = await self.bonus_caps(activity, include_inactive=not strict)
+        return {
+            key: int(min(points, caps[key])) if key in caps else points
+            for key, points in priced.items()
+        }
 
     def _price_counts(
         self,

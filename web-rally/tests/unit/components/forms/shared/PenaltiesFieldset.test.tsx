@@ -51,7 +51,7 @@ describe("PenaltiesFieldset", () => {
     expect(screen.getByText(/Penalização por não beber \(3 pts cada\)/)).toBeInTheDocument();
   });
 
-  it("defaults vomit input value to 0 when penalties.vomit is undefined", () => {
+  it("renders the vomit input empty when penalties.vomit is undefined", () => {
     render(
       <PenaltiesFieldset
         idPrefix="test"
@@ -62,7 +62,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={false}
       />,
     );
-    expect(screen.getByLabelText("Número de vezes que vomitou")).toHaveValue(0);
+    expect(screen.getByLabelText("Número de vezes que vomitou")).toHaveValue(null);
   });
 
   it("uses the provided vomit penalty value", () => {
@@ -115,7 +115,7 @@ describe("PenaltiesFieldset", () => {
     expect(onChange).toHaveBeenCalledWith({ vomit: 0 });
   });
 
-  it("defaults not-drinking input value to 0 when penalties.not_drinking is undefined", () => {
+  it("renders the not-drinking input empty when penalties.not_drinking is undefined", () => {
     render(
       <PenaltiesFieldset
         idPrefix="test"
@@ -126,7 +126,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={true}
       />,
     );
-    expect(screen.getByLabelText("Número de vezes que não bebeu")).toHaveValue(0);
+    expect(screen.getByLabelText("Número de vezes que não bebeu")).toHaveValue(null);
   });
 
   it("calls onChange with updated not_drinking value on input change", () => {

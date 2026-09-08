@@ -23,6 +23,7 @@ import {
   parseBonusCounters,
   parseMaxBonusPoints,
   parsePenaltyCounters,
+  serializeCounters,
   type BonusCounterConfig,
   type PenaltyCounterConfig,
 } from "@/lib/penaltyCounters";
@@ -182,8 +183,8 @@ export default function ActivityForm({
       ...data,
       config: {
         ...configData,
-        penalty_counters: penaltyCounters,
-        bonus_counters: bonusCounters,
+        penalty_counters: serializeCounters(penaltyCounters),
+        bonus_counters: serializeCounters(bonusCounters),
         // Omitted entirely when unset, so "no cap" stays distinguishable from
         // a cap of 0 all the way down to the scorer.
         ...(maxBonusPoints === undefined ? {} : { max_bonus_points: maxBonusPoints }),

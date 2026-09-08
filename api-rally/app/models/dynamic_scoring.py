@@ -59,6 +59,11 @@ class DynamicRule(Base):
         String(64), nullable=False, default=PENALTY_COUNTER_RULE_TYPE
     )
     points: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    # Ceiling on what this one rule may ever award at a single checkpoint,
+    # independent of the event-wide ceiling on the *summed* bonus. ``None``
+    # means unlimited; 0 is a real ceiling, so every reader must test for null
+    # rather than truthiness. Only meaningful for a bonus rule.
+    max_points: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     # Two independent axes, and conflating them is what broke the admin's
     # toggle: ``is_active`` is the on/off switch a person flips, ``deleted_at``
     # is the tombstone. Neither deletes the row — results already scored carry
