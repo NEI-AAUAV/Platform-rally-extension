@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import ManagerEvaluationPage from '@/pages/staff-evaluation/manager-only';
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import ManagerEvaluationPage from "@/pages/staff-evaluation/manager-only";
 
 const {
   mockUseUserStore,
@@ -24,102 +24,109 @@ const {
   mockGetAllEvaluations: vi.fn(),
 }));
 
-vi.mock('@/stores/useUserStore', () => ({
+vi.mock("@/stores/useUserStore", () => ({
   useUserStore: () => mockUseUserStore(),
 }));
 
-vi.mock('@tanstack/react-router', () => ({
+vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => mockNavigate,
 }));
 
-vi.mock('@/hooks/useRallySettings', () => ({
+vi.mock("@/hooks/useRallySettings", () => ({
   default: () => mockUseRallySettings(),
 }));
 
-vi.mock('@/hooks/useRallyEventStream', () => ({
+vi.mock("@/hooks/useRallyEventStream", () => ({
   default: (...args: unknown[]) => mockUseRallyEventStream(...args),
 }));
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock("@tanstack/react-query", () => ({
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
 }));
 
-vi.mock('@/client', () => ({
+vi.mock("@/client", () => ({
   getCheckpoints: mockGetCheckpoints,
   getActivities: mockGetActivities,
   getTeams: mockGetTeams,
   getAllEvaluations: mockGetAllEvaluations,
 }));
 
-vi.mock('@/pages/staff-evaluation/components/AssignedCheckpoints', () => ({
+vi.mock("@/pages/staff-evaluation/components/AssignedCheckpoints", () => ({
   AssignedCheckpoints: ({ checkpoints }: { checkpoints: unknown[] }) => (
     <div data-testid="assigned-checkpoints">{checkpoints.length} checkpoints</div>
   ),
 }));
 
-vi.mock('@/pages/staff-evaluation/components/AllEvaluations', () => ({
+vi.mock("@/pages/staff-evaluation/components/AllEvaluations", () => ({
   AllEvaluations: ({ evaluations }: { evaluations: unknown[] }) => (
     <div data-testid="all-evaluations">{evaluations.length} evaluations</div>
   ),
 }));
 
-const team = { id: 1, name: 'Team A', num_members: 3, total: 10, classification: 1, last_checkpoint_number: 2 };
+const team = {
+  id: 1,
+  name: "Team A",
+  num_members: 3,
+  total: 10,
+  classification: 1,
+  last_checkpoint_number: 2,
+};
 
-describe('ManagerEvaluationPage', () => {
+describe("ManagerEvaluationPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseUserStore.mockReturnValue({ token: 'tok' });
-    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: 'visible' } });
+    mockUseUserStore.mockReturnValue({ token: "tok" });
+    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: "visible" } });
     mockUseQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
-      if (queryKey[0] === 'allCheckpoints') return { data: [{ id: 1, name: 'CP1' }] };
-      if (queryKey[0] === 'allActivities') return { data: { activities: [] } };
-      if (queryKey[0] === 'allTeams') return { data: [team] };
-      if (queryKey[0] === 'allEvaluations') return { data: [], isLoading: false };
+      if (queryKey[0] === "allCheckpoints") return { data: [{ id: 1, name: "CP1" }] };
+      if (queryKey[0] === "allActivities") return { data: { activities: [] } };
+      if (queryKey[0] === "allTeams") return { data: [team] };
+      if (queryKey[0] === "allEvaluations") return { data: [], isLoading: false };
       return { data: undefined };
     });
   });
 
-  it('renders header, team overview, and stats', () => {
+  it("renders header, team overview, and stats", () => {
     render(<ManagerEvaluationPage />);
-    expect(screen.getByText('Painel de avaliação')).toBeInTheDocument();
-    expect(screen.getByText('Team A')).toBeInTheDocument();
-    expect(screen.getByText('Membros: 3')).toBeInTheDocument();
-    expect(screen.getByText('Pontuação: 10')).toBeInTheDocument();
-    expect(screen.getByText('Classificação: 1')).toBeInTheDocument();
+    expect(screen.getByText("Painel de avaliação")).toBeInTheDocument();
+    expect(screen.getByText("Team A")).toBeInTheDocument();
+    expect(screen.getByText("Membros: 3")).toBeInTheDocument();
+    expect(screen.getByText("Pontuação: 10")).toBeInTheDocument();
+    expect(screen.getByText("Classificação: 1")).toBeInTheDocument();
   });
 
-  it('does not render header when embedded', () => {
+  it("does not render header when embedded", () => {
     render(<ManagerEvaluationPage embedded />);
-    expect(screen.queryByText('Painel de avaliação')).not.toBeInTheDocument();
+    expect(screen.queryByText("Painel de avaliação")).not.toBeInTheDocument();
   });
 
-  it('toggles all evaluations section', () => {
+  it("toggles all evaluations section", () => {
     render(<ManagerEvaluationPage />);
-    fireEvent.click(screen.getByText('Todas as Avaliações'));
-    expect(screen.getByTestId('all-evaluations')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Todas as Avaliações'));
-    expect(screen.queryByTestId('all-evaluations')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Todas as Avaliações"));
+    expect(screen.getByTestId("all-evaluations")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Todas as Avaliações"));
+    expect(screen.queryByTestId("all-evaluations")).not.toBeInTheDocument();
   });
 
-  it('shows loading label for evaluations count while loading', () => {
+  it("shows loading label for evaluations count while loading", () => {
     mockUseQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
-      if (queryKey[0] === 'allCheckpoints') return { data: [] };
-      if (queryKey[0] === 'allActivities') return { data: { activities: [] } };
-      if (queryKey[0] === 'allTeams') return { data: [] };
-      if (queryKey[0] === 'allEvaluations') return { data: undefined, isLoading: true };
+      if (queryKey[0] === "allCheckpoints") return { data: [] };
+      if (queryKey[0] === "allActivities") return { data: { activities: [] } };
+      if (queryKey[0] === "allTeams") return { data: [] };
+      if (queryKey[0] === "allEvaluations") return { data: undefined, isLoading: true };
       return { data: undefined };
     });
     render(<ManagerEvaluationPage />);
-    expect(screen.getByText('A carregar...')).toBeInTheDocument();
+    expect(screen.getByText("A carregar...")).toBeInTheDocument();
   });
 
-  it('hides score fields when show_score_mode is hidden', () => {
-    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: 'hidden' } });
+  it("hides score fields when show_score_mode is hidden", () => {
+    mockUseRallySettings.mockReturnValue({ settings: { show_score_mode: "hidden" } });
     render(<ManagerEvaluationPage />);
-    expect(screen.queryByText('Pontuação: 10')).not.toBeInTheDocument();
+    expect(screen.queryByText("Pontuação: 10")).not.toBeInTheDocument();
   });
 
-  describe('queryFn implementations', () => {
+  describe("queryFn implementations", () => {
     let queryFns: Record<string, () => Promise<unknown>>;
 
     beforeEach(() => {
@@ -127,24 +134,24 @@ describe('ManagerEvaluationPage', () => {
       mockUseQuery.mockImplementation(
         ({ queryKey, queryFn }: { queryKey: string[]; queryFn?: () => Promise<unknown> }) => {
           if (queryFn && queryKey[0]) queryFns[queryKey[0]] = queryFn;
-          if (queryKey[0] === 'allCheckpoints') return { data: [{ id: 1, name: 'CP1' }] };
-          if (queryKey[0] === 'allActivities') return { data: { activities: [] } };
-          if (queryKey[0] === 'allTeams') return { data: [team] };
-          if (queryKey[0] === 'allEvaluations') return { data: [], isLoading: false };
+          if (queryKey[0] === "allCheckpoints") return { data: [{ id: 1, name: "CP1" }] };
+          if (queryKey[0] === "allActivities") return { data: { activities: [] } };
+          if (queryKey[0] === "allTeams") return { data: [team] };
+          if (queryKey[0] === "allEvaluations") return { data: [], isLoading: false };
           return { data: undefined };
         },
       );
     });
 
-    it('allCheckpoints queryFn fetches and returns checkpoint data', async () => {
-      mockGetCheckpoints.mockResolvedValue({ data: [{ id: 5, name: 'CP5' }] });
+    it("allCheckpoints queryFn fetches and returns checkpoint data", async () => {
+      mockGetCheckpoints.mockResolvedValue({ data: [{ id: 5, name: "CP5" }] });
       render(<ManagerEvaluationPage />);
       const result = await queryFns.allCheckpoints!();
       expect(mockGetCheckpoints).toHaveBeenCalled();
-      expect(result).toEqual([{ id: 5, name: 'CP5' }]);
+      expect(result).toEqual([{ id: 5, name: "CP5" }]);
     });
 
-    it('allActivities queryFn fetches and returns activities data', async () => {
+    it("allActivities queryFn fetches and returns activities data", async () => {
       mockGetActivities.mockResolvedValue({ data: { activities: [{ id: 9 }] } });
       render(<ManagerEvaluationPage />);
       const result = await queryFns.allActivities!();
@@ -152,29 +159,29 @@ describe('ManagerEvaluationPage', () => {
       expect(result).toEqual({ activities: [{ id: 9 }] });
     });
 
-    it('allTeams queryFn fetches and returns teams data', async () => {
-      mockGetTeams.mockResolvedValue({ data: [{ id: 3, name: 'Team Z' }] });
+    it("allTeams queryFn fetches and returns teams data", async () => {
+      mockGetTeams.mockResolvedValue({ data: [{ id: 3, name: "Team Z" }] });
       render(<ManagerEvaluationPage />);
       const result = await queryFns.allTeams!();
       expect(mockGetTeams).toHaveBeenCalled();
-      expect(result).toEqual([{ id: 3, name: 'Team Z' }]);
+      expect(result).toEqual([{ id: 3, name: "Team Z" }]);
     });
 
-    it('allEvaluations queryFn returns empty array when response has no evaluations', async () => {
+    it("allEvaluations queryFn returns empty array when response has no evaluations", async () => {
       mockGetAllEvaluations.mockResolvedValue({ data: null });
       render(<ManagerEvaluationPage />);
       const result = await queryFns.allEvaluations!();
       expect(result).toEqual([]);
     });
 
-    it('allEvaluations queryFn returns empty array when evaluations field missing', async () => {
+    it("allEvaluations queryFn returns empty array when evaluations field missing", async () => {
       mockGetAllEvaluations.mockResolvedValue({ data: {} });
       render(<ManagerEvaluationPage />);
       const result = await queryFns.allEvaluations!();
       expect(result).toEqual([]);
     });
 
-    it('allEvaluations queryFn transforms raw evaluation results with fallbacks', async () => {
+    it("allEvaluations queryFn transforms raw evaluation results with fallbacks", async () => {
       mockGetAllEvaluations.mockResolvedValue({
         data: {
           evaluations: [
@@ -206,21 +213,21 @@ describe('ManagerEvaluationPage', () => {
         activity_id: 20,
         final_score: 0,
         is_completed: false,
-        completed_at: '',
+        completed_at: "",
         result_data: {},
         extra_shots: 0,
         penalties: {},
-        team: { id: 10, name: 'Team 10', num_members: undefined },
+        team: { id: 10, name: "Team 10", num_members: undefined },
         activity: {
           id: 20,
-          name: 'Activity 20',
-          activity_type: 'GeneralActivity',
+          name: "Activity 20",
+          activity_type: "GeneralActivity",
           checkpoint_id: 1,
         },
       });
     });
 
-    it('allEvaluations queryFn preserves provided team/activity relationship data', async () => {
+    it("allEvaluations queryFn preserves provided team/activity relationship data", async () => {
       mockGetAllEvaluations.mockResolvedValue({
         data: {
           evaluations: [
@@ -230,20 +237,20 @@ describe('ManagerEvaluationPage', () => {
               activity_id: 20,
               final_score: 42,
               is_completed: true,
-              completed_at: '2024-01-01',
+              completed_at: "2024-01-01",
               result_data: { a: 1 },
               extra_shots: 3,
               penalties: { late: 1 },
               time_score: 5,
               points_score: 6,
               boolean_score: true,
-              team: { id: 10, name: 'Real Team', members: [1, 2] },
+              team: { id: 10, name: "Real Team", members: [1, 2] },
               activity: {
                 id: 20,
-                name: 'Real Activity',
-                activity_type: 'TimedActivity',
+                name: "Real Activity",
+                activity_type: "TimedActivity",
                 checkpoint_id: 3,
-                description: 'desc',
+                description: "desc",
               },
             },
           ],
@@ -254,22 +261,22 @@ describe('ManagerEvaluationPage', () => {
       expect(result[0]).toMatchObject({
         final_score: 42,
         is_completed: true,
-        completed_at: '2024-01-01',
-        team: { id: 10, name: 'Real Team', num_members: 2 },
+        completed_at: "2024-01-01",
+        team: { id: 10, name: "Real Team", num_members: 2 },
         activity: {
           id: 20,
-          name: 'Real Activity',
-          activity_type: 'TimedActivity',
+          name: "Real Activity",
+          activity_type: "TimedActivity",
           checkpoint_id: 3,
-          description: 'desc',
+          description: "desc",
         },
       });
     });
   });
 
-  it('calls navigate with checkpoint id when handleCheckpointClick fires via AssignedCheckpoints', async () => {
+  it("calls navigate with checkpoint id when handleCheckpointClick fires via AssignedCheckpoints", async () => {
     vi.resetModules();
-    vi.doMock('@/pages/staff-evaluation/components/AssignedCheckpoints', () => ({
+    vi.doMock("@/pages/staff-evaluation/components/AssignedCheckpoints", () => ({
       AssignedCheckpoints: ({
         checkpoints,
         onCheckpointClick,
@@ -284,15 +291,15 @@ describe('ManagerEvaluationPage', () => {
     }));
 
     const { default: FreshManagerEvaluationPage } = await import(
-      '@/pages/staff-evaluation/manager-only'
+      "@/pages/staff-evaluation/manager-only"
     );
 
     render(<FreshManagerEvaluationPage />);
-    fireEvent.click(screen.getByText('click-checkpoint'));
+    fireEvent.click(screen.getByText("click-checkpoint"));
 
     expect(mockNavigate).toHaveBeenCalledWith({
-      to: '/staff-evaluation/checkpoint/$checkpointId',
-      params: { checkpointId: '1' },
+      to: "/staff-evaluation/checkpoint/$checkpointId",
+      params: { checkpointId: "1" },
     });
   });
 });

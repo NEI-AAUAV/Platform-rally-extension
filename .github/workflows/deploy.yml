@@ -61,6 +61,9 @@ jobs:
       OIDC_MANAGER_GROUP: ${{ vars.OIDC_MANAGER_GROUP }}
       OIDC_STAFF_GROUP: ${{ vars.OIDC_STAFF_GROUP }}
       OIDC_GUIDE_GROUP: ${{ vars.OIDC_GUIDE_GROUP }}
+      # authentik management API — group listing without prior login
+      AUTHENTIK_API_URL: ${{ vars.AUTHENTIK_API_URL }}
+      AUTHENTIK_API_TOKEN: ${{ secrets.AUTHENTIK_API_TOKEN }}
       # Team auth
       TEAM_JWT_SECRET_KEY: ${{ secrets.TEAM_JWT_SECRET_KEY }}
       # General

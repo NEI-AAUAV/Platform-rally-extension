@@ -121,9 +121,7 @@ export interface SerializedCounter {
   max_points?: number;
 }
 
-export function serializeCounters(
-  counters: readonly PenaltyCounterConfig[],
-): SerializedCounter[] {
+export function serializeCounters(counters: readonly PenaltyCounterConfig[]): SerializedCounter[] {
   return counters.map(({ key, label, points, maxPoints }) => ({
     key,
     label,

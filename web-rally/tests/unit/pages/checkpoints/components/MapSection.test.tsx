@@ -82,7 +82,9 @@ describe("MapSection", () => {
   });
 
   it("shows the selected checkpoint overlay label", () => {
-    render(<MapSection checkpoints={withoutCoords} selectedCheckpoint={withoutCoords[1] ?? null} />);
+    render(
+      <MapSection checkpoints={withoutCoords} selectedCheckpoint={withoutCoords[1] ?? null} />,
+    );
     expect(screen.getByText("Posto selecionado")).toBeInTheDocument();
     expect(screen.getByText("Checkpoint B")).toBeInTheDocument();
   });

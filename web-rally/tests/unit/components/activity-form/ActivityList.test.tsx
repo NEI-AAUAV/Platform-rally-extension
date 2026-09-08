@@ -1,19 +1,19 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import ActivityList from '@/components/activity-form/ActivityList';
-import { ActivityType } from '@/types/activityTypes';
-import type { Activity, Checkpoint } from '@/types/activityTypes';
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import ActivityList from "@/components/activity-form/ActivityList";
+import { ActivityType } from "@/types/activityTypes";
+import type { Activity, Checkpoint } from "@/types/activityTypes";
 
 const checkpoints: Checkpoint[] = [
-  { id: 1, name: 'Checkpoint Alpha' } as Checkpoint,
-  { id: 2, name: 'Checkpoint Beta' } as Checkpoint,
+  { id: 1, name: "Checkpoint Alpha" } as Checkpoint,
+  { id: 2, name: "Checkpoint Beta" } as Checkpoint,
 ];
 
 function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
     id: 1,
-    name: 'Corrida de sacos',
-    description: 'Descrição da atividade',
+    name: "Corrida de sacos",
+    description: "Descrição da atividade",
     activity_type: ActivityType.TIME_BASED,
     checkpoint_id: 1,
     order: 1,
@@ -22,7 +22,7 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
   } as Activity;
 }
 
-describe('ActivityList', () => {
+describe("ActivityList", () => {
   const onEdit = vi.fn();
   const onDelete = vi.fn();
   const onReorder = vi.fn();
@@ -31,18 +31,23 @@ describe('ActivityList', () => {
     vi.clearAllMocks();
   });
 
-  it('renders empty state when there are no activities', () => {
+  it("renders empty state when there are no activities", () => {
     render(
-      <ActivityList activities={[]} checkpoints={checkpoints} onEdit={onEdit} onDelete={onDelete} />,
+      <ActivityList
+        activities={[]}
+        checkpoints={checkpoints}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />,
     );
 
-    expect(screen.getByText('Nenhuma atividade criada')).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma atividade criada")).toBeInTheDocument();
     expect(
-      screen.getByText('Crie a primeira atividade para começar a configurar o Rally.'),
+      screen.getByText("Crie a primeira atividade para começar a configurar o Rally."),
     ).toBeInTheDocument();
   });
 
-  it('renders empty state when activities is not an array', () => {
+  it("renders empty state when activities is not an array", () => {
     render(
       <ActivityList
         activities={null as unknown as Activity[]}
@@ -52,10 +57,10 @@ describe('ActivityList', () => {
       />,
     );
 
-    expect(screen.getByText('Nenhuma atividade criada')).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma atividade criada")).toBeInTheDocument();
   });
 
-  it('renders activity details including name, description, type and checkpoint', () => {
+  it("renders activity details including name, description, type and checkpoint", () => {
     const activity = makeActivity();
     render(
       <ActivityList
@@ -66,14 +71,14 @@ describe('ActivityList', () => {
       />,
     );
 
-    expect(screen.getByText('Corrida de sacos')).toBeInTheDocument();
-    expect(screen.getByText('Descrição da atividade')).toBeInTheDocument();
+    expect(screen.getByText("Corrida de sacos")).toBeInTheDocument();
+    expect(screen.getByText("Descrição da atividade")).toBeInTheDocument();
     expect(screen.getByText(/Baseada em Tempo/)).toBeInTheDocument();
     expect(screen.getByText(/Checkpoint Alpha/)).toBeInTheDocument();
-    expect(screen.getByText('Ativa')).toBeInTheDocument();
+    expect(screen.getByText("Ativa")).toBeInTheDocument();
   });
 
-  it('renders inactive badge for inactive activities', () => {
+  it("renders inactive badge for inactive activities", () => {
     render(
       <ActivityList
         activities={[makeActivity({ is_active: false })]}
@@ -83,10 +88,10 @@ describe('ActivityList', () => {
       />,
     );
 
-    expect(screen.getByText('Inativa')).toBeInTheDocument();
+    expect(screen.getByText("Inativa")).toBeInTheDocument();
   });
 
-  it('does not render description when absent', () => {
+  it("does not render description when absent", () => {
     render(
       <ActivityList
         activities={[makeActivity({ description: undefined })]}
@@ -96,10 +101,10 @@ describe('ActivityList', () => {
       />,
     );
 
-    expect(screen.queryByText('Descrição da atividade')).not.toBeInTheDocument();
+    expect(screen.queryByText("Descrição da atividade")).not.toBeInTheDocument();
   });
 
-  it('falls back to a generic checkpoint label when the checkpoint is not found', () => {
+  it("falls back to a generic checkpoint label when the checkpoint is not found", () => {
     render(
       <ActivityList
         activities={[makeActivity({ checkpoint_id: 999 })]}
@@ -112,8 +117,8 @@ describe('ActivityList', () => {
     expect(screen.getByText(/Checkpoint 999/)).toBeInTheDocument();
   });
 
-  it('renders each activity type label correctly', () => {
-    const types: Activity['activity_type'][] = [
+  it("renders each activity type label correctly", () => {
+    const types: Activity["activity_type"][] = [
       ActivityType.TIME_BASED,
       ActivityType.SCORE_BASED,
       ActivityType.BOOLEAN,
@@ -139,7 +144,7 @@ describe('ActivityList', () => {
     expect(screen.getByText(/Avaliação Posterior \(Fotos\)/)).toBeInTheDocument();
   });
 
-  it('calls onEdit when the edit button is clicked', () => {
+  it("calls onEdit when the edit button is clicked", () => {
     const activity = makeActivity();
     render(
       <ActivityList
@@ -150,12 +155,12 @@ describe('ActivityList', () => {
       />,
     );
 
-    const buttons = screen.getAllByRole('button');
+    const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[0]!);
     expect(onEdit).toHaveBeenCalledWith(activity);
   });
 
-  it('calls onDelete with the activity id when the delete button is clicked', () => {
+  it("calls onDelete with the activity id when the delete button is clicked", () => {
     const activity = makeActivity();
     render(
       <ActivityList
@@ -166,12 +171,12 @@ describe('ActivityList', () => {
       />,
     );
 
-    const buttons = screen.getAllByRole('button');
+    const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[1]!);
     expect(onDelete).toHaveBeenCalledWith(activity.id);
   });
 
-  it('does not render the drag handle when onReorder is not provided', () => {
+  it("does not render the drag handle when onReorder is not provided", () => {
     const { container } = render(
       <ActivityList
         activities={[makeActivity()]}
@@ -184,7 +189,7 @@ describe('ActivityList', () => {
     expect(container.querySelector('[draggable="true"]')).not.toBeInTheDocument();
   });
 
-  it('renders draggable items and the drag handle when onReorder is provided', () => {
+  it("renders draggable items and the drag handle when onReorder is provided", () => {
     const { container } = render(
       <ActivityList
         activities={[makeActivity()]}
@@ -198,9 +203,9 @@ describe('ActivityList', () => {
     expect(container.querySelector('[draggable="true"]')).toBeInTheDocument();
   });
 
-  it('reorders activities within the same checkpoint on drop', () => {
-    const activityA = makeActivity({ id: 1, name: 'A', checkpoint_id: 1, order: 1 });
-    const activityB = makeActivity({ id: 2, name: 'B', checkpoint_id: 1, order: 2 });
+  it("reorders activities within the same checkpoint on drop", () => {
+    const activityA = makeActivity({ id: 1, name: "A", checkpoint_id: 1, order: 1 });
+    const activityB = makeActivity({ id: 2, name: "B", checkpoint_id: 1, order: 2 });
 
     const { container } = render(
       <ActivityList
@@ -215,7 +220,7 @@ describe('ActivityList', () => {
     const items = container.querySelectorAll('[draggable="true"]');
     expect(items).toHaveLength(2);
 
-    const dataTransfer = { effectAllowed: '', dropEffect: '' };
+    const dataTransfer = { effectAllowed: "", dropEffect: "" };
 
     fireEvent.dragStart(items[0]!, { dataTransfer });
     fireEvent.dragOver(items[1]!, { dataTransfer });
@@ -224,8 +229,8 @@ describe('ActivityList', () => {
     expect(onReorder).toHaveBeenCalledWith({ 1: 2, 2: 1 });
   });
 
-  it('does not reorder when dropping onto the same activity', () => {
-    const activityA = makeActivity({ id: 1, name: 'A', checkpoint_id: 1, order: 1 });
+  it("does not reorder when dropping onto the same activity", () => {
+    const activityA = makeActivity({ id: 1, name: "A", checkpoint_id: 1, order: 1 });
 
     const { container } = render(
       <ActivityList
@@ -238,7 +243,7 @@ describe('ActivityList', () => {
     );
 
     const items = container.querySelectorAll('[draggable="true"]');
-    const dataTransfer = { effectAllowed: '', dropEffect: '' };
+    const dataTransfer = { effectAllowed: "", dropEffect: "" };
 
     fireEvent.dragStart(items[0]!, { dataTransfer });
     fireEvent.drop(items[0]!, { dataTransfer });
@@ -246,9 +251,9 @@ describe('ActivityList', () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
-  it('does not reorder across different checkpoints', () => {
-    const activityA = makeActivity({ id: 1, name: 'A', checkpoint_id: 1, order: 1 });
-    const activityB = makeActivity({ id: 2, name: 'B', checkpoint_id: 2, order: 1 });
+  it("does not reorder across different checkpoints", () => {
+    const activityA = makeActivity({ id: 1, name: "A", checkpoint_id: 1, order: 1 });
+    const activityB = makeActivity({ id: 2, name: "B", checkpoint_id: 2, order: 1 });
 
     const { container } = render(
       <ActivityList
@@ -261,7 +266,7 @@ describe('ActivityList', () => {
     );
 
     const items = container.querySelectorAll('[draggable="true"]');
-    const dataTransfer = { effectAllowed: '', dropEffect: '' };
+    const dataTransfer = { effectAllowed: "", dropEffect: "" };
 
     fireEvent.dragStart(items[0]!, { dataTransfer });
     fireEvent.drop(items[1]!, { dataTransfer });
@@ -269,9 +274,9 @@ describe('ActivityList', () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
-  it('does nothing on drop when onReorder is not provided', () => {
-    const activityA = makeActivity({ id: 1, name: 'A', checkpoint_id: 1, order: 1 });
-    const activityB = makeActivity({ id: 2, name: 'B', checkpoint_id: 1, order: 2 });
+  it("does nothing on drop when onReorder is not provided", () => {
+    const activityA = makeActivity({ id: 1, name: "A", checkpoint_id: 1, order: 1 });
+    const activityB = makeActivity({ id: 2, name: "B", checkpoint_id: 1, order: 2 });
 
     const { container } = render(
       <ActivityList
@@ -282,8 +287,8 @@ describe('ActivityList', () => {
       />,
     );
 
-    const items = container.querySelectorAll('div.rounded-lg');
-    const dataTransfer = { effectAllowed: '', dropEffect: '' };
+    const items = container.querySelectorAll("div.rounded-lg");
+    const dataTransfer = { effectAllowed: "", dropEffect: "" };
 
     fireEvent.dragStart(items[0]!, { dataTransfer });
     fireEvent.drop(items[1]!, { dataTransfer });
@@ -291,8 +296,8 @@ describe('ActivityList', () => {
     expect(onDelete).not.toHaveBeenCalled();
   });
 
-  it('does not reorder when dropping with no dragged activity set', () => {
-    const activityA = makeActivity({ id: 1, name: 'A', checkpoint_id: 1, order: 1 });
+  it("does not reorder when dropping with no dragged activity set", () => {
+    const activityA = makeActivity({ id: 1, name: "A", checkpoint_id: 1, order: 1 });
 
     const { container } = render(
       <ActivityList
@@ -305,7 +310,7 @@ describe('ActivityList', () => {
     );
 
     const item = container.querySelector('[draggable="true"]') as Element;
-    const dataTransfer = { effectAllowed: '', dropEffect: '' };
+    const dataTransfer = { effectAllowed: "", dropEffect: "" };
 
     // Drop without a preceding dragStart
     fireEvent.drop(item, { dataTransfer });
@@ -313,8 +318,8 @@ describe('ActivityList', () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
-  it('clears the dragged state on drag end', () => {
-    const activityA = makeActivity({ id: 1, name: 'A', checkpoint_id: 1, order: 1 });
+  it("clears the dragged state on drag end", () => {
+    const activityA = makeActivity({ id: 1, name: "A", checkpoint_id: 1, order: 1 });
 
     const { container } = render(
       <ActivityList
@@ -327,12 +332,12 @@ describe('ActivityList', () => {
     );
 
     const item = container.querySelector('[draggable="true"]') as Element;
-    const dataTransfer = { effectAllowed: '', dropEffect: '' };
+    const dataTransfer = { effectAllowed: "", dropEffect: "" };
 
     fireEvent.dragStart(item, { dataTransfer });
     fireEvent.dragEnd(item);
 
     // No crash and item is no longer visually "dragged" (class check)
-    expect(item.className).not.toContain('opacity-50');
+    expect(item.className).not.toContain("opacity-50");
   });
 });

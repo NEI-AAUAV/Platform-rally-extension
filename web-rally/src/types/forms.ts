@@ -10,7 +10,6 @@ export interface ActivityResultData {
     completion_time_seconds?: number;
     achieved_points?: number;
     success?: boolean;
-    attempts?: number;
     result?: string;
     completed?: boolean;
     opponent_team_id?: number;
