@@ -31,9 +31,7 @@ function CounterRow({ idPrefix, counter, penalties, onChange }: Readonly<Counter
         type="number"
         min="0"
         value={displayCount(penalties[counter.key])}
-        onChange={(e) =>
-          onChange({ ...penalties, [counter.key]: parseCount(e.target.value) })
-        }
+        onChange={(e) => onChange({ ...penalties, [counter.key]: parseCount(e.target.value) })}
         className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
         placeholder="0"
         aria-label={`Contagem de ${counter.label}`}
@@ -104,9 +102,7 @@ export default function PenaltiesFieldset({
                 type="number"
                 min="0"
                 value={displayCount(penalties.vomit)}
-                onChange={(e) =>
-                  onChange({ ...penalties, vomit: parseCount(e.target.value) })
-                }
+                onChange={(e) => onChange({ ...penalties, vomit: parseCount(e.target.value) })}
                 className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
                 placeholder="0"
                 aria-label="Número de vezes que vomitou"

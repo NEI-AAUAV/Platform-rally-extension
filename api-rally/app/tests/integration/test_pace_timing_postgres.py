@@ -63,9 +63,7 @@ async def test_clock_runs_from_arrival_to_evaluation_not_from_the_event_start(pg
     the event's start, and not shifted by its staggered-start offset — and it
     stops when staff submit the evaluation."""
     settings, cp, team, activity = await _setup(pg_session)
-    pg_session.add(
-        CheckpointArrival(team_id=team.id, checkpoint_id=cp.id, arrived_at=START)
-    )
+    pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=cp.id, arrived_at=START))
     pg_session.add(
         ActivityResult(
             team_id=team.id,
@@ -89,9 +87,7 @@ async def test_deferred_judging_stops_the_clock_at_the_capture(pg_session) -> No
     the capture at the post is when the team was done."""
     settings, cp, team, activity = await _setup(pg_session)
     captured_at = START + timedelta(minutes=15)
-    pg_session.add(
-        CheckpointArrival(team_id=team.id, checkpoint_id=cp.id, arrived_at=START)
-    )
+    pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=cp.id, arrived_at=START))
     pg_session.add(
         ActivityResult(
             team_id=team.id,
