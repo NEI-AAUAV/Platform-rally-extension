@@ -15,6 +15,8 @@ from app.core.email_utils import normalize_email
 from app.core.exceptions import RallyValidationError
 from app.crud.crud_rally_guide_assignment import rally_guide_assignment
 from app.crud.crud_rally_staff_assignment import rally_staff_assignment
+from app.models.rally_guide_assignment import RallyGuideAssignment
+from app.models.rally_staff_assignment import RallyStaffAssignment
 from app.models.user import User
 from app.schemas.pagination import Page
 
@@ -96,6 +98,7 @@ class UserService:
         Only the current event is touched: assignments from finished editions
         are that edition's record, not live access.
         """
+        assignment: RallyStaffAssignment | RallyGuideAssignment | None
         if scope == ScopeEnum.RALLY_STAFF.value:
             assignment = await rally_staff_assignment.get_by_user_id(self._db, user.id)
             # The legacy cached column reads as an access grant in older code
