@@ -113,14 +113,14 @@ describe("per-counter ceilings", () => {
     const config = {
       bonus_counters: [{ key: "perf", label: "Performance", points: 2, max_points: 6 }],
     };
-    expect(parseBonusCounters(config)[0].maxPoints).toBe(6);
+    expect(parseBonusCounters(config)[0]?.maxPoints).toBe(6);
   });
 
   it("keeps a ceiling of 0 as a real ceiling, not 'unlimited'", () => {
     const config = {
       bonus_counters: [{ key: "perf", label: "Performance", points: 2, max_points: 0 }],
     };
-    expect(parseBonusCounters(config)[0].maxPoints).toBe(0);
+    expect(parseBonusCounters(config)[0]?.maxPoints).toBe(0);
   });
 
   it("drops a malformed or negative ceiling instead of failing the counter", () => {
@@ -132,8 +132,8 @@ describe("per-counter ceilings", () => {
     };
     const parsed = parseBonusCounters(config);
     expect(parsed).toHaveLength(2);
-    expect(parsed[0].maxPoints).toBeUndefined();
-    expect(parsed[1].maxPoints).toBeUndefined();
+    expect(parsed[0]?.maxPoints).toBeUndefined();
+    expect(parsed[1]?.maxPoints).toBeUndefined();
   });
 
   it("derives the maximum count from the ceiling and the per-occurrence price", () => {
