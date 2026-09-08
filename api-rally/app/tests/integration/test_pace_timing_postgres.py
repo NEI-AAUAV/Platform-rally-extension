@@ -41,7 +41,11 @@ async def _setup(pg_session):
         await pg_session.refresh(obj)
 
     activity = Activity(
-        name="Prova", activity_type="GeneralActivity", checkpoint_id=cp.id, config={}
+        name="Prova",
+        activity_type="GeneralActivity",
+        checkpoint_id=cp.id,
+        event_id=event.id,
+        config={},
     )
     pg_session.add(activity)
     await pg_session.commit()

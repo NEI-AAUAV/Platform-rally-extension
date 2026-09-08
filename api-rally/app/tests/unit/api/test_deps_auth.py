@@ -30,6 +30,13 @@ def _auth(sub="sub-1", email="user@ua.pt", name="User", scopes=None, email_verif
     return a
 
 
+def _settings(trust_unverified=True):
+    """Only OIDC_TRUST_UNVERIFIED_EMAIL is read by the dependency."""
+    s = Mock()
+    s.OIDC_TRUST_UNVERIFIED_EMAIL = trust_unverified
+    return s
+
+
 def _user(id=1, sub="sub-1", scopes=None, disabled=False):
     u = Mock()
     u.id = id
@@ -79,7 +86,7 @@ async def test_get_current_user_returns_existing_user():
         patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)),
         patch.object(DetailedUser, "model_validate", return_value=_detailed(user)),
     ):
-        result = await deps.get_current_user(_auth(), db)
+        result = await deps.get_current_user(_auth(), db, _settings())
     assert result.id == 1
 
 
@@ -93,7 +100,7 @@ async def test_get_current_user_creates_on_first_login():
         patch("app.crud.user.create_for_oidc", new=create_mock),
         patch.object(DetailedUser, "model_validate", return_value=_detailed(created)),
     ):
-        result = await deps.get_current_user(_auth(), db)
+        result = await deps.get_current_user(_auth(), db, _settings())
     assert result.id == 9
     create_mock.assert_awaited_once()
 
@@ -109,17 +116,20 @@ async def test_get_current_user_backfills_email_placeholder():
         patch("app.crud.user.create_for_oidc", new=AsyncMock()) as create_mock,
         patch.object(DetailedUser, "model_validate", return_value=_detailed(placeholder)),
     ):
-        result = await deps.get_current_user(_auth(sub="new-sub"), db)
+        result = await deps.get_current_user(_auth(sub="new-sub"), db, _settings())
     assert result.id == 5
     assert placeholder.authentik_sub == "new-sub"
     create_mock.assert_not_awaited()
 
 
 async def test_get_current_user_skips_email_backfill_when_email_unverified():
-    """M12: an unverified email claim must never adopt a pre-mirrored
-    placeholder row -- an attacker who merely claims someone else's email at
-    the IdP (or an IdP not enforcing verification) must not inherit that
-    placeholder's scopes. Falls through to the normal create path instead."""
+    """M12: with OIDC_TRUST_UNVERIFIED_EMAIL off, an unverified email claim must
+    never adopt a pre-mirrored placeholder row -- an attacker who merely claims
+    someone else's email at the IdP (or an IdP not enforcing verification) must
+    not inherit that placeholder's scopes. Falls through to the create path.
+
+    The flag defaults on because Authentik does not emit the claim at all and
+    the alternative is a duplicate account per staff member."""
     db = AsyncMock()
     placeholder = _user(id=5, sub=None)
     created = _user(id=42)
@@ -131,7 +141,9 @@ async def test_get_current_user_skips_email_backfill_when_email_unverified():
         patch("app.crud.user.create_for_oidc", new=AsyncMock(return_value=created)) as create_mock,
         patch.object(DetailedUser, "model_validate", return_value=_detailed(created)),
     ):
-        result = await deps.get_current_user(_auth(sub="new-sub", email_verified=False), db)
+        result = await deps.get_current_user(
+            _auth(sub="new-sub", email_verified=False), db, _settings(trust_unverified=False)
+        )
     assert result.id == 42
     assert placeholder.authentik_sub is None  # never adopted
     get_by_email.assert_not_awaited()
@@ -153,7 +165,7 @@ async def test_get_current_user_survives_creation_race():
         ),
         patch.object(DetailedUser, "model_validate", return_value=_detailed(winner)),
     ):
-        result = await deps.get_current_user(_auth(), db)
+        result = await deps.get_current_user(_auth(), db, _settings())
     assert result.id == 3
     db.rollback.assert_awaited()
 
@@ -170,7 +182,7 @@ async def test_get_current_user_skips_email_backfill_without_email():
         patch("app.crud.user.create_for_oidc", new=AsyncMock(return_value=created)),
         patch.object(DetailedUser, "model_validate", return_value=_detailed(created)),
     ):
-        result = await deps.get_current_user(_auth(email=None), db)
+        result = await deps.get_current_user(_auth(email=None), db, _settings())
     assert result.id == 11
     get_by_email.assert_not_awaited()
 
@@ -191,7 +203,7 @@ async def test_get_current_user_raises_500_when_race_loser_finds_nothing():
         ),
         pytest.raises(HTTPException) as exc,
     ):
-        await deps.get_current_user(auth_data, db)
+        await deps.get_current_user(auth_data, db, _settings())
     assert exc.value.status_code == 500
 
 
@@ -207,7 +219,7 @@ async def test_get_current_user_loads_guide_team_assignment():
             new=AsyncMock(return_value=guide_assignment),
         ),
     ):
-        result = await deps.get_current_user(_auth(scopes=["rally-guide"]), db)
+        result = await deps.get_current_user(_auth(scopes=["rally-guide"]), db, _settings())
     assert result.guide_team_id == 42
 
 
@@ -222,7 +234,7 @@ async def test_get_current_user_syncs_scopes_from_provider():
             new=AsyncMock(return_value=None),
         ),
     ):
-        await deps.get_current_user(_auth(scopes=["rally-staff"]), db)
+        await deps.get_current_user(_auth(scopes=["rally-staff"]), db, _settings())
     assert user.scopes == ["rally-staff"]
 
 
@@ -231,7 +243,7 @@ async def test_get_current_user_syncs_scopes_from_provider():
 
 async def test_get_current_user_optional_none_without_auth():
     db = AsyncMock()
-    assert await deps.get_current_user_optional(None, db) is None
+    assert await deps.get_current_user_optional(None, db, _settings()) is None
 
 
 async def test_get_current_user_optional_none_when_no_matching_user():
@@ -242,7 +254,7 @@ async def test_get_current_user_optional_none_when_no_matching_user():
         patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)),
         patch("app.crud.user.get_by_email", new=AsyncMock(return_value=None)),
     ):
-        result = await deps.get_current_user_optional(_auth(), db)
+        result = await deps.get_current_user_optional(_auth(), db, _settings())
     assert result is None
 
 
@@ -253,7 +265,7 @@ async def test_get_current_user_optional_returns_existing_user():
         patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=user)),
         patch.object(DetailedUser, "model_validate", return_value=_detailed(user)),
     ):
-        result = await deps.get_current_user_optional(_auth(), db)
+        result = await deps.get_current_user_optional(_auth(), db, _settings())
     assert result.id == 1
 
 
@@ -265,7 +277,7 @@ async def test_get_current_user_optional_backfills_email_placeholder():
         patch("app.crud.user.get_by_email", new=AsyncMock(return_value=placeholder)),
         patch.object(DetailedUser, "model_validate", return_value=_detailed(placeholder)),
     ):
-        result = await deps.get_current_user_optional(_auth(sub="new-sub"), db)
+        result = await deps.get_current_user_optional(_auth(sub="new-sub"), db, _settings())
     assert result.id == 6
     assert placeholder.authentik_sub == "new-sub"
 

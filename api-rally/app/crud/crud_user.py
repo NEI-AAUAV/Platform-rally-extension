@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 
 from fastapi.encoders import jsonable_encoder
@@ -5,11 +6,14 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.email_utils import normalize_email
 from app.core.exceptions import RallyNotFoundError
 from app.crud._deps import foreign_key_error_regex
 from app.crud.base import CRUDBase
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
+
+logger = logging.getLogger(__name__)
 
 _team_foreign_error_regex = foreign_key_error_regex(User.team_id.name)
 
@@ -78,7 +82,18 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return db_obj
 
     async def get_by_email(self, db: AsyncSession, *, email: str) -> User | None:
-        result = await db.scalars(select(User).where(User.email == email))
+        """Case-insensitive email lookup.
+
+        The JWT ``email`` claim and the Authentik management API's ``email``
+        are two renderings of the same address and need not agree on case, so
+        an exact comparison missed the mirrored placeholder and let the login
+        path create a duplicate row. Rows written before normalization can
+        still carry mixed case, hence ``lower()`` on the column too.
+        """
+        normalized = normalize_email(email)
+        if normalized is None:
+            return None
+        result = await db.scalars(select(User).where(func.lower(User.email) == normalized))
         return result.first()
 
     async def get_or_create_mirror(
@@ -88,7 +103,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         name: str,
         email: str | None,
         scope: str,
-    ) -> User:
+    ) -> User | None:
         """Get the local mirror for an Authentik account, creating or
         updating it as needed so the account does not require a first login
         to be usable (e.g. to assign a rally-staff checkpoint).
@@ -108,18 +123,24 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         person. A transaction-scoped advisory lock keyed on the email
         serializes callers for that email without needing a schema change
         or affecting unrelated rows.
-        """
-        if not email:
-            db_obj = User(authentik_sub=None, name=name, email=email, scopes=[scope])
-            db.add(db_obj)
-            await db.commit()
-            await db.refresh(db_obj)
-            return db_obj
 
-        await db.execute(select(func.pg_advisory_xact_lock(func.hashtext(email))))
-        existing = await self.get_by_email(db, email=email)
+        A member with no email is skipped (returns ``None``): email is the
+        only key this path can match on, so such a row could never be found
+        again — it was re-inserted on every single listing request, and the
+        login it belongs to could never adopt it either.
+        """
+        normalized = normalize_email(email)
+        if normalized is None:
+            logger.warning(
+                "Skipping Authentik group member without an email; cannot be mirrored (name=%s)",
+                name,
+            )
+            return None
+
+        await db.execute(select(func.pg_advisory_xact_lock(func.hashtext(normalized))))
+        existing = await self.get_by_email(db, email=normalized)
         if existing is None:
-            db_obj = User(authentik_sub=None, name=name, email=email, scopes=[scope])
+            db_obj = User(authentik_sub=None, name=name, email=normalized, scopes=[scope])
             db.add(db_obj)
             await db.commit()
             await db.refresh(db_obj)
