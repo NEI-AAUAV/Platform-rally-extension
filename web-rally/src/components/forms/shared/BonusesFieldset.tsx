@@ -1,4 +1,5 @@
-import type { BonusCounterConfig } from "@/lib/penaltyCounters";
+import { maxCountForCounter, type BonusCounterConfig } from "@/lib/penaltyCounters";
+import { displayCount, parseCount } from "./numberField";
 
 type BonusMap = { [key: string]: number };
 
@@ -22,23 +23,45 @@ interface CounterRowProps {
 }
 
 function CounterRow({ idPrefix, counter, bonuses, onChange }: Readonly<CounterRowProps>) {
+  // The counter's own ceiling, expressed as the count staff may actually type.
+  // Clamping here rather than only warning is the point: the value never
+  // enters state above the limit, so it can never be submitted above it.
+  const maxCount = maxCountForCounter(counter);
+  const value = bonuses[counter.key] ?? 0;
+  const limitLabel =
+    maxCount === undefined ? "" : ` · máx. ${counter.maxPoints} pts (${maxCount}x)`;
+
+  const handleChange = (raw: string) => {
+    const parsed = parseCount(raw);
+    const clamped = maxCount === undefined ? parsed : Math.min(parsed, maxCount);
+    onChange({ ...bonuses, [counter.key]: Math.max(0, clamped) });
+  };
+
   return (
     <div className="flex items-center space-x-3">
       <input
         id={`${idPrefix}-${counter.key}`}
         type="number"
         min="0"
-        value={bonuses[counter.key] || 0}
-        onChange={(e) =>
-          onChange({ ...bonuses, [counter.key]: Number.parseInt(e.target.value, 10) || 0 })
-        }
+        max={maxCount}
+        value={displayCount(value)}
+        onChange={(e) => handleChange(e.target.value)}
         className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
         placeholder="0"
-        aria-label={`Contagem de ${counter.label}`}
+        aria-label={
+          maxCount === undefined
+            ? `Contagem de ${counter.label}`
+            : `Contagem de ${counter.label} (máximo ${maxCount})`
+        }
       />
       <label htmlFor={`${idPrefix}-${counter.key}`} className="text-sm text-muted-foreground">
-        {counter.label} (+{Math.abs(counter.points)} pts cada)
+        {counter.label} (+{Math.abs(counter.points)} pts cada{limitLabel})
       </label>
+      {maxCount !== undefined && value >= maxCount && (
+        <output className="text-xs text-amber-600" aria-live="polite">
+          Limite atingido: máximo {counter.maxPoints} pontos neste bónus.
+        </output>
+      )}
     </div>
   );
 }

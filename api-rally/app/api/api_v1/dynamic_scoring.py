@@ -15,7 +15,7 @@ DynamicAward management:
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api import deps
 from app.services.deps import get_dynamic_scoring_service
@@ -37,6 +37,10 @@ class DynamicRuleCreate(BaseModel):
     description: str | None = None
     rule_type: Literal["penalty_counter", "bonus_counter"] = "penalty_counter"
     points: float = 0.0
+    # Ceiling on what this rule alone may award at one checkpoint. ``None`` is
+    # unlimited, 0 is a real ceiling of zero. Distinct from the event-wide
+    # ceiling on the *summed* bonus (rally_settings.default_max_bonus_points).
+    max_points: Annotated[float, Field(ge=0)] | None = None
     is_active: bool = True
 
 
@@ -46,6 +50,9 @@ class DynamicRuleUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     points: float | None = None
+    # Explicit ``null`` here means "remove the ceiling", so the controller has
+    # to distinguish it from the field simply being absent.
+    max_points: Annotated[float, Field(ge=0)] | None = None
     is_active: bool | None = None
 
 
@@ -56,6 +63,7 @@ class DynamicRuleResponse(BaseModel):
     description: str | None = None
     rule_type: str
     points: float
+    max_points: float | None = None
     is_active: bool
 
     model_config = {"from_attributes": True}
@@ -171,7 +179,14 @@ class DynamicScoringController:
         obj_in: DynamicRuleUpdate,
         service: Annotated[DynamicScoringService, Depends(get_dynamic_scoring_service)],
     ) -> DynamicRuleResponse:
-        rule = await service.update_rule(rule_id, **obj_in.model_dump(exclude_none=True))
+        # ``exclude_none`` is what lets a partial update leave a field alone,
+        # but it also swallows the one null that means something: clearing
+        # max_points back to "no ceiling". Put that one back when the client
+        # actually sent it.
+        fields = obj_in.model_dump(exclude_none=True)
+        if "max_points" in obj_in.model_fields_set:
+            fields["max_points"] = obj_in.max_points
+        rule = await service.update_rule(rule_id, **fields)
         return DynamicRuleResponse.model_validate(rule)
 
     async def delete_dynamic_rule(

@@ -1,4 +1,5 @@
 import type { PenaltyCounterConfig } from "@/lib/penaltyCounters";
+import { displayCount, parseCount } from "./numberField";
 
 type PenaltyMap = { [key: string]: number };
 
@@ -29,9 +30,9 @@ function CounterRow({ idPrefix, counter, penalties, onChange }: Readonly<Counter
         id={`${idPrefix}-${counter.key}`}
         type="number"
         min="0"
-        value={penalties[counter.key] || 0}
+        value={displayCount(penalties[counter.key])}
         onChange={(e) =>
-          onChange({ ...penalties, [counter.key]: Number.parseInt(e.target.value, 10) || 0 })
+          onChange({ ...penalties, [counter.key]: parseCount(e.target.value) })
         }
         className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
         placeholder="0"
@@ -102,9 +103,9 @@ export default function PenaltiesFieldset({
                 id={`${idPrefix}-vomit`}
                 type="number"
                 min="0"
-                value={penalties.vomit || 0}
+                value={displayCount(penalties.vomit)}
                 onChange={(e) =>
-                  onChange({ ...penalties, vomit: Number.parseInt(e.target.value, 10) || 0 })
+                  onChange({ ...penalties, vomit: parseCount(e.target.value) })
                 }
                 className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
                 placeholder="0"
@@ -121,11 +122,11 @@ export default function PenaltiesFieldset({
                 id={`${idPrefix}-not-drinking`}
                 type="number"
                 min="0"
-                value={penalties.not_drinking || 0}
+                value={displayCount(penalties.not_drinking)}
                 onChange={(e) =>
                   onChange({
                     ...penalties,
-                    not_drinking: Number.parseInt(e.target.value, 10) || 0,
+                    not_drinking: parseCount(e.target.value),
                   })
                 }
                 className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"

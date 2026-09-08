@@ -2244,6 +2244,161 @@ async def test_event_default_cap_bounds_a_global_bonus_rule(pg_session):
 
 
 # ---------------------------------------------------------------------------
+# Per-counter bonus ceilings (config.bonus_counters[].max_points,
+# dynamic_rules.max_points) -- a different rule from the ceiling on the *sum*
+# ---------------------------------------------------------------------------
+
+
+async def test_counter_ceiling_truncates_that_counter_alone(pg_session):
+    """Two occurrences of a 2-point bonus capped at 3 award 3, not 4."""
+    await _set_event_bonus_cap(pg_session, None)
+    team = await _make_team(pg_session, "Counter Ceiling")
+    activity = await _make_activity(
+        pg_session,
+        config=_bonus_activity_config(
+            bonus_counters=[{"key": "perf", "label": "Performance", "points": 2, "max_points": 3}]
+        ),
+    )
+
+    await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            bonus_counts={"perf": 6},  # 12 points before the counter's ceiling
+            is_completed=True,
+        )
+    )
+
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    # The stored breakdown already shows the truncated award: the ceiling is a
+    # rule about what this counter awards, not a presentation-time cap.
+    assert result.bonuses == {"perf": 3}
+    assert result.bonus_counts == {"perf": 6}
+    assert result.final_score == pytest.approx(53)
+
+
+async def test_counter_ceiling_of_zero_is_not_read_as_unset(pg_session):
+    await _set_event_bonus_cap(pg_session, None)
+    team = await _make_team(pg_session, "Zero Counter Ceiling")
+    activity = await _make_activity(
+        pg_session,
+        config=_bonus_activity_config(
+            bonus_counters=[{"key": "perf", "label": "Performance", "points": 2, "max_points": 0}]
+        ),
+    )
+
+    await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            bonus_counts={"perf": 4},
+            is_completed=True,
+        )
+    )
+
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    assert result.bonuses == {"perf": 0}
+    assert result.final_score == pytest.approx(50)
+
+
+async def test_counter_ceiling_only_binds_its_own_counter(pg_session):
+    """A capped counter must not drag an uncapped sibling down with it."""
+    await _set_event_bonus_cap(pg_session, None)
+    team = await _make_team(pg_session, "Sibling Counters")
+    activity = await _make_activity(
+        pg_session,
+        config=_bonus_activity_config(
+            bonus_counters=[
+                {"key": "perf", "label": "Performance", "points": 2, "max_points": 3},
+                {"key": "extra", "label": "Extra", "points": 4},
+            ]
+        ),
+    )
+
+    await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            bonus_counts={"perf": 6, "extra": 2},
+            is_completed=True,
+        )
+    )
+
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    assert result.bonuses == {"perf": 3, "extra": 8}
+    assert result.final_score == pytest.approx(61)
+
+
+async def test_global_rule_ceiling_truncates_that_rule(pg_session):
+    from app.models.dynamic_scoring import BONUS_COUNTER_RULE_TYPE, DynamicRule
+
+    rule = DynamicRule(
+        event_id=await current_event_id(pg_session),
+        name="Criatividade",
+        rule_type=BONUS_COUNTER_RULE_TYPE,
+        points=10,
+        max_points=15,
+        is_active=True,
+    )
+    pg_session.add(rule)
+    await pg_session.commit()
+    await pg_session.refresh(rule)
+    await _set_event_bonus_cap(pg_session, None)
+
+    team = await _make_team(pg_session, "Global Rule Ceiling")
+    activity = await _make_activity(pg_session, config={"min_points": 0, "max_points": 100})
+
+    await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            bonus_counts={f"gb_{rule.id}": 4},  # 40 points before the rule's ceiling
+            is_completed=True,
+        )
+    )
+
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    assert result.bonuses == {f"gb_{rule.id}": 15}
+    assert result.final_score == pytest.approx(65)
+
+
+async def test_counter_ceiling_and_total_ceiling_both_apply(pg_session):
+    """The individual limit first, the ceiling on the sum on top of it."""
+    await _set_event_bonus_cap(pg_session, None)
+    team = await _make_team(pg_session, "Both Ceilings")
+    activity = await _make_activity(
+        pg_session,
+        config=_bonus_activity_config(
+            bonus_counters=[
+                {"key": "perf", "label": "Performance", "points": 2, "max_points": 6},
+                {"key": "extra", "label": "Extra", "points": 4, "max_points": 8},
+            ],
+            max_bonus_points=10,
+        ),
+    )
+
+    await ScoringService(pg_session).create_result(
+        ActivityResultCreate(
+            activity_id=activity.id,
+            team_id=team.id,
+            result_data={"assigned_points": 50},
+            bonus_counts={"perf": 5, "extra": 5},
+            is_completed=True,
+        )
+    )
+
+    result = (await pg_session.scalars(_select_result(activity.id, team.id))).first()
+    # Each counter truncated to its own ceiling (6 + 8 = 14), then the sum
+    # truncated to the activity's 10.
+    assert result.bonuses == {"perf": 6, "extra": 8}
+    assert result.final_score == pytest.approx(60)
+
+
+# ---------------------------------------------------------------------------
 # A tombstoned rule still prices what it already scored
 # ---------------------------------------------------------------------------
 

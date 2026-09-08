@@ -20,6 +20,15 @@ export interface PenaltyCounterConfig {
   label: string;
   /** Points deducted per occurrence. Positive here; subtracted at scoring time. */
   points: number;
+  /**
+   * Ceiling on what this single counter may contribute, in points. `undefined`
+   * is unlimited; `0` is a real ceiling of zero. Only meaningful for a bonus
+   * counter — a penalty has no such limit today.
+   *
+   * Distinct from `config.max_bonus_points`, which caps the *sum* of every
+   * bonus at a checkpoint. Both apply: this one first, the total afterwards.
+   */
+  maxPoints?: number;
 }
 
 /**
@@ -59,15 +68,70 @@ function parseCounterList(config: unknown, field: string): PenaltyCounterConfig[
   if (!config || typeof config !== "object") return [];
   const raw = (config as Record<string, unknown>)[field];
   if (!Array.isArray(raw)) return [];
-  return raw.filter(
-    (item): item is PenaltyCounterConfig =>
-      !!item &&
-      typeof item === "object" &&
-      typeof (item as PenaltyCounterConfig).key === "string" &&
-      (item as PenaltyCounterConfig).key.length > 0 &&
-      typeof (item as PenaltyCounterConfig).label === "string" &&
-      typeof (item as PenaltyCounterConfig).points === "number",
-  );
+  return raw
+    .filter(
+      (item): item is PenaltyCounterConfig =>
+        !!item &&
+        typeof item === "object" &&
+        typeof (item as PenaltyCounterConfig).key === "string" &&
+        (item as PenaltyCounterConfig).key.length > 0 &&
+        typeof (item as PenaltyCounterConfig).label === "string" &&
+        typeof (item as PenaltyCounterConfig).points === "number",
+    )
+    .map((item) => ({
+      key: item.key,
+      label: item.label,
+      points: item.points,
+      maxPoints: parseCounterMaxPoints(item),
+    }));
+}
+
+/**
+ * Reads a counter's own `max_points` ceiling, tolerating missing/malformed
+ * JSON. Checks the type rather than truthiness so a configured `0` survives as
+ * a real ceiling instead of collapsing to "unlimited".
+ */
+function parseCounterMaxPoints(counter: object): number | undefined {
+  const raw = (counter as Record<string, unknown>).max_points;
+  return typeof raw === "number" && Number.isFinite(raw) && raw >= 0 ? raw : undefined;
+}
+
+/**
+ * The largest count staff may enter for a counter before its own ceiling is
+ * reached, or `undefined` when it has none. A counter worth 0 points can never
+ * reach a ceiling, so it stays unbounded rather than collapsing to zero.
+ */
+export function maxCountForCounter(counter: PenaltyCounterConfig): number | undefined {
+  const price = Math.abs(counter.points);
+  if (counter.maxPoints === undefined || price <= 0) return undefined;
+  return Math.floor(counter.maxPoints / price);
+}
+
+/**
+ * The wire shape of a counter, ready to be written back into `config`. The
+ * editor holds `maxPoints` in camelCase like the rest of the app, but the
+ * stored JSON is snake_case — writing the state object straight back would
+ * persist a key the parser never reads, silently losing every ceiling on the
+ * next save.
+ */
+export interface SerializedCounter {
+  key: string;
+  label: string;
+  points: number;
+  max_points?: number;
+}
+
+export function serializeCounters(
+  counters: readonly PenaltyCounterConfig[],
+): SerializedCounter[] {
+  return counters.map(({ key, label, points, maxPoints }) => ({
+    key,
+    label,
+    points,
+    // Omitted when unset, so "no ceiling" stays distinguishable from a
+    // ceiling of 0 all the way down to the scorer.
+    ...(maxPoints === undefined ? {} : { max_points: maxPoints }),
+  }));
 }
 
 /** Reads `config.penalty_counters`, tolerating missing/malformed JSON. */

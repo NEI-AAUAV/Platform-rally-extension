@@ -36,6 +36,9 @@ export function useGlobalBonusCounters(): {
           key: globalBonusKey(rule.id),
           label: rule.name,
           points: Math.abs(rule.points),
+          // A rule with no ceiling of its own stays unlimited; the checkpoint's
+          // total cap still applies on top.
+          maxPoints: rule.max_points ?? undefined,
         }));
     },
     staleTime: 60_000,

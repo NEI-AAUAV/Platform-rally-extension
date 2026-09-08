@@ -18,7 +18,7 @@ import {
   type ListingTeam,
 } from "@/client";
 
-type RuleForm = { name: string; points: string; description: string };
+type RuleForm = { name: string; points: string; maxPoints: string; description: string };
 
 /**
  * A global rule is either a deduction or an award. The type is fixed at
@@ -37,6 +37,11 @@ type RuleCopy = Readonly<{
   noun: string;
   sign: string;
   namePlaceholder: string;
+  /**
+   * Label for this rule's own ceiling. Only bonus rules have one — a penalty
+   * counter is never capped — so the field is absent for the other kind.
+   */
+  maxPointsLabel?: string;
 }>;
 
 const RULE_COPY: Record<RuleKind, RuleCopy> = {
@@ -56,18 +61,19 @@ const RULE_COPY: Record<RuleKind, RuleCopy> = {
     heading: "Bónus globais",
     addLabel: "Novo bónus",
     blurb:
-      "Contadores disponíveis ao staff na avaliação de qualquer posto. Cada ocorrência registada acrescenta os pontos indicados, até ao máximo definido em cada prova.",
+      "Contadores disponíveis ao staff na avaliação de qualquer posto. Cada ocorrência registada acrescenta os pontos indicados, até ao máximo deste bónus — e o somatório de todos os bónus continua limitado pelo teto da prova.",
     pointsLabel: "Pontos a atribuir por ocorrência *",
     createErrorLabel: "Erro ao criar bónus.",
     emptyLabel: "Sem bónus globais definidos.",
     noun: "bónus",
     sign: "+",
     namePlaceholder: "ex: Criatividade",
+    maxPointsLabel: "Máximo deste bónus (pontos)",
   },
 };
 type AwardForm = { team_id: string; points: string; reason: string };
 
-const EMPTY_RULE: RuleForm = { name: "", points: "", description: "" };
+const EMPTY_RULE: RuleForm = { name: "", points: "", maxPoints: "", description: "" };
 const EMPTY_AWARD: AwardForm = { team_id: "", points: "", reason: "" };
 
 const SETTINGS_ADMIN_KEY = ["rallySettings-admin"] as const;
@@ -179,6 +185,9 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
           name: form.name.trim(),
           rule_type: kind,
           points: Math.abs(Number.parseFloat(form.points)),
+          // Blank means no ceiling; 0 is a real ceiling of zero, so this
+          // cannot fall back on truthiness.
+          max_points: form.maxPoints === "" ? null : Math.abs(Number.parseFloat(form.maxPoints)),
           description: form.description || undefined,
           is_active: true,
         },
@@ -240,6 +249,20 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
                 onChange={(e) => setForm({ ...form, points: e.target.value })}
               />
             </label>
+            {copy.maxPointsLabel && (
+              <label data-admin-search-key="max_points" className="space-y-1">
+                <span className="text-xs text-muted-foreground">{copy.maxPointsLabel}</span>
+                <input
+                  type="number"
+                  min="0"
+                  aria-label={copy.maxPointsLabel}
+                  className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Sem limite"
+                  value={form.maxPoints}
+                  onChange={(e) => setForm({ ...form, maxPoints: e.target.value })}
+                />
+              </label>
+            )}
             <label data-admin-search-key="rule_description" className="space-y-1">
               <span className="text-xs text-muted-foreground">Descrição</span>
               <input
@@ -302,6 +325,9 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
               <p className="text-xs text-muted-foreground">
                 {copy.sign}
                 {Math.abs(rule.points)} pts por ocorrência · todos os postos
+                {rule.max_points === null || rule.max_points === undefined
+                  ? ""
+                  : ` · máx. ${rule.max_points} pts`}
                 {rule.description ? ` · ${rule.description}` : ""}
               </p>
             </div>

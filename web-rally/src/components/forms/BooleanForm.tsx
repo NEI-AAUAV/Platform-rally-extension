@@ -6,6 +6,7 @@ import BonusesFieldset from "@/components/forms/shared/BonusesFieldset";
 import NotesField from "@/components/forms/shared/NotesField";
 import FormSubmitButton from "@/components/forms/shared/FormSubmitButton";
 import type { BaseActivityFormProps } from "@/types/forms";
+import { displayCount, parseCount } from "./shared/numberField";
 
 export default function BooleanForm({
   existingResult,
@@ -124,8 +125,8 @@ export default function BooleanForm({
           id="attempts-input"
           type="number"
           min="1"
-          value={attempts}
-          onChange={(e) => setAttempts(Number.parseInt(e.target.value, 10) || 1)}
+          value={displayCount(attempts, 1)}
+          onChange={(e) => setAttempts(parseCount(e.target.value, 1))}
           className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
           placeholder="Número de tentativas"
         />

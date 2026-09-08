@@ -1,5 +1,6 @@
 import type { ChangeEvent } from "react";
 import { AlertTriangle } from "lucide-react";
+import { displayCount, parseCount } from "./numberField";
 
 interface ExtraShotsFieldProps {
   idPrefix: string;
@@ -18,8 +19,7 @@ export default function ExtraShotsField({
 }: Readonly<ExtraShotsFieldProps>) {
   const inputId = `${idPrefix}-extra-shots`;
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const parsed = Number.parseInt(e.target.value, 10);
-    onChange(Number.isNaN(parsed) ? 0 : parsed);
+    onChange(parseCount(e.target.value));
   };
 
   return (
@@ -32,7 +32,7 @@ export default function ExtraShotsField({
         type="number"
         min="0"
         max={maxExtraShots}
-        value={extraShots}
+        value={displayCount(extraShots)}
         onChange={handleChange}
         className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
         placeholder="Shots extra tomados"

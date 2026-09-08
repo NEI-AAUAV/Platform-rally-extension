@@ -61,6 +61,95 @@ async def test_update_rule(pg_session, pg_client, as_admin):
     assert resp.json()["points"] == pytest.approx(75.0)
 
 
+async def test_bonus_rule_carries_its_own_ceiling(pg_session, pg_client, as_admin):
+    """max_points is the per-rule ceiling, distinct from the event's total cap."""
+    await _make_event(pg_session)
+
+    resp = pg_client.post(
+        "/api/rally/v1/dynamic-rules",
+        json={
+            "name": "Criatividade",
+            "rule_type": "bonus_counter",
+            "points": 3.0,
+            "max_points": 9.0,
+        },
+    )
+
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["max_points"] == pytest.approx(9.0)
+
+    listed = pg_client.get("/api/rally/v1/dynamic-rules").json()
+    assert [r["max_points"] for r in listed] == [pytest.approx(9.0)]
+
+
+async def test_rule_without_a_ceiling_reports_none(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+
+    resp = pg_client.post(
+        "/api/rally/v1/dynamic-rules",
+        json={"name": "Sem teto", "rule_type": "bonus_counter", "points": 3.0},
+    )
+
+    assert resp.json()["max_points"] is None
+
+
+async def test_update_can_clear_the_ceiling(pg_session, pg_client, as_admin):
+    """An explicit null means "no ceiling" and must not be read as "unchanged".
+
+    The update body drops nulls so a partial edit leaves other fields alone;
+    this is the one field where a null carries meaning.
+    """
+    await _make_event(pg_session)
+    created = pg_client.post(
+        "/api/rally/v1/dynamic-rules",
+        json={
+            "name": "Criatividade",
+            "rule_type": "bonus_counter",
+            "points": 3.0,
+            "max_points": 9.0,
+        },
+    ).json()
+
+    resp = pg_client.put(f"/api/rally/v1/dynamic-rules/{created['id']}", json={"max_points": None})
+
+    assert resp.status_code == 200
+    assert resp.json()["max_points"] is None
+    # The untouched fields survived the same request.
+    assert resp.json()["points"] == pytest.approx(3.0)
+
+
+async def test_ceiling_of_zero_survives_the_round_trip(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+
+    created = pg_client.post(
+        "/api/rally/v1/dynamic-rules",
+        json={
+            "name": "Zero",
+            "rule_type": "bonus_counter",
+            "points": 3.0,
+            "max_points": 0,
+        },
+    ).json()
+
+    assert created["max_points"] == pytest.approx(0.0)
+
+
+async def test_negative_ceiling_is_rejected(pg_session, pg_client, as_admin):
+    await _make_event(pg_session)
+
+    resp = pg_client.post(
+        "/api/rally/v1/dynamic-rules",
+        json={
+            "name": "Negativo",
+            "rule_type": "bonus_counter",
+            "points": 3.0,
+            "max_points": -1,
+        },
+    )
+
+    assert resp.status_code == 422
+
+
 async def test_update_rule_not_found(pg_session, pg_client, as_admin):
     await _make_event(pg_session)
 
