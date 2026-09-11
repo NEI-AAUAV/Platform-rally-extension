@@ -1,6 +1,11 @@
 services:
   postgres:
-    image: postgres:15
+    # Mirrored from Docker Hub via AWS's public ECR: anonymous Docker Hub
+    # pulls on shared GitHub runner IPs intermittently fail the smoke stack
+    # with "unauthorized: authentication required" once the shared rate
+    # limit is exhausted. public.ecr.aws serves the same official images
+    # with no auth and no pull limit.
+    image: public.ecr.aws/docker/library/postgres:15
     environment:
       POSTGRES_USER: ${SMOKE_POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${SMOKE_POSTGRES_PASSWORD:-postgres}
@@ -14,7 +19,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: public.ecr.aws/docker/library/redis:7-alpine
     ports:
       - "6380:6379"
     healthcheck:
