@@ -124,6 +124,22 @@ def _rule_prefix(rule: DynamicRule) -> str:
     return PENALTY_RULE_PREFIX
 
 
+def _counted_keys(results: list[ActivityResult], *, bonus: bool) -> set[str]:
+    """Keys for which a real occurrence *count* was persisted.
+
+    Rows written before counts existed (migrations 0047 / 0056) carry only
+    the priced points, so a key can be genuinely used and still not be
+    counted. The two cannot share a column without mixing units.
+    """
+    attr = "bonus_counts" if bonus else "penalty_counts"
+    return {
+        str(key)
+        for result in results
+        for key, value in _mapping(result, attr).items()
+        if _as_number(value)
+    }
+
+
 def _used_keys(results: list[ActivityResult], *, bonus: bool) -> list[str]:
     """Keys that genuinely occurred, in first-seen order.
 
@@ -220,6 +236,8 @@ class EventResultsData:
         self.pending = pending
         self.penalty_keys_used = _used_keys(self.results, bonus=False)
         self.bonus_keys_used = _used_keys(self.results, bonus=True)
+        self._counted_penalties = _counted_keys(self.results, bonus=False)
+        self._counted_bonuses = _counted_keys(self.results, bonus=True)
 
         self._rule_by_key = {f"{_rule_prefix(r)}{r.id}": r for r in self.rules}
         self._counter_labels, self._counter_points = self._collect_counters()
@@ -261,6 +279,20 @@ class EventResultsData:
         if label:
             return label
         return key.replace("_", " ").capitalize()
+
+    def key_is_counted(self, key: str, *, bonus: bool = False) -> bool:
+        """Does this key report occurrences, or only the points they cost?
+
+        A column has to pick one: showing a count for some rows and points
+        for others would put two units under one header.
+        """
+        return key in (self._counted_bonuses if bonus else self._counted_penalties)
+
+    def key_amount(self, result: ActivityResult, key: str, *, bonus: bool = False) -> int:
+        """What this column shows for one result, in that column's unit."""
+        if self.key_is_counted(key, bonus=bonus):
+            return result_count(result, key, bonus=bonus)
+        return result_bonus(result, key) if bonus else result_penalty(result, key)
 
     def key_points(self, key: str) -> float:
         """Points one occurrence of ``key`` is worth, as a magnitude.

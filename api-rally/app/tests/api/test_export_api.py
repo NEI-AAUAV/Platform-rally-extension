@@ -108,7 +108,18 @@ async def test_export_returns_xlsx_with_expected_sheets(pg_session, pg_client, a
     assert "Rally_Export_results.xlsx" in resp.headers["content-disposition"]
 
     wb = openpyxl.load_workbook(BytesIO(resp.content))
-    assert wb.sheetnames == ["Overall", "Checkpoint 1", "Checkpoint 2"]
+    # Checkpoint sheets are named after the post; the side sheets for staff,
+    # guides and the audit trails are absent because this event has none.
+    assert wb.sheetnames == [
+        "Overview",
+        "Results",
+        "Overall",
+        "1. CP1",
+        "2. CP2",
+        "Checkpoints",
+        "Activities",
+        "Team Progress",
+    ]
 
 
 async def test_export_overall_scores_and_versus(pg_session, pg_client, as_admin):
@@ -118,10 +129,25 @@ async def test_export_overall_scores_and_versus(pg_session, pg_client, as_admin)
     wb = openpyxl.load_workbook(BytesIO(resp.content))
     rows = list(wb["Overall"].iter_rows(values_only=True))
 
-    assert rows[0] == ("Team", "Versus Pair", "Checkpoint 1", "Checkpoint 2", "Total Points")
-    # Teams ordered by name: Alpha then Bravo.
-    assert rows[1] == ("Alpha", "Bravo", 6, 3, 9)
-    assert rows[2] == ("Bravo", "Alpha", 3, 0, 3)
+    assert rows[0] == (
+        "Team",
+        "Versus Pair",
+        "1. CP1",
+        "2. CP2",
+        "Checkpoint Subtotal",
+        "Adjustments",
+        "Recorded Total",
+        "Rank",
+    )
+    # Teams ordered by name: Alpha then Bravo. The subtotal is a live formula,
+    # and Bravo never reached CP2 so that cell is blank rather than a zero it
+    # did not earn (openpyxl reads an empty string back as None).
+    assert rows[1][:4] == ("Alpha", "Bravo", 6, 3)
+    assert rows[1][4] == "=SUM(C2:D2)"
+    assert rows[2][:4] == ("Bravo", "Alpha", 3, None)
+    # `Team.total` is 0 here: this seed writes results directly without ever
+    # running ScoringService, so nothing has recomputed the team totals.
+    assert rows[1][6] == 0
 
 
 async def test_export_checkpoint_detail_columns(pg_session, pg_client, as_admin):
@@ -129,17 +155,27 @@ async def test_export_checkpoint_detail_columns(pg_session, pg_client, as_admin)
 
     resp = pg_client.get(f"/api/rally/v1/events/{seed['event'].id}/export")
     wb = openpyxl.load_workbook(BytesIO(resp.content))
-    rows = list(wb["Checkpoint 1"].iter_rows(values_only=True))
+    rows = list(wb["1. CP1"].iter_rows(values_only=True))
 
+    # These results carry only the priced `penalties` and no `penalty_counts`
+    # (the shape of rows written before migration 0047), so those two columns
+    # hold points and say so rather than reporting zero occurrences.
     assert rows[0] == (
         "Team",
         "Versus Pair",
         "Match Result",
         "Extra Shots",
-        "Vomit penalty (-)",
-        "Not drinking penalty (-)",
+        "Não bebeu (-pontos)",
+        "Vómitos (-pontos)",
         "Notes",
+        "Activity",
+        "Activity Type",
+        "Completed At",
         "Total Checkpoint",
     )
-    assert rows[1] == ("Alpha", "Bravo", 6, 5, 0, 1, "Objeto: pasta", 6)
-    assert rows[2] == ("Bravo", "Alpha", 3, 0, 5, 0, None, 3)
+    assert rows[1][:7] == ("Alpha", "Bravo", "win", 5, 1, 0, "Objeto: pasta")
+    assert rows[1][-1] == 6
+    assert rows[2][:7] == ("Bravo", "Alpha", "lose", 0, 0, 5, None)
+    assert rows[2][-1] == 3
+    assert rows[3][0] == "Total"
+

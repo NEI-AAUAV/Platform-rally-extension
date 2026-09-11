@@ -20,11 +20,7 @@ from typing import Any
 from app.models.activity import ActivityResult
 from app.models.checkpoint import CheckPoint
 from app.models.team import Team
-from app.services.event_results_query import (
-    EventResultsData,
-    result_count,
-    result_notes,
-)
+from app.services.event_results_query import EventResultsData, result_notes
 
 #: What a cell shows for a checkpoint the team never reached. Distinct from a
 #: zero, which means the team was there and scored nothing.
@@ -49,8 +45,15 @@ class ReportColumn:
     numeric: bool = True
 
 
-def _points_suffix(data: EventResultsData, key: str, sign: str) -> str:
-    """`" (-2)"` when the rate is known, `" (-)"` when it is not."""
+def _points_suffix(data: EventResultsData, key: str, sign: str, *, bonus: bool = False) -> str:
+    """What the column holds, and what each unit is worth.
+
+    A counted column shows occurrences, so the rate belongs in the header.
+    A legacy row carries only the priced points, and saying so is the only
+    way the two do not read as the same number.
+    """
+    if not data.key_is_counted(key, bonus=bonus):
+        return f" ({sign}pontos)"
     points = data.key_points(key)
     return f" ({sign}{points:g})" if points else f" ({sign})"
 
@@ -66,12 +69,12 @@ def _counter_getter(
     """
 
     def read(
-        _data: EventResultsData,
+        data: EventResultsData,
         _team: Team,
         _checkpoint: CheckPoint,
         result: ActivityResult | None,
     ) -> Any:
-        return result_count(result, key, bonus=bonus) if result else 0
+        return data.key_amount(result, key, bonus=bonus) if result else 0
 
     return read
 
@@ -83,11 +86,24 @@ def _score_cell(data: EventResultsData, team: Team, checkpoint: CheckPoint) -> A
     return data.cp_score.get(key, 0.0)
 
 
-def checkpoint_columns(data: EventResultsData) -> list[ReportColumn]:
+def _activity_name(result: ActivityResult | None) -> str:
+    activity = getattr(result, "activity", None) if result else None
+    return str(getattr(activity, "name", "") or "")
+
+
+def _activity_type(result: ActivityResult | None) -> str:
+    activity = getattr(result, "activity", None) if result else None
+    return str(getattr(activity, "activity_type", "") or "")
+
+
+def checkpoint_columns(data: EventResultsData, *, extended: bool = False) -> list[ReportColumn]:
     """The columns worth showing for this event's checkpoint breakdowns.
 
     Team and points are unconditional — every event has both. Everything else
     earns its place by having happened at least once.
+
+    ``extended`` adds the bookkeeping columns the workbook wants and the PDF
+    does not: a printed table has a page width to respect, a sheet does not.
     """
     columns: list[ReportColumn] = [
         ReportColumn(
@@ -142,7 +158,7 @@ def checkpoint_columns(data: EventResultsData) -> list[ReportColumn]:
 
     for key in data.bonus_keys_used:
         label = data.key_label(key)
-        suffix = _points_suffix(data, key, "+")
+        suffix = _points_suffix(data, key, "+", bonus=True)
         columns.append(
             ReportColumn(
                 f"{label}{suffix}",
@@ -160,6 +176,45 @@ def checkpoint_columns(data: EventResultsData) -> list[ReportColumn]:
                 numeric=False,
             )
         )
+
+    if extended:
+        columns.append(
+            ReportColumn(
+                "Activity",
+                "Atividade",
+                lambda _d, _team, _cp, result: _activity_name(result),
+                numeric=False,
+            )
+        )
+        columns.append(
+            ReportColumn(
+                "Activity Type",
+                "Tipo",
+                lambda _d, _team, _cp, result: _activity_type(result),
+                numeric=False,
+            )
+        )
+        columns.append(
+            ReportColumn(
+                "Completed At",
+                "Concluído em",
+                lambda _d, _team, _cp, result: (
+                    getattr(result, "completed_at", None) if result else None
+                ),
+                numeric=False,
+            )
+        )
+        if data.has_pending_judgment:
+            columns.append(
+                ReportColumn(
+                    "Judgment",
+                    "Avaliação",
+                    lambda _d, _team, _cp, result: (
+                        getattr(result, "judgment_status", None) or "" if result else ""
+                    ),
+                    numeric=False,
+                )
+            )
 
     columns.append(
         ReportColumn(
