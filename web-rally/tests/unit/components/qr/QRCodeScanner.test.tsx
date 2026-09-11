@@ -228,9 +228,7 @@ describe("QRCodeScanner", () => {
     expect(h.startScanning).not.toHaveBeenCalled();
 
     const video = container.querySelector("video") as HTMLVideoElement;
-    act(() => {
-      fireEvent.playing(video);
-    });
+    fireEvent.playing(video);
 
     expect(h.startScanning).toHaveBeenCalled();
   });

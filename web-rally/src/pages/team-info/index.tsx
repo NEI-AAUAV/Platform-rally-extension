@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { Users, ShieldCheck, CheckCircle2 } from "lucide-react";
-import { Spinner } from "@/components/shared";
+import { LoadingState, Spinner } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useStaffLogin from "@/hooks/useLoginLink";
 import { useAppToast } from "@/hooks/use-toast";
 import { TeamMemberLinkService } from "@/services/TeamMemberLinkService";
 import { useAuth } from "react-oidc-context";
-import { LoadingState } from "@/components/shared";
 import { clearResumeValue, getResumeValue, setResumeValue } from "@/lib/authResumeStore";
 import { clearTeamAuth } from "@/lib/auth/tokenStore";
 

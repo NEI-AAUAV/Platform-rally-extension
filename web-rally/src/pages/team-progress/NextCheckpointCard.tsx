@@ -7,10 +7,9 @@ import {
   Sparkles,
   Lightbulb,
 } from "lucide-react";
-import { Spinner } from "@/components/shared";
+import { CheckpointDiscovery, Spinner } from "@/components/shared";
 import { useState } from "react";
 import type { DetailedCheckPoint } from "@/client";
-import { CheckpointDiscovery } from "@/components/shared";
 import {
   AlertDialog,
   AlertDialogAction,
