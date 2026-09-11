@@ -10,6 +10,8 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import PageBreak, Paragraph, Spacer, Table, TableStyle
 
+from app.models.checkpoint_hint_reveal import CheckpointHintReveal
+from app.models.checkpoint_skip import CheckpointSkip
 from app.services.event_report_columns import ABSENT_PDF, checkpoint_columns, checkpoint_row
 from app.services.event_report_context import EventReportContext
 from app.services.report.tables import (
@@ -213,7 +215,9 @@ def _statistic_rows(ctx: EventReportContext) -> list[list[Any]]:
     rows += _counter_statistic_rows(
         data, data.bonus_keys_used, "bónus", "pontos de bónus", bonus=True
     )
-    optional_rows = [
+    optional_rows: list[
+        tuple[bool, str, list[CheckpointHintReveal] | list[CheckpointSkip]]
+    ] = [
         (data.has_hints, "Pistas reveladas", data.hint_reveals),
         (data.has_skips, "Postos desistidos", data.skips),
     ]

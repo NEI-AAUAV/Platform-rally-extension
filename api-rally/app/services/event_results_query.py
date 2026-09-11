@@ -52,6 +52,8 @@ _BUILTIN_LABELS = {
     NOT_DRINKING_KEY: "Não bebeu",
 }
 
+type _CheckpointEngagement = CheckpointArrival | CheckpointHintReveal | CheckpointSkip
+
 
 def team_opponent_map(teams: list[Team]) -> dict[int, str]:
     """Map team_id -> opponent name via versus_group_id pairing.
@@ -197,7 +199,7 @@ def _engaged_checkpoints(
     checkpoint_ids: set[int],
 ) -> set[tuple[int, int]]:
     """Return valid team/checkpoint pairs represented by side-mechanic records."""
-    engagements = [*arrivals, *hint_reveals, *skips]
+    engagements: list[_CheckpointEngagement] = [*arrivals, *hint_reveals, *skips]
     return {
         (row.team_id, row.checkpoint_id)
         for row in engagements
