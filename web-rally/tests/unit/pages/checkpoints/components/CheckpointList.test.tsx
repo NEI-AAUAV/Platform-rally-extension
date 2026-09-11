@@ -7,6 +7,7 @@ vi.mock("@/hooks/useCheckpointMedia", () => ({
 }));
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   CheckpointDiscovery: () => <div>Discovery</div>,
   EmptyState: ({ title, description }: { title: string; description: string }) => (
     <div>

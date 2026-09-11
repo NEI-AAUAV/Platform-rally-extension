@@ -21,6 +21,7 @@ vi.mock("@/hooks/useCheckpointMedia", () => ({
 }));
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   CheckpointDiscoveryModal: ({ open }: { open: boolean }) =>
     open ? <div data-testid="discovery-modal" /> : null,
 }));

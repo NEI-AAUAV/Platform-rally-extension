@@ -45,6 +45,7 @@ vi.mock("@/client", () => ({
 }));
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   PageHeader: ({ title, description }: { title: string; description: string }) => (
     <div data-testid="page-header">
       <h1>{title}</h1>

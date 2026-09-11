@@ -36,6 +36,7 @@ vi.mock("@/hooks/useTeamAuth", () => ({
 }));
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   LoadingState: ({ message }: { message: string }) => <div>{message}</div>,
 }));
 

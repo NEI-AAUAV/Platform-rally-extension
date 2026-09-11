@@ -11,6 +11,7 @@ import {
 import TimeBasedForm from "@/components/forms/TimeBasedForm";
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   StopwatchWidget: ({ onUseTime }: { onUseTime: (s: number) => void }) => (
     <button onClick={() => onUseTime(12.5)}>Use stopwatch time</button>
   ),

@@ -62,6 +62,7 @@ vi.mock("@/pages/scoreboard/components/ScoreList", () => ({
 }));
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   ProvisionalBadge: () => <div>ProvisionalBadge</div>,
   FreshnessIndicator: () => <div>Freshness</div>,
 }));

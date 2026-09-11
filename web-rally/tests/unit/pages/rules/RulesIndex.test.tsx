@@ -12,6 +12,7 @@ vi.mock("@/hooks/useRallySettings", () => ({
 }));
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   PageHeader: ({ title }: { title: string }) => <div>{title}</div>,
 }));
 

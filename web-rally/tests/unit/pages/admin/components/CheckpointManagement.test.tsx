@@ -43,6 +43,7 @@ vi.mock("@/pages/admin/components/checkpoints/RouteStageManager", () => ({
 }));
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   EmptyState: ({ title, description }: any) => (
     <div data-testid="empty-state">
       <p>{title}</p>
