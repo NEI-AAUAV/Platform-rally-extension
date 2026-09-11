@@ -50,26 +50,33 @@ def _evaluation_rows(ctx: EventReportContext) -> list[list[Any]]:
     rows: list[list[Any]] = []
     for history in ctx.audit.evaluations:
         result = ctx.audit.result_of(history)
-        activity = getattr(result, "activity", None) if result else None
-        checkpoint = getattr(activity, "checkpoint", None) if activity else None
-        base = [
-            history.created_at,
-            history.action,
-            history.editor_name or "",
-            history.editor_id or "",
-            data.team_name(result.team_id) if result else "",
-            data.checkpoint_name(checkpoint.id) if checkpoint else "",
-            getattr(activity, "name", "") if activity else "",
-        ]
-        changed = change_rows(history.changes)
-        if not changed:
-            # A contest changes no scoring field; its substance is the note.
-            rows.append([*base, "", "", "", history.note or ""])
-            continue
-        for field_name, before, after in changed:
-            rows.append([*base, field_name, _render(before), _render(after), history.note or ""])
+        rows.extend(_evaluation_history_rows(data, history, result))
 
     return rows
+
+
+def _evaluation_history_rows(data: Any, history: Any, result: Any) -> list[list[Any]]:
+    """Render an evaluation history entry, including its unchanged contest case."""
+    activity = getattr(result, "activity", None)
+    checkpoint = getattr(activity, "checkpoint", None)
+    base = [
+        history.created_at,
+        history.action,
+        history.editor_name or "",
+        history.editor_id or "",
+        data.team_name(getattr(result, "team_id", None)) if result else "",
+        data.checkpoint_name(getattr(checkpoint, "id", None)) if checkpoint else "",
+        getattr(activity, "name", ""),
+    ]
+    note = history.note or ""
+    changed = change_rows(history.changes)
+    if not changed:
+        # A contest changes no scoring field; its substance is the note.
+        return [[*base, "", "", "", note]]
+    return [
+        [*base, field_name, _render(before), _render(after), note]
+        for field_name, before, after in changed
+    ]
 
 
 def build_audit_log_sheet(wb: Workbook, ctx: EventReportContext) -> None:

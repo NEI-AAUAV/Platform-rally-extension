@@ -164,37 +164,52 @@ def _result_headers(data: Any, detail_keys: list[str]) -> tuple[list[str], int]:
 def _result_rows(ctx: EventReportContext, detail_keys: list[str]) -> list[list[Any]]:
     data = ctx.results
     checkpoints = {checkpoint.id: checkpoint for checkpoint in data.checkpoints}
-    edits: dict[int, int] = {}
-    for history in ctx.audit.evaluations:
-        edits[history.result_id] = edits.get(history.result_id, 0) + 1
+    edits = _edits_by_result(ctx)
+    return [_result_row(data, result, checkpoints, edits, detail_keys) for result in data.results]
 
-    rows: list[list[Any]] = []
-    for result in data.results:
-        activity = getattr(result, "activity", None)
-        checkpoint = getattr(activity, "checkpoint", None)
-        checkpoint_id = getattr(checkpoint, "id", None) if checkpoint else None
-        checkpoint = checkpoints.get(checkpoint_id) if checkpoint_id is not None else None
-        rows.append(
-            [
-                data.team_name(result.team_id),
-                getattr(checkpoint, "name", "") if checkpoint else "",
-                getattr(checkpoint, "order", "") if checkpoint else "",
-                getattr(activity, "name", "") if activity else "",
-                getattr(activity, "activity_type", "") if activity else "",
-                result.final_score,
-                "yes" if result.is_completed else "no",
-                getattr(result, "judgment_status", None) or "",
-                getattr(result, "completed_at", None),
-                int(getattr(result, "extra_shots", 0) or 0),
-                *[data.key_amount(result, key) for key in data.penalty_keys_used],
-                *[data.key_amount(result, key, bonus=True) for key in data.bonus_keys_used],
-                *[_result_data(result, key) for key in detail_keys],
-                result_notes(result),
-                len(getattr(result, "media_urls", None) or []),
-                edits.get(getattr(result, "id", -1), 0),
-            ]
-        )
-    return rows
+
+def _edits_by_result(ctx: EventReportContext) -> dict[int, int]:
+    counts: dict[int, int] = {}
+    for history in ctx.audit.evaluations:
+        counts[history.result_id] = counts.get(history.result_id, 0) + 1
+    return counts
+
+
+def _result_row(
+    data: Any,
+    result: ActivityResult,
+    checkpoints: dict[int, Any],
+    edits: dict[int, int],
+    detail_keys: list[str],
+) -> list[Any]:
+    """Render the fixed and dynamic result columns for one activity result."""
+    activity = getattr(result, "activity", None)
+    source_checkpoint = getattr(activity, "checkpoint", None)
+    checkpoint = _result_checkpoint(checkpoints, source_checkpoint)
+    return [
+        data.team_name(result.team_id),
+        getattr(checkpoint, "name", ""),
+        getattr(checkpoint, "order", ""),
+        getattr(activity, "name", ""),
+        getattr(activity, "activity_type", ""),
+        result.final_score,
+        "yes" if result.is_completed else "no",
+        getattr(result, "judgment_status", None) or "",
+        getattr(result, "completed_at", None),
+        int(getattr(result, "extra_shots", 0) or 0),
+        *[data.key_amount(result, key) for key in data.penalty_keys_used],
+        *[data.key_amount(result, key, bonus=True) for key in data.bonus_keys_used],
+        *[_result_data(result, key) for key in detail_keys],
+        result_notes(result),
+        len(getattr(result, "media_urls", None) or []),
+        edits.get(getattr(result, "id", -1), 0),
+    ]
+
+
+def _result_checkpoint(checkpoints: dict[int, Any], source_checkpoint: Any) -> Any:
+    """Resolve an activity's checkpoint to the event snapshot used for export."""
+    checkpoint_id = getattr(source_checkpoint, "id", None)
+    return checkpoints.get(checkpoint_id) if checkpoint_id is not None else None
 
 
 def build_overall_sheet(wb: Workbook, ctx: EventReportContext) -> None:

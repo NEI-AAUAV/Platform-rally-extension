@@ -106,23 +106,26 @@ def build_members_sheet(wb: Workbook, ctx: EventReportContext) -> None:
     rows: list[list[Any]] = []
     for team in ctx.results.teams:
         for member in ctx.roster.members_of(team.id):
-            sub = getattr(member, "authentik_sub", None)
-            participation = ctx.roster.participation_of(sub)
-            rows.append(
-                [
-                    team.name,
-                    member.id,
-                    display_name(member),
-                    getattr(member, "email", "") or "",
-                    "yes" if member.is_captain else "no",
-                    # A member with no OIDC subject is a placeholder an admin
-                    # typed in, not a person who has ever signed in.
-                    "yes" if sub else "no",
-                    "yes" if getattr(member, "disabled", False) else "no",
-                    "yes" if participation is not None else "no",
-                ]
-            )
+            rows.append(_member_row(ctx, team.name, member))
     add_sheet(wb, "Team Members", headers, rows, center_from=2)
+
+
+def _member_row(ctx: EventReportContext, team_name: str, member: Any) -> list[Any]:
+    """Render one member while keeping account-state rules in one place."""
+    sub = getattr(member, "authentik_sub", None)
+    participation = ctx.roster.participation_of(sub)
+    return [
+        team_name,
+        member.id,
+        display_name(member),
+        getattr(member, "email", "") or "",
+        "yes" if member.is_captain else "no",
+        # A member with no OIDC subject is a placeholder an admin typed in,
+        # not a person who has ever signed in.
+        "yes" if sub else "no",
+        "yes" if getattr(member, "disabled", False) else "no",
+        "yes" if participation is not None else "no",
+    ]
 
 
 def build_progress_sheet(wb: Workbook, ctx: EventReportContext) -> None:
