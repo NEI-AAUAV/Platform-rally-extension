@@ -3,7 +3,7 @@ and the event-scoped listing query, neither of which the mock-based suite can
 cover (the ORM's ARRAY types cannot be created on SQLite).
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
@@ -33,7 +33,7 @@ async def test_array_columns_round_trip(pg_session) -> None:
         access_code="ARR-0001",
         event_id=event.id,
         score_per_checkpoint=[10, 0, 25],
-        times=[datetime(2026, 6, 28, 12, 0, 0, tzinfo=timezone.utc)],
+        times=[datetime(2026, 6, 28, 12, 0, 0, tzinfo=UTC)],
         pukes=[1, 0, 2],
         total=35,
     )
@@ -46,7 +46,7 @@ async def test_array_columns_round_trip(pg_session) -> None:
     assert loaded.score_per_checkpoint == [10, 0, 25]
     assert loaded.pukes == [1, 0, 2]
     assert loaded.total == 35
-    assert loaded.times[0] == datetime(2026, 6, 28, 12, 0, 0, tzinfo=timezone.utc)
+    assert loaded.times[0] == datetime(2026, 6, 28, 12, 0, 0, tzinfo=UTC)
 
 
 async def test_get_multi_is_scoped_to_current_event(pg_session) -> None:

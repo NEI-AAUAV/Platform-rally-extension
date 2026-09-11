@@ -49,27 +49,21 @@ export function ColorModeToggle({ className = "" }: ColorModeToggleProps) {
     setPull(Math.max(0, Math.min(delta, PULL_MAX)));
   }, []);
 
-  const handlePointerUp = useCallback(
-    () => {
-      if (!dragging.current) return;
-      dragging.current = false;
-      setSnapping(true);
+  const handlePointerUp = useCallback(() => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    setSnapping(true);
 
-      if (pull > PULL_THRESHOLD) {
-        toggleFromLamp();
-      }
-      setPull(0);
-    },
-    [pull, toggleFromLamp],
-  );
-
-  const handleClick = useCallback(
-    () => {
-      if (pull > 0) return;
+    if (pull > PULL_THRESHOLD) {
       toggleFromLamp();
-    },
-    [pull, toggleFromLamp],
-  );
+    }
+    setPull(0);
+  }, [pull, toggleFromLamp]);
+
+  const handleClick = useCallback(() => {
+    if (pull > 0) return;
+    toggleFromLamp();
+  }, [pull, toggleFromLamp]);
 
   return (
     <div

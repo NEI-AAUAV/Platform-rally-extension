@@ -225,6 +225,7 @@ class TestGetTeamById:
     async def test_get_team_by_id_requires_authentication(self, pg_session, pg_client):
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Private")
+        await set_rally_settings(pg_session, public_access_enabled=False)
 
         resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
 
