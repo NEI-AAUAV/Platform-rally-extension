@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, UserCheck, Users } from "lucide-react";
+import { CheckCircle2, UserCheck, Users } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import {
   getGuideTeam,
   getTeams,
@@ -113,7 +114,7 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
         )}
       </p>
 
-      {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+      {isLoading && <Spinner size="sm" className="text-muted-foreground" label="" />}
 
       {!isLoading && arrived.length === 0 && (
         <p className="text-sm text-muted-foreground">Ainda não chegou nenhuma equipa.</p>
@@ -178,7 +179,7 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
               onClick={() => markArrived.mutate(Number(selectedTeamId))}
             >
               {markArrived.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner size="sm" label="" />
               ) : (
                 <UserCheck className="h-4 w-4" />
               )}
@@ -209,7 +210,7 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
               onClick={() => markArrived.mutate(myTeam.id)}
             >
               {markArrived.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner size="sm" label="" />
               ) : (
                 <UserCheck className="h-4 w-4" />
               )}

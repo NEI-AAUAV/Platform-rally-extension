@@ -146,10 +146,11 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
 
   return (
     <div>
-      <div className="flex items-center gap-2">
+      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
         <Button
           variant="outline"
           size="sm"
+          className="justify-start"
           disabled={generateMutation.isPending}
           onClick={() => generateMutation.mutate()}
         >
@@ -199,9 +200,9 @@ function CloneStructureButton({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
       <Select value={sourceId} onValueChange={setSourceId}>
-        <SelectTrigger className="h-8 w-[168px] text-xs">
+        <SelectTrigger className="h-8 w-full text-xs sm:w-[168px]">
           <SelectValue placeholder="Clonar de…" />
         </SelectTrigger>
         <SelectContent>
@@ -215,6 +216,7 @@ function CloneStructureButton({
       <Button
         variant="outline"
         size="sm"
+        className="justify-start"
         disabled={!sourceId || clone.isPending}
         onClick={handleClone}
       >
@@ -348,7 +350,7 @@ export default function EventsManagement() {
                   here gives it something to actually wrap against; sm+
                   reverts to shrink-to-content since there's room to sit
                   beside the title there. */}
-              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
+              <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:flex-wrap xl:items-center xl:justify-end xl:gap-2">
                 <ExportResultsButton event={ev} />
                 <ReportButton event={ev} />
                 {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
@@ -357,13 +359,19 @@ export default function EventsManagement() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="justify-start"
                     onClick={() => handleSetCurrent(ev)}
                     disabled={setCurrent.isPending}
                   >
                     <Star className="mr-1.5 h-3.5 w-3.5" /> Tornar atual
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" onClick={() => startEdit(ev)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="justify-start xl:w-8 xl:justify-center xl:px-0"
+                  onClick={() => startEdit(ev)}
+                >
                   <Pencil className="h-4 w-4" />
                 </Button>
               </div>

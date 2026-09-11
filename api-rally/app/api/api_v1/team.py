@@ -187,7 +187,11 @@ class TeamController:
         # token) 401s. `auth` alone is enough: a valid OIDC token whose local
         # user row hasn't been mirrored yet (first request of a fresh sub)
         # leaves curr_user None but is still an authenticated caller.
-        if not curr_user and not curr_team and not auth:
+        # The public team directory links here.  Do not make that link a dead
+        # end for visitors when the event is explicitly publishing its live
+        # standings; the returned representation still omits the access code.
+        is_anonymous = not curr_user and not curr_team and not auth
+        if is_anonymous and not await public_listing_allowed(db):
             raise RallyUnauthorizedError(AUTH_REQUIRED)
 
         # The access code is a login credential: the team's own members, callers

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { History, Loader2, Flag, Pencil } from "lucide-react";
+import { History, Flag, Pencil } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { getEvaluationHistory, type EvaluationHistoryEntry } from "@/client";
 
 type EvaluationHistoryProps = Readonly<{
@@ -93,7 +94,7 @@ export default function EvaluationHistory({ resultId }: EvaluationHistoryProps) 
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />A carregar histórico…
+        <Spinner size="sm" label="" />A carregar histórico…
       </div>
     );
   }

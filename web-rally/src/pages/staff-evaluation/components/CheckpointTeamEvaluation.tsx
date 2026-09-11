@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Users, ArrowLeft, MapPin, Loader2, Lock } from "lucide-react";
+import { Users, ArrowLeft, MapPin, Lock } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import useRallySettings from "@/hooks/useRallySettings";
@@ -196,7 +197,7 @@ export default function CheckpointTeamEvaluation() {
 
           {teamActivitiesLoading ? (
             <div className="rally-surface rally-elevate flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
-              <Loader2 className="rally-accent h-8 w-8 animate-spin" />
+              <Spinner size="md" className="rally-accent" label="" />
               <p className="text-sm text-muted-foreground">A carregar atividades...</p>
             </div>
           ) : (

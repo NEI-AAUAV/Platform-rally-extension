@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, X, Loader2 } from "lucide-react";
+import { Camera, X } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { useQRCodeScanner } from "@/hooks/useQRCodeScanner";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
@@ -267,7 +268,7 @@ export default function QRCodeScanner({
                 loop, so a live preview is never hidden behind an opaque layer. */}
             {!isVideoReady && !needsTapToPlay && (
               <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Spinner size="md" className="text-primary" label="" />
               </div>
             )}
           </div>

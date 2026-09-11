@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Crown, Loader2, Users } from "lucide-react";
+import { Crown, Users } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { getGuideTeam } from "@/client";
 import QRCodeDisplay from "@/components/qr/QRCodeDisplay";
 
@@ -22,7 +23,7 @@ export default function GuideTeamPanel() {
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> A carregar equipa…
+        <Spinner size="sm" label="" /> A carregar equipa…
       </div>
     );
   }

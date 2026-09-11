@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Users, ShieldCheck, CheckCircle2, Loader2 } from "lucide-react";
+import { Users, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useStaffLogin from "@/hooks/useLoginLink";
@@ -119,7 +120,7 @@ export default function TeamInfo() {
                 onClick={() => handleAssociate(member.id)}
               >
                 {linkingId === member.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Spinner size="sm" label="" />
                 ) : (
                   <ShieldCheck className="h-4 w-4" />
                 )}

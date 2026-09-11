@@ -1,5 +1,6 @@
 import type { UseFormReturn } from "react-hook-form";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import {
   Form,
@@ -423,7 +424,7 @@ export default function CheckpointForm({
                   disabled={!canStartDraft || isStartingDraft}
                 >
                   {isStartingDraft ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Spinner size="sm" label="" />
                   ) : (
                     <ArrowRight className="h-4 w-4" />
                   )}

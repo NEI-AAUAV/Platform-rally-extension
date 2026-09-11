@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { RallyButton } from "@/components/themes/rally";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { LogIn, Loader2, Camera, ShieldCheck } from "lucide-react";
+import { LogIn, Camera, ShieldCheck } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import useTeamAuth from "@/hooks/useTeamAuth";
 import useStaffLogin from "@/hooks/useLoginLink";
 import { useAppToast } from "@/hooks/use-toast";
@@ -160,7 +161,7 @@ export default function TeamLogin() {
                 >
                   {isLoggingIn ? (
                     <span className="flex items-center gap-2">
-                      <Loader2 className="h-5 w-5 animate-spin" />A Verificar...
+                      <Spinner size="sm" label="" />A Verificar...
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">

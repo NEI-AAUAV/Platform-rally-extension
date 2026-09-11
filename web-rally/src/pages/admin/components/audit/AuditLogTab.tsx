@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { History, Loader2, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { History, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { listAuditLog, type AuditLogEntry } from "@/client";
 import { Input } from "@/components/ui/input";
 import {
@@ -139,7 +140,7 @@ export default function AuditLogTab() {
     if (isLoading) {
       return (
         <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />A carregar…
+          <Spinner size="sm" label="" />A carregar…
         </div>
       );
     }
@@ -165,7 +166,7 @@ export default function AuditLogTab() {
       <div className="flex items-center gap-2">
         <History className="h-5 w-5 text-muted-foreground" />
         <h2 className="rally-display text-lg font-bold text-foreground">Auditoria</h2>
-        {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        {isFetching && <Spinner size="sm" className="text-muted-foreground" label="" />}
       </div>
 
       {/* Filters */}
