@@ -100,8 +100,10 @@ async def test_add_checkpoint_times_survive_the_round_trip_as_instants(pg_sessio
 
     # Re-read from the database rather than trusting the identity-mapped
     # instance: the column type is half of what this test is about.
-    pg_session.expire_all()
-    reloaded = await crud_team.get(db=pg_session, id=team.id)
+    # ``populate_existing`` forces the re-fetch; a manual ``expire_all()``
+    # before an async ``get()`` races the identity map's expired-PK check
+    # outside the greenlet SQLAlchemy needs for it (MissingGreenlet).
+    reloaded = await crud_team.get(db=pg_session, id=team.id, populate_existing=True)
     assert reloaded.times[0] == stamped
     assert reloaded.times[0].tzinfo is not None
 

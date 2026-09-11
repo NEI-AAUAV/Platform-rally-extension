@@ -178,4 +178,3 @@ async def test_export_checkpoint_detail_columns(pg_session, pg_client, as_admin)
     assert rows[2][:7] == ("Bravo", "Alpha", "lose", 0, 0, 5, None)
     assert rows[2][-1] == 3
     assert rows[3][0] == "Total"
-
