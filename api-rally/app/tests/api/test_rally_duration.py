@@ -51,7 +51,7 @@ class TestRallyDurationAPI:
         await _activate_rally(pg_session, event)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
         # times is TIMESTAMP WITHOUT TIME ZONE — naive datetime required.
-        team.times = [(datetime.now(UTC) - timedelta(minutes=30)).replace(tzinfo=None)]
+        team.times = [datetime.now(UTC) - timedelta(minutes=30)]
         pg_session.add(team)
         await pg_session.commit()
 

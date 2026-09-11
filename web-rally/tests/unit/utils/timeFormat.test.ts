@@ -83,4 +83,29 @@ describe('formatTime', () => {
       expect(formatTime('2024-99-99T99:99:99Z')).toBe('--:--')
     })
   })
+
+  describe('timezone offsets', () => {
+    // The API serves check-in times as instants (teams.times is TIMESTAMPTZ
+    // since migration 0061). It used to serve them without an offset, which
+    // the browser reads as *local* wall-clock, so a check-in showed an hour
+    // early wherever the viewer was not on UTC. These pin that an offset,
+    // when present, is honoured.
+
+    it('renders a UTC instant in the viewer timezone', () => {
+      const instant = Date.UTC(2026, 6, 15, 13, 0, 0)
+      expect(formatTime('2026-07-15T13:00:00Z')).toBe(formatTime(new Date(instant)))
+    })
+
+    it('treats an explicit +01:00 offset as one hour ahead of the same UTC clock', () => {
+      // 14:00+01:00 and 13:00Z are the same instant, so they must render alike.
+      expect(formatTime('2026-07-15T14:00:00+01:00')).toBe(formatTime('2026-07-15T13:00:00Z'))
+      expect(formatTime('2026-07-15T14:00:00+01:00')).not.toBe(formatTime('2026-07-15T14:00:00Z'))
+    })
+
+    it('reads an offset-less string as local wall-clock, not UTC', () => {
+      // Why the server must send the offset: with none, the digits are taken
+      // verbatim as the viewer's own clock.
+      expect(formatTime('2026-07-15T13:00:00')).toBe(formatTime(new Date(2026, 6, 15, 13, 0, 0)))
+    })
+  })
 })

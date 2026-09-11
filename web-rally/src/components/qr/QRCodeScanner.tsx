@@ -5,6 +5,11 @@ import { useQRCodeScanner } from "@/hooks/useQRCodeScanner";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
 import { logger } from "@/lib/logger";
 
+// iOS in standalone (installed PWA) mode can leave the play() promise pending
+// indefinitely, so we give playback this long to actually start before falling
+// back to the manual tap-to-start affordance.
+const PLAY_WATCHDOG_MS = 2500;
+
 type QRCodeScannerProps = Readonly<{
   onScan: (data: string) => void;
   onClose?: () => void;
@@ -24,6 +29,7 @@ export default function QRCodeScanner({
 }: QRCodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const playWatchdogRef = useRef<ReturnType<typeof setTimeout>>();
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
@@ -32,6 +38,19 @@ export default function QRCodeScanner({
   // element stays paused and paints nothing, so we surface a tap-to-start.
   const [needsTapToPlay, setNeedsTapToPlay] = useState(false);
   const { isActive, startScanning, stopScanning } = useQRCodeScanner(videoRef, canvasRef, onScan);
+
+  // Single place where "the preview is really running" is decided. Fired by the
+  // element's own `playing` event, so it works whether playback was started by
+  // the automatic attempt or by the manual tap.
+  const handleVideoPlaying = useCallback(() => {
+    if (playWatchdogRef.current) {
+      clearTimeout(playWatchdogRef.current);
+      playWatchdogRef.current = undefined;
+    }
+    setNeedsTapToPlay(false);
+    setIsVideoReady(true);
+    startScanning();
+  }, [startScanning]);
 
   const stopCamera = useCallback(() => {
     stopScanning();
@@ -85,17 +104,31 @@ export default function QRCodeScanner({
         // `loadedmetadata`: with a MediaStream source iOS often never fires
         // that event until playback has already been requested, which left the
         // camera running with a blank element.
-        try {
-          await video.play();
-        } catch (playErr) {
+        //
+        // The promise is deliberately NOT awaited. In an installed iOS PWA it
+        // can stay pending forever even though playback actually starts, which
+        // used to leave the scanner stuck on the spinner with the camera
+        // indicator lit. Readiness is driven by the element's own `playing`
+        // event (see handleVideoPlaying) and a watchdog below.
+        video.play().then(
+          () => {
+            if (!cancelled) handleVideoPlaying();
+          },
+          (playErr) => {
+            if (cancelled) return;
+            logger.error("Error playing video", playErr);
+            setNeedsTapToPlay(true);
+          },
+        );
+
+        // If neither the promise nor the `playing` event has moved us forward,
+        // offer the manual tap. Cleared as soon as playback really starts.
+        playWatchdogRef.current = globalThis.setTimeout(() => {
           if (cancelled) return;
-          logger.error("Error playing video", playErr);
+          const el = videoRef.current;
+          if (el && !el.paused && el.videoWidth > 0) return;
           setNeedsTapToPlay(true);
-          return;
-        }
-        if (cancelled) return;
-        setIsVideoReady(true);
-        startScanning();
+        }, PLAY_WATCHDOG_MS);
       } catch (err) {
         if (err instanceof DOMException && err.name === "NotAllowedError") {
           setPermissionDenied(true);
@@ -115,6 +148,10 @@ export default function QRCodeScanner({
 
     return () => {
       cancelled = true;
+      if (playWatchdogRef.current) {
+        clearTimeout(playWatchdogRef.current);
+        playWatchdogRef.current = undefined;
+      }
       setIsVideoReady(false);
       setNeedsTapToPlay(false);
       stopCamera();
@@ -138,17 +175,10 @@ export default function QRCodeScanner({
   const handleTapToPlay = () => {
     const video = videoRef.current;
     if (!video) return;
-    video
-      .play()
-      .then(() => {
-        setNeedsTapToPlay(false);
-        setIsVideoReady(true);
-        startScanning();
-      })
-      .catch((err) => {
-        logger.error("Error playing video", err);
-        setCameraError("Erro ao iniciar câmara");
-      });
+    video.play().then(handleVideoPlaying, (err) => {
+      logger.error("Error playing video", err);
+      setCameraError("Erro ao iniciar câmara");
+    });
   };
 
   const handleClose = () => {
@@ -196,7 +226,12 @@ export default function QRCodeScanner({
               playsInline
               autoPlay
               muted
-              onCanPlay={() => setIsVideoReady(true)}
+              onPlaying={handleVideoPlaying}
+              onLoadedMetadata={() => {
+                // iOS sometimes reports metadata without ever firing `playing`
+                // for a MediaStream. Real dimensions mean the preview paints.
+                if (videoRef.current?.videoWidth) handleVideoPlaying();
+              }}
             />
             <canvas ref={canvasRef} className="hidden" />
 

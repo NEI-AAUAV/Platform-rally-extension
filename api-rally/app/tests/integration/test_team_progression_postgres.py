@@ -72,6 +72,40 @@ async def test_add_checkpoint_in_order_appends_scores_and_times(pg_session) -> N
     assert updated.pukes == [0, 1]
 
 
+async def test_add_checkpoint_times_survive_the_round_trip_as_instants(pg_session) -> None:
+    """The visit stamp keeps its UTC offset all the way through Postgres.
+
+    ``teams.times`` used to be TIMESTAMP WITHOUT TIME ZONE and the writer
+    stripped the tzinfo before appending, so the API served offset-less
+    strings that browsers read as local time — a check-in printed an hour
+    early wherever the viewer was not on UTC.
+    """
+    _, _, cp1, _, team = await _setup_rally(pg_session)
+    before = datetime.now(UTC)
+
+    await insert_arrival(pg_session, team_id=team.id, checkpoint_id=cp1.id)
+    updated = await crud_team.add_checkpoint(
+        db=pg_session,
+        id=team.id,
+        checkpoint_id=cp1.id,
+        obj_in=TeamScoresUpdate(
+            checkpoint_id=cp1.id, question_score=1, time_score=10, pukes=0, skips=0
+        ),
+    )
+
+    (stamped,) = updated.times
+    assert stamped.tzinfo is not None
+    assert stamped.utcoffset() == timedelta(0)
+    assert before <= stamped <= datetime.now(UTC)
+
+    # Re-read from the database rather than trusting the identity-mapped
+    # instance: the column type is half of what this test is about.
+    pg_session.expire_all()
+    reloaded = await crud_team.get(db=pg_session, id=team.id)
+    assert reloaded.times[0] == stamped
+    assert reloaded.times[0].tzinfo is not None
+
+
 async def test_add_checkpoint_out_of_order_rejected(pg_session) -> None:
     _, _, _, cp2, team = await _setup_rally(pg_session, order_matters=True)
 
