@@ -106,10 +106,21 @@ def evaluation_log(ctx: EventReportContext) -> list[object]:
     if not ctx.audit.has_evaluations:
         return []
 
-    data = ctx.results
     rows: list[list[Any]] = [
         ["Quando", "Ação", "Autor", "Equipa", "Posto", "Campo", "Antes", "Depois", "Nota"]
     ]
+    rows.extend(_evaluation_log_rows(ctx))
+
+    return [
+        Paragraph("Registo de Avaliações", styles()["Heading1"]),
+        grid(rows, weighted_widths([1.3, 1.2, 1.6, 1.6, 1.6, 1.4, 1.6, 1.6, 1.6])),
+    ]
+
+
+def _evaluation_log_rows(ctx: EventReportContext) -> list[list[Any]]:
+    """Render evaluation history as one row per changed field."""
+    data = ctx.results
+    rows: list[list[Any]] = []
     for history in ctx.audit.evaluations:
         result = ctx.audit.result_of(history)
         activity = getattr(result, "activity", None) if result else None
@@ -129,10 +140,7 @@ def evaluation_log(ctx: EventReportContext) -> list[object]:
         for field_name, before, after in changed:
             rows.append([*base, field_name, _render(before), _render(after), history.note or "—"])
 
-    return [
-        Paragraph("Registo de Avaliações", styles()["Heading1"]),
-        grid(rows, weighted_widths([1.3, 1.2, 1.6, 1.6, 1.6, 1.4, 1.6, 1.6, 1.6])),
-    ]
+    return rows
 
 
 def audit_log(ctx: EventReportContext) -> list[object]:

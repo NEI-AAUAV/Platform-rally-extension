@@ -125,47 +125,8 @@ def build_results_sheet(wb: Workbook, ctx: EventReportContext) -> ResultsIndex:
     """One row per result — the source every other aggregate reads."""
     data = ctx.results
     detail_keys = _result_data_keys(data.results)
-
-    headers = ["Team", "Checkpoint", "Order", "Activity", "Activity Type", "Final Score"]
-    headers += ["Completed", "Judgment", "Completed At", "Extra Shots"]
-    headers += [f"P: {data.key_label(k)}{_unit(data, k)}" for k in data.penalty_keys_used]
-    headers += [f"B: {data.key_label(k)}{_unit(data, k, bonus=True)}" for k in data.bonus_keys_used]
-    detail_start = len(headers) + 1
-    headers += [f"D: {k}" for k in detail_keys]
-    headers += ["Notes", "Media", "Edits"]
-
-    cp_by_id = {c.id: c for c in data.checkpoints}
-    edits_per_result: dict[int, int] = {}
-    for history in ctx.audit.evaluations:
-        edits_per_result[history.result_id] = edits_per_result.get(history.result_id, 0) + 1
-
-    rows: list[list[Any]] = []
-    for result in data.results:
-        activity = getattr(result, "activity", None)
-        checkpoint = getattr(activity, "checkpoint", None)
-        cp_id = getattr(checkpoint, "id", None) if checkpoint else None
-        cp = cp_by_id.get(cp_id) if cp_id is not None else None
-        row: list[Any] = [
-            data.team_name(result.team_id),
-            getattr(cp, "name", "") if cp else "",
-            getattr(cp, "order", "") if cp else "",
-            getattr(activity, "name", "") if activity else "",
-            getattr(activity, "activity_type", "") if activity else "",
-            result.final_score,
-            "yes" if result.is_completed else "no",
-            getattr(result, "judgment_status", None) or "",
-            getattr(result, "completed_at", None),
-            int(getattr(result, "extra_shots", 0) or 0),
-        ]
-        row += [data.key_amount(result, k) for k in data.penalty_keys_used]
-        row += [data.key_amount(result, k, bonus=True) for k in data.bonus_keys_used]
-        row += [_result_data(result, k) for k in detail_keys]
-        row += [
-            result_notes(result),
-            len(getattr(result, "media_urls", None) or []),
-            edits_per_result.get(getattr(result, "id", -1), 0),
-        ]
-        rows.append(row)
+    headers, detail_start = _result_headers(data, detail_keys)
+    rows = _result_rows(ctx, detail_keys)
 
     notes_col = detail_start + len(detail_keys)
     reasoning_cols = {detail_start + i for i, k in enumerate(detail_keys) if k == "reasoning"}
@@ -186,6 +147,52 @@ def build_results_sheet(wb: Workbook, ctx: EventReportContext) -> ResultsIndex:
         activity_col=4,
         score_col=6,
     )
+
+
+def _result_headers(data: Any, detail_keys: list[str]) -> tuple[list[str], int]:
+    headers = ["Team", "Checkpoint", "Order", "Activity", "Activity Type", "Final Score"]
+    headers += ["Completed", "Judgment", "Completed At", "Extra Shots"]
+    headers += [f"P: {data.key_label(key)}{_unit(data, key)}" for key in data.penalty_keys_used]
+    headers += [
+        f"B: {data.key_label(key)}{_unit(data, key, bonus=True)}" for key in data.bonus_keys_used
+    ]
+    detail_start = len(headers) + 1
+    headers += [f"D: {key}" for key in detail_keys] + ["Notes", "Media", "Edits"]
+    return headers, detail_start
+
+
+def _result_rows(ctx: EventReportContext, detail_keys: list[str]) -> list[list[Any]]:
+    data = ctx.results
+    checkpoints = {checkpoint.id: checkpoint for checkpoint in data.checkpoints}
+    edits: dict[int, int] = {}
+    for history in ctx.audit.evaluations:
+        edits[history.result_id] = edits.get(history.result_id, 0) + 1
+
+    rows: list[list[Any]] = []
+    for result in data.results:
+        activity = getattr(result, "activity", None)
+        checkpoint = getattr(activity, "checkpoint", None)
+        checkpoint_id = getattr(checkpoint, "id", None) if checkpoint else None
+        checkpoint = checkpoints.get(checkpoint_id) if checkpoint_id is not None else None
+        rows.append([
+            data.team_name(result.team_id),
+            getattr(checkpoint, "name", "") if checkpoint else "",
+            getattr(checkpoint, "order", "") if checkpoint else "",
+            getattr(activity, "name", "") if activity else "",
+            getattr(activity, "activity_type", "") if activity else "",
+            result.final_score,
+            "yes" if result.is_completed else "no",
+            getattr(result, "judgment_status", None) or "",
+            getattr(result, "completed_at", None),
+            int(getattr(result, "extra_shots", 0) or 0),
+            *[data.key_amount(result, key) for key in data.penalty_keys_used],
+            *[data.key_amount(result, key, bonus=True) for key in data.bonus_keys_used],
+            *[_result_data(result, key) for key in detail_keys],
+            result_notes(result),
+            len(getattr(result, "media_urls", None) or []),
+            edits.get(getattr(result, "id", -1), 0),
+        ])
+    return rows
 
 
 def build_overall_sheet(wb: Workbook, ctx: EventReportContext) -> None:

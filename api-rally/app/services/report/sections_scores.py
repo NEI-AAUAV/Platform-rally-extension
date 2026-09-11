@@ -199,31 +199,55 @@ def statistics(ctx: EventReportContext) -> list[object]:
     else:
         rows.append(["Postos realizados", f"{len(used)} de {len(data.checkpoints)}"])
 
-    for key in data.penalty_keys_used:
-        total = sum(data.key_amount(r, key) for r in data.results)
-        unit = "penalização" if data.key_is_counted(key) else "pontos de penalização"
-        rows.append([f"{data.key_label(key)} ({unit})", str(total)])
-    for key in data.bonus_keys_used:
-        total = sum(data.key_amount(r, key, bonus=True) for r in data.results)
-        unit = "bónus" if data.key_is_counted(key, bonus=True) else "pontos de bónus"
-        rows.append([f"{data.key_label(key)} ({unit})", str(total)])
-
-    if data.has_hints:
-        cost = sum(int(h.cost or 0) for h in data.hint_reveals)
-        rows.append(["Pistas reveladas", f"{len(data.hint_reveals)} ({cost:+d} pontos)"])
-    if data.has_skips:
-        cost = sum(int(s.cost or 0) for s in data.skips)
-        rows.append(["Postos desistidos", f"{len(data.skips)} ({cost:+d} pontos)"])
-    if data.has_badges:
-        rows.append(["Medalhas atribuídas", str(len(data.badges))])
-    if data.has_pending_judgment:
-        rows.append(["Resultados por avaliar", str(len(data.pending))])
-    if ctx.audit.has_evaluations:
-        rows.append(["Alterações a avaliações", str(len(ctx.audit.evaluations))])
-
-    rows += _checkpoint_extremes(ctx)
+    rows += _statistic_rows(ctx)
 
     return [Paragraph("Estatísticas do Evento", styles()["Heading1"]), facts(rows, 8 * cm)]
+
+
+def _statistic_rows(ctx: EventReportContext) -> list[list[Any]]:
+    """Rows for counters, optional mechanics, and checkpoint comparisons."""
+    data = ctx.results
+    rows = _counter_statistic_rows(
+        data, data.penalty_keys_used, "penalização", "pontos de penalização"
+    )
+    rows += _counter_statistic_rows(
+        data, data.bonus_keys_used, "bónus", "pontos de bónus", bonus=True
+    )
+    optional_rows = [
+        (data.has_hints, "Pistas reveladas", data.hint_reveals),
+        (data.has_skips, "Postos desistidos", data.skips),
+    ]
+    for enabled, label, records in optional_rows:
+        if enabled:
+            cost = sum(int(record.cost or 0) for record in records)
+            rows.append([label, f"{len(records)} ({cost:+d} pontos)"])
+    rows += [
+        [label, value]
+        for enabled, label, value in (
+            (data.has_badges, "Medalhas atribuídas", str(len(data.badges))),
+            (data.has_pending_judgment, "Resultados por avaliar", str(len(data.pending))),
+            (
+                ctx.audit.has_evaluations,
+                "Alterações a avaliações",
+                str(len(ctx.audit.evaluations)),
+            ),
+        )
+        if enabled
+    ]
+    return rows + _checkpoint_extremes(ctx)
+
+
+def _counter_statistic_rows(
+    data: Any, keys: list[str], counted_unit: str, points_unit: str, *, bonus: bool = False
+) -> list[list[Any]]:
+    return [
+        [
+            f"{data.key_label(key)} ("
+            f"{counted_unit if data.key_is_counted(key, bonus=bonus) else points_unit})",
+            str(sum(data.key_amount(result, key, bonus=bonus) for result in data.results)),
+        ]
+        for key in keys
+    ]
 
 
 def _checkpoint_extremes(ctx: EventReportContext) -> list[list[Any]]:

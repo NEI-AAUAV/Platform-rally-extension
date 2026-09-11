@@ -14,16 +14,22 @@ from openpyxl import Workbook
 from app.services.event_report_context import EventReportContext, display_name
 from app.services.export.styles import add_sheet
 
+USER_ID_HEADER = "User ID"
+
 
 def build_staff_sheet(wb: Workbook, ctx: EventReportContext) -> None:
     """Who was stationed where, and how many evaluations they went on to edit."""
     if not ctx.roster.has_staff:
         return
 
+    headers = [USER_ID_HEADER, "Name", "Email", "Checkpoint", "Scopes", "Disabled", "Score Edits"]
+    add_sheet(wb, "Staff", headers, _staff_rows(ctx), center_from=4)
+
+
+def _staff_rows(ctx: EventReportContext) -> list[list[Any]]:
+    """Render staff assignments and their evaluation edit counts."""
     cp_name = {c.id: c.name for c in ctx.results.checkpoints}
     edits = _edits_by_editor(ctx)
-
-    headers = ["User ID", "Name", "Email", "Checkpoint", "Scopes", "Disabled", "Score Edits"]
     rows: list[list[Any]] = []
     for assignment in ctx.roster.staff_assignments:
         user = ctx.roster.user(assignment.user_id)
@@ -41,7 +47,7 @@ def build_staff_sheet(wb: Workbook, ctx: EventReportContext) -> None:
                 + edits.get(str(getattr(user, "authentik_sub", "") or ""), 0),
             ]
         )
-    add_sheet(wb, "Staff", headers, rows, center_from=4)
+    return rows
 
 
 def build_guides_sheet(wb: Workbook, ctx: EventReportContext) -> None:
@@ -51,7 +57,7 @@ def build_guides_sheet(wb: Workbook, ctx: EventReportContext) -> None:
 
     team_name = {t.id: t.name for t in ctx.results.teams}
     headers = [
-        "User ID",
+        USER_ID_HEADER,
         "Name",
         "Email",
         "Team",
@@ -89,7 +95,7 @@ def build_members_sheet(wb: Workbook, ctx: EventReportContext) -> None:
 
     headers = [
         "Team",
-        "User ID",
+        USER_ID_HEADER,
         "Name",
         "Email",
         "Captain",

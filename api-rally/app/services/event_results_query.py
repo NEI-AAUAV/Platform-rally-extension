@@ -158,6 +158,70 @@ def _used_keys(results: list[ActivityResult], *, bonus: bool) -> list[str]:
     return list(seen)
 
 
+def _index_results(
+    results: list[ActivityResult], team_ids: set[int]
+) -> tuple[
+    dict[tuple[int, int], float],
+    dict[tuple[int, int], ActivityResult],
+    set[tuple[int, int]],
+    set[tuple[int, int]],
+]:
+    """Build per-checkpoint result indexes from valid team results."""
+    scores: dict[tuple[int, int], float] = {}
+    latest: dict[tuple[int, int], ActivityResult] = {}
+    attended: set[tuple[int, int]] = set()
+    pending: set[tuple[int, int]] = set()
+    for result in results:
+        activity = getattr(result, "activity", None)
+        checkpoint = activity.checkpoint if activity else None
+        if checkpoint is None or result.team_id not in team_ids:
+            continue
+        key = (result.team_id, checkpoint.id)
+        if result.is_completed and result.final_score is not None:
+            scores[key] = scores.get(key, 0.0) + float(result.final_score)
+        latest[key] = result
+        attended.add(key)
+        if (
+            getattr(result, "judgment_status", None) == PENDING_JUDGMENT
+            and result.final_score is None
+        ):
+            pending.add(key)
+    return scores, latest, attended, pending
+
+
+def _engaged_checkpoints(
+    arrivals: list[CheckpointArrival],
+    hint_reveals: list[CheckpointHintReveal],
+    skips: list[CheckpointSkip],
+    team_ids: set[int],
+    checkpoint_ids: set[int],
+) -> set[tuple[int, int]]:
+    """Return valid team/checkpoint pairs represented by side-mechanic records."""
+    engagements = [*arrivals, *hint_reveals, *skips]
+    return {
+        (row.team_id, row.checkpoint_id)
+        for row in engagements
+        if row.team_id in team_ids and row.checkpoint_id in checkpoint_ids
+    }
+
+
+def _counter_entries(config: dict[str, Any]) -> list[tuple[str, str, float]]:
+    """Normalize configured counter entries, discarding malformed values."""
+    entries: list[tuple[str, str, float]] = []
+    for field_name in ("penalty_counters", "bonus_counters"):
+        for entry in config.get(field_name) or []:
+            if isinstance(entry, dict) and (key := entry.get("key")):
+                key_text = str(key)
+                entries.append(
+                    (
+                        key_text,
+                        str(entry.get("label") or entry.get("name") or key),
+                        _as_number(entry.get("points")),
+                    )
+                )
+    return entries
+
+
 @dataclass
 class EventResultsData:
     """Everything a results document (Excel sheet, PDF report, ...) needs,
@@ -199,36 +263,15 @@ class EventResultsData:
         self.opponent_of = team_opponent_map(self.teams)
         team_ids = {t.id for t in self.teams}
         cp_ids = {c.id for c in self.checkpoints}
-
-        cp_score: dict[tuple[int, int], float] = {}
-        cp_result: dict[tuple[int, int], ActivityResult] = {}
-        attended: set[tuple[int, int]] = set()
-        pending: set[tuple[int, int]] = set()
-        for r in self.results:
-            activity = getattr(r, "activity", None)
-            cp = activity.checkpoint if activity else None
-            if cp is None or r.team_id not in team_ids:
-                continue
-            key = (r.team_id, cp.id)
-            if r.is_completed and r.final_score is not None:
-                cp_score[key] = cp_score.get(key, 0.0) + float(r.final_score)
-            cp_result[key] = r
-            attended.add(key)
-            if getattr(r, "judgment_status", None) == PENDING_JUDGMENT and r.final_score is None:
-                pending.add(key)
+        cp_score, cp_result, attended, pending = _index_results(self.results, team_ids)
 
         # An arrival, a bought hint or a skip are each proof the team engaged
         # with the post, even where no result was ever scored there. Without
         # them a team that gave up on a checkpoint reads as never having gone,
         # which is the opposite of what happened.
-        engagements: list[CheckpointArrival | CheckpointHintReveal | CheckpointSkip] = [
-            *self.arrivals,
-            *self.hint_reveals,
-            *self.skips,
-        ]
-        for row in engagements:
-            if row.team_id in team_ids and row.checkpoint_id in cp_ids:
-                attended.add((row.team_id, row.checkpoint_id))
+        attended.update(
+            _engaged_checkpoints(self.arrivals, self.hint_reveals, self.skips, team_ids, cp_ids)
+        )
 
         self.cp_score = cp_score
         self.cp_result = cp_result
@@ -255,15 +298,9 @@ class EventResultsData:
             config = getattr(activity, "config", None) or {}
             if not isinstance(config, dict):
                 continue
-            for field_name in ("penalty_counters", "bonus_counters"):
-                for entry in config.get(field_name) or []:
-                    if not isinstance(entry, dict):
-                        continue
-                    key = entry.get("key")
-                    if not key:
-                        continue
-                    labels[str(key)] = str(entry.get("label") or entry.get("name") or key)
-                    points[str(key)] = _as_number(entry.get("points"))
+            for key, label, point_value in _counter_entries(config):
+                labels[key] = label
+                points[key] = point_value
         return labels, points
 
     # ---------- naming ----------

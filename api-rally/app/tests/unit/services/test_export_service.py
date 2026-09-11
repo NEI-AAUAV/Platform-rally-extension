@@ -624,7 +624,8 @@ async def test_illegal_and_overlong_checkpoint_names_are_sanitised():
     wb = await _build([_team(1, "A")], [_cp(10, 1, long_name)], [_result(1, 10)])
     title = next(t for t in wb.sheetnames if t.startswith("1."))
     assert len(title) <= 31
-    assert "[" not in title and "]" not in title
+    assert "[" not in title
+    assert "]" not in title
 
 
 @pytest.mark.asyncio

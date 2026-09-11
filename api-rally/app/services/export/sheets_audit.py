@@ -41,6 +41,12 @@ def build_evaluation_log_sheet(wb: Workbook, ctx: EventReportContext) -> None:
         "Note",
     ]
 
+    rows = _evaluation_rows(ctx)
+    add_sheet(wb, "Evaluation Log", headers, rows, center_from=2, text_cols={9, 10, 11})
+
+
+def _evaluation_rows(ctx: EventReportContext) -> list[list[Any]]:
+    """Render evaluation history as one row per changed field."""
     rows: list[list[Any]] = []
     for history in ctx.audit.evaluations:
         result = ctx.audit.result_of(history)
@@ -63,7 +69,7 @@ def build_evaluation_log_sheet(wb: Workbook, ctx: EventReportContext) -> None:
         for field_name, before, after in changed:
             rows.append([*base, field_name, _render(before), _render(after), history.note or ""])
 
-    add_sheet(wb, "Evaluation Log", headers, rows, center_from=2, text_cols={9, 10, 11})
+    return rows
 
 
 def build_audit_log_sheet(wb: Workbook, ctx: EventReportContext) -> None:
