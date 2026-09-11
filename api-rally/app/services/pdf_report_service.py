@@ -2,26 +2,25 @@
 
 A printable/archivable summary of a finished event — the human-readable
 counterpart to the Excel export (`export_service.py`), which is built for
-reprocessing, not reading. Four sections, in order:
+reprocessing, not reading.
 
-1. **Ranking final** — teams by total score, podium highlighted.
-2. **Detalhe por posto** — one table per checkpoint, same columns as the
-   Excel per-checkpoint sheets.
-3. **Fotos capturadas** — a grid of team photos and deferred-judged capture
-   photos, best-effort (a photo that fails to download is silently skipped
-   rather than failing the whole report).
-4. **Estatísticas do evento** — duration, team count, total penalties
-   applied, best/worst average-scoring checkpoint.
+Every section past the ranking is conditional: it appears only if the event
+produced the thing it describes. A peddy paper with no photos gets no photo
+pages, an event with no hints gets no hint section, and the per-checkpoint
+tables carry only the counters that were actually recorded. The alternative —
+a fixed template — is what made the old report describe an event that never
+happened.
 
-Reads via `EventResultsQuery`/`EventResultsData` — the same aggregation the
-Excel export uses, so the two documents can never disagree on what a team's
-score at a checkpoint is.
+Reads via `EventResultsQuery`/`EventResultsData` and builds its per-checkpoint
+columns with `event_report_columns`, both shared with the Excel export, so the
+two documents can never disagree.
 """
 
 from __future__ import annotations
 
 import ipaddress
 import socket
+from collections.abc import Callable
 from datetime import datetime
 from io import BytesIO
 from urllib.parse import urlparse
@@ -45,13 +44,16 @@ from reportlab.platypus import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.crud.crud_activity import rally_event as crud_rally_event
-from app.models.activity import RallyEvent
+from app.services.event_report_columns import (
+    ABSENT_PDF,
+    ReportColumn,
+    checkpoint_columns,
+    checkpoint_row,
+)
 from app.services.event_results_query import (
     EventResultsData,
     EventResultsQuery,
-    result_notes,
-    result_penalty,
+    result_count,
 )
 
 _PHOTO_FETCH_TIMEOUT_S = 5
@@ -64,6 +66,16 @@ _PODIUM_FILLS = {
 }
 _HEADER_BG = colors.HexColor("#1F2937")
 
+#: Usable width between the 2cm side margins of an A4 page.
+_CONTENT_WIDTH = 17 * cm
+
+_EVENT_TYPE_LABELS = {
+    "rally_tascas": "Rally das Tascas",
+    "peddy_paper": "Peddy Paper",
+    "olympic": "Olimpíadas",
+    "generic": "Evento",
+}
+
 
 class PdfReportService:
     """Builds the final-report PDF for a single event."""
@@ -74,48 +86,96 @@ class PdfReportService:
         self._styles = getSampleStyleSheet()
 
     async def build_report(self, event_id: int) -> bytes:
-        event = await crud_rally_event.get(self.db, event_id)
         data = await self._query.load(event_id)
 
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm)
-        story: list[object] = []
-        story += self._cover(event.name if event else f"Evento #{event_id}")
-        story += self._ranking_section(data)
-        story.append(PageBreak())
-        story += self._checkpoints_section(data)
-        story.append(PageBreak())
-        story += await self._photos_section(data)
-        story.append(PageBreak())
-        story += self._stats_section(event, data)
+
+        sections: list[Callable[[], list[object]]] = [
+            lambda: self._ranking_section(data),
+            lambda: self._checkpoints_section(data),
+            lambda: self._hints_and_skips_section(data),
+            lambda: self._awards_section(data),
+            lambda: self._badges_section(data),
+            lambda: self._stats_section(data),
+        ]
+
+        story: list[object] = self._cover(data, event_id)
+        for build in sections:
+            flowables = build()
+            if not flowables:
+                continue
+            # The page break belongs between two sections that exist. Emitting
+            # it unconditionally is how the old report produced blank pages
+            # where a section had been skipped.
+            if story and not isinstance(story[-1], PageBreak):
+                story.append(PageBreak())
+            story += flowables
+
+        photos = await self._photos_section(data)
+        if photos:
+            story.append(PageBreak())
+            story += photos
 
         doc.build(story)
         return buffer.getvalue()
 
     # ---------- cover ----------
 
-    def _cover(self, event_name: str) -> list[object]:
+    def _cover(self, data: EventResultsData, event_id: int) -> list[object]:
+        event = data.event
+        name = getattr(event, "name", None) or f"Evento #{event_id}"
         title = ParagraphStyle(
             "CoverTitle", parent=self._styles["Title"], fontSize=26, spaceAfter=6
         )
         subtitle = ParagraphStyle("CoverSubtitle", parent=self._styles["Normal"], fontSize=13)
-        return [
-            Spacer(1, 4 * cm),
-            Paragraph(event_name, title),
-            Paragraph("Relatório Final", subtitle),
-            Paragraph(datetime.now().strftime("%d/%m/%Y"), subtitle),
-            PageBreak(),
-        ]
+
+        lines = [Spacer(1, 4 * cm), Paragraph(name, title), Paragraph("Relatório Final", subtitle)]
+
+        event_type = getattr(event, "event_type", None)
+        if event_type:
+            lines.append(
+                Paragraph(_EVENT_TYPE_LABELS.get(str(event_type), str(event_type)), subtitle)
+            )
+
+        period = _period_text(event)
+        if period:
+            lines.append(Paragraph(period, subtitle))
+
+        checkpoints = data.used_checkpoints()
+        lines.append(
+            Paragraph(
+                f"{len(data.teams)} equipas · {len(checkpoints)} postos realizados",
+                subtitle,
+            )
+        )
+        lines.append(Paragraph(f"Emitido a {datetime.now().strftime('%d/%m/%Y')}", subtitle))
+        lines.append(PageBreak())
+        return lines
 
     # ---------- ranking ----------
 
     def _ranking_section(self, data: EventResultsData) -> list[object]:
+        if not data.teams:
+            return []
+
         story: list[object] = [Paragraph("Ranking Final", self._styles["Heading1"])]
+        if data.has_pending_judgment:
+            story.append(
+                Paragraph(
+                    "Classificação provisória: há resultados por avaliar.",
+                    self._styles["Normal"],
+                )
+            )
+            story.append(Spacer(1, 0.3 * cm))
 
         ranked = sorted(data.teams, key=lambda t: data.team_total(t.id), reverse=True)
         rows: list[list[object]] = [["#", "Equipa", "Pontos"]]
         for position, team in enumerate(ranked, start=1):
-            rows.append([str(position), team.name, f"{data.team_total(team.id):.0f}"])
+            label = f"{data.team_total(team.id):.0f}"
+            if data.team_pending(team.id):
+                label += " *"
+            rows.append([str(position), team.name, label])
 
         table = Table(rows, colWidths=[1.5 * cm, 10 * cm, 4 * cm])
         style = [
@@ -136,43 +196,111 @@ class PdfReportService:
     # ---------- per-checkpoint detail ----------
 
     def _checkpoints_section(self, data: EventResultsData) -> list[object]:
+        checkpoints = data.used_checkpoints()
+        if not checkpoints:
+            return []
+
+        columns = checkpoint_columns(data)
+        headers = [c.header_pt for c in columns]
         story: list[object] = [Paragraph("Detalhe por Posto", self._styles["Heading1"])]
-        for index, checkpoint in enumerate(data.checkpoints, start=1):
+
+        for index, checkpoint in enumerate(checkpoints, start=1):
             story.append(Paragraph(f"Posto {index}: {checkpoint.name}", self._styles["Heading2"]))
-            rows: list[list[object]] = [
-                ["Equipa", "Pontos", "Tiros extra", "Vómitos (-)", "Não bebeu (-)", "Notas"]
-            ]
+            rows: list[list[object]] = [list(headers)]
             for team in data.teams:
-                key = (team.id, checkpoint.id)
-                result = data.cp_result.get(key)
-                total = data.cp_score.get(key, 0.0)
-                if result is None:
-                    rows.append([team.name, f"{total:.0f}", "0", "0", "0", ""])
-                    continue
                 rows.append(
                     [
-                        team.name,
-                        f"{total:.0f}",
-                        str(int(result.extra_shots or 0)),
-                        str(result_penalty(result, "vomit")),
-                        str(result_penalty(result, "not_drinking")),
-                        result_notes(result),
+                        _cell(value)
+                        for value in checkpoint_row(
+                            data, columns, team, checkpoint, absent=ABSENT_PDF
+                        )
                     ]
                 )
-            table = Table(rows, colWidths=[4 * cm, 2 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm, 4.5 * cm])
-            table.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 8),
-                        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                    ]
-                )
-            )
-            story.append(table)
+            story.append(self._grid(rows, _column_widths(columns)))
             story.append(Spacer(1, 0.5 * cm))
+        return story
+
+    # ---------- hints & skips ----------
+
+    def _hints_and_skips_section(self, data: EventResultsData) -> list[object]:
+        if not (data.has_hints or data.has_skips):
+            return []
+
+        story: list[object] = [Paragraph("Pistas e Desistências", self._styles["Heading1"])]
+
+        if data.has_hints:
+            story.append(Paragraph("Pistas reveladas", self._styles["Heading2"]))
+            rows: list[list[object]] = [["Equipa", "Posto", "Quando", "Custo"]]
+            for reveal in data.hint_reveals:
+                rows.append(
+                    [
+                        data.team_name(reveal.team_id),
+                        data.checkpoint_name(reveal.checkpoint_id),
+                        _timestamp(reveal.revealed_at),
+                        str(int(reveal.cost or 0)),
+                    ]
+                )
+            story.append(self._grid(rows, [5 * cm, 5 * cm, 4 * cm, 3 * cm]))
+            story.append(Spacer(1, 0.5 * cm))
+
+        if data.has_skips:
+            story.append(Paragraph("Postos desistidos", self._styles["Heading2"]))
+            rows = [["Equipa", "Posto", "Quando", "Custo"]]
+            for skip in data.skips:
+                rows.append(
+                    [
+                        data.team_name(skip.team_id),
+                        data.checkpoint_name(skip.checkpoint_id),
+                        _timestamp(skip.skipped_at),
+                        str(int(skip.cost or 0)),
+                    ]
+                )
+            story.append(self._grid(rows, [5 * cm, 5 * cm, 4 * cm, 3 * cm]))
+        return story
+
+    # ---------- manual awards ----------
+
+    def _awards_section(self, data: EventResultsData) -> list[object]:
+        awards = data.manual_awards()
+        if not awards:
+            return []
+
+        story: list[object] = [Paragraph("Ajustes Manuais", self._styles["Heading1"])]
+        rows: list[list[object]] = [["Equipa", "Pontos", "Motivo", "Quando"]]
+        for award in awards:
+            rows.append(
+                [
+                    data.team_name(award.team_id),
+                    f"{float(award.points or 0):+.0f}",
+                    award.reason or "",
+                    _timestamp(award.awarded_at),
+                ]
+            )
+        story.append(self._grid(rows, [4.5 * cm, 2.5 * cm, 6 * cm, 4 * cm]))
+        return story
+
+    # ---------- badges ----------
+
+    def _badges_section(self, data: EventResultsData) -> list[object]:
+        if not data.has_badges:
+            return []
+
+        story: list[object] = [Paragraph("Medalhas", self._styles["Heading1"])]
+        rows: list[list[object]] = [["Equipa", "Medalha", "Posto", "Quando"]]
+        for badge in data.badges:
+            rows.append(
+                [
+                    data.team_name(badge.team_id),
+                    str(badge.badge_type).replace("_", " ").capitalize(),
+                    (
+                        data.checkpoint_name(badge.checkpoint_id)
+                        if badge.checkpoint_id is not None
+                        else "—"
+                    ),
+                    _timestamp(badge.awarded_at),
+                ]
+            )
+        story.append(self._grid(rows, [4.5 * cm, 5 * cm, 3.5 * cm, 4 * cm]))
         return story
 
     # ---------- photos ----------
@@ -186,8 +314,8 @@ class PdfReportService:
         pairs = [(f"Equipa: {t.name}", t.photo_url) for t in data.teams if t.photo_url]
 
         for r in data.results:
-            for url in r.media_urls or []:
-                pairs.append((f"Captura da equipa #{r.team_id}", url))
+            for url in getattr(r, "media_urls", None) or []:
+                pairs.append((f"Captura: {data.team_name(r.team_id)}", url))
 
         return pairs[:_MAX_PHOTOS]
 
@@ -233,13 +361,11 @@ class PdfReportService:
             return None
 
     async def _photos_section(self, data: EventResultsData) -> list[object]:
-        story: list[object] = [Paragraph("Fotos Capturadas", self._styles["Heading1"])]
         pairs = self._photo_urls(data)
-
         if not pairs:
-            story.append(Paragraph("Sem fotos disponíveis.", self._styles["Normal"]))
-            return story
+            return []
 
+        images: list[object] = []
         for caption, url in pairs:
             content = await run_in_threadpool(self._download_image, url)
             if content is None:
@@ -249,54 +375,53 @@ class PdfReportService:
             except Exception as exc:  # noqa: BLE001 — any decode failure just skips this photo
                 logger.warning(f"Skipping unreadable photo in PDF report: {exc}")
                 continue
-            story.append(img)
-            story.append(Paragraph(caption, self._styles["Normal"]))
-            story.append(Spacer(1, 0.4 * cm))
-        return story
+            images.append(img)
+            images.append(Paragraph(caption, self._styles["Normal"]))
+            images.append(Spacer(1, 0.4 * cm))
+
+        # Every photo failed to download: a heading over nothing is worse than
+        # no section, so drop it the same way an event with no photos does.
+        if not images:
+            return []
+        return [Paragraph("Fotos Capturadas", self._styles["Heading1"]), *images]
 
     # ---------- stats ----------
 
-    def _stats_section(self, event: RallyEvent | None, data: EventResultsData) -> list[object]:
+    def _stats_section(self, data: EventResultsData) -> list[object]:
+        rows: list[list[object]] = []
+
+        duration = _duration_text(data.event)
+        if duration:
+            rows.append(["Duração do evento", duration])
+        rows.append(["Número de equipas", str(len(data.teams))])
+
+        used = data.used_checkpoints()
+        if len(used) == len(data.checkpoints):
+            rows.append(["Número de postos", str(len(used))])
+        else:
+            rows.append(["Postos realizados", f"{len(used)} de {len(data.checkpoints)}"])
+
+        for key in data.penalty_keys_used:
+            total = sum(result_count(r, key) for r in data.results)
+            rows.append([f"{data.key_label(key)} (penalização)", str(total)])
+        for key in data.bonus_keys_used:
+            total = sum(result_count(r, key, bonus=True) for r in data.results)
+            rows.append([f"{data.key_label(key)} (bónus)", str(total)])
+
+        if data.has_hints:
+            cost = sum(int(h.cost or 0) for h in data.hint_reveals)
+            rows.append(["Pistas reveladas", f"{len(data.hint_reveals)} ({cost:+d} pontos)"])
+        if data.has_skips:
+            cost = sum(int(s.cost or 0) for s in data.skips)
+            rows.append(["Postos desistidos", f"{len(data.skips)} ({cost:+d} pontos)"])
+        if data.has_badges:
+            rows.append(["Medalhas atribuídas", str(len(data.badges))])
+        if data.has_pending_judgment:
+            rows.append(["Resultados por avaliar", str(len(data.pending))])
+
+        rows += self._checkpoint_extremes(data)
+
         story: list[object] = [Paragraph("Estatísticas do Evento", self._styles["Heading1"])]
-
-        start = event.start_time if event else None
-        end = event.end_time if event else None
-        duration_text = "—"
-        if start is not None and end is not None and end > start:
-            duration_text = str(end - start)
-
-        total_penalties = sum(
-            result_penalty(r, "vomit") + result_penalty(r, "not_drinking") for r in data.results
-        )
-
-        cp_averages: dict[int, float] = {}
-        for checkpoint in data.checkpoints:
-            scores = [
-                score
-                for (_team_id, cp_id), score in data.cp_score.items()
-                if cp_id == checkpoint.id
-            ]
-            if scores:
-                cp_averages[checkpoint.id] = sum(scores) / len(scores)
-
-        best_cp = max(cp_averages.items(), key=lambda kv: kv[1], default=None)
-        worst_cp = min(cp_averages.items(), key=lambda kv: kv[1], default=None)
-        cp_name = {cp.id: cp.name for cp in data.checkpoints}
-
-        rows = [
-            ["Duração do evento", duration_text],
-            ["Número de equipas", str(len(data.teams))],
-            ["Número de postos", str(len(data.checkpoints))],
-            ["Penalizações totais aplicadas", str(total_penalties)],
-            [
-                "Posto com maior pontuação média",
-                cp_name.get(best_cp[0], "—") if best_cp else "—",
-            ],
-            [
-                "Posto com menor pontuação média",
-                cp_name.get(worst_cp[0], "—") if worst_cp else "—",
-            ],
-        ]
         table = Table(rows, colWidths=[8 * cm, 8 * cm])
         table.setStyle(
             TableStyle(
@@ -309,3 +434,90 @@ class PdfReportService:
         )
         story.append(table)
         return story
+
+    @staticmethod
+    def _checkpoint_extremes(data: EventResultsData) -> list[list[object]]:
+        """Best/worst average-scoring checkpoint, when the comparison means anything.
+
+        With fewer than two scored checkpoints the same post is both the best
+        and the worst, which tells the reader nothing.
+        """
+        averages: dict[int, float] = {}
+        for checkpoint in data.checkpoints:
+            scores = [
+                score
+                for (_team_id, cp_id), score in data.cp_score.items()
+                if cp_id == checkpoint.id
+            ]
+            if scores:
+                averages[checkpoint.id] = sum(scores) / len(scores)
+
+        if len(averages) < 2:
+            return []
+
+        best = max(averages.items(), key=lambda kv: kv[1])
+        worst = min(averages.items(), key=lambda kv: kv[1])
+        return [
+            ["Posto com maior pontuação média", f"{data.checkpoint_name(best[0])} ({best[1]:.1f})"],
+            [
+                "Posto com menor pontuação média",
+                f"{data.checkpoint_name(worst[0])} ({worst[1]:.1f})",
+            ],
+        ]
+
+    # ---------- shared table styling ----------
+
+    def _grid(self, rows: list[list[object]], col_widths: list[float]) -> Table:
+        table = Table(rows, colWidths=col_widths)
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        return table
+
+
+def _column_widths(columns: list[ReportColumn]) -> list[float]:
+    """Share the page width out, giving the text columns the slack.
+
+    The column count is decided by the event, so fixed widths would overflow
+    the page as soon as an event used more than a couple of counters.
+    """
+    weights = [2.0 if not column.numeric else 1.0 for column in columns]
+    total = sum(weights) or 1.0
+    return [_CONTENT_WIDTH * w / total for w in weights]
+
+
+def _cell(value: object) -> str:
+    if isinstance(value, float):
+        return f"{value:.0f}"
+    return str(value)
+
+
+def _timestamp(value: object) -> str:
+    return value.strftime("%d/%m %H:%M") if isinstance(value, datetime) else ""
+
+
+def _period_text(event: object) -> str:
+    start = getattr(event, "start_time", None)
+    end = getattr(event, "end_time", None)
+    if isinstance(start, datetime) and isinstance(end, datetime):
+        return f"{start.strftime('%d/%m/%Y')} — {end.strftime('%d/%m/%Y')}"
+    if isinstance(start, datetime):
+        return start.strftime("%d/%m/%Y")
+    return ""
+
+
+def _duration_text(event: object) -> str:
+    start = getattr(event, "start_time", None)
+    end = getattr(event, "end_time", None)
+    if isinstance(start, datetime) and isinstance(end, datetime) and end > start:
+        return str(end - start)
+    return ""
