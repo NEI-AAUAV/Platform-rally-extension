@@ -199,9 +199,7 @@ def _extended_columns(data: EventResultsData) -> list[ReportColumn]:
     return columns
 
 
-def _conditional_columns(
-    data: EventResultsData, *, extended: bool
-) -> list[ReportColumn]:
+def _conditional_columns(data: EventResultsData, *, extended: bool) -> list[ReportColumn]:
     extended_columns = _extended_columns(data) if extended else []
     return [
         *_versus_columns(data),
