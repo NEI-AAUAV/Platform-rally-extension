@@ -96,6 +96,123 @@ def _activity_type(result: ActivityResult | None) -> str:
     return str(getattr(activity, "activity_type", "") or "")
 
 
+def _versus_columns(data: EventResultsData) -> list[ReportColumn]:
+    """Columns that describe a head-to-head checkpoint."""
+    if not data.has_versus:
+        return []
+    return [
+        ReportColumn(
+            "Versus Pair",
+            "Adversário",
+            lambda d, team, _cp, _r: d.opponent_of.get(team.id, ""),
+            numeric=False,
+        ),
+        ReportColumn(
+            "Match Result",
+            "Resultado",
+            lambda _d, _team, _cp, result: (
+                getattr(result, "team_vs_result", None) or "" if result else ""
+            ),
+            numeric=False,
+        ),
+    ]
+
+
+def _extra_shots_columns(data: EventResultsData) -> list[ReportColumn]:
+    """The extra-shots column, when that mechanism was used."""
+    if not data.has_extra_shots:
+        return []
+    return [
+        ReportColumn(
+            "Extra Shots",
+            "Tiros extra",
+            lambda _d, _team, _cp, result: (
+                int(getattr(result, "extra_shots", 0) or 0) if result else 0
+            ),
+        )
+    ]
+
+
+def _notes_columns(data: EventResultsData) -> list[ReportColumn]:
+    """The notes column, when any checkpoint result has one."""
+    if not data.has_notes:
+        return []
+    return [
+        ReportColumn(
+            "Notes",
+            "Notas",
+            lambda _d, _team, _cp, result: result_notes(result) if result else "",
+            numeric=False,
+        )
+    ]
+
+
+def _counter_columns(
+    data: EventResultsData, keys: list[str], sign: str, *, bonus: bool = False
+) -> list[ReportColumn]:
+    """Columns for the configured counters that occurred in this event."""
+    return [
+        ReportColumn(
+            f"{data.key_label(key)}{_points_suffix(data, key, sign, bonus=bonus)}",
+            f"{data.key_label(key)}{_points_suffix(data, key, sign, bonus=bonus)}",
+            _counter_getter(key, bonus=bonus),
+        )
+        for key in keys
+    ]
+
+
+def _extended_columns(data: EventResultsData) -> list[ReportColumn]:
+    """Workbook-only activity bookkeeping columns."""
+    columns = [
+        ReportColumn(
+            "Activity",
+            "Atividade",
+            lambda _d, _team, _cp, result: _activity_name(result),
+            numeric=False,
+        ),
+        ReportColumn(
+            "Activity Type",
+            "Tipo",
+            lambda _d, _team, _cp, result: _activity_type(result),
+            numeric=False,
+        ),
+        ReportColumn(
+            "Completed At",
+            "Concluído em",
+            lambda _d, _team, _cp, result: (
+                getattr(result, "completed_at", None) if result else None
+            ),
+            numeric=False,
+        ),
+    ]
+    if data.has_pending_judgment:
+        columns.append(
+            ReportColumn(
+                "Judgment",
+                "Avaliação",
+                lambda _d, _team, _cp, result: (
+                    getattr(result, "judgment_status", None) or "" if result else ""
+                ),
+                numeric=False,
+            )
+        )
+    return columns
+
+
+def _conditional_columns(
+    data: EventResultsData, *, extended: bool
+) -> list[ReportColumn]:
+    extended_columns = _extended_columns(data) if extended else []
+    return [
+        *_versus_columns(data),
+        *_extra_shots_columns(data),
+        *_counter_columns(data, data.penalty_keys_used, "-"),
+        *_counter_columns(data, data.bonus_keys_used, "+", bonus=True),
+        *_notes_columns(data),
+        *extended_columns,
+    ]
+
+
 def checkpoint_columns(data: EventResultsData, *, extended: bool = False) -> list[ReportColumn]:
     """The columns worth showing for this event's checkpoint breakdowns.
 
@@ -114,107 +231,7 @@ def checkpoint_columns(data: EventResultsData, *, extended: bool = False) -> lis
         )
     ]
 
-    if data.has_versus:
-        columns.append(
-            ReportColumn(
-                "Versus Pair",
-                "Adversário",
-                lambda d, team, _cp, _r: d.opponent_of.get(team.id, ""),
-                numeric=False,
-            )
-        )
-        columns.append(
-            ReportColumn(
-                "Match Result",
-                "Resultado",
-                lambda _d, _team, _cp, result: (
-                    getattr(result, "team_vs_result", None) or "" if result else ""
-                ),
-                numeric=False,
-            )
-        )
-
-    if data.has_extra_shots:
-        columns.append(
-            ReportColumn(
-                "Extra Shots",
-                "Tiros extra",
-                lambda _d, _team, _cp, result: (
-                    int(getattr(result, "extra_shots", 0) or 0) if result else 0
-                ),
-            )
-        )
-
-    for key in data.penalty_keys_used:
-        label = data.key_label(key)
-        suffix = _points_suffix(data, key, "-")
-        columns.append(
-            ReportColumn(
-                f"{label}{suffix}",
-                f"{label}{suffix}",
-                _counter_getter(key, bonus=False),
-            )
-        )
-
-    for key in data.bonus_keys_used:
-        label = data.key_label(key)
-        suffix = _points_suffix(data, key, "+", bonus=True)
-        columns.append(
-            ReportColumn(
-                f"{label}{suffix}",
-                f"{label}{suffix}",
-                _counter_getter(key, bonus=True),
-            )
-        )
-
-    if data.has_notes:
-        columns.append(
-            ReportColumn(
-                "Notes",
-                "Notas",
-                lambda _d, _team, _cp, result: result_notes(result) if result else "",
-                numeric=False,
-            )
-        )
-
-    if extended:
-        columns.append(
-            ReportColumn(
-                "Activity",
-                "Atividade",
-                lambda _d, _team, _cp, result: _activity_name(result),
-                numeric=False,
-            )
-        )
-        columns.append(
-            ReportColumn(
-                "Activity Type",
-                "Tipo",
-                lambda _d, _team, _cp, result: _activity_type(result),
-                numeric=False,
-            )
-        )
-        columns.append(
-            ReportColumn(
-                "Completed At",
-                "Concluído em",
-                lambda _d, _team, _cp, result: (
-                    getattr(result, "completed_at", None) if result else None
-                ),
-                numeric=False,
-            )
-        )
-        if data.has_pending_judgment:
-            columns.append(
-                ReportColumn(
-                    "Judgment",
-                    "Avaliação",
-                    lambda _d, _team, _cp, result: (
-                        getattr(result, "judgment_status", None) or "" if result else ""
-                    ),
-                    numeric=False,
-                )
-            )
+    columns.extend(_conditional_columns(data, extended=extended))
 
     columns.append(
         ReportColumn(
