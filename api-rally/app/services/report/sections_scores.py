@@ -215,9 +215,7 @@ def _statistic_rows(ctx: EventReportContext) -> list[list[Any]]:
     rows += _counter_statistic_rows(
         data, data.bonus_keys_used, "bónus", "pontos de bónus", bonus=True
     )
-    optional_rows: list[
-        tuple[bool, str, list[CheckpointHintReveal] | list[CheckpointSkip]]
-    ] = [
+    optional_rows: list[tuple[bool, str, list[CheckpointHintReveal] | list[CheckpointSkip]]] = [
         (data.has_hints, "Pistas reveladas", data.hint_reveals),
         (data.has_skips, "Postos desistidos", data.skips),
     ]
