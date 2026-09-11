@@ -26,7 +26,6 @@ def build_evaluation_log_sheet(wb: Workbook, ctx: EventReportContext) -> None:
     if not ctx.audit.has_evaluations:
         return
 
-    data = ctx.results
     headers = [
         "When",
         "Action",
@@ -47,6 +46,7 @@ def build_evaluation_log_sheet(wb: Workbook, ctx: EventReportContext) -> None:
 
 def _evaluation_rows(ctx: EventReportContext) -> list[list[Any]]:
     """Render evaluation history as one row per changed field."""
+    data = ctx.results
     rows: list[list[Any]] = []
     for history in ctx.audit.evaluations:
         result = ctx.audit.result_of(history)

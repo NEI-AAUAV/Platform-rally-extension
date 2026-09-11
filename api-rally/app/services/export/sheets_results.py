@@ -174,24 +174,26 @@ def _result_rows(ctx: EventReportContext, detail_keys: list[str]) -> list[list[A
         checkpoint = getattr(activity, "checkpoint", None)
         checkpoint_id = getattr(checkpoint, "id", None) if checkpoint else None
         checkpoint = checkpoints.get(checkpoint_id) if checkpoint_id is not None else None
-        rows.append([
-            data.team_name(result.team_id),
-            getattr(checkpoint, "name", "") if checkpoint else "",
-            getattr(checkpoint, "order", "") if checkpoint else "",
-            getattr(activity, "name", "") if activity else "",
-            getattr(activity, "activity_type", "") if activity else "",
-            result.final_score,
-            "yes" if result.is_completed else "no",
-            getattr(result, "judgment_status", None) or "",
-            getattr(result, "completed_at", None),
-            int(getattr(result, "extra_shots", 0) or 0),
-            *[data.key_amount(result, key) for key in data.penalty_keys_used],
-            *[data.key_amount(result, key, bonus=True) for key in data.bonus_keys_used],
-            *[_result_data(result, key) for key in detail_keys],
-            result_notes(result),
-            len(getattr(result, "media_urls", None) or []),
-            edits.get(getattr(result, "id", -1), 0),
-        ])
+        rows.append(
+            [
+                data.team_name(result.team_id),
+                getattr(checkpoint, "name", "") if checkpoint else "",
+                getattr(checkpoint, "order", "") if checkpoint else "",
+                getattr(activity, "name", "") if activity else "",
+                getattr(activity, "activity_type", "") if activity else "",
+                result.final_score,
+                "yes" if result.is_completed else "no",
+                getattr(result, "judgment_status", None) or "",
+                getattr(result, "completed_at", None),
+                int(getattr(result, "extra_shots", 0) or 0),
+                *[data.key_amount(result, key) for key in data.penalty_keys_used],
+                *[data.key_amount(result, key, bonus=True) for key in data.bonus_keys_used],
+                *[_result_data(result, key) for key in detail_keys],
+                result_notes(result),
+                len(getattr(result, "media_urls", None) or []),
+                edits.get(getattr(result, "id", -1), 0),
+            ]
+        )
     return rows
 
 
