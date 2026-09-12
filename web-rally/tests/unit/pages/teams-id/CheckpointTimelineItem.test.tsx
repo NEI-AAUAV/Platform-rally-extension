@@ -12,9 +12,16 @@ vi.mock("@/components/shared", () => ({
 }));
 
 const baseTeam = {
-  score_per_checkpoint: [10],
   last_checkpoint_number: 1,
-  times: ["2024-01-01T10:00:00Z"],
+  checkpoints: [
+    {
+      checkpoint_id: 1,
+      checkpoint_order: 1,
+      status: "completed",
+      arrived_at: "2024-01-01T10:00:00Z",
+      score: 10,
+    },
+  ],
 } as unknown as DetailedTeam;
 
 const checkpoint = { id: 1, order: 1, name: "Posto 1" } as DetailedCheckPoint;
@@ -41,7 +48,11 @@ describe("CheckpointTimelineItem", () => {
   });
 
   it("marks the current checkpoint", () => {
-    const team = { ...baseTeam, last_checkpoint_number: 0, times: [] } as unknown as DetailedTeam;
+    const team = {
+      ...baseTeam,
+      last_checkpoint_number: 0,
+      checkpoints: [],
+    } as unknown as DetailedTeam;
     render(
       <CheckpointTimelineItem
         team={team}

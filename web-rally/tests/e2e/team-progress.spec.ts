@@ -72,6 +72,16 @@ function team(overrides: Record<string, unknown> = {}) {
     pukes: [],
     skips: [],
     score_per_checkpoint: [30, 0],
+    checkpoints: [
+      {
+        checkpoint_id: CHECKPOINTS[0].id,
+        checkpoint_order: 1,
+        status: "completed",
+        arrived_at: "2026-05-01T10:12:30Z",
+        score: 30,
+      },
+      { checkpoint_id: CHECKPOINTS[1].id, checkpoint_order: 2, status: "pending", score: null },
+    ],
     last_checkpoint_number: 1,
     current_checkpoint_number: 2,
     resolved_checkpoint_orders: [1],

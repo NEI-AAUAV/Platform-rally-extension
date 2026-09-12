@@ -16,7 +16,7 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import ActivityResult
@@ -143,3 +143,36 @@ async def load_checkpoint_progress(
         results=results,
         hide_scores=hide_scores,
     )
+
+
+def last_arrived_at(rows: Sequence[CheckpointProgress]) -> datetime | None:
+    """The team's most recent arrival anywhere on the route."""
+    return max((r.arrived_at for r in rows if r.arrived_at is not None), default=None)
+
+
+def last_checkpoint_score(rows: Sequence[CheckpointProgress]) -> int | None:
+    """Score of the furthest post (by route order) that scored non-zero.
+
+    Same contract the positional ``Team.last_checkpoint_score`` had: 0 when the
+    route exists but nothing scored yet, ``None`` for an empty route.
+    """
+    for row in reversed(rows):
+        if row.score:
+            return row.score
+    return 0 if rows else None
+
+
+async def team_started_at(db: AsyncSession, team_id: int) -> datetime | None:
+    """The team's first recorded arrival, or ``None`` before it reached a post."""
+    value: datetime | None = await db.scalar(
+        select(func.min(CheckpointArrival.arrived_at)).where(CheckpointArrival.team_id == team_id)
+    )
+    return value
+
+
+async def team_last_arrived_at(db: AsyncSession, team_id: int) -> datetime | None:
+    """The team's latest recorded arrival, or ``None`` before it reached a post."""
+    value: datetime | None = await db.scalar(
+        select(func.max(CheckpointArrival.arrived_at)).where(CheckpointArrival.team_id == team_id)
+    )
+    return value

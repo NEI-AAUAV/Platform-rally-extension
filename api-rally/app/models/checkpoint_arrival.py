@@ -1,12 +1,24 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.config import settings
 from app.models.base import Base
+
+# ``gps`` a geofenced fix, ``guide`` a guide vouching on the spot, ``qr`` a
+# team scanning the post's code, ``staff`` implied by a staff evaluation.
+ArrivalSource = Literal["gps", "guide", "qr", "staff"]
 
 if TYPE_CHECKING:
     from app.models.checkpoint import CheckPoint
@@ -17,6 +29,10 @@ class CheckpointArrival(Base):
     __tablename__ = "checkpoint_arrivals"
     __table_args__: Any = (
         UniqueConstraint("team_id", "checkpoint_id", name="uq_arrival_team_checkpoint"),
+        CheckConstraint(
+            "source IS NULL OR source IN ('gps', 'guide', 'qr', 'staff')",
+            name="ck_arrival_source",
+        ),
         {"schema": settings.SCHEMA_NAME},
     )
 
@@ -38,6 +54,9 @@ class CheckpointArrival(Base):
     )
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # How the arrival was proven. NULL for rows recorded before the column
+    # existed. See ``ArrivalSource``.
+    source: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     team: Mapped["Team"] = relationship("Team")
     checkpoint: Mapped["CheckPoint"] = relationship("CheckPoint")

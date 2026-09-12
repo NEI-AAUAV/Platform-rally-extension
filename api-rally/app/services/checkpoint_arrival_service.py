@@ -17,7 +17,7 @@ from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint import CheckPoint
-from app.models.checkpoint_arrival import CheckpointArrival
+from app.models.checkpoint_arrival import ArrivalSource, CheckpointArrival
 from app.models.dynamic_scoring import DynamicAward
 from app.models.rally_settings import RallySettings
 from app.models.team import Team
@@ -153,7 +153,11 @@ class CheckpointArrivalService:
         await self._require_open(team_obj=team_obj, checkpoint=checkpoint, settings=settings)
 
         arrival = await self._insert_arrival(
-            team_id=team_id, checkpoint_id=checkpoint_id, latitude=None, longitude=None
+            team_id=team_id,
+            checkpoint_id=checkpoint_id,
+            latitude=None,
+            longitude=None,
+            source="guide",
         )
         if arrival is not None:
             await self._award_leg_time(
@@ -172,6 +176,7 @@ class CheckpointArrivalService:
         checkpoint_id: int,
         latitude: float | None,
         longitude: float | None,
+        source: ArrivalSource,
     ) -> CheckpointArrival | None:
         """Idempotent insert. Returns the created row, or None when an
         arrival for this (team, checkpoint) pair already existed."""
@@ -183,6 +188,7 @@ class CheckpointArrivalService:
             checkpoint_id=checkpoint_id,
             latitude=latitude,
             longitude=longitude,
+            source=source,
         )
         self._db.add(arrival)
         try:
@@ -332,6 +338,7 @@ class CheckpointArrivalService:
             checkpoint_id=checkpoint_id,
             latitude=latitude,
             longitude=longitude,
+            source="gps",
         )
         if arrival is not None:
             await self._award_leg_time(

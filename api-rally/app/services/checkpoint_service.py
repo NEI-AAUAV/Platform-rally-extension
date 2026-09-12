@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from pydantic import TypeAdapter
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -483,12 +483,10 @@ class CheckpointService:
         answered False for the whole event and let posts be published or
         drafted — firing a resequence — while teams were mid-route. Every path
         now records an arrival (``checkpoint_visits``), but the other signals
-        stay: a skip, a scored result, or any recorded visit counts just the
-        same.
+        stay: a skip or a scored result counts just the same.
         """
         event_id = await current_event_id(self._db)
         event_posts = select(CheckPoint.id).where(CheckPoint.event_id == event_id)
-        event_teams = Team.event_id == event_id
 
         signals = (
             select(CheckpointArrival.id).where(CheckpointArrival.checkpoint_id.in_(event_posts)),
@@ -496,7 +494,6 @@ class CheckpointService:
             select(ActivityResult.id)
             .join(Activity, Activity.id == ActivityResult.activity_id)
             .where(Activity.checkpoint_id.in_(event_posts)),
-            select(Team.id).where(event_teams, func.cardinality(Team.times) > 0),
         )
         for stmt in signals:
             if await self._db.scalar(stmt.limit(1)):

@@ -15,6 +15,7 @@ from app.schemas.pace import PaceRanking, TeamPaceEntry
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.pace_service import compute_paces
+from app.services.team_checkpoint_progress import team_started_at
 from app.services.visibility_policy import public_listing_allowed, scores_are_hidden
 from app.utils.rally_duration import (
     format_duration,
@@ -88,13 +89,13 @@ class RallyDurationController:
         """
         validate_settings_view_access(curr_user, auth)
 
-        # Get team's first checkpoint time as start time
+        # The team's first recorded arrival is its start time.
         team_obj = await team.get(db=db, id=team_id)
+        team_start_time = await team_started_at(db, team_id) if team_obj else None
 
-        if not team_obj or not team_obj.times:
+        if team_start_time is None:
             raise RallyNotFoundError("Team not found or has no checkpoint times")
 
-        team_start_time = team_obj.times[0]  # First checkpoint time
         return await get_team_duration_info(db, team_start_time)
 
     async def get_pace_ranking(

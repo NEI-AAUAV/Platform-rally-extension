@@ -10,7 +10,11 @@ rows (arrivals, skips, results), so reordering the route cannot remap it.
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from app.services.team_checkpoint_progress import build_checkpoint_progress
+from app.services.team_checkpoint_progress import (
+    build_checkpoint_progress,
+    last_arrived_at,
+    last_checkpoint_score,
+)
 
 T0 = datetime(2026, 5, 1, 10, 0, tzinfo=UTC)
 
@@ -149,3 +153,35 @@ class TestBuildCheckpointProgress:
 
         assert rows[0].status == "completed"
         assert rows[0].score is None
+
+
+class TestSummaries:
+    def _rows(self, scores_by_order, arrivals_by_order=None):
+        arrivals_by_order = arrivals_by_order or {}
+        checkpoints = [_cp(100 + o, o) for o in scores_by_order]
+        activities = {100 + o: [_act(o, 100 + o)] for o in scores_by_order}
+        results = [_result(o, s) for o, s in scores_by_order.items() if s is not None]
+        return build_checkpoint_progress(
+            checkpoints=checkpoints,
+            activities=activities,
+            arrivals={100 + o: t for o, t in arrivals_by_order.items()},
+            skips={},
+            results=results,
+        )
+
+    def test_last_score_is_furthest_nonzero_post(self) -> None:
+        rows = self._rows({1: 7.0, 2: 5.0, 3: None})
+
+        assert last_checkpoint_score(rows) == 5
+
+    def test_last_score_zero_when_nothing_scored(self) -> None:
+        assert last_checkpoint_score(self._rows({1: None, 2: None})) == 0
+
+    def test_last_score_none_for_empty_route(self) -> None:
+        assert last_checkpoint_score([]) is None
+
+    def test_last_arrived_at_is_latest_regardless_of_order(self) -> None:
+        late = T0.replace(hour=15)
+        rows = self._rows({1: None, 2: None}, arrivals_by_order={1: late, 2: T0})
+
+        assert last_arrived_at(rows) == late

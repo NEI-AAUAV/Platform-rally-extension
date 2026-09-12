@@ -678,3 +678,45 @@ async def test_manual_arrival_out_of_order_is_rejected_and_nothing_is_written(pg
         )
     ).all()
     assert arrivals == []
+
+
+async def _arrival_sources(pg_session, team_id: int) -> list[str | None]:
+    stmt = (
+        select(CheckpointArrival.source)
+        .where(CheckpointArrival.team_id == team_id)
+        .execution_options(populate_existing=True)
+    )
+    return list((await pg_session.scalars(stmt)).all())
+
+
+async def test_gps_arrival_records_its_source(pg_session, pg_client):
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1)
+    team = await _make_team(pg_session)
+    await _make_activity(pg_session, checkpoint.id)
+
+    with as_team(team.id, "TeamA"):
+        resp = pg_client.post(
+            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
+            json={"latitude": 41.000045, "longitude": -8.0},
+        )
+
+    assert resp.status_code == 200, resp.text
+    assert await _arrival_sources(pg_session, team.id) == ["gps"]
+
+
+async def test_manual_arrival_records_guide_source(pg_session):
+    from app import crud
+    from app.crud.crud_rally_settings import rally_settings
+    from app.services.checkpoint_arrival_service import CheckpointArrivalService
+
+    await _make_event(pg_session)
+    checkpoint = await _make_checkpoint(pg_session, order=1)
+    team = await _make_team(pg_session)
+    await _make_activity(pg_session, checkpoint.id)
+    await rally_settings.get_or_create(pg_session)
+
+    service = CheckpointArrivalService(pg_session, crud.checkpoint, crud.team)
+    assert await service.record_manual_arrival(team_id=team.id, checkpoint_id=checkpoint.id)
+
+    assert await _arrival_sources(pg_session, team.id) == ["guide"]
