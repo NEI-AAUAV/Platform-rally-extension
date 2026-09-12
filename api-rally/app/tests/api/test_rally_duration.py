@@ -8,6 +8,8 @@ from datetime import UTC, datetime, timedelta
 
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team as crud_team
+from app.models.checkpoint import CheckPoint
+from app.models.checkpoint_arrival import CheckpointArrival
 from app.schemas.team import TeamCreate
 from app.tests.conftest import make_event as _make_event
 
@@ -50,9 +52,17 @@ class TestRallyDurationAPI:
         event = await _make_event(pg_session)
         await _activate_rally(pg_session, event)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="TeamA"))
-        # times is TIMESTAMP WITHOUT TIME ZONE — naive datetime required.
-        team.times = [datetime.now(UTC) - timedelta(minutes=30)]
-        pg_session.add(team)
+        checkpoint = CheckPoint(name="Posto 1", order=1, event_id=event.id)
+        pg_session.add(checkpoint)
+        await pg_session.flush()
+        # The team's start is its first recorded arrival.
+        pg_session.add(
+            CheckpointArrival(
+                team_id=team.id,
+                checkpoint_id=checkpoint.id,
+                arrived_at=datetime.now(UTC) - timedelta(minutes=30),
+            )
+        )
         await pg_session.commit()
 
         resp = pg_client.get(f"/api/rally/v1/rally/team-duration/{team.id}")

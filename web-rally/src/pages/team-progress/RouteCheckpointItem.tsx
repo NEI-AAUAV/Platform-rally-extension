@@ -3,6 +3,7 @@ import { Lock, Camera, Sparkles, Check } from "lucide-react";
 import { formatTime } from "@/utils/timeFormat";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import { cn } from "@/lib/utils";
+import { checkpointArrivedAt, checkpointScoreFor } from "@/lib/checkpointProgress";
 import { CheckpointDiscoveryModal } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 import { useCheckpointArrival } from "./useCheckpointArrival";
@@ -214,7 +215,7 @@ export default function RouteCheckpointItem({
   const isFuture = !isCompleted && !isCurrent;
   const arrival = useCheckpointArrival(checkpoint);
 
-  const checkpointScore = isCompleted ? (team.score_per_checkpoint?.[order - 1] ?? 0) : 0;
+  const checkpointScore = isCompleted ? checkpointScoreFor(team, checkpoint.id) : 0;
   // What the server actually revealed, not what the client guessed. A post the
   // team has arrived at is un-redacted even while its activity is unscored, and
   // the arithmetic version called that "future" — so the gallery request was
@@ -285,7 +286,7 @@ export default function RouteCheckpointItem({
             hasDiscovery={hasDiscovery}
             showScore={showScore}
             checkpointScore={checkpointScore}
-            teamTime={team.times[order - 1]}
+            teamTime={checkpointArrivedAt(team, checkpoint.id)}
           />
         </CardElement>
 

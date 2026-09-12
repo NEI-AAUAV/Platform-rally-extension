@@ -20,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_team import team as team_crud
-from app.models.checkpoint_arrival import CheckpointArrival
+from app.models.checkpoint_arrival import ArrivalSource, CheckpointArrival
 from app.models.team import Team
 from app.schemas.team import TeamScoresUpdate
 
@@ -32,6 +32,7 @@ async def insert_arrival(
     checkpoint_id: int,
     latitude: float | None = None,
     longitude: float | None = None,
+    source: ArrivalSource | None = None,
     commit: bool = True,
 ) -> CheckpointArrival | None:
     """Idempotent insert. Returns the created row, or ``None`` when an arrival
@@ -56,6 +57,7 @@ async def insert_arrival(
         checkpoint_id=checkpoint_id,
         latitude=latitude,
         longitude=longitude,
+        source=source,
     )
     if commit:
         db.add(arrival)
@@ -87,6 +89,7 @@ async def record_visit(
     checkpoint_id: int,
     latitude: float | None = None,
     longitude: float | None = None,
+    source: ArrivalSource | None = None,
     enforce_order: bool = True,
     commit: bool = True,
 ) -> bool:
@@ -118,6 +121,7 @@ async def record_visit(
         checkpoint_id=checkpoint_id,
         latitude=latitude,
         longitude=longitude,
+        source=source,
         commit=False,
     )
     if arrival is None:

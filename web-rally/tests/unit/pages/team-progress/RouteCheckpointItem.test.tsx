@@ -33,9 +33,25 @@ const checkpoint = {
   description: "Descrição",
 } as DetailedCheckPoint;
 
+// Progress is keyed by checkpoint id. Post 2 is listed first on purpose: the
+// lookup must not depend on array position.
 const team = {
-  score_per_checkpoint: [10, 20],
-  times: ["2024-01-01T10:00:00Z", "2024-01-01T11:00:00Z"],
+  checkpoints: [
+    {
+      checkpoint_id: 2,
+      checkpoint_order: 2,
+      status: "completed",
+      arrived_at: "2024-01-01T11:00:00Z",
+      score: 20,
+    },
+    {
+      checkpoint_id: 1,
+      checkpoint_order: 1,
+      status: "completed",
+      arrived_at: "2024-01-01T10:00:00Z",
+      score: 10,
+    },
+  ],
 } as DetailedTeam;
 
 describe("RouteCheckpointItem", () => {
