@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import {
   listCheckpointMedia,
   createCheckpointMedia,
@@ -104,7 +105,7 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> A carregar…
+          <Spinner size="sm" label="" /> A carregar…
         </div>
       ) : (
         media.length > 0 && (
@@ -157,11 +158,7 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
           onClick={() => addMedia.mutate()}
           disabled={!canSubmit}
         >
-          {addMedia.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
+          {addMedia.isPending ? <Spinner size="sm" label="" /> : <Plus className="h-4 w-4" />}
           <span className="ml-1.5">Adicionar</span>
         </BloodyButton>
       </div>

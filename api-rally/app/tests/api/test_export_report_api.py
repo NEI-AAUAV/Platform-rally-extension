@@ -54,7 +54,7 @@ async def test_report_skips_photo_with_disallowed_host_without_failing(
 ):
     """A photo_url pointing outside the configured R2 bucket (bad data, or a
     future field that accepts an arbitrary URL) must not crash report
-    generation — see PdfReportService._is_safe_photo_url."""
+    generation — see app.services.report.photos.is_safe_photo_url."""
     seed = await _seed_event(pg_session)
     seed["team_a"].photo_url = "https://example.invalid/does-not-exist.png"
     await pg_session.commit()
@@ -74,11 +74,11 @@ async def test_report_skips_photo_that_fails_to_download_without_failing(
 
     with (
         patch(
-            "app.services.pdf_report_service.PdfReportService._is_safe_photo_url",
+            "app.services.report.photos.is_safe_photo_url",
             return_value=True,
         ),
         patch(
-            "app.services.pdf_report_service.requests.get",
+            "app.services.report.photos.requests.get",
             side_effect=requests.exceptions.ConnectionError("simulated network failure"),
         ),
     ):

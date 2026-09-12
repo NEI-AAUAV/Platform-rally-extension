@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { ImagePlus } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { uploadClueImage } from "@/client";
 import { BloodyButton } from "@/components/themes/bloody";
 import { getErrorMessage } from "@/utils/errorHandling";
@@ -107,11 +108,7 @@ export default function ClueImageField({
         onClick={() => fileInputRef.current?.click()}
         disabled={isUploading}
       >
-        {isUploading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <ImagePlus className="h-4 w-4" />
-        )}
+        {isUploading ? <Spinner size="sm" label="" /> : <ImagePlus className="h-4 w-4" />}
         <span className="ml-1.5">{displayUrl ? "Substituir imagem" : "Enviar imagem"}</span>
       </BloodyButton>
     </div>

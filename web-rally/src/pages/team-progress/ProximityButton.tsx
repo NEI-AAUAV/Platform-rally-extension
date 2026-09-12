@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Compass, Loader2, Thermometer } from "lucide-react";
+import { Compass, Thermometer } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { readCheckpointProximity, type ProximityReading } from "@/client";
 import { getErrorMessage } from "@/utils/errorHandling";
 
@@ -98,7 +99,7 @@ export default function ProximityButton({ checkpointId }: Props) {
       >
         {busy ? (
           <span className="flex items-center justify-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />A medir…
+            <Spinner size="sm" label="" />A medir…
           </span>
         ) : (
           "Verificar distância"

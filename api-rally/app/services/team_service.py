@@ -239,7 +239,7 @@ class TeamService:
                 time_score=obj_in.time_score,
                 pukes=obj_in.pukes,
                 skips=obj_in.skips,
-                at=current_time.replace(tzinfo=None),
+                at=current_time,
             )
 
         if commit:

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, ImagePlus, Loader2 } from "lucide-react";
+import { AlertCircle, ImagePlus } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { getActivities, getCheckpoints, type BadgeDefinitionResponse } from "@/client";
 import { useBadgeDefinitionMutations } from "@/hooks/useBadgeAdmin";
 import { apiErrorMessage } from "@/lib/apiError";
@@ -374,9 +375,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
           disabled={!canSubmit || mutation.isPending || uploadIcon.isPending}
           onClick={handleSubmit}
         >
-          {(mutation.isPending || uploadIcon.isPending) && (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          )}
+          {(mutation.isPending || uploadIcon.isPending) && <Spinner size="sm" label="" />}
           {isEdit ? "Guardar" : "Criar"}
         </button>
         <button

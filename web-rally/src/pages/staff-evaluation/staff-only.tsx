@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Loader2 } from "lucide-react";
+import { Activity } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { useUserStore } from "@/stores/useUserStore";
 import { useNavigate } from "@tanstack/react-router";
 import { getMyCheckpoint } from "@/client";
@@ -44,7 +45,7 @@ export default function StaffEvaluationPage() {
 
   return (
     <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-10 text-center">
-      <Loader2 className="rally-accent mx-auto mb-4 h-10 w-10 animate-spin" />
+      <Spinner size="lg" className="rally-accent mx-auto mb-4" label="" />
       <p className="text-sm text-muted-foreground">
         A redirecionar para a avaliação do teu posto...
       </p>

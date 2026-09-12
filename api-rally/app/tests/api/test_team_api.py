@@ -225,10 +225,26 @@ class TestGetTeamById:
     async def test_get_team_by_id_requires_authentication(self, pg_session, pg_client):
         await _make_event(pg_session)
         team = await _make_team(pg_session, "Private")
+        await set_rally_settings(pg_session, public_access_enabled=False)
 
         resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
 
         assert resp.status_code in (401, 403), resp.text
+
+    async def test_get_team_by_id_is_public_with_live_public_listing(self, pg_session, pg_client):
+        await _make_event(pg_session)
+        team = await _make_team(pg_session, "Public")
+        await set_rally_settings(
+            pg_session,
+            public_access_enabled=True,
+            show_live_leaderboard=True,
+            show_team_details=True,
+        )
+
+        resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["access_code"] is None
 
     async def test_get_team_by_id_never_leaks_access_code(self, pg_session, pg_client):
         await _make_event(pg_session)

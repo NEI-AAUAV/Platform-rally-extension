@@ -48,8 +48,11 @@ class Team(Base):
     # All arrays are wrapped in MutableList so in-place .append() (e.g. in
     # crud_team.add_checkpoint) marks the column dirty; plain ARRAY columns
     # silently lose in-place mutations.
+    # Instants, not wall-clock: a naive column served offset-less strings that
+    # every browser read as *local* time, so a check-in printed an hour early
+    # wherever the API's UTC differed from the viewer's zone (see 0061).
     times: Mapped[list[datetime]] = mapped_column(
-        MutableList.as_mutable(ARRAY(DateTime(timezone=False))), default=list
+        MutableList.as_mutable(ARRAY(DateTime(timezone=True))), default=list
     )
 
     score_per_checkpoint: Mapped[list[int]] = mapped_column(

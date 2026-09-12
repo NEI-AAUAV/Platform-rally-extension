@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, Award, Loader2, Trash2 } from "lucide-react";
+import { AlertCircle, Award, Trash2 } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import { getTeams, type BadgeDefinitionResponse } from "@/client";
 import { useBadgeAwardMutations } from "@/hooks/useBadgeAdmin";
 import { useTeamBadges } from "@/hooks/useBadges";
@@ -105,7 +106,7 @@ export default function ManualAwardPanel({ definitions }: Readonly<ManualAwardPa
         disabled={!numericTeamId || !badgeCode || award.isPending}
         onClick={handleAward}
       >
-        {award.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+        {award.isPending && <Spinner size="sm" label="" />}
         Atribuir crachá
       </button>
 

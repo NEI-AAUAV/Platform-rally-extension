@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState, type MouseEvent } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useColorMode } from "./useColorMode";
 
 interface ColorModeToggleProps {
@@ -15,6 +15,7 @@ const SCALE = VIEWBOX_HEIGHT / SVG_HEIGHT;
 /** Pull-cord lamp switch: drag the cord down to toggle, bulb glows on light mode. */
 export function ColorModeToggle({ className = "" }: ColorModeToggleProps) {
   const { mode, toggle } = useColorMode();
+  const lampRef = useRef<SVGSVGElement>(null);
   const isOn = mode === "light";
   const next = isOn ? "escuro" : "claro";
 
@@ -22,6 +23,17 @@ export function ColorModeToggle({ className = "" }: ColorModeToggleProps) {
   const startY = useRef(0);
   const [pull, setPull] = useState(0);
   const [snapping, setSnapping] = useState(false);
+
+  // A pull ends on the cord's bead, but the reveal belongs to the bulb.  Use
+  // the bulb's stable position inside the SVG for both click and pull paths.
+  const toggleFromLamp = useCallback(() => {
+    const rect = lampRef.current?.getBoundingClientRect();
+    toggle(
+      rect
+        ? { clientX: rect.left + rect.width / 2, clientY: rect.top + (rect.height * 21) / 44 }
+        : undefined,
+    );
+  }, [toggle]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
@@ -37,27 +49,21 @@ export function ColorModeToggle({ className = "" }: ColorModeToggleProps) {
     setPull(Math.max(0, Math.min(delta, PULL_MAX)));
   }, []);
 
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragging.current) return;
-      dragging.current = false;
-      setSnapping(true);
+  const handlePointerUp = useCallback(() => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    setSnapping(true);
 
-      if (pull > PULL_THRESHOLD) {
-        toggle({ clientX: e.clientX, clientY: e.clientY });
-      }
-      setPull(0);
-    },
-    [pull, toggle],
-  );
+    if (pull > PULL_THRESHOLD) {
+      toggleFromLamp();
+    }
+    setPull(0);
+  }, [pull, toggleFromLamp]);
 
-  const handleClick = useCallback(
-    (e: MouseEvent) => {
-      if (pull > 0) return;
-      toggle({ clientX: e.clientX, clientY: e.clientY });
-    },
-    [pull, toggle],
-  );
+  const handleClick = useCallback(() => {
+    if (pull > 0) return;
+    toggleFromLamp();
+  }, [pull, toggleFromLamp]);
 
   return (
     <div
@@ -66,6 +72,7 @@ export function ColorModeToggle({ className = "" }: ColorModeToggleProps) {
       title={`Modo ${next}`}
     >
       <svg
+        ref={lampRef}
         viewBox="0 -6 32 44"
         width="26"
         height="36"

@@ -35,6 +35,7 @@ vi.mock("@/hooks/useCheckpointHints", () => ({
 }));
 vi.mock("@/client", () => ({ arriveAtCheckpoint: vi.fn() }));
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   CheckpointDiscovery: ({ description }: { description?: string | null }) => (
     <div data-testid="discovery">{description}</div>
   ),

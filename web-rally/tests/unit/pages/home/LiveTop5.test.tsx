@@ -53,6 +53,7 @@ vi.mock("framer-motion", () => ({
 }));
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   FreshnessIndicator: () => <div>Freshness</div>,
 }));
 

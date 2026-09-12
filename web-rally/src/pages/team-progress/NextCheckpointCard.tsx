@@ -4,13 +4,12 @@ import {
   CheckCircle2,
   AlertCircle,
   CloudOff,
-  Loader2,
   Sparkles,
   Lightbulb,
 } from "lucide-react";
+import { CheckpointDiscovery, Spinner } from "@/components/shared";
 import { useState } from "react";
 import type { DetailedCheckPoint } from "@/client";
-import { CheckpointDiscovery } from "@/components/shared";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,7 +57,7 @@ function ButtonContent({ gpsState, isPending }: { gpsState: GpsState; isPending:
   if (gpsState === "locating" || isPending) {
     return (
       <>
-        <Loader2 className="h-5 w-5 animate-spin" />A localizar…
+        <Spinner size="sm" label="" />A localizar…
       </>
     );
   }

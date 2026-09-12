@@ -214,4 +214,22 @@ describe("QRCodeScanner", () => {
     );
     expect(container.querySelector(".my-custom-class")).toBeInTheDocument();
   });
+
+  it("starts scanning from the playing event when play() never settles", async () => {
+    // Installed iOS PWAs can leave the play() promise pending forever even
+    // though playback starts. Only the element's own event tells us the truth.
+    HTMLMediaElement.prototype.play = vi.fn().mockReturnValue(new Promise<void>(() => {}));
+    const stream = { getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream;
+    mockGetUserMedia(async () => stream);
+
+    const { container } = render(<QRCodeScanner onScan={vi.fn()} isOpen />);
+
+    await waitFor(() => expect(HTMLMediaElement.prototype.play).toHaveBeenCalled());
+    expect(h.startScanning).not.toHaveBeenCalled();
+
+    const video = container.querySelector("video") as HTMLVideoElement;
+    fireEvent.playing(video);
+
+    expect(h.startScanning).toHaveBeenCalled();
+  });
 });

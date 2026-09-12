@@ -144,7 +144,7 @@ async def test_can_buy_hints_for_the_post_being_hunted_after_an_advance(pg_sessi
     await set_rally_settings(pg_session, checkpoint_order_matters=True)
 
     # Post 1 resolved (arrival row); team.times inflated to 2 by the advance pointer.
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=first.id, arrived_at=now))
     team.times = [now, now]
     pg_session.add(team)
@@ -178,7 +178,7 @@ async def test_can_hint_current_post_with_a_later_post_resolved_ahead(pg_session
     await _make_indications(pg_session, cps[3].id, count=1)
     await set_rally_settings(pg_session, checkpoint_order_matters=True)
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     for cp in cps[:3]:
         pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=cp.id, arrived_at=now))
     pg_session.add(CheckpointSkip(team_id=team.id, checkpoint_id=cps[4].id, cost=0))
@@ -209,7 +209,7 @@ async def test_free_choice_allows_any_unresolved_post_and_refuses_resolved(pg_se
     await _make_indications(pg_session, third.id, count=1)
     await set_rally_settings(pg_session, checkpoint_order_matters=False)
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=first.id, arrived_at=now))
     pg_session.add(team)
     await pg_session.commit()

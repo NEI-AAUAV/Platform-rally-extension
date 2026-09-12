@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Compass, HelpCircle, CheckCircle2, Trash2, Loader2, Plus } from "lucide-react";
+import { Compass, HelpCircle, CheckCircle2, Trash2, Plus } from "lucide-react";
+import { Spinner } from "@/components/shared";
 import {
   listGuideIndications,
   createGuideIndication,
@@ -149,11 +150,7 @@ export default function CheckpointGuideIndicationsManager({ checkpointId }: Prop
           onClick={handleAdd}
           disabled={addIndication.isPending || !hint.trim()}
         >
-          {addIndication.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
+          {addIndication.isPending ? <Spinner size="sm" label="" /> : <Plus className="h-4 w-4" />}
           <span className="ml-1.5">Adicionar indicação</span>
         </BloodyButton>
       </div>

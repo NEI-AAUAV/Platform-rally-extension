@@ -424,7 +424,19 @@ jobs:
 
     - name: Start api-rally smoke stack
       working-directory: api-rally
-      run: docker compose -f docker-compose.smoke.yml up -d postgres redis fake-oidc api
+      # Retried because image pulls are the flaky part: shared runner IPs
+      # periodically exhaust anonymous registry limits and the pull fails
+      # with "unauthorized: authentication required". Pull first so a retry
+      # costs a pull, not a container restart.
+      run: |
+        for attempt in 1 2 3; do
+          if docker compose -f docker-compose.smoke.yml pull --quiet postgres redis; then
+            break
+          fi
+          echo "image pull attempt $attempt failed; retrying in 15s"
+          sleep 15
+        done
+        docker compose -f docker-compose.smoke.yml up -d postgres redis fake-oidc api
 
     - name: Wait for api-rally to become healthy
       working-directory: api-rally

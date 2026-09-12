@@ -119,12 +119,19 @@ test.describe("Fase 3: Matriz Completa de Toggles e Configurações ON / OFF", (
 
 async function saveSettings(adminPage: Page): Promise<void> {
   const saveBtn = adminPage.getByRole("button", { name: /Guardar/i });
-  if (await saveBtn.isVisible().catch(() => false)) {
-    await saveBtn.click();
-    await expect(
-      adminPage.getByText(/Configurações atualizadas com sucesso|Configurações guardadas/i),
-    ).toBeVisible({ timeout: 15_000 });
+  if (!(await saveBtn.isVisible().catch(() => false))) {
+    return;
   }
+  const toast = adminPage.getByText(
+    /Configurações atualizadas com sucesso|Configurações guardadas/i,
+  );
+  // Toasts stack, so a leftover one from the previous save both makes this
+  // locator strict-mode ambiguous and would satisfy the assertion below
+  // without this save having succeeded. Let it fade first, then assert on the
+  // one this click raises.
+  await expect(toast).toHaveCount(0, { timeout: 15_000 });
+  await saveBtn.click();
+  await expect(toast.first()).toBeVisible({ timeout: 15_000 });
 }
 
 async function setSwitch(adminPage: Page, id: string, targetValue: boolean): Promise<void> {

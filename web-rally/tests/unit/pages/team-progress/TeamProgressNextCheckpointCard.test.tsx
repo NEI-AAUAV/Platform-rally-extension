@@ -45,6 +45,7 @@ vi.mock("@/client", () => ({
 }));
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   CheckpointDiscovery: () => <div data-testid="discovery" />,
 }));
 

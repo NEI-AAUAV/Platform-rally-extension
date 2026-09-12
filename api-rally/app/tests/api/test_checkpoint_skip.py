@@ -151,7 +151,7 @@ async def test_can_give_up_on_the_post_being_hunted_after_an_advance(pg_session,
     third = await _make_checkpoint(pg_session, order=3, event_id=event.id)
     team = await make_team(pg_session, event_id=event.id)
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=first.id, arrived_at=now))
     team.times = [now, now]
     pg_session.add(team)
@@ -185,7 +185,7 @@ async def test_can_give_up_current_post_with_a_later_post_resolved_ahead(pg_sess
     team = await make_team(pg_session, event_id=event.id)
     await set_rally_settings(pg_session, checkpoint_order_matters=True)
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     for cp in cps[:3]:
         pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=cp.id, arrived_at=now))
     pg_session.add(CheckpointSkip(team_id=team.id, checkpoint_id=cps[4].id, cost=0))

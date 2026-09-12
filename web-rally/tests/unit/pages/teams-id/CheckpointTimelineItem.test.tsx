@@ -6,6 +6,7 @@ import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import type { EvaluationResult } from "@/pages/teams/[id]/teamDetails.types";
 
 vi.mock("@/components/shared", () => ({
+  Spinner: () => <div data-testid="spinner" />,
   CheckpointDiscovery: () => <div data-testid="discovery" />,
   ProvisionalBadge: () => <span data-testid="provisional">*</span>,
 }));
