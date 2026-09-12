@@ -12,7 +12,7 @@ from app.services.scoring_service import ScoringService
 def _mock_db_with_team() -> AsyncMock:
     db = AsyncMock()
     # A team with no checkpoints/results: total resolves to 0, no array work.
-    db.get.return_value = SimpleNamespace(id=5, total=0, score_per_checkpoint=[], times=[])
+    db.get.return_value = SimpleNamespace(id=5, total=0)
     scalars_result = MagicMock()
     scalars_result.all.return_value = []
     db.scalars.return_value = scalars_result

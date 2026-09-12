@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from pydantic import TypeAdapter
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, union, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -207,8 +207,8 @@ class CheckpointService:
         shortcut around list redaction otherwise — same rule applies here).
 
         "Next" is the first post not yet resolved (arrival / skip / scored
-        activity), matching ``compute_checkpoint_progress`` — not
-        ``len(team.times)``, which the staff-eval advance inflates by one.
+        activity), matching ``compute_checkpoint_progress`` — not a visit
+        count.
 
         ``redact=False`` is the staff/admin bypass: the post is returned
         exactly as stored.
@@ -463,55 +463,79 @@ class CheckpointService:
             checkpoints=validated,
         )
 
-    async def _event_has_started(self) -> bool:
-        """Whether any team has already checked in **in the current edition**.
+    def _progress_signals(self, checkpoint_ids: Any) -> tuple[Any, ...]:
+        """One ``SELECT checkpoint_id`` per kind of recorded progress.
 
-        Publishing or drafting a post renumbers the route, and progress is
-        positional (``team.times`` is indexed by order), so moving posts
-        around under a team that has already walked part of the route would
-        silently rewrite where it has been.
-
-        Scoped to the current event's posts, which it originally was not: an
-        unfiltered "does any arrival exist" is true forever once a single
-        edition has run, so from the second year on nobody could publish or
-        unpublish a draft post while planning the next route. The rule is
-        about *this* edition's teams being under way, not about the
-        organization ever having run an event.
-
-        "Under way" is more than a GPS arrival. Back when staff evaluation
-        wrote no ``CheckpointArrival`` at all, a rally run purely that way
-        answered False for the whole event and let posts be published or
-        drafted — firing a resequence — while teams were mid-route. Every path
-        now records an arrival (``checkpoint_visits``), but the other signals
-        stay: a skip or a scored result counts just the same.
+        A team is under way at a post if it arrived there, gave it up, or has
+        an activity result for it. Progress is keyed by checkpoint id, so these
+        rows are what a route edit must not orphan or reorder a team past.
         """
-        event_id = await current_event_id(self._db)
-        event_posts = select(CheckPoint.id).where(CheckPoint.event_id == event_id)
-
-        signals = (
-            select(CheckpointArrival.id).where(CheckpointArrival.checkpoint_id.in_(event_posts)),
-            select(CheckpointSkip.id).where(CheckpointSkip.checkpoint_id.in_(event_posts)),
-            select(ActivityResult.id)
-            .join(Activity, Activity.id == ActivityResult.activity_id)
-            .where(Activity.checkpoint_id.in_(event_posts)),
+        return (
+            select(CheckpointArrival.checkpoint_id).where(
+                CheckpointArrival.checkpoint_id.in_(checkpoint_ids)
+            ),
+            select(CheckpointSkip.checkpoint_id).where(
+                CheckpointSkip.checkpoint_id.in_(checkpoint_ids)
+            ),
+            select(Activity.checkpoint_id)
+            .join(ActivityResult, Activity.id == ActivityResult.activity_id)
+            .where(Activity.checkpoint_id.in_(checkpoint_ids)),
         )
-        for stmt in signals:
+
+    async def _checkpoint_has_progress(self, checkpoint_id: int) -> bool:
+        """Whether any team has recorded progress at this post."""
+        for stmt in self._progress_signals([checkpoint_id]):
             if await self._db.scalar(stmt.limit(1)):
                 return True
         return False
 
+    async def _highest_order_with_progress(self) -> int:
+        """The furthest route order any team of the current edition has
+        recorded progress at, or 0 before anyone has started.
+
+        Scoped to the current event's posts: last year's arrivals must not
+        constrain planning next year's route.
+        """
+        event_id = await current_event_id(self._db)
+        event_posts = select(CheckPoint.id).where(CheckPoint.event_id == event_id)
+        touched = union(*self._progress_signals(event_posts)).subquery()
+        highest = await self._db.scalar(
+            select(func.max(CheckPoint.order)).where(CheckPoint.id.in_(select(touched.c[0])))
+        )
+        return int(highest or 0)
+
     async def set_draft(self, checkpoint_id: int, *, is_draft: bool) -> AdminCheckPoint:
-        """Publish a draft post, or pull a published one back into planning."""
+        """Publish a draft post, or pull a published one back into planning.
+
+        Progress is keyed by checkpoint id, so renumbering the route no longer
+        rewrites where a team has been. What still matters mid-event is the
+        route itself:
+
+        * a post a team has recorded progress at cannot go back to draft —
+          that would hide the team's own arrival, skip or result;
+        * a draft may be published only where it lands after every post any
+          team has progress at. Landing earlier would put an unvisited post
+          behind teams already past it, which an ordered route then demands
+          they walk back to.
+        """
         checkpoint = await self._checkpoint_crud.get(db=self._db, id=checkpoint_id)
         if checkpoint.is_draft == is_draft:
             return AdminCheckPoint.model_validate(checkpoint)
-        if await self._event_has_started():
+        if is_draft and await self._checkpoint_has_progress(checkpoint_id):
             raise RallyValidationError(
-                "Cannot change a checkpoint's draft state after teams have started"
+                "Cannot move a checkpoint back to draft after a team has progress there"
             )
+        highest_with_progress = 0 if is_draft else await self._highest_order_with_progress()
         checkpoint.is_draft = is_draft
         await self._db.flush()
-        await self._checkpoint_crud.resequence(self._db, commit=True)
+        await self._checkpoint_crud.resequence(self._db, commit=False)
+        await self._db.refresh(checkpoint)
+        if not is_draft and checkpoint.order <= highest_with_progress:
+            await self._db.rollback()
+            raise RallyValidationError(
+                "Cannot publish a checkpoint before posts teams have already reached"
+            )
+        await self._db.commit()
         await self._db.refresh(checkpoint)
         return AdminCheckPoint.model_validate(checkpoint)
 
@@ -523,9 +547,9 @@ class CheckpointService:
 
         The route is renumbered afterwards, as it already is on create and on
         reorder. Deleting post 2 of 4 used to leave the orders as 1, 3, 4:
-        progress is read by order, ``current_order`` can then name a number no
-        post has, and ``get_by_order`` returning None made ``/checkpoint/me``
-        answer 404 for every team on the route."""
+        ``current_order`` could then name a number no post has, and
+        ``get_by_order`` returning None made ``/checkpoint/me`` answer 404 for
+        every team on the route."""
         await self._db.execute(
             delete(RallyStaffAssignment).where(RallyStaffAssignment.checkpoint_id == checkpoint_id)
         )

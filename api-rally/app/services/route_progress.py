@@ -10,10 +10,9 @@ keeps a stage rule, an opening hour and the plain sequential rule from
 contradicting each other on the same screen.
 
 The model works on **resolved orders** — the set of posts a team is done with —
-rather than on ``len(team.times)``. A count is enough only while the whole route
-is walked in sequence: a free-choice stage where the team picks three bars out
-of five breaks it, and so does the "next post" pointer that the staff-evaluation
-path appends to ``team.times`` for a post the team has not reached yet.
+rather than on a visit count. A count is enough only while the whole route is
+walked in sequence: a free-choice stage where the team picks three bars out of
+five breaks it.
 """
 
 from collections.abc import Mapping, Sequence

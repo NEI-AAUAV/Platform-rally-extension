@@ -288,12 +288,9 @@ class EventReportContext:
     def team_progress(self, team: Team) -> list[tuple[CheckPoint, datetime | None, float]]:
         """(checkpoint, arrival, score) in route order.
 
-        The arrival comes from `checkpoint_arrivals`, not from `Team.times`:
-        those two arrays use different indexing regimes — `times` is appended
-        in *visit* order by `Team.record_checkpoint`, while
-        `score_per_checkpoint` is rebuilt in *route* order by the scorer — so
-        lining them up by position silently mismatches any team that visited
-        out of order.
+        The arrival comes from `checkpoint_arrivals`, keyed by checkpoint id,
+        so a team that visited out of order is still paired with the right
+        post.
         """
         arrival_at = {
             a.checkpoint_id: a.arrived_at for a in self.results.arrivals if a.team_id == team.id

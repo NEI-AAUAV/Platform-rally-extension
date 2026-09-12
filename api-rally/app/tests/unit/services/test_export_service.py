@@ -461,8 +461,8 @@ async def test_member_without_an_oidc_subject_is_reported_as_unlinked():
 
 @pytest.mark.asyncio
 async def test_team_progress_uses_arrivals_not_the_positional_time_array():
-    """`Team.times` is appended in visit order while `score_per_checkpoint` is
-    rebuilt in route order, so progress must come from the arrival rows."""
+    """Progress is paired with posts through the arrival rows, keyed by
+    checkpoint id, never by array position."""
     arrival = SimpleNamespace(team_id=1, checkpoint_id=11, arrived_at=datetime(2026, 5, 1, 10, 0))
     wb = await _build(
         [_team(1, "A")],

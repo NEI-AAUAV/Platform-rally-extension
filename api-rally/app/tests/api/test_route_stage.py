@@ -132,9 +132,6 @@ class TestStageAwareArrival:
         # open: the arrival is refused outright and leaves no row behind, or
         # the no-activity post 2 would have resolved itself on the way past.
         assert response.status_code == 400, response.text
-        await pg_session.refresh(team)
-        assert team.times == []
-
         arrivals = (
             await pg_session.scalars(
                 select(CheckpointArrival).where(CheckpointArrival.team_id == team.id)
@@ -164,10 +161,14 @@ class TestStageAwareArrival:
             )
 
         assert response.status_code == 200, response.text
-        await pg_session.refresh(team)
-        # Advances: cp2's order (2) records against a team that skipped cp1
+        # Advances: the arrival at cp2 records against a team that skipped cp1
         # entirely, since the university stage required none of its posts.
-        assert len(team.times) == 1
+        arrivals = (
+            await pg_session.scalars(
+                select(CheckpointArrival).where(CheckpointArrival.team_id == team.id)
+            )
+        ).all()
+        assert [a.checkpoint_id for a in arrivals] == [cp2.id]
 
     async def test_a_post_outside_any_stage_falls_back_to_the_plain_rule(
         self, pg_session, pg_client, as_admin

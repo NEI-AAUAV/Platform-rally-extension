@@ -52,9 +52,9 @@ async def _make_activity(
     config: dict | None = None,
     with_checkpoint: bool = True,
 ) -> Activity:
-    # Most activities are checkpoint-scoped; that is what gives them a slot in
-    # score_per_checkpoint. Pass with_checkpoint=False for a *global* activity
-    # (D3): no slot, but its points still count toward team.total.
+    # Most activities are checkpoint-scoped; that is what gives them a
+    # per-checkpoint score. Pass with_checkpoint=False for a *global* activity
+    # (D3): no checkpoint, but its points still count toward team.total.
     # Every scoped row belongs to an edition; current_event_id bootstraps one.
     event_id = await current_event_id(db)
     checkpoint_id = None
@@ -184,7 +184,7 @@ async def test_total_counts_global_activity_without_checkpoint(pg_session):
 
     await pg_session.refresh(team)
     assert team.total == 65
-    _, _, raw_total = await ScoringService(pg_session)._checkpoint_scores_for_team(team.id)
+    raw_total = await ScoringService(pg_session)._results_total_for_team(team.id)
     assert raw_total == pytest.approx(65)
 
 
@@ -335,7 +335,7 @@ async def test_update_all_team_scores_noop_on_empty_list(pg_session):
     await svc.update_all_team_scores([])
 
 
-async def test_checkpoint_scores_skips_incomplete_and_global_results(pg_session):
+async def test_results_total_skips_incomplete_but_counts_global_results(pg_session):
     team = await _make_team(pg_session)
     cp = CheckPoint(name="CP", order=1, event_id=await current_event_id(pg_session))
     pg_session.add(cp)
@@ -378,10 +378,9 @@ async def test_checkpoint_scores_skips_incomplete_and_global_results(pg_session)
     await pg_session.commit()
 
     svc = ScoringService(pg_session)
-    checkpoint_scores, order_by_id, total = await svc._checkpoint_scores_for_team(team.id)
+    total = await svc._results_total_for_team(team.id)
 
     assert total == pytest.approx(25 + 99)
-    assert list(checkpoint_scores.values()) == [25]
 
 
 async def test_update_team_scores_wraps_commit_failure_in_rally_error(pg_session, monkeypatch):
@@ -488,18 +487,15 @@ async def _make_activity_on_checkpoint(db, checkpoint: CheckPoint) -> Activity:
     return activity
 
 
-async def test_score_per_checkpoint_keyed_by_id_not_order(pg_session):
-    """Each post gets its own slot, keyed by checkpoint id.
+async def test_per_checkpoint_scores_are_keyed_by_checkpoint_id(pg_session):
+    """Each post's score is read back by its id, so a reorder cannot move it.
 
-    This used to seed two posts sharing ``order`` to prove the slots were not
-    keyed by order. That state is unreachable now: ``uq_checkpoint_event_order``
-    is enforced per edition, and it only ever admitted duplicates because
-    legacy rows carried ``event_id NULL``, which Postgres treats as distinct.
-    The posts therefore get distinct orders, and
-    ``test_an_edition_rejects_two_posts_with_the_same_order`` covers the
-    constraint itself.
+    Posts get distinct orders: ``uq_checkpoint_event_order`` is enforced per
+    edition (see ``test_an_edition_rejects_two_posts_with_the_same_order``).
     """
-    from datetime import datetime
+    from app.crud.crud_rally_settings import rally_settings
+    from app.services.route_progress import load_route_snapshot
+    from app.services.team_checkpoint_progress import load_checkpoint_progress
 
     team = await _make_team(pg_session)
     event_id = await current_event_id(pg_session)
@@ -524,13 +520,16 @@ async def test_score_per_checkpoint_keyed_by_id_not_order(pg_session):
         result_data={"assigned_points": 40},
         final_score=40,
     )
-    team.times = [datetime(2026, 1, 1, 10, 0), datetime(2026, 1, 1, 11, 0)]
     await pg_session.commit()
 
     await ScoringService(pg_session).update_team_scores(team.id)
     await pg_session.refresh(team)
+    route = await load_route_snapshot(pg_session, await rally_settings.get_or_create(pg_session))
+    rows = await load_checkpoint_progress(pg_session, team.id, route)
 
-    assert sorted(team.score_per_checkpoint) == [30, 40]
+    by_id = {row.checkpoint_id: row.score for row in rows}
+    assert by_id[cp_a.id] == 30
+    assert by_id[cp_b.id] == 40
     assert team.total == pytest.approx(70)
 
 
@@ -547,42 +546,6 @@ async def test_an_edition_rejects_two_posts_with_the_same_order(pg_session):
     with pytest.raises(IntegrityError):
         await pg_session.flush()
     await pg_session.rollback()
-
-
-async def test_score_per_checkpoint_ordered_by_current_order(pg_session):
-    from datetime import datetime
-
-    team = await _make_team(pg_session)
-    event_id = await current_event_id(pg_session)
-    cp1 = CheckPoint(name="C1", order=1, event_id=event_id)
-    cp2 = CheckPoint(name="C2", order=2, event_id=event_id)
-    pg_session.add_all([cp1, cp2])
-    await pg_session.flush()
-    act1 = await _make_activity_on_checkpoint(pg_session, cp1)
-    act2 = await _make_activity_on_checkpoint(pg_session, cp2)
-
-    await _make_result(
-        pg_session,
-        team=team,
-        activity=act1,
-        result_data={"assigned_points": 15},
-        final_score=15,
-    )
-    await _make_result(
-        pg_session,
-        team=team,
-        activity=act2,
-        result_data={"assigned_points": 25},
-        final_score=25,
-    )
-    team.times = [datetime(2026, 1, 1, 10, 0), datetime(2026, 1, 1, 11, 0)]
-    await pg_session.commit()
-
-    await ScoringService(pg_session).update_team_scores(team.id)
-    await pg_session.refresh(team)
-
-    assert team.score_per_checkpoint == [15, 25]
-    assert team.score_per_checkpoint[-1] == 25
 
 
 # --------------------------------------------------------------------------- #

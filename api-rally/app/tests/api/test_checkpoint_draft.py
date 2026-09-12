@@ -63,8 +63,6 @@ class TestDraftVisibility:
         team = await make_team(pg_session, event_id=event.id)
         # Post 1 genuinely resolved (arrival row) — the next post in order is
         # the draft, so the route must end here rather than hand it out.
-        team.times = [datetime(2026, 8, 9, 10, 0)]
-        pg_session.add(team)
         pg_session.add(
             CheckpointArrival(
                 team_id=team.id,

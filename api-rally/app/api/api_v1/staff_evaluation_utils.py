@@ -33,7 +33,7 @@ from app.schemas.activity import (
     ActivityResultUpdate,
 )
 from app.schemas.user import DetailedUser
-from app.services.checkpoint_visits import append_visit_entry, record_visit
+from app.services.checkpoint_visits import record_visit
 from app.services.event_scope import require_same_event
 from app.services.route_progress import RouteSnapshot, load_route_snapshot, progress_for_team
 from app.services.scoring_service import EvaluationEditor, ScoringService
@@ -437,7 +437,6 @@ async def checkin_team_to_checkpoint(
     checkpoint_id: int,
     *,
     enforce_order: bool = True,
-    arrival_already_recorded: bool = False,
     source: ArrivalSource = "staff",
     commit: bool = True,
 ) -> None:
@@ -455,33 +454,16 @@ async def checkin_team_to_checkpoint(
 
     ``enforce_order`` is False for callers that have already run the
     reachability check themselves.
-
-    ``arrival_already_recorded`` is True for the arrival paths, which claim the
-    arrival row themselves before deciding whether it also completes the post:
-    there the row is this request's own, so treating it as "already recorded"
-    dropped the visit on the floor and left ``team.times`` empty. Those callers
-    run this exactly once per newly created arrival, which is what keeps it
-    idempotent without a token of its own.
     """
     try:
-        if arrival_already_recorded:
-            await append_visit_entry(
-                db,
-                team_id=team_id,
-                checkpoint_id=checkpoint_id,
-                enforce_order=enforce_order,
-                commit=commit,
-            )
-            recorded = True
-        else:
-            recorded = await record_visit(
-                db,
-                team_id=team_id,
-                checkpoint_id=checkpoint_id,
-                source=source,
-                enforce_order=enforce_order,
-                commit=commit,
-            )
+        recorded = await record_visit(
+            db,
+            team_id=team_id,
+            checkpoint_id=checkpoint_id,
+            source=source,
+            enforce_order=enforce_order,
+            commit=commit,
+        )
     except Exception as e:
         # Log error and propagate - checkpoint advancement is critical
         logger.error(f"Failed to check team {team_id} into checkpoint {checkpoint_id}: {e}")

@@ -18,17 +18,8 @@ from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.team import Team
 from app.schemas.team import (
     TeamCreate,
-    TeamScoresUpdate,
     TeamUpdate,
 )
-
-locked_arrays = [
-    "times",
-    "question_scores",
-    "time_scores",
-    "pukes",
-    "skips",
-]
 
 # Matches the composite (event_id, name) unique constraint by its Postgres
 # constraint name, not column list — asyncpg reports "Key (event_id, name)=(...)
@@ -51,14 +42,6 @@ async def _generate_access_code(db: AsyncSession) -> str:
 
 
 class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
-    def calculate_min_time_scores(self, teams: Sequence[Team]) -> list[float]:
-        """Delegates to TeamService — kept here so existing callers (and the
-        test suite) don't need to construct a service just for pure math."""
-        # Local import: avoids circular import with app.services.team_service
-        from app.services.team_service import TeamService
-
-        return TeamService.calculate_min_time_scores(teams)
-
     async def get_by_access_code(self, db: AsyncSession, *, access_code: str) -> Team | None:
         """Get a team by their access code (access_code is globally unique)."""
         result: Team | None = await db.scalar(select(Team).where(Team.access_code == access_code))
@@ -203,21 +186,6 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
             if "access_code" in update_data and update_data["access_code"] != team.access_code:
                 team.auth_version += 1
 
-            should_validate_locked = any(key in update_data for key in locked_arrays)
-
-            if should_validate_locked:
-                last_size = None
-                for key in locked_arrays:
-                    value = update_data.get(key, getattr(team, key))
-                    if value is None:
-                        continue
-
-                    size = len(value)
-                    if last_size is not None and last_size != size:
-                        raise RallyValidationError("Lists must have the same size")
-
-                    last_size = size
-
             team = super().update_unlocked(db_obj=team, obj_in=obj_in)
 
         await self.update_classification_unlocked(db=db)
@@ -240,29 +208,6 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         await db.commit()
         await db.refresh(team)
         return team
-
-    async def add_checkpoint(
-        self,
-        db: AsyncSession,
-        *,
-        id: int,
-        checkpoint_id: int,
-        obj_in: TeamScoresUpdate,
-        enforce_order: bool = True,
-        commit: bool = True,
-    ) -> Team:
-        """Delegates to TeamService — kept here so existing callers (and the
-        test suite) don't need to construct a service directly."""
-        # Local import: avoids circular import with app.services.team_service
-        from app.services.team_service import TeamService
-
-        return await TeamService(db, self).add_checkpoint(
-            id=id,
-            checkpoint_id=checkpoint_id,
-            obj_in=obj_in,
-            enforce_order=enforce_order,
-            commit=commit,
-        )
 
     async def get_by_checkpoint(self, db: AsyncSession, checkpoint_id: int) -> Sequence[Team]:
         """Teams that have checked in at this checkpoint.

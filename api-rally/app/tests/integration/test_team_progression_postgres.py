@@ -1,8 +1,9 @@
 """Real-schema integration tests for team checkpoint progression.
 
-``add_checkpoint`` is the core write path of the rally (locking, order
-validation, MutableList appends, classification update). The mock suite can
-only assert around it; here it runs against real Postgres.
+``record_visit`` is the core write path of the rally: it claims the arrival
+row (the idempotency token) and validates the event window and route order in
+the same transaction. The mock suite can only assert around it; here it runs
+against real Postgres.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -15,8 +16,7 @@ from app.models.activity import RallyEvent
 from app.models.checkpoint import CheckPoint
 from app.models.rally_settings import RallySettings
 from app.models.team import Team
-from app.schemas.team import TeamScoresUpdate
-from app.services.checkpoint_visits import insert_arrival, record_visit
+from app.services.checkpoint_visits import record_visit
 
 pytestmark = pytest.mark.asyncio
 
@@ -38,125 +38,74 @@ async def _setup_rally(pg_session, *, order_matters: bool = True):
     return event, settings, cp1, cp2, team
 
 
-async def test_add_checkpoint_in_order_appends_scores_and_times(pg_session) -> None:
+async def test_record_visit_in_order_moves_the_team_along(pg_session) -> None:
+    from app.services.team_service import TeamService
+
     _, _, cp1, cp2, team = await _setup_rally(pg_session)
 
-    # The arrival row is what moves the team's pointer (see
-    # ``checkpoint_visits``); ``add_checkpoint`` only appends the scores, so
-    # each visit has to claim its arrival first or the second post reads as
-    # out of order.
-    await insert_arrival(pg_session, team_id=team.id, checkpoint_id=cp1.id)
-    updated = await crud_team.add_checkpoint(
-        db=pg_session,
-        id=team.id,
-        checkpoint_id=cp1.id,
-        obj_in=TeamScoresUpdate(
-            checkpoint_id=cp1.id, question_score=1, time_score=10, pukes=0, skips=0
-        ),
+    assert await record_visit(pg_session, team_id=team.id, checkpoint_id=cp1.id) is True
+    assert await record_visit(pg_session, team_id=team.id, checkpoint_id=cp2.id) is True
+
+    detailed = await TeamService(db=pg_session, team_crud=crud_team).build_detailed_team(
+        team, with_progress=True
     )
-    assert len(updated.times) == 1
-    assert updated.question_scores == [True]
-    assert updated.time_scores == [10]
-
-    await insert_arrival(pg_session, team_id=team.id, checkpoint_id=cp2.id)
-    updated = await crud_team.add_checkpoint(
-        db=pg_session,
-        id=team.id,
-        checkpoint_id=cp2.id,
-        obj_in=TeamScoresUpdate(
-            checkpoint_id=cp2.id, question_score=0, time_score=5, pukes=1, skips=0
-        ),
-    )
-    assert len(updated.times) == 2
-    assert updated.question_scores == [True, False]
-    assert updated.pukes == [0, 1]
+    assert [(row.checkpoint_id, row.status) for row in detailed.checkpoints] == [
+        (cp1.id, "completed"),
+        (cp2.id, "completed"),
+    ]
 
 
-async def test_add_checkpoint_times_survive_the_round_trip_as_instants(pg_session) -> None:
-    """The visit stamp keeps its UTC offset all the way through Postgres.
+async def test_arrival_times_survive_the_round_trip_as_instants(pg_session) -> None:
+    """The visit stamp keeps its UTC offset all the way through Postgres, so
+    the API never serves an offset-less string a browser reads as local time."""
+    from app.services.team_service import TeamService
 
-    ``teams.times`` used to be TIMESTAMP WITHOUT TIME ZONE and the writer
-    stripped the tzinfo before appending, so the API served offset-less
-    strings that browsers read as local time — a check-in printed an hour
-    early wherever the viewer was not on UTC.
-    """
     _, _, cp1, _, team = await _setup_rally(pg_session)
     before = datetime.now(UTC)
 
-    await insert_arrival(pg_session, team_id=team.id, checkpoint_id=cp1.id)
-    updated = await crud_team.add_checkpoint(
-        db=pg_session,
-        id=team.id,
-        checkpoint_id=cp1.id,
-        obj_in=TeamScoresUpdate(
-            checkpoint_id=cp1.id, question_score=1, time_score=10, pukes=0, skips=0
-        ),
-    )
+    await record_visit(pg_session, team_id=team.id, checkpoint_id=cp1.id)
 
-    (stamped,) = updated.times
-    assert stamped.tzinfo is not None
+    detailed = await TeamService(db=pg_session, team_crud=crud_team).build_detailed_team(
+        team, with_progress=True
+    )
+    stamped = detailed.checkpoints[0].arrived_at
+    assert stamped is not None
     assert stamped.utcoffset() == timedelta(0)
     assert before <= stamped <= datetime.now(UTC)
 
-    # Re-read from the database rather than trusting the identity-mapped
-    # instance: the column type is half of what this test is about.
-    # ``populate_existing`` forces the re-fetch; a manual ``expire_all()``
-    # before an async ``get()`` races the identity map's expired-PK check
-    # outside the greenlet SQLAlchemy needs for it (MissingGreenlet).
-    reloaded = await crud_team.get(db=pg_session, id=team.id, populate_existing=True)
-    assert reloaded.times[0] == stamped
-    assert reloaded.times[0].tzinfo is not None
 
-
-async def test_add_checkpoint_out_of_order_rejected(pg_session) -> None:
+async def test_record_visit_out_of_order_rejected(pg_session) -> None:
     _, _, _, cp2, team = await _setup_rally(pg_session, order_matters=True)
 
-    call = crud_team.add_checkpoint(
-        db=pg_session,
-        id=team.id,
-        checkpoint_id=cp2.id,
-        obj_in=TeamScoresUpdate(
-            checkpoint_id=cp2.id, question_score=0, time_score=0, pukes=0, skips=0
-        ),
-    )
     with pytest.raises(RallyValidationError) as exc:
-        await call
+        await record_visit(pg_session, team_id=team.id, checkpoint_id=cp2.id)
     assert exc.value.status_code == 400
 
 
-async def test_add_checkpoint_twice_rejected(pg_session) -> None:
+async def test_record_visit_twice_is_recorded_once(pg_session) -> None:
     """A second visit to the same post is swallowed, not double-counted.
 
     The arrival row's ``(team_id, checkpoint_id)`` unique constraint is the
-    idempotency token for every check-in path, so the duplicate is stopped
-    before ``add_checkpoint`` runs rather than raising out of it.
+    idempotency token for every check-in path.
     """
     _, _, cp1, _, team = await _setup_rally(pg_session)
 
     assert await record_visit(pg_session, team_id=team.id, checkpoint_id=cp1.id) is True
     assert await record_visit(pg_session, team_id=team.id, checkpoint_id=cp1.id) is False
 
-    await pg_session.refresh(team)
-    assert len(team.times) == 1
+    teams_here = await crud_team.get_by_checkpoint(pg_session, checkpoint_id=cp1.id)
+    assert len(teams_here) == 1
 
 
-async def test_add_checkpoint_outside_rally_window_rejected(pg_session) -> None:
+async def test_record_visit_outside_rally_window_rejected(pg_session) -> None:
     event, _, cp1, _, team = await _setup_rally(pg_session)
     # The event is the source of truth for timing; get_or_create syncs the
     # settings row from it on every read.
     event.end_time = datetime.now(UTC) - timedelta(hours=1)
     await pg_session.commit()
 
-    call = crud_team.add_checkpoint(
-        db=pg_session,
-        id=team.id,
-        checkpoint_id=cp1.id,
-        obj_in=TeamScoresUpdate(
-            checkpoint_id=cp1.id, question_score=0, time_score=0, pukes=0, skips=0
-        ),
-    )
     with pytest.raises(RallyValidationError) as exc:
-        await call
+        await record_visit(pg_session, team_id=team.id, checkpoint_id=cp1.id)
     assert exc.value.status_code == 400
     assert "ended" in str(exc.value).lower()
 

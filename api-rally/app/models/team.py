@@ -1,9 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
-from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.ext.mutable import MutableList
+from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import settings
@@ -45,30 +43,6 @@ class Team(Base):
     # default) means the team starts with everyone else, exactly as before.
     start_offset_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    # All arrays are wrapped in MutableList so in-place .append() (e.g. in
-    # crud_team.add_checkpoint) marks the column dirty; plain ARRAY columns
-    # silently lose in-place mutations.
-    # Instants, not wall-clock: a naive column served offset-less strings that
-    # every browser read as *local* time, so a check-in printed an hour early
-    # wherever the API's UTC differed from the viewer's zone (see 0061).
-    times: Mapped[list[datetime]] = mapped_column(
-        MutableList.as_mutable(ARRAY(DateTime(timezone=True))), default=list
-    )
-
-    score_per_checkpoint: Mapped[list[int]] = mapped_column(
-        MutableList.as_mutable(ARRAY(Integer)), default=list
-    )
-
-    # Additional arrays needed for Rally functionality
-    question_scores: Mapped[list[bool]] = mapped_column(
-        MutableList.as_mutable(ARRAY(Boolean)), default=list
-    )
-    time_scores: Mapped[list[int]] = mapped_column(
-        MutableList.as_mutable(ARRAY(Integer)), default=list
-    )
-    pukes: Mapped[list[int]] = mapped_column(MutableList.as_mutable(ARRAY(Integer)), default=list)
-    skips: Mapped[list[int]] = mapped_column(MutableList.as_mutable(ARRAY(Integer)), default=list)
-
     total: Mapped[int] = mapped_column(default=0)
     # 0 == unranked (no classification computed yet). Never negative: the
     # frontend cannot tell a sentinel from a real rank, so an unranked team
@@ -87,6 +61,10 @@ class Team(Base):
         "ActivityResult", back_populates="team"
     )
 
+    # Per-post progress is not stored here: it lives in the identity-keyed
+    # checkpoint_arrivals / checkpoint_skips / activity_results rows (see
+    # app.services.team_checkpoint_progress and migration 0063).
+
     guide_assignments: Mapped[list["RallyGuideAssignment"]] = relationship(
         "RallyGuideAssignment", back_populates="team"
     )
@@ -95,36 +73,3 @@ class Team(Base):
     def num_members(self) -> int:
         """Requires ``members`` to be eager-loaded (e.g. via selectinload)."""
         return len(self.members)
-
-    @property
-    def last_checkpoint_time(self) -> datetime | None:
-        return self.times[-1] if self.times else None
-
-    @property
-    def last_checkpoint_score(self) -> int | None:
-        """The score of the furthest post on the route this team has scored at.
-
-        ``score_per_checkpoint`` has one slot per post, in route order, so the
-        last *non-zero* slot is the last post that actually scored. Reading
-        ``[-1]`` blindly reports the final post of the route, which for a team
-        mid-route is always 0.
-        """
-        for score in reversed(self.score_per_checkpoint or []):
-            if score != 0:
-                return score
-        return 0 if self.score_per_checkpoint else None
-
-    def record_checkpoint(
-        self, *, question_score: bool, time_score: int, pukes: int, skips: int, at: datetime
-    ) -> None:
-        """Append this checkpoint's results.
-
-        Arrays are wrapped in ``MutableList`` (see above) so these in-place
-        appends mark the column dirty. The only writer of these arrays —
-        callers must not append to them directly.
-        """
-        self.question_scores.append(question_score)
-        self.time_scores.append(time_score)
-        self.pukes.append(pukes)
-        self.skips.append(skips)
-        self.times.append(at)

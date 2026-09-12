@@ -1,12 +1,8 @@
-"""Real-schema integration tests for Team — exercises Postgres ARRAY columns
-and the event-scoped listing query, neither of which the mock-based suite can
-cover (the ORM's ARRAY types cannot be created on SQLite).
+"""Real-schema integration tests for Team — exercises the event-scoped listing
+query, which the mock-based suite cannot cover.
 """
 
-from datetime import UTC, datetime
-
 import pytest
-from sqlalchemy import select
 
 from app.crud.crud_team import team as crud_team
 from app.models.activity import RallyEvent
@@ -21,32 +17,6 @@ async def _make_current_event(session, name: str = "Edition A") -> RallyEvent:
     await session.commit()
     await session.refresh(event)
     return event
-
-
-async def test_array_columns_round_trip(pg_session) -> None:
-    """ARRAY columns (score_per_checkpoint, times, pukes) survive a real
-    Postgres write/read cycle with their values and order intact."""
-    event = await _make_current_event(pg_session)
-
-    team = Team(
-        name="Team Array",
-        access_code="ARR-0001",
-        event_id=event.id,
-        score_per_checkpoint=[10, 0, 25],
-        times=[datetime(2026, 6, 28, 12, 0, 0, tzinfo=UTC)],
-        pukes=[1, 0, 2],
-        total=35,
-    )
-    pg_session.add(team)
-    await pg_session.commit()
-    pg_session.expunge_all()
-
-    loaded = await pg_session.scalar(select(Team).where(Team.access_code == "ARR-0001"))
-    assert loaded is not None
-    assert loaded.score_per_checkpoint == [10, 0, 25]
-    assert loaded.pukes == [1, 0, 2]
-    assert loaded.total == 35
-    assert loaded.times[0] == datetime(2026, 6, 28, 12, 0, 0, tzinfo=UTC)
 
 
 async def test_get_multi_is_scoped_to_current_event(pg_session) -> None:

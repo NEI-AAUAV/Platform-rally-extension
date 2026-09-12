@@ -131,10 +131,8 @@ def _member_row(ctx: EventReportContext, team_name: str, member: Any) -> list[An
 def build_progress_sheet(wb: Workbook, ctx: EventReportContext) -> None:
     """Each team's route: where it got to, when, and for how many points.
 
-    Arrivals come from `checkpoint_arrivals` rather than `Team.times`: that
-    array is appended in visit order while `score_per_checkpoint` is rebuilt
-    in route order, so pairing the two by position mismatches any team that
-    went out of order.
+    Arrivals come from `checkpoint_arrivals`, keyed by checkpoint id, so a team
+    that went out of order is still paired with the right post.
     """
     data = ctx.results
     rows: list[list[Any]] = []

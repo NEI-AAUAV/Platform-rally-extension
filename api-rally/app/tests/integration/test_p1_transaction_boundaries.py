@@ -1,8 +1,8 @@
 """P1 regression tests: every "source commit -> derived commit" pair collapsed
 into a single durability boundary.
 
-Each test injects a failure into the *derived* step (classification / team-score
-recompute) and asserts the *source* row (checkpoint append, skip, hint reveal,
+Each test injects a failure into the *derived* step (validation / team-score
+recompute) and asserts the *source* row (arrival claim, skip, hint reveal,
 activity delete) rolled back with it, instead of being left committed with the
 derived state stale.
 
@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy import func, select
 
+from app.core.exceptions import RallyValidationError
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
 from app.models.checkpoint import CheckPoint
@@ -23,11 +24,9 @@ from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.checkpoint_skip import CheckpointSkip
 from app.models.rally_settings import RallySettings
 from app.models.team import Team
-from app.schemas.team import TeamScoresUpdate
 from app.services.checkpoint_visits import insert_arrival, record_visit
 from app.services.hint_service import HintService
 from app.services.skip_service import SkipService
-from app.services.team_service import TeamService
 
 pytestmark = pytest.mark.asyncio
 
@@ -51,55 +50,35 @@ async def _setup(pg_session, **settings_kw):
     return event, settings, cp1, cp2, team
 
 
-async def test_add_checkpoint_rolls_back_append_when_recompute_fails(pg_session, monkeypatch):
-    _, _, cp1, _, team = await _setup(pg_session)
-    # Read the id out now: the rollback below expires every loaded attribute,
-    # and re-reading one afterwards is a lazy load from sync attribute access.
+async def test_record_visit_rolls_back_claim_when_order_validation_fails(pg_session):
+    _, _, _, cp2, team = await _setup(pg_session)
+    # Read the id out now: the rollback below expires every loaded attribute.
     team_id = team.id
-    await insert_arrival(pg_session, team_id=team_id, checkpoint_id=cp1.id)
 
-    monkeypatch.setattr(
-        TeamService,
-        "update_classification_unlocked",
-        AsyncMock(side_effect=RuntimeError("recompute boom")),
-    )
-
-    with pytest.raises(RuntimeError):
-        await crud_team.add_checkpoint(
-            db=pg_session,
-            id=team_id,
-            checkpoint_id=cp1.id,
-            obj_in=TeamScoresUpdate(
-                checkpoint_id=cp1.id, question_score=1, time_score=10, pukes=0, skips=0
-            ),
-        )
+    # Post 1 is unresolved, so post 2 is not open: the claim made on the
+    # savepoint must not survive the refusal.
+    with pytest.raises(RallyValidationError):
+        await record_visit(pg_session, team_id=team_id, checkpoint_id=cp2.id, commit=False)
 
     await pg_session.rollback()
-    fresh = await pg_session.get(Team, team_id)
-    # The append never became durable: no second commit persisted it ahead of
-    # the failed recompute.
-    assert list(fresh.times) == []
-    assert list(fresh.time_scores) == []
+    arrivals = await pg_session.scalar(
+        select(func.count())
+        .select_from(CheckpointArrival)
+        .where(CheckpointArrival.team_id == team_id)
+    )
+    assert arrivals == 0
 
 
-async def test_record_visit_reconciles_times_entry_owed_by_existing_arrival(pg_session):
+async def test_record_visit_is_a_no_op_when_the_arrival_already_exists(pg_session):
     _, _, cp1, _, team = await _setup(pg_session)
 
-    # Simulate a prior call that committed the arrival then crashed before the
-    # team.times stamp: arrival row present, times empty.
     await insert_arrival(pg_session, team_id=team.id, checkpoint_id=cp1.id)
-    fresh = await pg_session.get(Team, team.id)
-    assert list(fresh.times) == []
 
     recorded = await record_visit(
         pg_session, team_id=team.id, checkpoint_id=cp1.id, enforce_order=False
     )
 
-    # The arrival already existed, so nothing new was *recorded*...
     assert recorded is False
-    # ...but the owed visit timestamp was reconciled instead of lost forever.
-    await pg_session.refresh(team)
-    assert len(team.times) == 1
     arrivals = await pg_session.scalar(
         select(func.count())
         .select_from(CheckpointArrival)
