@@ -40,10 +40,12 @@ from app.services.route_progress import (
     TeamProgress,
     closed_message,
     hours_block_reason,
+    load_route_snapshot,
     progress_for_team,
     unreachable_message,
 )
 from app.services.scoring_service import ScoringService
+from app.services.team_checkpoint_progress import load_checkpoint_progress
 
 
 def validate_rally_timing(
@@ -362,7 +364,12 @@ class TeamService:
             result.classification = 0
             result.score_per_checkpoint = []
         if with_progress:
-            state = await self.progress(team_obj)
+            settings = await rally_settings.get_or_create(self._db)
+            route = await load_route_snapshot(self._db, settings)
+            state = await progress_for_team(self._db, team_obj, settings, route=route)
+            result.checkpoints = await load_checkpoint_progress(
+                self._db, team_obj.id, route, hide_scores=hide_scores
+            )
             result.last_checkpoint_number = state.last_completed_order
             result.current_checkpoint_number = state.current_order
             result.resolved_checkpoint_orders = sorted(state.resolved_orders)
