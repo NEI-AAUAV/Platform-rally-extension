@@ -13,7 +13,6 @@
 import { Eye, Flag, LifeBuoy } from "lucide-react";
 import { useFormContext } from "react-hook-form";
 import { SettingGroup, SettingNumber, SettingSwitch } from "./SettingFields";
-import { useEventConfiguration } from "./useEventConfiguration";
 
 type PeddyPaperSettingsProps = Readonly<{
   className?: string;
@@ -23,11 +22,6 @@ type PeddyPaperSettingsProps = Readonly<{
 
 export default function PeddyPaperSettings({ className = "" }: PeddyPaperSettingsProps) {
   const { watch } = useFormContext();
-  const configuration = useEventConfiguration();
-  const policyFor = (capability: string): "required" | "optional" | "forbidden" | undefined => {
-    const policy = configuration.data?.capabilities[capability]?.policy;
-    return policy === "required" || policy === "optional" || policy === "forbidden" ? policy : undefined;
-  };
   const hintsEnabled = watch("hints_enabled");
   const skipEnabled = watch("skip_enabled");
 
@@ -43,7 +37,6 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
             name="reveal_next_checkpoint"
             label="Revelar o próximo posto antes da chegada"
             defaultValue={true}
-            policy={policyFor("checkpoint_redaction")}
             help="Desliga num peddy paper: o local do próximo posto é a resposta do enigma, por isso nome, descrição e coordenadas ficam escondidos até a equipa fazer check-in. Só a pista é enviada."
           />
           <SettingSwitch
@@ -56,7 +49,6 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
             name="participant_view_enabled"
             label="Ativar visualização para participantes"
             help="Manda as equipas para o ecrã de percurso (pista, check-in, pistas pagas) em vez do placar."
-            policy={policyFor("participant_view")}
           />
         </SettingGroup>
 
@@ -69,13 +61,11 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
             name="gps_checkin_enabled"
             label="Check-in por GPS feito pela equipa"
             help="Com a rota tapada, é a única prova de chegada que a equipa consegue dar sozinha. Requer coordenadas e raio de chegada definidos em cada posto."
-            policy={policyFor("gps_arrival")}
           />
           <SettingSwitch
             name="guide_manual_arrival_enabled"
             label="Guias podem marcar chegadas"
             defaultValue={true}
-            policy={policyFor("guide_arrival")}
             help="A alternativa ao check-in por GPS quando este falha — sem bateria, sem rede, ou dentro de um edifício."
           />
         </SettingGroup>
