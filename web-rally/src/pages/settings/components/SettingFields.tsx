@@ -51,19 +51,35 @@ type SettingSwitchProps = Readonly<{
   /** Why this switch exists and what flipping it does. */
   help?: string;
   defaultValue?: boolean;
+  /** Policy supplied by the event configuration endpoint, never inferred locally. */
+  policy?: "required" | "optional" | "forbidden";
 }>;
 
-export function SettingSwitch({ name, label, help, defaultValue = false }: SettingSwitchProps) {
-  const { control } = useFormContext();
+export function SettingSwitch({ name, label, help, defaultValue = false, policy }: SettingSwitchProps) {
+  const { control, setValue } = useFormContext();
 
   return (
     <SettingRow name={name} label={label} help={help}>
+      {policy && policy !== "optional" && (
+        <span className="mr-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+          {policy === "required" ? "Obrigatório" : "Indisponível"}
+        </span>
+      )}
       <Controller
         name={name}
         control={control}
         defaultValue={defaultValue}
         render={({ field }) => (
-          <Switch id={name} checked={!!field.value} onCheckedChange={field.onChange} />
+          <Switch
+            id={name}
+            checked={policy === "forbidden" ? false : !!field.value}
+            disabled={policy === "required" || policy === "forbidden"}
+            onCheckedChange={(checked) => {
+              // A local UX convenience; the API enforces the same invariant for direct clients.
+              if (name === "compass_enabled" && checked) setValue("proximity_enabled", true, { shouldDirty: true });
+              field.onChange(checked);
+            }}
+          />
         )}
       />
     </SettingRow>

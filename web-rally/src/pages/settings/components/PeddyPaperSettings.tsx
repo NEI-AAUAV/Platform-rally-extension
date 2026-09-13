@@ -16,12 +16,16 @@ import { SettingGroup, SettingNumber, SettingSwitch } from "./SettingFields";
 
 type PeddyPaperSettingsProps = Readonly<{
   className?: string;
+  eventType?: string | null;
+  eventProfile?: string | null;
 }>;
 
-export default function PeddyPaperSettings({ className = "" }: PeddyPaperSettingsProps) {
+export default function PeddyPaperSettings({ className = "", eventType, eventProfile }: PeddyPaperSettingsProps) {
   const { watch } = useFormContext();
   const hintsEnabled = watch("hints_enabled");
   const skipEnabled = watch("skip_enabled");
+  const autonomousPeddy = eventType === "peddy_paper" && eventProfile === "autonomous";
+  const guidedPeddy = eventType === "peddy_paper" && eventProfile === "guided";
 
   return (
     <div className={className}>
@@ -35,6 +39,7 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
             name="reveal_next_checkpoint"
             label="Revelar o próximo posto antes da chegada"
             defaultValue={true}
+            policy={autonomousPeddy || guidedPeddy ? "forbidden" : "optional"}
             help="Desliga num peddy paper: o local do próximo posto é a resposta do enigma, por isso nome, descrição e coordenadas ficam escondidos até a equipa fazer check-in. Só a pista é enviada."
           />
           <SettingSwitch
@@ -47,6 +52,7 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
             name="participant_view_enabled"
             label="Ativar visualização para participantes"
             help="Manda as equipas para o ecrã de percurso (pista, check-in, pistas pagas) em vez do placar."
+            policy={autonomousPeddy || guidedPeddy ? "required" : "optional"}
           />
         </SettingGroup>
 
@@ -64,6 +70,7 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
             name="guide_manual_arrival_enabled"
             label="Guias podem marcar chegadas"
             defaultValue={true}
+            policy={autonomousPeddy ? "forbidden" : guidedPeddy ? "required" : "optional"}
             help="A alternativa ao check-in por GPS quando este falha — sem bateria, sem rede, ou dentro de um edifício."
           />
         </SettingGroup>

@@ -18,8 +18,8 @@ const GUIDE_ROLE_SCOPES = ["rally-guide", "rally-staff", "admin", "manager-rally
  * Single source of truth for guide-mode access, replacing the gate expression
  * that was duplicated across the guide page and the desktop/mobile navs.
  *
- * Guide mode is generic: it is available for any event when the two settings
- * flags are on, and implicitly for peddy-paper events.
+ * The backend computes the event/profile policy and returns the participant-safe
+ * effective gate. React must not infer guide access from event_type.
  */
 export function useGuideAccess(): GuideAccess {
   const scopes = useUserStore((s) => s.scopes);
@@ -29,9 +29,7 @@ export function useGuideAccess(): GuideAccess {
   const hasGuideRole =
     scopes !== undefined && GUIDE_ROLE_SCOPES.some((scope) => scopes.includes(scope));
 
-  const showGuideFeature =
-    (settings?.guide_mode_enabled === true && settings?.guide_mode_active === true) ||
-    settings?.event_type === "peddy_paper";
+  const showGuideFeature = settings?.effective_capabilities?.guide_mode === true;
 
   return {
     hasGuideRole,

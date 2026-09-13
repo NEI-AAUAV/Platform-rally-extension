@@ -31,7 +31,7 @@ import {
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 import { useEvents, useEventMutations } from "@/hooks/useEvents";
-import { EVENT_TYPE_LABELS, type EventType, type RallyEvent } from "@/types/event";
+import { EVENT_TYPE_LABELS, type EventProfile, type EventType, type RallyEvent } from "@/types/event";
 import {
   utcISOStringToLocalDatetimeLocal,
   localDatetimeLocalToUTCISOString,
@@ -40,6 +40,7 @@ import {
 interface FormState {
   name: string;
   event_type: EventType;
+  event_profile: EventProfile;
   description: string;
   start_time: string;
   end_time: string;
@@ -48,15 +49,28 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   name: "",
   event_type: "rally_tascas",
+  event_profile: "staffed",
   description: "",
   start_time: "",
   end_time: "",
 };
 
+const PROFILE_OPTIONS: Record<EventType, ReadonlyArray<{ value: EventProfile; label: string }>> = {
+  peddy_paper: [{ value: "autonomous", label: "Autónomo" }, { value: "guided", label: "Guiado" }, { value: "custom", label: "Personalizado" }],
+  rally_tascas: [{ value: "staffed", label: "Com staff" }, { value: "self_checkin", label: "Auto check-in" }, { value: "custom", label: "Personalizado" }],
+  olympic: [{ value: "rotation", label: "Rotação" }, { value: "custom", label: "Personalizado" }],
+  generic: [{ value: "custom", label: "Personalizado" }],
+};
+
+function defaultProfile(type: EventType): EventProfile {
+  return PROFILE_OPTIONS[type][0]!.value;
+}
+
 function toForm(ev: RallyEvent): FormState {
   return {
     name: ev.name,
     event_type: ev.event_type,
+    event_profile: ev.event_profile ?? "custom",
     description: ev.description ?? "",
     start_time: ev.start_time ? (utcISOStringToLocalDatetimeLocal(ev.start_time) ?? "") : "",
     end_time: ev.end_time ? (utcISOStringToLocalDatetimeLocal(ev.end_time) ?? "") : "",
@@ -260,7 +274,6 @@ export default function EventsManagement() {
     }
     const body = {
       name: form.name.trim(),
-      event_type: form.event_type,
       description: form.description.trim() || null,
       start_time: form.start_time ? localDatetimeLocalToUTCISOString(form.start_time) : null,
       end_time: form.end_time ? localDatetimeLocalToUTCISOString(form.end_time) : null,
@@ -280,7 +293,7 @@ export default function EventsManagement() {
         },
       );
     } else {
-      create.mutate(body, {
+      create.mutate({ ...body, event_type: form.event_type, event_profile: form.event_profile }, {
         onSuccess: () => {
           toast.success("Evento criado");
           resetForm();
@@ -423,7 +436,11 @@ export default function EventsManagement() {
                 <Label htmlFor="ev-type">Tipo</Label>
                 <Select
                   value={form.event_type}
-                  onValueChange={(v) => setForm({ ...form, event_type: v as EventType })}
+                  onValueChange={(v) => {
+                    const event_type = v as EventType;
+                    setForm({ ...form, event_type, event_profile: defaultProfile(event_type) });
+                  }}
+                  disabled={editingId != null}
                 >
                   <SelectTrigger id="ev-type">
                     <SelectValue />
@@ -436,7 +453,17 @@ export default function EventsManagement() {
                     ))}
                   </SelectContent>
                 </Select>
+                {editingId != null && <p className="text-xs text-muted-foreground">O formato é alterado pela operação explícita de mudança de formato, para preservar settings e progresso.</p>}
               </div>
+              {editingId == null && (
+                <div data-admin-search-key="ev-profile" className="space-y-1.5">
+                  <Label htmlFor="ev-profile">Perfil operacional</Label>
+                  <Select value={form.event_profile} onValueChange={(v) => setForm({ ...form, event_profile: v as EventProfile })}>
+                    <SelectTrigger id="ev-profile"><SelectValue /></SelectTrigger>
+                    <SelectContent>{PROFILE_OPTIONS[form.event_type].map((profile) => <SelectItem key={profile.value} value={profile.value}>{profile.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              )}
               <div data-admin-search-key="ev-start" className="space-y-1.5">
                 <Label htmlFor="ev-start">Início</Label>
                 <Input

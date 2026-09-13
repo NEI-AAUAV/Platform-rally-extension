@@ -15,7 +15,7 @@ import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
-import { EventModeBanner } from "./components";
+import { ConfigurationReadiness, EventModeBanner } from "./components";
 import { SETTINGS_SECTIONS, DEFAULT_SECTION_ID, type SettingsSectionId } from "./sections";
 import {
   ADMIN_SEARCH_INDEX,
@@ -512,7 +512,8 @@ export default function RallySettings({
         />
       )}
 
-      <EventModeBanner eventType={settings?.event_type} />
+      <EventModeBanner eventType={settings?.event_type} eventProfile={settings?.event_profile} />
+      <ConfigurationReadiness />
 
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)}>
@@ -556,7 +557,7 @@ export default function RallySettings({
 
               {/* Only the active section is mounted. Values of the hidden ones
                   survive in the form state, so a save still sends everything. */}
-              <ActiveBody eventType={settings?.event_type} />
+              <ActiveBody eventType={settings?.event_type} eventProfile={settings?.event_profile} />
             </div>
           </div>
 
