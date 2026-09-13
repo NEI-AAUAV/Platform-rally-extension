@@ -1,10 +1,11 @@
 import { Navigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import usePagedSearch from "@/hooks/usePagedSearch";
 import { LoadingState, PageHeader } from "@/components/shared";
 import { ClipboardList } from "lucide-react";
+import { EVENT_CONFIGURATION_ROOT_KEY } from "@/pages/settings/components/useEventConfiguration";
 import { StaffAssignmentList, AssignmentForm, AssignmentPager } from "./components";
 import {
   getCheckpoints,
@@ -31,6 +32,7 @@ interface AssignmentProps {
 const PAGE_SIZE = 20;
 
 export default function Assignment({ embedded = false }: AssignmentProps) {
+  const queryClient = useQueryClient();
   const { isLoading, isRallyAdmin } = useUser();
   const fallbackPath = useFallbackNavigation();
   const { searchInput, setSearchInput, debouncedSearch, page, setPage } = usePagedSearch();
@@ -77,6 +79,7 @@ export default function Assignment({ embedded = false }: AssignmentProps) {
     },
     onSuccess: () => {
       void refetchAssignments(); // Refetch assignments to update UI
+      void queryClient.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
     },
   });
 

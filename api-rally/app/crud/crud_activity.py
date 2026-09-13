@@ -9,10 +9,15 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud import current_event_id
-from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
-from app.domain.event_configuration.policies import Capability, CapabilityPolicy, DOMAIN_CONFIG_KEYS, default_profile, profile_is_supported, resolve_policy
 from app.core.exceptions import RallyConfigurationError, RallyValidationError
+from app.crud import current_event_id
+from app.domain.event_configuration.policies import (
+    DOMAIN_CONFIG_KEYS,
+    default_profile,
+    profile_is_supported,
+)
+from app.domain.event_configuration.reconciler import reconcile_event_config
+from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
 from app.schemas.activity import (
     ActivityCreate,
     ActivityResultCreate,
@@ -143,20 +148,6 @@ class CRUDActivityResult:
         is needed (e.g. when 'result_data' changed).
         """
         update_data = obj_in.model_dump(exclude_unset=True)
-        if "config" in update_data:
-            incoming = update_data["config"] or {}
-            reserved = {
-                key for key in DOMAIN_CONFIG_KEYS.intersection(incoming)
-                if incoming[key] != (db_obj.config or {}).get(key)
-            }
-            if reserved:
-                raise RallyConfigurationError(
-                    "As capacidades do domínio não podem ser alteradas pelo update genérico.",
-                    details={"code": "INVALID_EVENT_CONFIGURATION", "issues": [{"code": "RESERVED_EVENT_CONFIG_KEY", "severity": "error", "fields": sorted(reserved)}]},
-                )
-            # Generic config updates are non-destructive: preserve domain and
-            # unrelated existing values not mentioned by the caller.
-            update_data["config"] = dict(db_obj.config or {}) | incoming
         for field, value in update_data.items():
             setattr(db_obj, field, value)
         return update_data
@@ -248,17 +239,27 @@ class CRUDRallyEvent:
         if obj_in.is_current:
             await self._demote_all(db)
 
-        event_type = obj_in.event_type.value if isinstance(obj_in.event_type, EventType) else obj_in.event_type
+        event_type = (
+            obj_in.event_type.value
+            if isinstance(obj_in.event_type, EventType)
+            else obj_in.event_type
+        )
         profile = obj_in.event_profile or default_profile(event_type)
         event_profile = profile.value if hasattr(profile, "value") else str(profile)
         if not profile_is_supported(event_type, event_profile):
             raise RallyValidationError(
                 "O perfil operacional não está disponível para este tipo de evento.",
-                details={"code": "UNSUPPORTED_EVENT_PROFILE", "event_type": event_type, "event_profile": event_profile},
+                details={
+                    "code": "UNSUPPORTED_EVENT_PROFILE",
+                    "event_type": event_type,
+                    "event_profile": event_profile,
+                },
             )
-        config = dict(obj_in.config)
-        if resolve_policy(event_type, event_profile).policy_for(Capability.QR_ARRIVAL) is CapabilityPolicy.REQUIRED:
-            config["qr_checkin_enabled"] = True
+        config = reconcile_event_config(
+            event_type=event_type,
+            profile=event_profile,
+            config=obj_in.config,
+        )
         db_obj = RallyEvent(
             name=obj_in.name,
             slug=slug,
@@ -373,6 +374,31 @@ class CRUDRallyEvent:
         update_data = obj_in.model_dump(exclude_unset=True)
         if update_data.get("is_current") is True and not db_obj.is_current:
             await self._demote_all(db)
+        if "config" in update_data:
+            incoming = update_data["config"] or {}
+            existing = db_obj.config or {}
+            changed_reserved = {
+                key
+                for key in DOMAIN_CONFIG_KEYS
+                if key in incoming and incoming[key] != existing.get(key)
+            }
+            if changed_reserved:
+                raise RallyConfigurationError(
+                    "As capacidades do domínio não podem ser alteradas pelo update genérico.",
+                    details={
+                        "code": "INVALID_EVENT_CONFIGURATION",
+                        "issues": [
+                            {
+                                "code": "RESERVED_EVENT_CONFIG_KEY",
+                                "severity": "error",
+                                "fields": sorted(changed_reserved),
+                            }
+                        ],
+                    },
+                )
+            # Generic config updates are non-destructive: preserve domain and
+            # unrelated existing values not mentioned by the caller.
+            update_data["config"] = dict(existing) | incoming
         for field, value in update_data.items():
             if field == "event_type" and isinstance(value, EventType):
                 value = value.value

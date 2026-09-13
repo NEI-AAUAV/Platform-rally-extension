@@ -47,14 +47,16 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         # the domain layer, so creation and format policies cannot drift.
         profile = event.event_profile or default_profile(event.event_type).value
         settings = new_settings_for_profile(
-            event_id=event_id, event_type=event.event_type, profile=profile,
+            event_id=event_id,
+            event_type=event.event_type,
+            profile=profile,
             config=event.config,
         )
-        settings.rally_start_time = settings.rally_end_time = None
-        settings.event_name = "Rally Tascas"
-        settings.event_subtitle = "Competição de Equipas"
-        settings.home_layout = list(DEFAULT_HOME_LAYOUT)
-        settings.ticker_items = list(DEFAULT_TICKER_ITEMS)
+        settings.rally_start_time = settings.rally_end_time = None  # type: ignore[assignment]
+        settings.event_name = "Rally Tascas"  # type: ignore[assignment]
+        settings.event_subtitle = "Competição de Equipas"  # type: ignore[assignment]
+        settings.home_layout = list(DEFAULT_HOME_LAYOUT)  # type: ignore[assignment]
+        settings.ticker_items = list(DEFAULT_TICKER_ITEMS)  # type: ignore[assignment]
         try:
             # SAVEPOINT: a losing race undoes only this insert, never the
             # caller's pending work in the surrounding transaction.

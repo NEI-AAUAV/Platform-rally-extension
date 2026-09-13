@@ -13,15 +13,15 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.core.config import settings as app_settings
 from app.crud import crud_activity
 from app.crud.crud_rally_settings import rally_settings
+from app.domain.event_configuration.policies import Capability
+from app.domain.event_configuration.resolver import resolve_capabilities
 from app.schemas.team_auth import TeamTokenData
 from app.services.audit_service import AuditActor, record_audit
 from app.services.checkpoint_arrival_service import CheckpointArrivalService
 from app.services.deps import get_checkpoint_arrival_service
-from app.domain.event_configuration.policies import Capability
-from app.domain.event_configuration.resolver import resolve_capabilities
-from app.core.config import settings as app_settings
 
 
 class ArriveRequest(BaseModel):

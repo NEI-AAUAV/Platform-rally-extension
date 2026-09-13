@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Layers, Trash2 } from "lucide-react";
 import {
   listRouteStages,
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { BloodyButton } from "@/components/themes/bloody";
 import { useAppToast } from "@/hooks/use-toast";
+import { EVENT_CONFIGURATION_ROOT_KEY } from "@/pages/settings/components/useEventConfiguration";
 import { getErrorMessage } from "@/utils/errorHandling";
 
 type RouteStageManagerProps = Readonly<{
@@ -31,6 +32,7 @@ type RouteStageManagerProps = Readonly<{
  */
 export default function RouteStageManager({ onChanged }: RouteStageManagerProps) {
   const toast = useAppToast();
+  const qc = useQueryClient();
   const [name, setName] = useState("");
 
   const { data: stages, refetch } = useQuery<RouteStageResponse[]>({
@@ -43,6 +45,7 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
 
   const afterChange = () => {
     void refetch();
+    void qc.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
     onChanged();
   };
 

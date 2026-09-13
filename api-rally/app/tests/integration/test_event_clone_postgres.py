@@ -15,9 +15,9 @@ from app.models.activity import Activity, RallyEvent
 from app.models.badge_definition import BadgeDefinition
 from app.models.checkpoint import CheckPoint
 from app.models.dynamic_scoring import DynamicRule
+from app.models.rally_settings import RallySettings
 from app.models.route_stage import RouteStage
 from app.models.team import Team
-from app.models.rally_settings import RallySettings
 from app.services.event_service import EventService
 
 pytestmark = pytest.mark.asyncio
@@ -171,19 +171,27 @@ async def test_cross_format_clone_bootstraps_target_policy_settings(pg_session) 
     source.event_type = "rally_tascas"
     pg_session.add(source)
     await _populate(pg_session, source)
-    pg_session.add(RallySettings(
-        event_id=source.id, participant_view_enabled=False,
-        reveal_next_checkpoint=True, guide_manual_arrival_enabled=True,
-    ))
+    pg_session.add(
+        RallySettings(
+            event_id=source.id,
+            participant_view_enabled=False,
+            reveal_next_checkpoint=True,
+            guide_manual_arrival_enabled=True,
+        )
+    )
     await pg_session.commit()
 
-    target = RallyEvent(name="autonomous target", event_type="peddy_paper", event_profile="autonomous")
+    target = RallyEvent(
+        name="autonomous target", event_type="peddy_paper", event_profile="autonomous"
+    )
     pg_session.add(target)
     await pg_session.commit()
     await pg_session.refresh(target)
 
     await EventService(pg_session).clone_structure(target.id, source.id)
-    settings = await pg_session.scalar(select(RallySettings).where(RallySettings.event_id == target.id))
+    settings = await pg_session.scalar(
+        select(RallySettings).where(RallySettings.event_id == target.id)
+    )
     assert settings is not None
     assert settings.participant_view_enabled is True
     assert settings.reveal_next_checkpoint is False

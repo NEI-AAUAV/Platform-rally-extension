@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.config import get_settings
+from app.core.config import settings as app_settings
 from app.core.exceptions import RallyError, RallyValidationError
 from app.core.metrics import observe_scoring_recompute
 from app.core.observability import traced
@@ -23,6 +24,9 @@ from app.crud.crud_activity import activity_result as activity_result_crud
 from app.crud.crud_team import team as team_crud
 from app.crud.crud_versus import versus
 from app.db.locks import lock_team_ranking
+from app.domain.event_configuration.policies import Capability
+from app.domain.event_configuration.resolver import resolve_capabilities
+from app.domain.event_configuration.settings import new_settings_for_profile
 from app.events import (
     ActivityResultChangedPayload,
     ActivityResultCreatedEvent,
@@ -33,7 +37,7 @@ from app.events import (
     TeamScoreUpdatedPayload,
     publish_event,
 )
-from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
+from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.activity_factory import ActivityFactory
 from app.models.dynamic_scoring import (
     BONUS_COUNTER_RULE_TYPE,
@@ -333,10 +337,22 @@ class ScoringService:
             # transactions that own their own commit boundary (see the P1/P2
             # transaction-boundary tests). Flush only, as before.
             event_id = await current_event_id(self.db)
+            if event_id is None:
+                raise RallyError("Failed to get or create rally settings: no current event")
             stmt = select(RallySettings).where(RallySettings.event_id == event_id)
             self._settings = (await self.db.scalars(stmt)).first()
             if not self._settings:
-                self._settings = RallySettings(event_id=event_id)
+                event = await self.db.get(RallyEvent, event_id)
+                if event is None:
+                    raise RallyError(
+                        f"Failed to get or create rally settings: event {event_id} not found"
+                    )
+                self._settings = new_settings_for_profile(
+                    event_id=event_id,
+                    event_type=event.event_type,
+                    profile=getattr(event, "event_profile", "custom"),
+                    config=event.config,
+                )
                 self.db.add(self._settings)
                 await self.db.flush()
         if self._settings is None:
@@ -346,10 +362,21 @@ class ScoringService:
     async def _has_drinking_mechanics(self) -> bool:
         """Whether shots and drinking penalties apply to the current event."""
         event_id = await current_event_id(self.db)
-        event = await self.db.get(RallyEvent, event_id) if event_id is not None else None
-        return (event.event_type if event else EventType.RALLY_TASCAS.value) != (
-            EventType.PEDDY_PAPER.value
+        if event_id is None:
+            return True
+        event = await self.db.get(RallyEvent, event_id)
+        if not event:
+            return True
+        settings = await self._get_settings()
+        caps = resolve_capabilities(
+            event_type=event.event_type,
+            profile=getattr(event, "event_profile", "custom"),
+            settings=settings,
+            platform_qr_supported=app_settings.SELF_CHECKIN_ENABLED,
+            event_config=event.config,
+            rotation_schedule=event.rotation_schedule,
         )
+        return caps[Capability.DRINKING_SCORING].effective
 
     async def penalty_prices(
         self, activity: Activity, *, include_inactive: bool = False

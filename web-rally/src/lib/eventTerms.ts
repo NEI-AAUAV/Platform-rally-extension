@@ -81,7 +81,8 @@ export function getEventTerms(eventType?: string | null): EventTerms {
  * happens to carry from the seeded defaults.
  */
 export function hasDrinkingMechanics(eventType?: string | null): boolean {
-  return eventType !== "peddy_paper";
+  const type = eventType ?? DEFAULT_EVENT_TYPE;
+  return type === "rally_tascas";
 }
 
 /** Capitalize the first letter (for terms used as standalone labels). */

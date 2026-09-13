@@ -11,7 +11,7 @@ import { EVENT_TYPE_LABELS, type EventType } from "@/types/event";
 
 const MODE_SUMMARY: Record<EventType, string> = {
   peddy_paper:
-    "O local de cada posto é a resposta do enigma: a rota fica tapada até a equipa fazer check-in por GPS. As pistas e a desistência são as saídas para quem encalha.",
+    "O local de cada posto é a resposta do enigma: a rota fica tapada até a equipa confirmar a chegada ao posto. As pistas e a desistência são as saídas para quem encalha.",
   rally_tascas:
     "Percurso de tascas com staff em cada paragem: a rota é conhecida e a pontuação vem das provas e das mecânicas de bebida.",
   generic: "Jogo de postos genérico — liga apenas as mecânicas que este evento precisa.",

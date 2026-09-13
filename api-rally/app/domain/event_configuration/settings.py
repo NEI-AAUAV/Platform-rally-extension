@@ -1,11 +1,14 @@
-"""Settings construction with the same defaults for preflight and persistence."""
+from typing import Any
+
+from app.domain.event_configuration.policies import initial_settings_defaults
+from app.domain.event_configuration.reconciler import reconcile_policy_state
 from app.models.rally_settings import RallySettings
-from .policies import initial_settings_defaults
-from .reconciler import reconcile_policy_state
 
 
-def new_settings_for_profile(*, event_id: int, event_type: str, profile: str, config: dict | None = None) -> RallySettings:
-    values = {}
+def new_settings_for_profile(
+    *, event_id: int, event_type: str, profile: str, config: dict[str, Any] | None = None
+) -> RallySettings:
+    values: dict[str, Any] = {}
     for column in RallySettings.__table__.columns:
         if column.name in {"id", "event_id"} or column.default is None:
             continue

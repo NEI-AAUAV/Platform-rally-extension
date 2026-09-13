@@ -7,8 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models.activity import EventType
 from app.domain.event_configuration.policies import EventProfile
+from app.models.activity import EventType
 from app.models.activity_factory import ActivityFactory
 from app.schemas.activity_types import ActivityType
 

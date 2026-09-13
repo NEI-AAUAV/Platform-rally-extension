@@ -386,7 +386,7 @@ describe("EventsManagement", () => {
 
     async function pickSourceAndClone() {
       const user = userEvent.setup();
-      await user.click(screen.getAllByRole("combobox")[0]!);
+      await user.click(screen.getAllByRole("combobox", { name: "Clonar de…" })[0]!);
       await user.click(await screen.findByRole("option", { name: "Rally 2025" }));
       await user.click(screen.getAllByRole("button", { name: /Clonar/i })[0]!);
     }

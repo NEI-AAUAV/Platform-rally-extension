@@ -22,6 +22,49 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useEventConfiguration } from "./useEventConfiguration";
+
+export type CapabilityPolicy = "required" | "optional" | "forbidden";
+
+export type CapabilityBinding = {
+  capability: string;
+  inverted?: boolean;
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const FIELD_CAPABILITY: Record<string, CapabilityBinding> = {
+  participant_view_enabled: { capability: "participant_view" },
+  reveal_next_checkpoint: { capability: "checkpoint_redaction", inverted: true },
+  gps_checkin_enabled: { capability: "gps_arrival" },
+  qr_checkin_enabled: { capability: "qr_arrival" },
+  guide_manual_arrival_enabled: { capability: "guide_arrival" },
+  hints_enabled: { capability: "hints" },
+  skip_enabled: { capability: "skips" },
+  compass_enabled: { capability: "compass" },
+  proximity_enabled: { capability: "proximity" },
+  activity_scoring_enabled: { capability: "staff_scoring" },
+  speed_bonus_enabled: { capability: "speed_bonus" },
+  freeze_leaderboard: { capability: "leaderboard_freeze" },
+  leg_time_scoring_enabled: { capability: "leg_time_scoring" },
+};
+
+/**
+ * Pure helper to compute what value a policy forces for a field.
+ * Returns null if the policy leaves the value optional/configurable.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function forcedValueForPolicy(
+  policy?: CapabilityPolicy | string | null,
+  inverted = false
+): boolean | null {
+  if (policy === "required") {
+    return !inverted;
+  }
+  if (policy === "forbidden") {
+    return inverted;
+  }
+  return null;
+}
 
 type SettingRowProps = Readonly<{
   name: string;
@@ -53,22 +96,41 @@ type SettingSwitchProps = Readonly<{
   help?: string;
   defaultValue?: boolean;
   /** Policy supplied by the event configuration endpoint, never inferred locally. */
-  policy?: "required" | "optional" | "forbidden";
+  policy?: CapabilityPolicy;
+  inverted?: boolean;
 }>;
 
-export function SettingSwitch({ name, label, help, defaultValue = false, policy }: SettingSwitchProps) {
+export function SettingSwitch({
+  name,
+  label,
+  help,
+  defaultValue = false,
+  policy,
+  inverted,
+}: SettingSwitchProps) {
   const { control, setValue } = useFormContext();
-  const resolvedPolicy = policy;
+  const configQuery = useEventConfiguration();
+
+  const binding = FIELD_CAPABILITY[name];
+  const resolvedPolicy =
+    policy ??
+    (binding
+      ? (configQuery?.data?.capabilities?.[binding.capability]?.policy as CapabilityPolicy | undefined)
+      : undefined);
+  const resolvedInverted = inverted ?? binding?.inverted ?? false;
+  const forced = forcedValueForPolicy(resolvedPolicy, resolvedInverted);
+
   useEffect(() => {
-    if (resolvedPolicy === "required") setValue(name, true, { shouldDirty: false });
-    if (resolvedPolicy === "forbidden") setValue(name, false, { shouldDirty: false });
-  }, [name, resolvedPolicy, setValue]);
+    if (forced !== null) {
+      setValue(name, forced, { shouldDirty: false, shouldValidate: true });
+    }
+  }, [name, forced, setValue]);
 
   return (
     <SettingRow name={name} label={label} help={help}>
-      {resolvedPolicy && resolvedPolicy !== "optional" && (
+      {forced !== null && (
         <span className="mr-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-          {resolvedPolicy === "required" ? "Obrigatório" : "Indisponível"}
+          {forced ? "Obrigatório" : "Indisponível"}
         </span>
       )}
       <Controller
@@ -78,11 +140,13 @@ export function SettingSwitch({ name, label, help, defaultValue = false, policy 
         render={({ field }) => (
           <Switch
             id={name}
-            checked={resolvedPolicy === "forbidden" ? false : !!field.value}
-            disabled={resolvedPolicy === "required" || resolvedPolicy === "forbidden"}
+            checked={forced !== null ? forced : !!field.value}
+            disabled={forced !== null}
             onCheckedChange={(checked) => {
               // A local UX convenience; the API enforces the same invariant for direct clients.
-              if (name === "compass_enabled" && checked) setValue("proximity_enabled", true, { shouldDirty: true });
+              if (name === "compass_enabled" && checked) {
+                setValue("proximity_enabled", true, { shouldDirty: true });
+              }
               field.onChange(checked);
             }}
           />

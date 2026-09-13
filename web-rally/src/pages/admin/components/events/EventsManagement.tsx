@@ -144,6 +144,7 @@ function ReportButton({ event }: Readonly<{ event: RallyEvent }>) {
 
 function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
   const toast = useAppToast();
+  const qc = useQueryClient();
   const [rounds, setRounds] = useState<ScheduleRounds | null>(null);
 
   const generateMutation = useMutation({
@@ -154,6 +155,8 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
     onSuccess: (data) => {
       setRounds(data?.rounds ?? []);
       toast.success("Escalonamento olímpico gerado");
+      void qc.invalidateQueries({ queryKey: ["events"] });
+      void qc.invalidateQueries({ queryKey: ["event-configuration-status"] });
     },
     onError: (err) => toast.error(getErrorMessage(err, "Erro ao gerar escalonamento")),
   });
@@ -275,7 +278,7 @@ function CloneStructureButton({
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
       <Select value={sourceId} onValueChange={setSourceId}>
-        <SelectTrigger className="h-8 w-full text-xs sm:w-[168px]">
+        <SelectTrigger aria-label="Clonar de…" className="h-8 w-full text-xs sm:w-[168px]">
           <SelectValue placeholder="Clonar de…" />
         </SelectTrigger>
         <SelectContent>

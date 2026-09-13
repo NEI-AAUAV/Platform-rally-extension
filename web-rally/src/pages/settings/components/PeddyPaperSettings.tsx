@@ -12,7 +12,9 @@
  */
 import { Eye, Flag, LifeBuoy } from "lucide-react";
 import { useFormContext } from "react-hook-form";
+import { Switch } from "@/components/ui/switch";
 import { SettingGroup, SettingNumber, SettingSwitch } from "./SettingFields";
+import { useEventConfiguration, useUpdateEventCapabilities } from "./useEventConfiguration";
 
 type PeddyPaperSettingsProps = Readonly<{
   className?: string;
@@ -24,6 +26,9 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
   const { watch } = useFormContext();
   const hintsEnabled = watch("hints_enabled");
   const skipEnabled = watch("skip_enabled");
+  const configQuery = useEventConfiguration();
+  const updateCapabilities = useUpdateEventCapabilities();
+  const qrCap = configQuery.data?.capabilities?.qr_arrival;
 
   return (
     <div className={className}>
@@ -62,6 +67,44 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
             label="Check-in por GPS feito pela equipa"
             help="Com a rota tapada, é a única prova de chegada que a equipa consegue dar sozinha. Requer coordenadas e raio de chegada definidos em cada posto."
           />
+          {qrCap && qrCap.policy !== "forbidden" && (
+            <div data-admin-search-key="qr_checkin_enabled" className="flex items-start justify-between gap-4 py-3">
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium leading-snug">
+                    Check-in por QR Code feito pela equipa
+                  </span>
+                  {!qrCap.available ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      Indisponível no servidor
+                    </span>
+                  ) : qrCap.policy === "required" ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      Obrigatório
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      Opcional
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs leading-snug text-muted-foreground">
+                  Permite à equipa fazer check-in lendo o código QR do posto em vez de depender apenas do GPS.
+                  {!qrCap.available && " (A funcionalidade de auto check-in está desativada no servidor.)"}
+                </p>
+              </div>
+              <div className="mt-0.5 shrink-0">
+                <Switch
+                  id="qr_checkin_enabled"
+                  checked={qrCap.configured}
+                  disabled={!qrCap.available || qrCap.policy === "required" || updateCapabilities.isPending}
+                  onCheckedChange={(checked) => {
+                    updateCapabilities.mutate({ qr_arrival: checked });
+                  }}
+                />
+              </div>
+            </div>
+          )}
           <SettingSwitch
             name="guide_manual_arrival_enabled"
             label="Guias podem marcar chegadas"

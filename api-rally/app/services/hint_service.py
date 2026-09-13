@@ -17,10 +17,10 @@ from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud import current_event_id
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_rally_settings import rally_settings
+from app.crud.crud_team import CRUDTeam
 from app.domain.event_configuration.policies import Capability
 from app.domain.event_configuration.resolver import resolve_capabilities
 from app.models.activity import RallyEvent
-from app.crud.crud_team import CRUDTeam
 from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.dynamic_scoring import DynamicAward

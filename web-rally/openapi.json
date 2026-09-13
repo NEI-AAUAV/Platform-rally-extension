@@ -4119,6 +4119,67 @@
         }
       }
     },
+    "/api/rally/v1/events/{event_id}/capabilities": {
+      "patch": {
+        "tags": [
+          "Events",
+          "Events"
+        ],
+        "summary": "Update Event Capabilities",
+        "operationId": "update_event_capabilities",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEventCapabilitiesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigurationStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/events/{event_id}/change-format": {
       "post": {
         "tags": [
@@ -9247,8 +9308,7 @@
           },
           "issues": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ConfigurationIssueResponse"
             },
             "type": "array",
             "title": "Issues"
@@ -14471,6 +14531,34 @@
         },
         "type": "object",
         "title": "TeamUpdate"
+      },
+      "UpdateEventCapabilitiesRequest": {
+        "properties": {
+          "qr_arrival": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qr Arrival"
+          },
+          "drinking_scoring": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drinking Scoring"
+          }
+        },
+        "type": "object",
+        "title": "UpdateEventCapabilitiesRequest"
       },
       "ValidationError": {
         "properties": {

@@ -87,9 +87,10 @@ export function useExtraShotsAndPenalties(
   // server is what multiplies count by price. The form only collects counts.
   const penaltyValues = getPenaltyValues(settings);
 
-  // Drinking mechanics belong to the pub-crawl format; the settings page gates
-  // the same fields on the same predicate.
-  const hasDrinkingMechanics = formatHasDrinkingMechanics(settings?.event_type);
+  // Drinking mechanics belong to the pub-crawl format; gate on runtime capability if present.
+  const hasDrinkingMechanics =
+    settings?.effective_capabilities?.drinking_scoring ??
+    formatHasDrinkingMechanics(settings?.event_type);
 
   // Penalty amounts are stored negative (the backend applies `abs()`), so
   // "configured" means non-zero, not positive. Gating on `> 0` hid the fields
