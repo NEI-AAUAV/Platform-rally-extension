@@ -17,6 +17,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.api import deps
 from app.api.abac_deps import get_staff_with_checkpoint_access
@@ -43,6 +44,9 @@ from app.services.checkin_token import (
 from app.services.deps import get_checkin_service
 from app.services.event_scope import require_same_event
 from app.crud.crud_activity import rally_event
+from app.domain.event_configuration.policies import Capability
+from app.domain.event_configuration.resolver import resolve_capabilities
+from app.models.rally_settings import RallySettings
 
 
 class CheckinRequest(BaseModel):
@@ -109,11 +113,12 @@ class CheckinController:
         if not settings.SELF_CHECKIN_ENABLED:
             raise RallyNotFoundError("Self check-in is disabled")
 
-    def get_checkin_token(
+    async def get_checkin_token(
         self,
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
         settings: SettingsDep,
+        db: Annotated[AsyncSession, Depends(get_db)],
         checkpoint_id: int | None = None,
     ) -> dict[str, str]:
         """Mint a rotating check-in QR token for a checkpoint.
@@ -139,6 +144,17 @@ class CheckinController:
         )
         if target is None:
             raise RallyForbiddenError("No checkpoint assigned")
+        checkpoint = await CheckinService(db).get_checkpoint_or_raise(target)
+        event = await rally_event.get(db, checkpoint.event_id)
+        event_settings = await db.scalar(
+            select(RallySettings).where(RallySettings.event_id == checkpoint.event_id)
+        )
+        if event is None or event_settings is None or not resolve_capabilities(
+            event_type=event.event_type, profile=event.event_profile,
+            settings=event_settings, platform_qr_supported=settings.SELF_CHECKIN_ENABLED,
+            event_config=event.config, rotation_schedule=event.rotation_schedule,
+        )[Capability.QR_ARRIVAL].effective:
+            raise RallyNotFoundError("QR self check-in is not enabled for this event")
         return {"token": generate_checkin_token(target)}
 
     async def staff_check_in(
@@ -213,13 +229,6 @@ class CheckinController:
     ) -> CheckinResponse:
         """Check the calling team into the checkpoint encoded in the scanned token."""
         self._require_enabled(settings)
-        # Platform support is not event intent. Legacy custom events preserve
-        # their historical platform-gated behaviour; opinionated profiles must
-        # explicitly opt into QR through their policy/configuration.
-        event = await rally_event.get_current(db)
-        if event is not None and event.event_profile != "custom" and not event.config.get("qr_checkin_enabled", False):
-            raise RallyNotFoundError("QR self check-in is not enabled for this event")
-
         try:
             claims = verify_checkin_token(body.token)
         except CheckinTokenError as exc:
@@ -229,6 +238,16 @@ class CheckinController:
             raise RallyConflictError("This QR was already used by your team")
 
         checkpoint = await service.get_checkpoint_or_raise(claims.checkpoint_id)
+        event = await rally_event.get(db, checkpoint.event_id)
+        event_settings = await db.scalar(
+            select(RallySettings).where(RallySettings.event_id == checkpoint.event_id)
+        )
+        if event is None or event_settings is None or not resolve_capabilities(
+            event_type=event.event_type, profile=event.event_profile,
+            settings=event_settings, platform_qr_supported=settings.SELF_CHECKIN_ENABLED,
+            event_config=event.config, rotation_schedule=event.rotation_schedule,
+        )[Capability.QR_ARRIVAL].effective:
+            raise RallyNotFoundError("QR self check-in is not enabled for this event")
         team_obj = await service.get_team_or_raise(team.team_id)
         require_same_event(team_obj.event_id, checkpoint.event_id)
 

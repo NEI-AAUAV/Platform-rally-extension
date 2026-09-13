@@ -1,10 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
-import {
-  eventConfigurationStatus,
-  getCurrentEvent,
-  type ConfigurationIssueResponse,
-} from "@/client";
+import { type ConfigurationIssueResponse } from "@/client";
+import { useEventConfiguration } from "./useEventConfiguration";
 
 const POLICY_LABEL: Record<string, string> = {
   required: "Obrigatório",
@@ -25,17 +21,7 @@ function Issue({ issue }: Readonly<{ issue: ConfigurationIssueResponse }>) {
 
 /** Admin-only summary. It deliberately reads the event-scoped preflight instead of guessing from switches. */
 export default function ConfigurationReadiness() {
-  const query = useQuery({
-    queryKey: ["event-configuration-status", "current"],
-    queryFn: async () => {
-      const { data: event } = await getCurrentEvent();
-      if (!event) throw new Error("Evento atual indisponível");
-      const { data } = await eventConfigurationStatus({ path: { event_id: event.id } });
-      if (!data) throw new Error("Estado de configuração indisponível");
-      return data;
-    },
-    staleTime: 15_000,
-  });
+  const query = useEventConfiguration();
 
   if (query.isLoading || !query.data) return null;
   const { ready, issues, capabilities } = query.data;

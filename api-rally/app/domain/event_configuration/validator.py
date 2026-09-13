@@ -41,7 +41,7 @@ class ConfigurationValidator:
         return issues
 
     @classmethod
-    def validate(cls, *, event: object, settings: object, checkpoints: list[object], route_stages: list[object], platform_qr_supported: bool) -> ConfigurationReport:
+    def validate(cls, *, event: object, settings: object, checkpoints: list[object], route_stages: list[object], platform_qr_supported: bool, activities: list[object] | None = None, staff_assignments: list[object] | None = None, guide_assignments: list[object] | None = None) -> ConfigurationReport:
         event_type, profile, config = event.event_type, getattr(event, "event_profile", "custom"), getattr(event, "config", {})
         caps = resolve_capabilities(event_type=event_type, profile=profile, settings=settings, platform_qr_supported=platform_qr_supported, event_config=config, rotation_schedule=getattr(event, "rotation_schedule", None))
         issues = cls.local_issues(event_type=event_type, profile=profile, settings=settings, config=config)
@@ -54,6 +54,13 @@ class ConfigurationValidator:
             issues.append(ConfigurationIssue("NO_CHECKPOINTS", ConfigurationIssueSeverity.ERROR, "Este perfil necessita de pelo menos um posto publicado para poder ser jogado.", entity_type="checkpoint", suggestion="Crie e publique pelo menos um posto no percurso."))
         if event_type == "olympic" and profile == EventProfile.ROTATION.value and not caps[Capability.OLYMPIC_ROTATION].configured:
             issues.append(ConfigurationIssue("ROTATION_SCHEDULE_MISSING", ConfigurationIssueSeverity.ERROR, "O perfil de rotação requer um calendário de rotações válido.", ["rotation_schedule"]))
+        if caps[Capability.STAFF_SCORING].policy is CapabilityPolicy.REQUIRED:
+            if not activities:
+                issues.append(ConfigurationIssue("NO_ACTIVITIES", ConfigurationIssueSeverity.ERROR, "A avaliação por staff requer pelo menos uma atividade.", entity_type="activity"))
+            if not staff_assignments:
+                issues.append(ConfigurationIssue("NO_STAFF_ASSIGNMENTS", ConfigurationIssueSeverity.ERROR, "A avaliação por staff requer pelo menos uma atribuição de staff.", entity_type="staff_assignment"))
+        if caps[Capability.GUIDE_MODE].policy is CapabilityPolicy.REQUIRED and not guide_assignments:
+            issues.append(ConfigurationIssue("NO_GUIDE_ASSIGNMENTS", ConfigurationIssueSeverity.ERROR, "O perfil guiado requer pelo menos uma atribuição de guia.", entity_type="guide_assignment"))
         if event_type == "peddy_paper" and not caps[Capability.HINTS].effective and not caps[Capability.SKIP].effective:
             issues.append(ConfigurationIssue("NO_RECOVERY_PATH", ConfigurationIssueSeverity.WARNING, "Pistas e desistência estão desligadas. Uma equipa bloqueada poderá não conseguir continuar.", ["hints_enabled", "skip_enabled"]))
         if caps[Capability.QR_ARRIVAL].configured and not platform_qr_supported:

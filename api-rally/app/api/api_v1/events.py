@@ -38,6 +38,9 @@ from app.models.dynamic_scoring import DynamicAward
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.rally_settings import RallySettings
 from app.models.route_stage import RouteStage
+from app.models.rally_staff_assignment import RallyStaffAssignment
+from app.models.rally_guide_assignment import RallyGuideAssignment
+from app.models.team import Team
 
 EVENT_NOT_FOUND_RESPONSES: dict[int | str, dict[str, Any]] = {404: {"description": EVENT_NOT_FOUND}}
 
@@ -235,7 +238,10 @@ class EventController:
             settings_row = new_settings_for_profile(event_id=event_id, event_type=event.event_type, profile=event.event_profile, config=dict(event.config or {}))
         checkpoints = list((await db.scalars(select(CheckPoint).where(CheckPoint.event_id == event_id, CheckPoint.is_draft.is_(False)))).all())
         stages = list((await db.scalars(select(RouteStage).where(RouteStage.event_id == event_id))).all())
-        report = ConfigurationValidator.validate(event=event, settings=settings_row, checkpoints=checkpoints, route_stages=stages, platform_qr_supported=app_settings.SELF_CHECKIN_ENABLED)
+        activities = list((await db.scalars(select(Activity).where(Activity.event_id == event_id))).all())
+        staff = list((await db.scalars(select(RallyStaffAssignment).join(CheckPoint).where(CheckPoint.event_id == event_id))).all())
+        guides = list((await db.scalars(select(RallyGuideAssignment).join(Team).where(Team.event_id == event_id))).all())
+        report = ConfigurationValidator.validate(event=event, settings=settings_row, checkpoints=checkpoints, route_stages=stages, platform_qr_supported=app_settings.SELF_CHECKIN_ENABLED, activities=activities, staff_assignments=staff, guide_assignments=guides)
         return ConfigurationStatusResponse(event_type=report.event_type, event_profile=report.event_profile, ready=report.ready, capabilities=report.capabilities, issues=[{**issue.__dict__, "severity": issue.severity.value} for issue in report.issues])
 
     async def change_format(
