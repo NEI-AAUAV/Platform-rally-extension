@@ -70,6 +70,6 @@ async def test_update_skips_locked_array_validation_when_value_is_none(pg_sessio
         updated = await crud_team.update(
             pg_session,
             id=created.id,
-            obj_in=TeamUpdate(name="Renamed Locked Team", times=None, question_scores=None),
+            obj_in=TeamUpdate(name="Renamed Locked Team"),
         )
     assert updated.id == created.id

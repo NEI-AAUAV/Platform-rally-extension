@@ -240,6 +240,18 @@ class TestCheckExistingResult:
         await check_existing_result(pg_session, activity_id=activity.id, team_id=team.id)
 
 
+async def _arrival_count(pg_session, team_id: int) -> int:
+    from sqlalchemy import func, select
+
+    from app.models.checkpoint_arrival import CheckpointArrival
+
+    return await pg_session.scalar(
+        select(func.count())
+        .select_from(CheckpointArrival)
+        .where(CheckpointArrival.team_id == team_id)
+    )
+
+
 class TestCheckpointProgression:
     async def test_checkin_team_to_checkpoint(self, pg_session):
         event = await _make_event(pg_session)
@@ -249,8 +261,7 @@ class TestCheckpointProgression:
 
         await checkin_team_to_checkpoint(pg_session, team.id, cp.id)
 
-        refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 1
+        assert await _arrival_count(pg_session, team.id) == 1
 
     async def test_check_and_advance_team_global_activity_never_advances(self, pg_session):
         await _make_event(pg_session)
@@ -267,8 +278,7 @@ class TestCheckpointProgression:
 
         await check_and_advance_team(pg_session, team.id, global_activity)
 
-        refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 0
+        assert await _arrival_count(pg_session, team.id) == 0
 
     async def test_check_and_advance_team_advances_when_all_scored(self, pg_session):
         event = await _make_event(pg_session)
@@ -290,8 +300,7 @@ class TestCheckpointProgression:
 
         await check_and_advance_team(pg_session, team.id, activity)
 
-        refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 1
+        assert await _arrival_count(pg_session, team.id) == 1
 
     async def test_check_and_advance_team_idempotent_when_already_past(self, pg_session):
         """Team already checked into checkpoint 2 (past checkpoint 1's order):
@@ -311,8 +320,7 @@ class TestCheckpointProgression:
 
         await check_and_advance_team(pg_session, team.id, activity)
 
-        refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 2  # unchanged, still just cp1 + cp2
+        assert await _arrival_count(pg_session, team.id) == 2  # unchanged, still just cp1 + cp2
 
     async def test_check_and_advance_team_keeps_the_earlier_checkin_time(self, pg_session):
         """A QR scan (team's own or staff's) already stamps the arrival. The
@@ -350,8 +358,7 @@ class TestCheckpointProgression:
         await pg_session.commit()
         await check_and_advance_team(pg_session, team.id, activity)
 
-        refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 1
+        assert await _arrival_count(pg_session, team.id) == 1
         assert (
             await pg_session.scalar(
                 select(CheckpointArrival.arrived_at).where(
@@ -388,7 +395,7 @@ class TestCheckpointProgression:
         await check_and_advance_team(pg_session, team.id, first)
 
         refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 1
+        assert await _arrival_count(pg_session, team.id) == 1
         _, _, resolved = await compute_checkpoint_progress(pg_session, refreshed)
         assert cp.order not in resolved
 
@@ -428,7 +435,7 @@ class TestCheckpointProgression:
         await check_and_advance_team(pg_session, team.id, second)
 
         refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 1
+        assert await _arrival_count(pg_session, team.id) == 1
         _, _, resolved = await compute_checkpoint_progress(pg_session, refreshed)
         assert cp.order in resolved
 
@@ -441,8 +448,7 @@ class TestCheckpointProgression:
 
         await check_and_advance_team(pg_session, team.id, activity)
 
-        refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 0
+        assert await _arrival_count(pg_session, team.id) == 0
 
 
 class TestCheckpointProgressCalculation:

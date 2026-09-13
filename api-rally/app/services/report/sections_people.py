@@ -108,8 +108,8 @@ def guides(ctx: EventReportContext) -> list[object]:
 def progress(ctx: EventReportContext) -> list[object]:
     """Each team's route, in route order, with arrival times where recorded.
 
-    Arrivals come from the arrival rows rather than `Team.times`, which is
-    appended in visit order and so does not line up with route order.
+    Arrivals come from the arrival rows, keyed by checkpoint id, so they line
+    up with route order whatever order the team visited in.
     """
     tables: list[object] = []
     for team in ctx.teams:

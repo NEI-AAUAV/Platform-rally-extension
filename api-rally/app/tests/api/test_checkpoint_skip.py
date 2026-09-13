@@ -153,7 +153,6 @@ async def test_can_give_up_on_the_post_being_hunted_after_an_advance(pg_session,
 
     now = datetime.now(UTC)
     pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=first.id, arrived_at=now))
-    team.times = [now, now]
     pg_session.add(team)
     await pg_session.commit()
 
@@ -189,7 +188,6 @@ async def test_can_give_up_current_post_with_a_later_post_resolved_ahead(pg_sess
     for cp in cps[:3]:
         pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=cp.id, arrived_at=now))
     pg_session.add(CheckpointSkip(team_id=team.id, checkpoint_id=cps[4].id, cost=0))
-    team.times = [now, now, now, now]
     pg_session.add(team)
     await pg_session.commit()
 

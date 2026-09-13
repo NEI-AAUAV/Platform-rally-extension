@@ -25,7 +25,6 @@ export const MOCK_TEAM: ListingTeam = {
   classification: 1,
   versus_group_id: null,
   num_members: 4,
-  times: [],
   last_checkpoint_time: null,
   last_checkpoint_score: null,
   last_checkpoint_number: null,

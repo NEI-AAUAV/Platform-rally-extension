@@ -20,7 +20,6 @@ from app.core.metrics import observe_scoring_recompute
 from app.core.observability import traced
 from app.crud._event_scope import current_event_id
 from app.crud.crud_activity import activity_result as activity_result_crud
-from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_team import team as team_crud
 from app.crud.crud_versus import versus
 from app.db.locks import lock_team_ranking
@@ -563,33 +562,11 @@ class ScoringService:
                 points[key] = round(count * prices.get(key, 0.0))
         return points
 
-    async def _checkpoint_scores_for_team(
-        self, team_id: int
-    ) -> tuple[dict[int, float], dict[int, int], float]:
-        """Sum completed results per checkpoint, plus the raw total."""
-        stmt = (
-            select(ActivityResult)
-            .options(joinedload(ActivityResult.activity).joinedload(Activity.checkpoint))
-            .where(ActivityResult.team_id == team_id)
-        )
+    async def _results_total_for_team(self, team_id: int) -> float:
+        """Sum of this team's completed activity results."""
+        stmt = select(ActivityResult).where(ActivityResult.team_id == team_id)
         results = (await self.db.scalars(stmt)).all()
-
-        checkpoint_scores: dict[int, float] = {}
-        checkpoint_order_by_id: dict[int, int] = {}
-        total_score = 0.0
-        for result in results:
-            if not (result.is_completed and result.final_score is not None):
-                continue
-            total_score += result.final_score
-            if not (result.activity and result.activity.checkpoint):
-                continue
-            checkpoint = result.activity.checkpoint
-            checkpoint_scores[checkpoint.id] = (
-                checkpoint_scores.get(checkpoint.id, 0.0) + result.final_score
-            )
-            checkpoint_order_by_id[checkpoint.id] = checkpoint.order
-
-        return checkpoint_scores, checkpoint_order_by_id, total_score
+        return sum(r.final_score for r in results if r.is_completed and r.final_score is not None)
 
     async def _current_event_award_filter(self) -> Any:
         """WHERE clause restricting awards to the current edition."""
@@ -629,7 +606,7 @@ class ScoringService:
             )
 
     async def _apply_team_score(self, team_id: int) -> float | None:
-        """Recompute one team's total and checkpoint layout in the session."""
+        """Recompute one team's total in the session."""
         # The advisory gate every whole-team-set writer takes, in place of the
         # row-level FOR UPDATE this used to hold: that lock conflicted with the
         # KEY SHARE an activity-result INSERT takes on its team row, which is
@@ -641,25 +618,17 @@ class ScoringService:
 
         await self.db.flush()
 
-        (
-            checkpoint_scores,
-            checkpoint_order_by_id,
-            total_score,
-        ) = await self._checkpoint_scores_for_team(team_id)
+        total_score = await self._results_total_for_team(team_id)
         total_score += await self._active_award_points(team_id)
 
         new_total = round(total_score)
         if new_total != team.total:
             team.last_scored_at = datetime.now(UTC)
         team.total = new_total
-
-        self._apply_checkpoint_layout(
-            team, checkpoint_scores, checkpoint_order_by_id, await self._route_orders()
-        )
         return total_score
 
     async def update_team_scores(self, team_id: int, should_commit: bool = True) -> bool:
-        """Update team's total and score_per_checkpoint based on activity results"""
+        """Update team's total based on activity results and awards."""
         total_score = await self._apply_team_score(team_id)
         if total_score is None:
             return False
@@ -689,41 +658,15 @@ class ScoringService:
         else:
             await self.db.commit()
 
-    async def _route_orders(self) -> list[int]:
-        """The published route's checkpoint orders, ascending."""
-        return [cp.order for cp in await checkpoint_crud.get_all_ordered(self.db)]
-
-    @staticmethod
-    def _apply_checkpoint_layout(
-        team: Team,
-        checkpoint_scores: dict[int, float],
-        checkpoint_order_by_id: dict[int, int],
-        route_orders: Sequence[int],
-    ) -> None:
-        """Lay per-checkpoint scores onto ``team.score_per_checkpoint``."""
-        pending: dict[int, list[int]] = {}
-        for cid, score in checkpoint_scores.items():
-            pending.setdefault(checkpoint_order_by_id[cid], []).append(round(score))
-
-        layout: list[int] = []
-        for order in route_orders:
-            slot_scores = pending.get(order)
-            layout.append(slot_scores.pop(0) if slot_scores else 0)
-        team.score_per_checkpoint = layout
-
     async def update_all_team_scores(self, teams: list[Team]) -> None:
-        """Recompute total + per-checkpoint scores for many teams in bulk."""
+        """Recompute totals for many teams in bulk."""
         if not teams:
             return
 
         await self.db.flush()
         team_ids = [team.id for team in teams]
 
-        results_stmt = (
-            select(ActivityResult)
-            .options(joinedload(ActivityResult.activity).joinedload(Activity.checkpoint))
-            .where(ActivityResult.team_id.in_(team_ids))
-        )
+        results_stmt = select(ActivityResult).where(ActivityResult.team_id.in_(team_ids))
         results = (await self.db.scalars(results_stmt)).all()
 
         awards_stmt = select(DynamicAward).where(
@@ -733,27 +676,12 @@ class ScoringService:
         )
         awards = (await self.db.scalars(awards_stmt)).all()
 
-        per_team: dict[int, tuple[dict[int, float], dict[int, int], float]] = {
-            tid: ({}, {}, 0.0) for tid in team_ids
-        }
+        raw_totals: dict[int, float] = dict.fromkeys(team_ids, 0.0)
         for result in results:
             if not (result.is_completed and result.final_score is not None):
                 continue
-            bucket = per_team.get(result.team_id)
-            if bucket is None:
-                continue
-            checkpoint_scores, checkpoint_order_by_id, running_total = bucket
-            if result.activity and result.activity.checkpoint:
-                checkpoint = result.activity.checkpoint
-                checkpoint_scores[checkpoint.id] = (
-                    checkpoint_scores.get(checkpoint.id, 0.0) + result.final_score
-                )
-                checkpoint_order_by_id[checkpoint.id] = checkpoint.order
-            per_team[result.team_id] = (
-                checkpoint_scores,
-                checkpoint_order_by_id,
-                running_total + result.final_score,
-            )
+            if result.team_id in raw_totals:
+                raw_totals[result.team_id] += result.final_score
 
         award_points_by_team: dict[int, float] = {}
         for award in awards:
@@ -762,17 +690,12 @@ class ScoringService:
             ) + float(award.points)
 
         now = datetime.now(UTC)
-        route_orders = await self._route_orders()
         for team in teams:
-            checkpoint_scores, checkpoint_order_by_id, raw_total = per_team[team.id]
-            total_score = raw_total + award_points_by_team.get(team.id, 0.0)
+            total_score = raw_totals[team.id] + award_points_by_team.get(team.id, 0.0)
             new_total = round(total_score)
             if new_total != team.total:
                 team.last_scored_at = now
             team.total = new_total
-            self._apply_checkpoint_layout(
-                team, checkpoint_scores, checkpoint_order_by_id, route_orders
-            )
 
     async def _publish_result_change(
         self,

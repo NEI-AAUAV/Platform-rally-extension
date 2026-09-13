@@ -27,15 +27,16 @@ from app.crud.deps import get_checkpoint_crud, get_team_crud
 from app.models.activity import ActivityResult
 from app.models.team import Team
 from app.schemas.team import (
+    AdminCheckPointSelect,
     DetailedTeam,
     ListingTeam,
     PrivilegedDetailedTeam,
     TeamCreate,
-    TeamScoresUpdate,
     TeamUpdate,
 )
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
+from app.services.checkpoint_visits import record_visit
 from app.services.deps import get_team_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
 from app.services.pace_service import compute_paces
@@ -237,7 +238,7 @@ class TeamController:
         *,
         db: Annotated[AsyncSession, Depends(deps.get_db)],
         id: int,
-        obj_in: TeamScoresUpdate,
+        obj_in: AdminCheckPointSelect,
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         staff_user: Annotated[DetailedUser, Depends(deps.get_admin_or_staff)],
         service: Annotated[TeamService, Depends(get_team_service)],
@@ -260,13 +261,12 @@ class TeamController:
             checkpoint_crud=checkpoint_crud,
         )
 
-        team_db = await team_crud.add_checkpoint(
-            db=db,
-            id=id,
-            checkpoint_id=checkpoint_id,
-            obj_in=obj_in,
-        )
-        return await service.build_detailed_team(team_db)
+        # A staff member vouching the team is at their post. The arrival row
+        # is idempotent on (team, checkpoint); order and event window are
+        # validated before it commits.
+        await record_visit(db, team_id=id, checkpoint_id=checkpoint_id, source="staff")
+        team_db = await team_crud.get(db=db, id=id)
+        return await service.build_detailed_team(team_db, with_progress=True)
 
     async def create_team(
         self,

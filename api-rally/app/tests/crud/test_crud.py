@@ -14,7 +14,7 @@ from app.crud.crud_team import team as crud_team
 from app.crud.crud_user import user as crud_user
 from app.models.checkpoint import CheckPoint
 from app.schemas.rally_settings import RallySettingsUpdate
-from app.schemas.team import TeamCreate, TeamScoresUpdate, TeamUpdate
+from app.schemas.team import TeamCreate, TeamUpdate
 from app.schemas.user import UserCreate
 from app.services.checkpoint_visits import record_visit
 from app.tests.conftest import make_event as _make_event
@@ -157,18 +157,6 @@ class TestTeamCRUD:
         with pytest.raises(RallyValidationError):
             await crud_team.create(pg_session, obj_in=team_in)
 
-    async def test_update_team_locked_array_size_mismatch_raises(self, pg_session):
-        await _make_event(pg_session)
-        created = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
-
-        team_update = TeamUpdate(times=[datetime.now(UTC)], question_scores=[])
-        with pytest.raises(RallyValidationError):
-            await crud_team.update(
-                pg_session,
-                id=created.id,
-                obj_in=team_update,
-            )
-
     async def test_get_by_checkpoint_finds_teams_at_order(self, pg_session):
         event = await _make_event(pg_session)
         checkpoint = await _make_checkpoint(pg_session, event_id=event.id, order=1)
@@ -198,21 +186,6 @@ class TestTeamCRUD:
 
         assert result == []
 
-    def test_calculate_min_time_scores(self):
-        from app.models.team import Team
-
-        teams = [
-            Team(name="A", time_scores=[10, 20]),
-            Team(name="B", time_scores=[5, 0]),
-        ]
-
-        result = crud_team.calculate_min_time_scores(teams)
-
-        assert result[0] == 5
-        # Team B's index-1 score is 0 (treated as inf, i.e. "no score yet"),
-        # so team A's 20 is the only real value and wins the min.
-        assert result[1] == 20
-
 
 class TestTeamCheckpointLogic:
     async def _setup_active_rally(self, pg_session):
@@ -229,21 +202,18 @@ class TestTeamCheckpointLogic:
         checkpoint = await _make_checkpoint(pg_session, event_id=event.id, order=1)
         return event, settings, team, checkpoint
 
-    async def test_add_checkpoint_success(self, pg_session):
+    async def test_record_visit_success(self, pg_session):
         _, _, team, checkpoint = await self._setup_active_rally(pg_session)
-        checkpoint_data = TeamScoresUpdate(
-            checkpoint_id=checkpoint.id, question_score=1, time_score=20, pukes=0, skips=0
+
+        recorded = await record_visit(
+            pg_session, team_id=team.id, checkpoint_id=checkpoint.id, source="staff"
         )
 
-        result = await crud_team.add_checkpoint(
-            pg_session, id=team.id, checkpoint_id=checkpoint.id, obj_in=checkpoint_data
-        )
+        assert recorded is True
+        arrivals = await crud_team.get_by_checkpoint(pg_session, checkpoint_id=checkpoint.id)
+        assert [t.id for t in arrivals] == [team.id]
 
-        assert len(result.time_scores) == 1
-        assert result.time_scores[0] == 20
-        assert result.question_scores[0] is True
-
-    async def test_add_checkpoint_before_rally_start_raises(self, pg_session):
+    async def test_record_visit_before_rally_start_raises(self, pg_session):
         event = await _make_event(pg_session)
         now = datetime.now(UTC)
         await _set_event_timing(
@@ -255,16 +225,11 @@ class TestTeamCheckpointLogic:
         await rally_settings.get_or_create(pg_session)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
         checkpoint = await _make_checkpoint(pg_session, event_id=event.id, order=1)
-        checkpoint_data = TeamScoresUpdate(
-            checkpoint_id=checkpoint.id, question_score=1, time_score=20, pukes=0, skips=0
-        )
 
         with pytest.raises(RallyValidationError):
-            await crud_team.add_checkpoint(
-                pg_session, id=team.id, checkpoint_id=checkpoint.id, obj_in=checkpoint_data
-            )
+            await record_visit(pg_session, team_id=team.id, checkpoint_id=checkpoint.id)
 
-    async def test_add_checkpoint_after_rally_end_raises(self, pg_session):
+    async def test_record_visit_after_rally_end_raises(self, pg_session):
         event = await _make_event(pg_session)
         now = datetime.now(UTC)
         await _set_event_timing(
@@ -276,27 +241,17 @@ class TestTeamCheckpointLogic:
         await rally_settings.get_or_create(pg_session)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Test Team"))
         checkpoint = await _make_checkpoint(pg_session, event_id=event.id, order=1)
-        checkpoint_data = TeamScoresUpdate(
-            checkpoint_id=checkpoint.id, question_score=1, time_score=20, pukes=0, skips=0
-        )
 
         with pytest.raises(RallyValidationError):
-            await crud_team.add_checkpoint(
-                pg_session, id=team.id, checkpoint_id=checkpoint.id, obj_in=checkpoint_data
-            )
+            await record_visit(pg_session, team_id=team.id, checkpoint_id=checkpoint.id)
 
-    async def test_add_checkpoint_unknown_checkpoint_raises(self, pg_session):
+    async def test_record_visit_unknown_checkpoint_raises(self, pg_session):
         _, _, team, _ = await self._setup_active_rally(pg_session)
-        checkpoint_data = TeamScoresUpdate(
-            checkpoint_id=999999, question_score=1, time_score=20, pukes=0, skips=0
-        )
 
         with pytest.raises(RallyNotFoundError):
-            await crud_team.add_checkpoint(
-                pg_session, id=team.id, checkpoint_id=999999, obj_in=checkpoint_data
-            )
+            await record_visit(pg_session, team_id=team.id, checkpoint_id=999999)
 
-    async def test_add_checkpoint_out_of_order_when_order_matters_raises(self, pg_session):
+    async def test_record_visit_out_of_order_when_order_matters_raises(self, pg_session):
         event, settings, team, _cp1 = await self._setup_active_rally(pg_session)
         await rally_settings.update(
             pg_session,
@@ -305,18 +260,11 @@ class TestTeamCheckpointLogic:
             commit=True,
         )
         cp2 = await _make_checkpoint(pg_session, event_id=event.id, order=2)
-        checkpoint_data = TeamScoresUpdate(
-            checkpoint_id=cp2.id, question_score=1, time_score=20, pukes=0, skips=0
-        )
 
         with pytest.raises(RallyValidationError):
-            await crud_team.add_checkpoint(
-                pg_session, id=team.id, checkpoint_id=cp2.id, obj_in=checkpoint_data
-            )
+            await record_visit(pg_session, team_id=team.id, checkpoint_id=cp2.id)
 
-    async def test_add_checkpoint_already_visited_when_order_does_not_matter_raises(
-        self, pg_session
-    ):
+    async def test_record_visit_already_visited_when_order_does_not_matter_raises(self, pg_session):
         _, settings, team, cp1 = await self._setup_active_rally(pg_session)
         await rally_settings.update(
             pg_session,
@@ -329,12 +277,11 @@ class TestTeamCheckpointLogic:
         # Team has already visited cp1 (order 1); a second visit must not be
         # recorded again, even though order doesn't matter for this rally. The
         # guard is the arrival row's unique (team, checkpoint) constraint —
-        # ``record_visit`` is where every check-in path goes through it — and
-        # not the order check, which no longer keys off ``len(team.times)``.
+        # ``record_visit`` is where every check-in path goes through it.
         assert await record_visit(pg_session, team_id=team.id, checkpoint_id=cp1.id) is False
 
-        refreshed = await crud_team.get(pg_session, id=team.id)
-        assert len(refreshed.times) == 1
+        arrivals = await crud_team.get_by_checkpoint(pg_session, checkpoint_id=cp1.id)
+        assert len(arrivals) == 1
 
 
 class TestUserCRUD:

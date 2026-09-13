@@ -4,15 +4,14 @@ import { mintToken, apiCall, type MintedUser } from "./fullstackAuth";
  * Checkpoint `order` is a single sequence scoped to whichever event is
  * "current" (api-rally/app/models/checkpoint.py's uq_checkpoint_event_order
  * constraint) — real rallies have exactly one ordered checkpoint list shared
- * by every team. staff-check-in only advances a team past a checkpoint when
- * `checkpoint.order === len(team.times) + 1`, so a team's *first* checkpoint
- * must be order 1 within its event.
+ * by every team. With checkpoint order enforced, a team's *first* check-in
+ * must be at order 1 within its event.
  *
  * The smoke Postgres is disposable but not reset between spec files sharing
  * one CI job, and every seedRally()/seedRallyDay() call previously reused
  * whatever event happened to be "current" — so by the 2nd+ call in a job,
  * its checkpoint landed at some already-high global order while the fresh
- * team's own len(times) was still 0, and staff-check-in could never fire.
+ * team had resolved nothing, and staff-check-in could never fire.
  * Minting and activating a fresh event per call gives each test a genuinely
  * empty checkpoint sequence to start its own order at 1, matching how real
  * rallies actually work instead of simulating several unrelated rallies

@@ -48,7 +48,6 @@ class ListingTeam(TeamBase, RouteProgressFields):
     """
 
     num_members: int
-    times: list[datetime] = []
 
     last_checkpoint_time: datetime | None
     last_checkpoint_score: int | None = None
@@ -63,8 +62,8 @@ class CheckpointPenalties(BaseModel):
     activity-level deductions (vómitos, não-beber, contadores dinâmicos).
     Every field is negative or zero, the same sign convention as the rest of
     the app. Only posts with at least one non-zero penalty are emitted, keyed
-    by ``checkpoint_order`` so a client can line them up with
-    ``score_per_checkpoint[order - 1]``.
+    by ``checkpoint_id`` (with ``checkpoint_order`` for display), matching
+    ``DetailedTeam.checkpoints``.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -100,13 +99,6 @@ class CheckpointProgress(BaseModel):
 
 
 class DetailedTeam(TeamBase, RouteProgressFields):
-    # Deprecated: visit-order log, not aligned with route order. Use
-    # ``checkpoints`` instead.
-    times: list[datetime]
-
-    # Deprecated: positional by route order. Use ``checkpoints`` instead.
-    score_per_checkpoint: list[int]
-
     # Per-post progress keyed by checkpoint id. Filled when progress is
     # requested; empty otherwise.
     checkpoints: list[CheckpointProgress] = []
@@ -141,21 +133,8 @@ class TeamUpdate(BaseModel):
     # JWTs in CRUDTeam.update.
     access_code: str | None = Field(default=None, pattern=r"^[A-Z0-9]{4}-[A-Z0-9]{4}$")
     start_offset_minutes: int | None = Field(default=None, ge=0, le=24 * 60)
-    times: list[datetime] | None = None
-    score_per_checkpoint: list[int] | None = None
-    question_scores: list[bool] | None = None
-    time_scores: list[int] | None = None
-    pukes: int | None = None
-    skips: int | None = None
 
 
 class AdminCheckPointSelect(BaseModel):
     # For admin's only
     checkpoint_id: int | None = None
-
-
-class TeamScoresUpdate(AdminCheckPointSelect):
-    question_score: int
-    time_score: int
-    pukes: int
-    skips: int

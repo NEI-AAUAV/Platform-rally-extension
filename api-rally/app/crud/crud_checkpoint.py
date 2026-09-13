@@ -85,11 +85,11 @@ class CRUDCheckPoint(CRUDBase[CheckPoint, CheckPointCreate, CheckPointUpdate]):
         """Renumber the event's checkpoints so published posts run 1..N and
         drafts sit after them, each keeping its relative position.
 
-        Progress is positional: ``team.times`` is indexed by order and code
-        compares ``len(team.times) >= cp.order``, so a gap left by a drafted
-        post in the middle of the route would silently break completion.
-        Renumbering after any change to draft state keeps the published route
-        contiguous.
+        Progress itself is keyed by checkpoint id, but the route rules (the
+        next post, stage blocks, ``get_by_order``) are expressed over orders,
+        so a gap left by a drafted post in the middle of the route would leave
+        ``current_order`` naming a post that does not exist. Renumbering after
+        any change to draft state keeps the published route contiguous.
         """
         event_id = await current_event_id(db)
         # Stage first, then position inside it: a stage is a contiguous block

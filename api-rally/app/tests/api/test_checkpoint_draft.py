@@ -63,8 +63,6 @@ class TestDraftVisibility:
         team = await make_team(pg_session, event_id=event.id)
         # Post 1 genuinely resolved (arrival row) — the next post in order is
         # the draft, so the route must end here rather than hand it out.
-        team.times = [datetime(2026, 8, 9, 10, 0)]
-        pg_session.add(team)
         pg_session.add(
             CheckpointArrival(
                 team_id=team.id,
@@ -220,9 +218,11 @@ class TestPublishing:
         assert draft.is_draft is False
         assert event.id != old_event.id
 
-    async def test_draft_state_is_frozen_once_a_team_has_checked_in(
+    async def test_publishing_after_the_posts_teams_reached_is_allowed_mid_event(
         self, pg_session, pg_client, as_admin
     ):
+        """Progress is keyed by checkpoint id, so a draft that lands after every
+        post teams have reached can be published while the event runs."""
         event = await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
         first = await _make_checkpoint(pg_session, order=1)
         draft = await _make_checkpoint(pg_session, order=2, is_draft=True)
@@ -232,6 +232,66 @@ class TestPublishing:
 
         response = pg_client.put(f"/api/rally/v1/checkpoint/{draft.id}", json={"is_draft": False})
 
-        assert response.status_code == 400
+        assert response.status_code == 200, response.text
         await pg_session.refresh(draft)
+        assert draft.is_draft is False
+        assert draft.order == 2
+
+    async def test_publishing_before_a_post_teams_reached_is_refused(
+        self, pg_session, pg_client, as_admin
+    ):
+        """A draft in an earlier stage would land behind a team that is already
+        further along, so it stays in draft and the route is untouched."""
+        from app.models.route_stage import RouteStage
+
+        event = await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        early = RouteStage(event_id=event.id, name="Early", order=1)
+        late = RouteStage(event_id=event.id, name="Late", order=2)
+        pg_session.add_all([early, late])
+        await pg_session.commit()
+        reached = await _make_checkpoint(pg_session, order=1, stage_id=late.id)
+        draft = await _make_checkpoint(pg_session, order=2, is_draft=True, stage_id=early.id)
+        team = await make_team(pg_session, event_id=event.id)
+        pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=reached.id))
+        await pg_session.commit()
+
+        response = pg_client.put(f"/api/rally/v1/checkpoint/{draft.id}", json={"is_draft": False})
+
+        assert response.status_code == 400, response.text
+        await pg_session.refresh(draft)
+        await pg_session.refresh(reached)
         assert draft.is_draft is True
+        assert reached.order == 1
+
+    async def test_a_post_with_team_progress_cannot_go_back_to_draft(
+        self, pg_session, pg_client, as_admin
+    ):
+        event = await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        visited = await _make_checkpoint(pg_session, order=1)
+        team = await make_team(pg_session, event_id=event.id)
+        pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=visited.id))
+        await pg_session.commit()
+
+        response = pg_client.put(f"/api/rally/v1/checkpoint/{visited.id}", json={"is_draft": True})
+
+        assert response.status_code == 400, response.text
+        await pg_session.refresh(visited)
+        assert visited.is_draft is False
+
+    async def test_an_unvisited_post_can_go_back_to_draft_mid_event(
+        self, pg_session, pg_client, as_admin
+    ):
+        event = await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+        visited = await _make_checkpoint(pg_session, order=1)
+        unvisited = await _make_checkpoint(pg_session, order=2)
+        team = await make_team(pg_session, event_id=event.id)
+        pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=visited.id))
+        await pg_session.commit()
+
+        response = pg_client.put(
+            f"/api/rally/v1/checkpoint/{unvisited.id}", json={"is_draft": True}
+        )
+
+        assert response.status_code == 200, response.text
+        await pg_session.refresh(unvisited)
+        assert unvisited.is_draft is True

@@ -52,7 +52,6 @@ const team = {
   name: "Team A",
   total: 30,
   last_checkpoint_number: 1,
-  times: ["t1"],
 } as DetailedTeam;
 const checkpoints = [
   { id: 1, order: 1, name: "Posto 1" },

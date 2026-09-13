@@ -270,15 +270,14 @@ async def test_arrive_no_activities_auto_completes(pg_session, pg_client):
     assert resp.status_code == 200, resp.text
     assert resp.json()["auto_completed"] is True
 
-    refreshed = await _reread_team(pg_session, team.id)
-    assert len(refreshed.times) == 1
+    assert len(await _arrival_sources(pg_session, team.id)) == 1
 
 
 async def test_arrive_no_activities_auto_completes_after_prior_advance(pg_session, pg_client):
     """Regression: post 1 (its only activity) was scored by staff, so the team
     is now hunting the no-activity post 2. The GPS arrival there must
-    auto-complete — the reachability guard counts resolved posts, not
-    ``len(team.times)``.
+    auto-complete — the reachability guard counts resolved posts, not a
+    visit count.
     """
     from app.api.api_v1.staff_evaluation_utils import checkin_team_to_checkpoint
     from app.models.activity import ActivityResult
@@ -316,29 +315,6 @@ async def test_arrive_no_activities_auto_completes_after_prior_advance(pg_sessio
 
     assert resp.status_code == 200, resp.text
     assert resp.json()["auto_completed"] is True
-
-
-async def test_arrive_auto_complete_swallows_checkin_failure(pg_session, pg_client):
-    """`_auto_complete_if_no_activities` is best-effort: if advancing the team
-    raises, the arrival itself still succeeds with auto_completed=False."""
-    await _make_event(pg_session)
-    checkpoint = await _make_checkpoint(pg_session, order=1)
-    team = await _make_team(pg_session)
-
-    with (
-        patch(
-            "app.services.checkpoint_arrival_service.record_visit",
-            new=AsyncMock(side_effect=RuntimeError("boom")),
-        ),
-        as_team(team.id, "TeamA"),
-    ):
-        resp = pg_client.post(
-            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
-            json={"latitude": 41.000045, "longitude": -8.0},
-        )
-
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["auto_completed"] is False
 
 
 async def test_arrive_repeat_is_idempotent_via_integrity_error(pg_session, pg_client):
@@ -421,8 +397,7 @@ async def test_arrive_rejects_checkpoint_from_another_event(pg_session, pg_clien
 
     assert resp.status_code == 404, resp.text
 
-    refreshed = await _reread_team(pg_session, team.id)
-    assert len(refreshed.times) == 0
+    assert len(await _arrival_sources(pg_session, team.id)) == 0
 
 
 async def test_arrive_free_order_auto_completes_out_of_sequence(pg_session, pg_client):
@@ -446,8 +421,7 @@ async def test_arrive_free_order_auto_completes_out_of_sequence(pg_session, pg_c
     assert resp.status_code == 200, resp.text
     assert resp.json()["auto_completed"] is True
 
-    refreshed = await _reread_team(pg_session, team.id)
-    assert len(refreshed.times) == 1
+    assert len(await _arrival_sources(pg_session, team.id)) == 1
 
 
 async def test_arrive_rejects_out_of_range_coordinates(pg_session, pg_client):
@@ -565,9 +539,8 @@ async def test_arrive_out_of_order_is_rejected_and_nothing_is_written(pg_session
     The row used to be stored anyway, "as a fact", and the ordering question
     asked afterwards. For a no-activity post that row alone resolves the post
     (``route_progress._is_resolved``), so post 3 was silently completed for
-    free, un-redacted by ``has_arrived``, and eligible for leg-time points —
-    while ``team.times`` stayed empty. Storing only accepted arrivals is what
-    keeps those three readers honest.
+    free, un-redacted by ``has_arrived``, and eligible for leg-time points.
+    Storing only accepted arrivals is what keeps those readers honest.
     """
     await _make_event(pg_session)
     await _make_checkpoint(pg_session, order=1)
@@ -591,8 +564,7 @@ async def test_arrive_out_of_order_is_rejected_and_nothing_is_written(pg_session
     ).all()
     assert arrivals == []
 
-    refreshed = await _reread_team(pg_session, team.id)
-    assert len(refreshed.times) == 0
+    assert len(await _arrival_sources(pg_session, team.id)) == 0
 
 
 async def test_arrive_out_of_order_leaves_the_post_unresolved_and_redacted(pg_session, pg_client):
@@ -648,8 +620,7 @@ async def test_arrive_twice_at_a_no_activity_post_stays_idempotent(pg_session, p
     assert second.json()["already_registered"] is True
     assert second.json()["auto_completed"] is False
 
-    refreshed = await _reread_team(pg_session, team.id)
-    assert len(refreshed.times) == 1
+    assert len(await _arrival_sources(pg_session, team.id)) == 1
 
 
 async def test_manual_arrival_out_of_order_is_rejected_and_nothing_is_written(pg_session):

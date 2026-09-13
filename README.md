@@ -149,10 +149,11 @@ bar. The route model holds that state rather than forcing a finished post:
 - **Draft posts** (`is_draft`) are invisible to every team-facing path — the
   route, the checkpoint count, the "next post" lookup and the guide's app all
   skip them. Publishing or drafting a post **renumbers** the route so published
-  posts stay contiguous from 1, because progress is positional (`team.times` is
-  indexed by order). For that same reason draft state **freezes once any team
-  has checked in**: moving posts under a team mid-event would rewrite where it
-  has been.
+  posts stay contiguous from 1. Team progress is stored per checkpoint id
+  (`checkpoint_arrivals`, `checkpoint_skips`, activity results), so renumbering
+  never rewrites where a team has been. Mid-event, a post **cannot go back to
+  draft once a team has progress there**, and a draft **can only be published
+  where it lands after every post teams have already reached**.
 - **`staff_script`** is what whoever is stationed at the post should talk
   about, and **`challenge_brief`** is the challenge in prose before it becomes
   a configured Activity. Both are staff-only: the participant schema does not

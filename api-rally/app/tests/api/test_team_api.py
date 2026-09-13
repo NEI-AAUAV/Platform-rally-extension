@@ -346,19 +346,16 @@ class TestGetTeamById:
 
         # Score+complete activity1 via the real evaluate endpoint (goes
         # through ScoringService, which sets is_completed and auto-checks the
-        # team into cp1, so `team.times` gets one entry here).
+        # team into cp1, recording an arrival there).
         _evaluate_activity(pg_client, as_admin, team.id, cp1.id, activity1.id)
 
         resp = pg_client.get(f"/api/rally/v1/team/{team.id}")
 
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        # Auto-advance on full-completion checks the team into cp1 *and* bumps
-        # it straight to cp2 (team.times gets a second entry). That second
-        # entry is only a "next post" pointer, not an arrival: cp2 has no
-        # arrival row, so its no-active-activity branch does NOT count it as
-        # done. cp1 is the last completed post and cp2 is the current one —
-        # the team must still physically reach it.
+        # cp2 has no arrival row, so its no-active-activity branch does NOT
+        # count it as done. cp1 is the last completed post and cp2 is the
+        # current one — the team must still physically reach it.
         assert body["last_checkpoint_number"] == 1
         assert body["current_checkpoint_number"] == 2
 
@@ -368,10 +365,9 @@ class TestGetTeamById:
         """Regression: a peddy-paper team that finished post 1 (its only post
         with an activity) and has posts 2 and 3 still to visit — neither with
         an activity, neither arrived at — must be pointed at post 2, not shown
-        the finished card. Before the fix, progress was read from
-        ``len(team.times)``, which the staff-evaluation advance had inflated,
-        so both no-activity posts counted as done and
-        current_checkpoint_number went null.
+        the finished card. Before the fix, progress was read from a visit
+        count the staff-evaluation advance had inflated, so both no-activity
+        posts counted as done and current_checkpoint_number went null.
         """
         await _make_event(pg_session)
         cp1 = await _create_checkpoint(pg_session, name="CP1", order=1)
@@ -390,18 +386,13 @@ class TestGetTeamById:
 
     async def test_get_team_by_id_checkpoint_progress_all_completed(self, pg_session, pg_client):
         """When every checkpoint counts as done, current is None (route finished)."""
-        import datetime as dt
-
         from app.models.checkpoint_arrival import CheckpointArrival
 
         await _make_event(pg_session)
         only_cp = await _create_checkpoint(pg_session, name="OnlyCP", order=1)
         team = await _make_team(pg_session, "Finisher")
-        team.times = [dt.datetime(2026, 1, 1)]
-        pg_session.add(team)
         # A no-activity post only counts as done once the team has actually
-        # arrived there — recorded as a CheckpointArrival row, not inferred
-        # from team.times.
+        # arrived there — recorded as a CheckpointArrival row.
         pg_session.add(CheckpointArrival(team_id=team.id, checkpoint_id=only_cp.id))
         await pg_session.commit()
 
@@ -447,18 +438,39 @@ class TestAddCheckpoint:
 
         resp = pg_client.put(
             f"/api/rally/v1/team/{team.id}/checkpoint",
-            json={
-                "checkpoint_id": checkpoint.id,
-                "question_score": 1,
-                "time_score": 30,
-                "pukes": 0,
-                "skips": 0,
-            },
+            json={"checkpoint_id": checkpoint.id},
         )
 
         assert resp.status_code == 201, resp.text
         body = resp.json()
-        assert len(body["times"]) == 1
+        [row] = body["checkpoints"]
+        assert row["checkpoint_id"] == checkpoint.id
+        assert row["arrived_at"] is not None
+
+    async def test_add_checkpoint_records_a_staff_arrival_once(
+        self, pg_session, pg_client, as_admin
+    ):
+        from sqlalchemy import select
+
+        from app.models.checkpoint_arrival import CheckpointArrival
+
+        await _make_event(pg_session)
+        checkpoint = await _create_checkpoint(pg_session, name="CP1", order=1)
+        team = await _make_team(pg_session, "Twice")
+
+        for _ in range(2):
+            resp = pg_client.put(
+                f"/api/rally/v1/team/{team.id}/checkpoint",
+                json={"checkpoint_id": checkpoint.id},
+            )
+            assert resp.status_code == 201, resp.text
+
+        sources = (
+            await pg_session.scalars(
+                select(CheckpointArrival.source).where(CheckpointArrival.team_id == team.id)
+            )
+        ).all()
+        assert sources == ["staff"]
 
     async def test_add_checkpoint_missing_id_admin_400(self, pg_session, pg_client, as_admin):
         # Admin/manager must specify a checkpoint_id explicitly (they have
@@ -468,12 +480,7 @@ class TestAddCheckpoint:
 
         resp = pg_client.put(
             f"/api/rally/v1/team/{team.id}/checkpoint",
-            json={
-                "question_score": 1,
-                "time_score": 30,
-                "pukes": 0,
-                "skips": 0,
-            },
+            json={},
         )
 
         assert resp.status_code == 400

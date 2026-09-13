@@ -21,7 +21,6 @@ from app.models.checkpoint_arrival import ArrivalSource, CheckpointArrival
 from app.models.dynamic_scoring import DynamicAward
 from app.models.rally_settings import RallySettings
 from app.models.team import Team
-from app.services.checkpoint_visits import record_visit
 from app.services.event_scope import require_same_event
 from app.services.leg_time_service import leg_time_points
 from app.services.route_progress import (
@@ -351,19 +350,13 @@ class CheckpointArrivalService:
         return dist, arrival is None
 
     async def auto_complete_if_no_activities(self, team_id: int, checkpoint_id: int) -> bool:
-        """Stamp the visit time for a no-activity post the team just arrived at.
+        """Whether this arrival completes a no-activity post.
 
         Peddy-paper posts that only require *being there* (no staff-judged
-        activity) should not wait for an evaluation that will never come. The
-        arrival row is what resolves such a post for the progress engine; this
-        appends the matching entry to ``team.times``, the visit-timestamp log.
-
-        **Call this only when the arrival was newly created.** It used to run on
-        every request "because the order guard inside makes it a no-op" — it
-        does not. The guard asks whether the post is open *ignoring this post's
-        own arrival row*, which is by definition unchanged on a repeat, so a
-        team tapping check-in five times at post 1 appended five entries and was
-        treated as standing at post 6.
+        activity) do not wait for an evaluation that will never come: the
+        arrival row the caller has just written is what resolves such a post
+        for the progress engine, so there is nothing left to write here. This
+        answers the endpoint's ``auto_completed`` flag.
 
         Posts that DO have activities are left untouched: those only advance once
         staff submits the activity result (handled by check_and_advance_team).
@@ -389,42 +382,15 @@ class CheckpointArrivalService:
         if not team_obj:
             return False
 
-        # Belt and braces. Both arrival paths now refuse an out-of-order post
-        # *before* writing the row, so this can only agree with them — but it is
-        # the guard that keeps ``team.times`` honest if a third caller ever
-        # writes an arrival without gating it.
         # ``ignore_arrival_for`` neutralises this post's own arrival row, which
         # the caller has just written: without it the post would already read as
-        # resolved and the guard would refuse the very arrival it is evaluating,
-        # which is also what makes this answer match the pre-insert gate.
+        # resolved and this would answer "not reachable" for the very arrival
+        # being evaluated — the same answer the pre-insert gate gave.
         settings = await rally_settings.get_or_create(self._db)
-        if not await can_reach_checkpoint(
+        return await can_reach_checkpoint(
             self._db,
             team=team_obj,
             checkpoint=checkpoint_obj,
             settings=settings,
             ignore_arrival_for=checkpoint_obj.id,
-        ):
-            return False
-
-        try:
-            # enforce_order=False: reachability was just checked above against
-            # the progress engine, with this arrival held out. record_visit sees
-            # the arrival row this request already claimed, so it takes its
-            # reconcile path and stamps the still-owed team.times entry — and
-            # does the same on a later retry that finds the entry missing,
-            # instead of the visit being dropped permanently.
-            await record_visit(
-                self._db,
-                team_id=team_id,
-                checkpoint_id=checkpoint_id,
-                enforce_order=False,
-                commit=True,
-            )
-            return True
-        except Exception as exc:  # advancement is best-effort; arrival still succeeds
-            logger.warning(
-                f"Auto-complete on arrival failed for team {team_id} "
-                f"at checkpoint {checkpoint_id}: {exc}"
-            )
-            return False
+        )

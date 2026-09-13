@@ -206,10 +206,7 @@ class TestNextCheckpoint:
         await _make_event(pg_session)
         await set_rally_settings(pg_session, participant_view_enabled=True)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="DoneTeam"))
-        # Team already checked into the only checkpoint -> no next one.
-
-        team.times = [dt.datetime(2026, 1, 1)]
-        pg_session.add(team)
+        # No published checkpoint at all -> no next one.
         await pg_session.commit()
 
         with as_team(team.id, "DoneTeam"):
@@ -577,10 +574,8 @@ class TestCheckpointTeamsEndpoint:
         cp = await _make_checkpoint(pg_session, order=1)
         team = await crud_team.create(pg_session, obj_in=TeamCreate(name="T1"))
         # `get_by_checkpoint` matches on the arrival row, which names the post
-        # (it used to compare the visit *count* to the post's order). The
-        # timestamp on `times` is what `last_checkpoint_time` reports.
-        team.times = [dt.datetime(2026, 1, 1)]
-        pg_session.add(team)
+        # (it used to compare the visit *count* to the post's order). Its
+        # timestamp is what `last_checkpoint_time` reports.
         pg_session.add(
             CheckpointArrival(
                 team_id=team.id, checkpoint_id=cp.id, arrived_at=dt.datetime(2026, 1, 1)

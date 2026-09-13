@@ -22,7 +22,7 @@ class RouteStage(Base):
 
     Stages are contiguous blocks of checkpoint order — see
     ``CRUDCheckPoint.resequence``, which keeps posts grouped by stage — so the
-    positional progress model (``team.times`` indexed by order) still holds.
+    stage rules can be expressed as order comparisons.
     """
 
     __tablename__ = "route_stages"

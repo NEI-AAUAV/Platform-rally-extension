@@ -4,7 +4,7 @@ Owns the transaction boundary and validation rules that used to live split
 across ``app.crud.crud_team`` (data access + business rules + commits) and
 ``app.api.api_v1.team`` (checkpoint-progress computation inline in the
 router). ``CRUDTeam`` keeps thin delegating wrappers for
-``add_checkpoint``/``calculate_min_time_scores``/``update_classification`` so
+``update_classification`` so
 existing callers (routers, other services, tests) keep working while the logic
 itself lives here.
 
@@ -13,8 +13,6 @@ ranking rule that lives in this module is ``assign_ranks`` — the single
 ordering policy every surface must agree with.
 """
 
-import math
-from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -33,7 +31,6 @@ from app.schemas.team import (
     CheckpointPenalties,
     ListingTeam,
     PrivilegedDetailedTeam,
-    TeamScoresUpdate,
 )
 from app.services.pace_service import TeamPace
 from app.services.route_progress import (
@@ -116,23 +113,6 @@ class TeamService:
         self._db = db
         self._team_crud = team_crud
 
-    @staticmethod
-    def calculate_min_time_scores(teams: Sequence[Team]) -> list[float]:
-        """Per-post best time across all teams; 0 means "no score yet".
-
-        The width is the longest ``time_scores`` any team actually has, not a
-        hardcoded 8. A route with more than eight posts silently lost every
-        one past the eighth, and one with fewer padded the result with
-        infinities for posts that do not exist.
-        """
-        width = max((len(t.time_scores) for t in teams), default=0)
-        all_time_scores = [t.time_scores + [0] * (width - len(t.time_scores)) for t in teams]
-
-        return [
-            min((s if s != 0 else math.inf) for s in scores)
-            for scores in zip(*all_time_scores, strict=True)
-        ]
-
     async def update_classification_unlocked(self) -> None:
         """Recompute every team's total, then re-rank from those totals."""
         teams = list(await self._team_crud.get_multi(db=self._db, for_update=True))
@@ -197,70 +177,24 @@ class TeamService:
             return
         raise RallyValidationError(unreachable_message(checkpoint_obj, progress))
 
-    async def add_checkpoint(
-        self,
-        *,
-        id: int,
-        checkpoint_id: int,
-        obj_in: TeamScoresUpdate,
-        enforce_order: bool = True,
-        commit: bool = True,
-    ) -> Team:
-        """Record a team's arrival/score at a checkpoint and recompute classification.
+    async def validate_visit(
+        self, *, team_id: int, checkpoint_id: int, enforce_order: bool = True
+    ) -> None:
+        """Refuse a visit outside the event window or, unless ``enforce_order``
+        is False, at a post the team may not reach right now.
 
-        The transaction boundary: settings are resolved before the savepoint
-        (``get_or_create`` may itself commit — event bootstrap, legacy
-        adoption, timing sync — and a commit inside ``begin_nested()`` would
-        close the outer transaction), scores are appended inside the
-        savepoint, then the whole thing commits and classification recomputes.
-
-        ``enforce_order`` is False for callers that have already run the
-        reachability guard themselves. The give-up path is the reason it
-        exists: ``SkipService`` runs the guard *and* writes the skip row, so
-        the post is already resolved by the time this runs and
-        ``_validate_checkpoint_order`` would wrongly reject the very append
-        that moves the team's pointer past it.
+        Writes nothing. ``enforce_order`` is False for callers that have
+        already run the reachability guard themselves.
         """
         settings = await rally_settings.get_or_create(self._db)
-        # Take the edition's team-write gate up front (see app.db.locks): it is
-        # what serializes this whole method against another check-in, and it
-        # must come before anything this transaction writes. The classification
-        # recompute below rewrites every team row, so two concurrent check-ins
-        # have to run one after the other regardless.
-        await self._team_crud.get_multi(db=self._db, for_update=True)
-        async with self._db.begin_nested():
-            team = await self._team_crud.get(db=self._db, id=id, populate_existing=True)
-            current_time = datetime.now(UTC)
-
-            self._validate_rally_timing(
-                settings,
-                current_time,
-                start_offset_minutes=team.start_offset_minutes or 0,
-            )
-            if enforce_order:
-                await self._validate_checkpoint_order(team, checkpoint_id, settings)
-
-            team.record_checkpoint(
-                question_score=bool(obj_in.question_score),
-                time_score=obj_in.time_score,
-                pukes=obj_in.pukes,
-                skips=obj_in.skips,
-                at=current_time,
-            )
-
-        if commit:
-            # One durability boundary: the checkpoint append and the derived
-            # totals/ranking recompute commit together. A recompute failure
-            # rolls the append back too, instead of leaving the team advanced
-            # past a post with stale classification (the old two-commit order:
-            # commit append, then commit recompute separately).
-            await self.update_classification_unlocked()
-            await self._db.commit()
-        else:
-            await self._team_crud.update_classification_unlocked(db=self._db)
-            await self._db.flush()
-        await self._db.refresh(team)
-        return team
+        team = await self._team_crud.get(db=self._db, id=team_id)
+        self._validate_rally_timing(
+            settings,
+            datetime.now(UTC),
+            start_offset_minutes=team.start_offset_minutes or 0,
+        )
+        if enforce_order:
+            await self._validate_checkpoint_order(team, checkpoint_id, settings)
 
     async def progress(self, team_obj: Team) -> TeamProgress:
         """This team's position on the route, from the single progress engine."""
@@ -323,7 +257,6 @@ class TeamService:
             classification=0 if hide_scores else team.classification,
             versus_group_id=team.versus_group_id,
             start_offset_minutes=team.start_offset_minutes or 0,
-            times=team.times,
             last_checkpoint_time=last_arrived_at(checkpoint_rows),
             last_checkpoint_score=None if hide_scores else last_checkpoint_score(checkpoint_rows),
             last_checkpoint_number=state.last_completed_order,
@@ -369,7 +302,6 @@ class TeamService:
             # already carries.
             result.total = 0
             result.classification = 0
-            result.score_per_checkpoint = []
         if with_progress:
             settings = await rally_settings.get_or_create(self._db)
             route = await load_route_snapshot(self._db, settings)

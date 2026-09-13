@@ -1,28 +1,27 @@
 """Recording that a team was at a post.
 
-There used to be two disjoint ledgers. ``CheckpointArrival`` named the post and
-was written only by the GPS and guide paths; ``team.times`` was an unkeyed
-array append written by everything else (QR self-check-in, staff scan, staff
-evaluation, give-up). Nothing reconciled them, so the guide's panel could not
-see a team that scanned a QR code, a no-activity post completed by QR never
-resolved at all, and the array — being a bare count — was double-appended by
-several paths at once.
+The ``CheckpointArrival`` row is the single record of "the team was here". Its
+unique constraint on ``(team_id, checkpoint_id)`` is the idempotency token for
+the whole system: if the row already exists, the visit is already recorded and
+nothing else runs.
 
-This module makes the arrival row the single record of "the team was here", and
-``team.times`` what its name says: the visit timestamps, one per arrival. The
-unique constraint on ``(team_id, checkpoint_id)`` is therefore the idempotency
-token for the whole system: if the row already exists, the visit is already
-recorded and nothing else runs.
+There used to be a second ledger, ``Team.times``, an unkeyed array appended in
+visit order next to parallel score arrays indexed by route position. Keeping
+the two in step needed a reconcile path, and any route edit after the first
+check-in risked pairing a post with another post's data. Progress is now read
+straight from the arrival, skip and result rows (see
+``app.services.team_checkpoint_progress``).
 """
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import RallyNotFoundError
 from app.crud.crud_team import team as team_crud
+from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_arrival import ArrivalSource, CheckpointArrival
-from app.models.team import Team
-from app.schemas.team import TeamScoresUpdate
+from app.services.team_service import TeamService
 
 
 async def insert_arrival(
@@ -96,25 +95,20 @@ async def record_visit(
     """Record a team's visit to a post, once. Returns True if this call recorded it.
 
     The arrival row is claimed first and is what makes this idempotent: a
-    second call for the same pair returns False before touching ``team.times``,
-    so no path can advance a team twice. That single rule replaces the
-    per-caller guards that each got it wrong in a different way — a repeated
-    GPS tap appending one visit per tap, and a staff evaluation appending both
-    a check-in and a "next post" pointer for one post.
+    second call for the same pair returns False without validating or writing
+    anything, so no path can record a visit twice.
 
-    ``enforce_order`` is False for callers that have already run the
-    reachability check themselves.
-
-    The arrival claim and the ``team.times`` stamp are one durability boundary:
-    the claim is made on a SAVEPOINT and the visit entry appended in the same
-    transaction, so a failure after the claim rolls the claim back too instead
-    of leaving an arrival row with no matching visit timestamp. A retry whose
-    claim already exists (a prior call that committed the arrival but crashed
-    before the stamp) reconciles the missing entry rather than returning
-    silently and leaving the inconsistency permanent.
+    The claim is made on a SAVEPOINT and validated in the same transaction —
+    the event window, and the route order unless ``enforce_order`` is False
+    (for callers that already ran the reachability check). A validation error
+    propagates with the claim still uncommitted, so the caller's rollback
+    discards it instead of leaving an arrival for a visit that was refused.
     """
-    # Claim on a savepoint regardless of ``commit`` so the claim and the visit
-    # append commit together (or not at all).
+    # A missing post would surface as an FK violation, which insert_arrival
+    # reads as a lost race and answers "already recorded".
+    if await db.get(CheckPoint, checkpoint_id) is None:
+        raise RallyNotFoundError("Checkpoint not found")
+
     arrival = await insert_arrival(
         db,
         team_id=team_id,
@@ -125,88 +119,11 @@ async def record_visit(
         commit=False,
     )
     if arrival is None:
-        repaired = await _reconcile_missing_visit(db, team_id=team_id, checkpoint_id=checkpoint_id)
-        if commit and repaired:
-            await db.commit()
         return False
 
-    await append_visit_entry(
-        db,
-        team_id=team_id,
-        checkpoint_id=checkpoint_id,
-        enforce_order=enforce_order,
-        commit=False,
+    await TeamService(db, team_crud).validate_visit(
+        team_id=team_id, checkpoint_id=checkpoint_id, enforce_order=enforce_order
     )
     if commit:
         await db.commit()
     return True
-
-
-async def _reconcile_missing_visit(db: AsyncSession, *, team_id: int, checkpoint_id: int) -> bool:
-    """Repair a ``team.times`` entry owed by an already-claimed arrival.
-
-    The arrival row is the durable claim; ``team.times`` carries one timestamp
-    per arrival. When a prior call committed the arrival and then failed before
-    the stamp, the team has more arrivals than visit entries — append the
-    missing one. Returns True when a repair was made.
-
-    ``enforce_order`` is always False here: the arrival row already proves the
-    team was entitled to be at the post, and the order guard keys off
-    ``len(team.times)`` — which is exactly what is short by one.
-    """
-    arrivals = await db.scalar(
-        select(func.count())
-        .select_from(CheckpointArrival)
-        .where(CheckpointArrival.team_id == team_id)
-    )
-    team = await db.get(Team, team_id)
-    if team is None or not arrivals:
-        return False
-    if len(team.times or []) >= arrivals:
-        return False
-
-    await append_visit_entry(
-        db,
-        team_id=team_id,
-        checkpoint_id=checkpoint_id,
-        enforce_order=False,
-        commit=False,
-    )
-    return True
-
-
-async def append_visit_entry(
-    db: AsyncSession,
-    *,
-    team_id: int,
-    checkpoint_id: int,
-    enforce_order: bool = True,
-    commit: bool = True,
-) -> None:
-    """Stamp the visit on ``team.times`` (and the parallel score arrays).
-
-    Split out of :func:`record_visit` for the one caller that has *already*
-    claimed the arrival row itself and is still owed the timestamp: the GPS and
-    guide arrival paths write the arrival as a fact first, and only afterwards
-    decide whether that arrival also completes the post. Going back through
-    ``record_visit`` there recorded nothing at all — the claim it uses as its
-    idempotency token was the arrival the same request had just written, so it
-    returned False and the visit never reached ``team.times``.
-
-    This function has no idempotency of its own: call it once per claimed
-    arrival, exactly where the claim happened.
-    """
-    await team_crud.add_checkpoint(
-        db=db,
-        id=team_id,
-        checkpoint_id=checkpoint_id,
-        obj_in=TeamScoresUpdate(
-            checkpoint_id=checkpoint_id,
-            question_score=0,
-            time_score=0,
-            pukes=0,
-            skips=0,
-        ),
-        enforce_order=enforce_order,
-        commit=commit,
-    )

@@ -97,9 +97,7 @@ export function useTeamProgress() {
     });
   };
 
-  // Use activity-based completion count (more accurate than times.length,
-  // since times is appended when staff registers a pass but not all
-  // activities may be done yet).
+  // Activity-based completion count from the server's progress engine.
   const completedCheckpointsCount = team?.last_checkpoint_number ?? 0;
   // The authoritative "which posts are done" and "is the route over", straight
   // from the server's progress engine. Neither can be derived from a count

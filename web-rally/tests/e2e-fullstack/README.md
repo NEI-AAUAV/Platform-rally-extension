@@ -147,14 +147,6 @@ spec can reach them by clicking. Listed as product gaps rather than test gaps:
   `aria-label`. There is nothing to select them by, so that spec falls back to
   position (`row.locator("button").nth(1)`), which is a workaround rather than
   an endorsement. Worth an `aria-label` each.
-- **`/checkpoint/me` and the team's own progress disagree** on a GPS-arrival
-  route. That endpoint resolves "next post" from `team.times`, which only
-  staff/QR check-ins append to, so once a post has an activity it stays pinned
-  there; `TeamService` (what the participant screen renders) resolves it from
-  arrivals and results and is correct. Nothing in the app consumes
-  `/checkpoint/me` — `peddy-paper.spec.ts` asserts on it, and the participant
-  page does not — so this is a contract inconsistency rather than a broken
-  screen, but the two should not be two numbers.
 
 Note on `dist/`: the fullstack web server runs `vite preview`, which serves
 whatever is already in `dist/` and never rebuilds. After changing app code,

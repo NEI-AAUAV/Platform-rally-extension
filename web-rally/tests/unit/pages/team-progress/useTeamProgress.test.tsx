@@ -61,7 +61,6 @@ describe("useTeamProgress", () => {
         name: "Team A",
         total: 20,
         last_checkpoint_number: 1,
-        times: ["t1"],
         current_checkpoint_number: 2,
       },
     } as never);
@@ -123,11 +122,11 @@ describe("useTeamProgress", () => {
     await waitFor(() => expect(result.current.totalCount).toBe(2));
   });
 
-  it("does not derive the completed count from the visit log when last_checkpoint_number is absent", async () => {
-    // `times` is a visit log, not a completion count: a visit to a post with an
-    // unscored activity is not a completion.
+  it("falls back to zero completed posts when last_checkpoint_number is absent", async () => {
+    // Completion comes from the server's progress engine, never from a count
+    // the client derives itself.
     vi.mocked(getTeamById).mockResolvedValue({
-      data: { id: 1, name: "Team A", total: 0, times: ["t1", "t2"] },
+      data: { id: 1, name: "Team A", total: 0 },
     } as never);
     const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
 
