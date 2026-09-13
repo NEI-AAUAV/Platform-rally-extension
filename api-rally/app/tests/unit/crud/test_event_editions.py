@@ -100,3 +100,56 @@ async def test_update_promoting_to_current_demotes_others(pg_session) -> None:
 
     refreshed_previous = await rally_event.get(pg_session, id=previous.id)
     assert refreshed_previous.is_current is False
+
+
+async def test_update_event_rejects_changing_domain_config_keys(pg_session) -> None:
+    from app.core.exceptions import RallyConfigurationError
+
+    event = await rally_event.create(
+        pg_session,
+        obj_in=RallyEventCreate(
+            name="Rally Config Test",
+            event_type=EventType.RALLY_TASCAS,
+            config={"drinking_scoring": True},
+        ),
+    )
+    with pytest.raises(RallyConfigurationError) as exc_info:
+        await rally_event.update(
+            pg_session,
+            db_obj=event,
+            obj_in=RallyEventUpdate(config={"drinking_scoring": False}),
+        )
+    assert exc_info.value.details["issues"][0]["code"] == "RESERVED_EVENT_CONFIG_KEY"
+
+
+async def test_update_event_non_destructively_merges_config(pg_session) -> None:
+    event = await rally_event.create(
+        pg_session,
+        obj_in=RallyEventCreate(
+            name="Rally Merge Test",
+            config={"custom_key": 123, "drinking_scoring": True},
+        ),
+    )
+    updated = await rally_event.update(
+        pg_session,
+        db_obj=event,
+        obj_in=RallyEventUpdate(config={"another_key": "val"}),
+    )
+    assert updated.config["custom_key"] == 123
+    assert updated.config["drinking_scoring"] is True
+    assert updated.config["another_key"] == "val"
+
+
+async def test_create_event_reconciles_config(pg_session) -> None:
+    # Peddy paper forbids drinking scoring
+    event = await rally_event.create(
+        pg_session,
+        obj_in=RallyEventCreate(
+            name="Peddy Autonomous Create",
+            event_type=EventType.PEDDY_PAPER,
+            event_profile="autonomous",
+            config={"drinking_scoring": True},
+        ),
+    )
+    # Reconciler should have forced drinking_scoring to False
+    assert event.config["drinking_scoring"] is False

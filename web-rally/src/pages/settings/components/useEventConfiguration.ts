@@ -26,8 +26,9 @@ function getFallbackClient(): QueryClient | undefined {
 
 /** Shared React Query entrypoint: policy always comes from backend preflight. */
 export function useEventConfiguration() {
-  const client = QueryClientContext ? useContext(QueryClientContext) : undefined;
+  const client = useContext(QueryClientContext);
   const target = client ?? getFallbackClient();
+
   return useQuery(
     {
       queryKey: EVENT_CONFIGURATION_KEY,
@@ -46,7 +47,7 @@ export function useEventConfiguration() {
 }
 
 export function useUpdateEventCapabilities() {
-  const client = QueryClientContext ? useContext(QueryClientContext) : undefined;
+  const client = useContext(QueryClientContext);
   const target = client ?? getFallbackClient();
 
   return useMutation(
@@ -64,10 +65,8 @@ export function useUpdateEventCapabilities() {
         return data;
       },
       onSuccess: () => {
-        if (client) {
-          client.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
-          client.invalidateQueries({ queryKey: ["rally-settings"] });
-        }
+        target?.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
+        target?.invalidateQueries({ queryKey: ["settings"] });
       },
     },
     target

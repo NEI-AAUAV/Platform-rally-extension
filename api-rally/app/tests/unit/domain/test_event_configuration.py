@@ -205,3 +205,95 @@ def test_qr_platform_availability_is_separate_from_event_intent():
         platform_qr_supported=False,
     )
     assert any(issue.code == "QR_UNAVAILABLE_ON_PLATFORM" for issue in report.issues)
+
+
+def test_rotation_schedule_with_stale_team():
+    report = ConfigurationValidator.validate(
+        event=event(
+            event_type="olympic",
+            event_profile="rotation",
+            rotation_schedule=[[{"team_id": 999, "checkpoint_id": 1}]],
+        ),
+        settings=settings(),
+        checkpoints=[SimpleNamespace(id=1)],
+        teams=[SimpleNamespace(id=10)],
+        route_stages=[],
+        platform_qr_supported=True,
+    )
+    assert any(issue.code == "ROTATION_SCHEDULE_STALE" for issue in report.issues)
+
+
+def test_rotation_schedule_with_stale_checkpoint():
+    report = ConfigurationValidator.validate(
+        event=event(
+            event_type="olympic",
+            event_profile="rotation",
+            rotation_schedule=[[{"team_id": 10, "checkpoint_id": 999}]],
+        ),
+        settings=settings(),
+        checkpoints=[SimpleNamespace(id=1)],
+        teams=[SimpleNamespace(id=10)],
+        route_stages=[],
+        platform_qr_supported=True,
+    )
+    assert any(issue.code == "ROTATION_SCHEDULE_STALE" for issue in report.issues)
+
+
+def test_rotation_schedule_invalid_structure():
+    report = ConfigurationValidator.validate(
+        event=event(
+            event_type="olympic",
+            event_profile="rotation",
+            rotation_schedule="not-a-list",
+        ),
+        settings=settings(),
+        checkpoints=[SimpleNamespace(id=1)],
+        teams=[SimpleNamespace(id=10)],
+        route_stages=[],
+        platform_qr_supported=True,
+    )
+    assert any(issue.code == "ROTATION_SCHEDULE_INVALID" for issue in report.issues)
+
+
+def test_reconcile_event_config_preserves_custom_and_clamps_forbidden():
+    from app.domain.event_configuration.reconciler import reconcile_event_config
+
+    # Peddy paper forbids drinking scoring
+    reconciled = reconcile_event_config(
+        event_type="peddy_paper",
+        profile="autonomous",
+        config={"drinking_scoring": True, "custom_field": 42},
+    )
+    assert reconciled["drinking_scoring"] is False
+    assert reconciled["custom_field"] == 42
+
+
+def test_reconcile_event_config_enforces_required():
+    from app.domain.event_configuration.reconciler import reconcile_event_config
+
+    # Self-checkin rally requires QR checkin
+    reconciled = reconcile_event_config(
+        event_type="rally_tascas",
+        profile="self_checkin",
+        config={"qr_checkin_enabled": False},
+    )
+    assert reconciled["qr_checkin_enabled"] is True
+
+
+async def test_load_configuration_context_with_preloaded_event_and_settings():
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.domain.event_configuration.context import load_configuration_context
+
+    db = AsyncMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = []
+    db.scalars.return_value = mock_scalars
+
+    ev = SimpleNamespace(id=1, event_type="peddy_paper", event_profile="autonomous", config={})
+    st = SimpleNamespace(id=1, event_id=1)
+    ctx = await load_configuration_context(db, 1, event=ev, settings=st)
+    assert ctx.event is ev
+    assert ctx.settings is st
+    assert ctx.checkpoints == []
+    assert ctx.teams == []
