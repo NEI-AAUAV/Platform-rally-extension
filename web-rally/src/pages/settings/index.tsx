@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, FormProvider, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -271,6 +271,7 @@ export default function RallySettings({
   searchTargetKey = null,
   onSearchTargetHandled,
 }: RallySettingsProps) {
+  const queryClient = useQueryClient();
   const { isLoading, isRallyAdmin } = useUser();
   const toast = useAppToast();
   const fallbackPath = useFallbackNavigation();
@@ -410,6 +411,7 @@ export default function RallySettings({
     onSuccess: () => {
       toast.success("Configurações atualizadas com sucesso!");
       void refetchSettings();
+      void queryClient.invalidateQueries({ queryKey: ["event-configuration-status"] });
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, "Erro ao atualizar configurações"));

@@ -19,6 +19,7 @@ from app.models.dynamic_scoring import DynamicRule
 from app.models.rally_settings import RallySettings
 from app.models.route_stage import RouteStage
 from app.models.team import Team
+from app.domain.event_configuration.settings import new_settings_for_profile
 from app.utils.round_robin import generate_schedule
 
 EVENT_NOT_FOUND = "Event not found"
@@ -84,9 +85,11 @@ class EventService:
         if event_id == source_event_id:
             raise RallyValidationError("Cannot clone an event into itself")
 
-        if await crud.rally_event.get(self._db, event_id) is None:
+        target_event = await crud.rally_event.get(self._db, event_id)
+        if target_event is None:
             raise RallyNotFoundError(EVENT_NOT_FOUND)
-        if await crud.rally_event.get(self._db, source_event_id) is None:
+        source_event = await crud.rally_event.get(self._db, source_event_id)
+        if source_event is None:
             raise RallyNotFoundError(SOURCE_EVENT_NOT_FOUND)
 
         # Guard against a second clone stacking a duplicate route on top.
@@ -111,7 +114,7 @@ class EventService:
             "dynamic_rules": len(
                 await self._copy_event_rows(DynamicRule, event_id, source_event_id)
             ),
-            "rally_settings": await self._clone_settings(event_id, source_event_id),
+            "rally_settings": await self._clone_settings(event_id, source_event_id, target_event, source_event),
         }
 
         await self._db.commit()
@@ -168,7 +171,7 @@ class EventService:
             copied += 1
         return copied
 
-    async def _clone_settings(self, event_id: int, source_event_id: int) -> int:
+    async def _clone_settings(self, event_id: int, source_event_id: int, target_event: object, source_event: object) -> int:
         source = await self._db.scalar(
             select(RallySettings).where(RallySettings.event_id == source_event_id)
         )
@@ -181,6 +184,16 @@ class EventService:
         )
         if existing is not None:
             return 0
+        # Copying a settings row across formats can immediately violate the
+        # target policy. Bootstrap the target policy instead; structural rows
+        # remain cloneable and same-format clones preserve settings exactly.
+        if (target_event.event_type, target_event.event_profile) != (source_event.event_type, source_event.event_profile):
+            self._db.add(new_settings_for_profile(
+                event_id=event_id, event_type=target_event.event_type,
+                profile=target_event.event_profile, config=target_event.config,
+            ))
+            await self._db.flush()
+            return 1
         await self._copy_row(RallySettings, source, {"event_id": event_id})
         return 1
 

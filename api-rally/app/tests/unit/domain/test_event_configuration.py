@@ -9,6 +9,7 @@ from app.domain.event_configuration.policies import (
     resolve_policy,
 )
 from app.domain.event_configuration.validator import ConfigurationIssueSeverity, ConfigurationValidator
+from app.domain.event_configuration.settings import new_settings_for_profile
 
 
 def settings(**overrides):
@@ -56,6 +57,32 @@ def test_profile_defaults_are_central_and_do_not_make_guided_peddy_gps_only():
     assert guided["gps_checkin_enabled"] is False
     assert guided["guide_mode_enabled"] is True
     assert guided["guide_mode_active"] is True
+    assert autonomous["guide_manual_arrival_enabled"] is False
+
+
+def test_real_settings_bootstrap_is_policy_coherent_for_opinionated_profiles():
+    for event_type, profile in [
+        ("peddy_paper", "autonomous"), ("peddy_paper", "guided"),
+        ("rally_tascas", "staffed"), ("rally_tascas", "self_checkin"),
+        ("olympic", "rotation"),
+    ]:
+        config = {}
+        bootstrapped = new_settings_for_profile(event_id=1, event_type=event_type, profile=profile, config=config)
+        issues = ConfigurationValidator.local_issues(event_type=event_type, profile=profile, settings=bootstrapped, config=config)
+        assert not [issue for issue in issues if issue.code in {"REQUIRED_CAPABILITY_DISABLED", "FORBIDDEN_CAPABILITY_ENABLED"}]
+
+
+def test_olympic_rotation_is_derived_from_schedule_not_event_config():
+    report = ConfigurationValidator.validate(
+        event=event(event_type="olympic", event_profile="rotation", config={"olympic_rotation": True}, rotation_schedule=[]),
+        settings=settings(), checkpoints=[SimpleNamespace(id=1)], route_stages=[], platform_qr_supported=True,
+    )
+    assert any(issue.code == "ROTATION_SCHEDULE_MISSING" for issue in report.issues)
+    report = ConfigurationValidator.validate(
+        event=event(event_type="olympic", event_profile="rotation", rotation_schedule=[[{"team_id": 1, "checkpoint_id": 1}]]),
+        settings=settings(), checkpoints=[SimpleNamespace(id=1)], route_stages=[], platform_qr_supported=True,
+    )
+    assert not any(issue.code == "ROTATION_SCHEDULE_MISSING" for issue in report.issues)
 
 
 def test_guided_peddy_requires_active_guide_mode():

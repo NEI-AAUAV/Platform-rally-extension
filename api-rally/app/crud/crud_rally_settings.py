@@ -5,7 +5,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.crud.base import CRUDBase
 from app.crud.crud_activity import rally_event
-from app.domain.event_configuration.policies import default_profile, initial_settings_defaults
+from app.domain.event_configuration.policies import default_profile
+from app.domain.event_configuration.settings import new_settings_for_profile
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import (
     DEFAULT_HOME_LAYOUT,
@@ -45,20 +46,15 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         # Column defaults remain on RallySettings.  Profile defaults come from
         # the domain layer, so creation and format policies cannot drift.
         profile = event.event_profile or default_profile(event.event_type).value
-        profile_defaults = initial_settings_defaults(event.event_type, profile)
-        settings = RallySettings(
-            event_id=event_id,
-            # Rally timing mirrors the event; synced below.
-            rally_start_time=None,
-            rally_end_time=None,
-            **profile_defaults,
-            # Event identity: data, so one build serves every edition.
-            event_name="Rally Tascas",
-            event_subtitle="Competição de Equipas",
-            # Home page layout
-            home_layout=list(DEFAULT_HOME_LAYOUT),
-            ticker_items=list(DEFAULT_TICKER_ITEMS),
+        settings = new_settings_for_profile(
+            event_id=event_id, event_type=event.event_type, profile=profile,
+            config=event.config,
         )
+        settings.rally_start_time = settings.rally_end_time = None
+        settings.event_name = "Rally Tascas"
+        settings.event_subtitle = "Competição de Equipas"
+        settings.home_layout = list(DEFAULT_HOME_LAYOUT)
+        settings.ticker_items = list(DEFAULT_TICKER_ITEMS)
         try:
             # SAVEPOINT: a losing race undoes only this insert, never the
             # caller's pending work in the surrounding transaction.

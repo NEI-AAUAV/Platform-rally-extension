@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import current_event_id
 from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
-from app.domain.event_configuration.policies import default_profile, profile_is_supported
-from app.core.exceptions import RallyValidationError
+from app.domain.event_configuration.policies import Capability, CapabilityPolicy, DOMAIN_CONFIG_KEYS, default_profile, profile_is_supported, resolve_policy
+from app.core.exceptions import RallyConfigurationError, RallyValidationError
 from app.schemas.activity import (
     ActivityCreate,
     ActivityResultCreate,
@@ -143,6 +143,20 @@ class CRUDActivityResult:
         is needed (e.g. when 'result_data' changed).
         """
         update_data = obj_in.model_dump(exclude_unset=True)
+        if "config" in update_data:
+            incoming = update_data["config"] or {}
+            reserved = {
+                key for key in DOMAIN_CONFIG_KEYS.intersection(incoming)
+                if incoming[key] != (db_obj.config or {}).get(key)
+            }
+            if reserved:
+                raise RallyConfigurationError(
+                    "As capacidades do domínio não podem ser alteradas pelo update genérico.",
+                    details={"code": "INVALID_EVENT_CONFIGURATION", "issues": [{"code": "RESERVED_EVENT_CONFIG_KEY", "severity": "error", "fields": sorted(reserved)}]},
+                )
+            # Generic config updates are non-destructive: preserve domain and
+            # unrelated existing values not mentioned by the caller.
+            update_data["config"] = dict(db_obj.config or {}) | incoming
         for field, value in update_data.items():
             setattr(db_obj, field, value)
         return update_data
@@ -243,8 +257,8 @@ class CRUDRallyEvent:
                 details={"code": "UNSUPPORTED_EVENT_PROFILE", "event_type": event_type, "event_profile": event_profile},
             )
         config = dict(obj_in.config)
-        if event_profile == "self_checkin":
-            config.setdefault("qr_checkin_enabled", True)
+        if resolve_policy(event_type, event_profile).policy_for(Capability.QR_ARRIVAL) is CapabilityPolicy.REQUIRED:
+            config["qr_checkin_enabled"] = True
         db_obj = RallyEvent(
             name=obj_in.name,
             slug=slug,

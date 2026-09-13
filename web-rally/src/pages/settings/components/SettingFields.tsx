@@ -9,6 +9,7 @@
  * on the right — so a section scans as a list rather than a stack of blocks.
  */
 import { Controller, useFormContext } from "react-hook-form";
+import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -57,6 +58,10 @@ type SettingSwitchProps = Readonly<{
 
 export function SettingSwitch({ name, label, help, defaultValue = false, policy }: SettingSwitchProps) {
   const { control, setValue } = useFormContext();
+  useEffect(() => {
+    if (policy === "required") setValue(name, true, { shouldDirty: false });
+    if (policy === "forbidden") setValue(name, false, { shouldDirty: false });
+  }, [name, policy, setValue]);
 
   return (
     <SettingRow name={name} label={label} help={help}>

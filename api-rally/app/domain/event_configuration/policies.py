@@ -122,6 +122,9 @@ def initial_settings_defaults(event_type: str, profile: str | EventProfile | Non
         "participant_view_enabled": peddy,
         "guide_mode_enabled": guided,
         "guide_mode_active": guided,
+        # Model default is true for backwards compatibility, but autonomous
+        # peddy explicitly forbids a guide recording arrivals.
+        "guide_manual_arrival_enabled": guided,
     }
 
 
@@ -146,5 +149,9 @@ SETTING_CAPABILITIES: dict[Capability, tuple[str, bool]] = {
     Capability.ROUTE_STAGES: ("route_stages_enabled", False), Capability.CHECKPOINT_HOURS: ("checkpoint_hours_enabled", False),
     Capability.LEG_TIME_SCORING: ("leg_time_scoring_enabled", False), Capability.GUIDE_MODE: ("guide_mode_enabled", False),
     Capability.BADGES: ("badges_enabled", False), Capability.DRINKING_SCORING: ("drinking_scoring", False),
-    Capability.OLYMPIC_ROTATION: ("olympic_rotation", False),
 }
+
+# Keys in RallyEvent.config which are configuration-domain state, rather than
+# arbitrary event metadata.  The generic event PATCH/PUT must never mutate
+# these because it would bypass the policy-aware settings/configuration flow.
+DOMAIN_CONFIG_KEYS = frozenset({"qr_checkin_enabled", "drinking_scoring", "olympic_rotation"})
