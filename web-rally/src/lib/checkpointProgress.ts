@@ -5,10 +5,9 @@ type WithCheckpoints = { checkpoints?: CheckpointProgress[] | null };
 /**
  * A team's progress at one post, looked up by the post's stable id.
  *
- * `team.times` is a visit-order log and `team.score_per_checkpoint` a
- * route-order layout, so indexing either by `order - 1` pairs a post with
- * another post's data as soon as a team visits out of sequence or the route
- * is reordered. `team.checkpoints` is keyed by `checkpoint_id` instead.
+ * `team.checkpoints` is keyed by `checkpoint_id`, so a post is never paired
+ * with another post's data when a team visits out of sequence or the route
+ * is reordered — unlike the positional arrays the API used to serve.
  */
 export function findCheckpointProgress(
   team: WithCheckpoints | null | undefined,

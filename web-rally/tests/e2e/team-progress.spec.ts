@@ -63,15 +63,9 @@ function team(overrides: Record<string, unknown> = {}) {
     id: 3,
     name: "Os Fixes",
     total: 120,
-    times: ["00:12:30", null],
     members: [{ id: 1, name: "João", is_captain: true, is_linked: false }],
     num_members: 1,
     classification: 1,
-    question_scores: [],
-    time_scores: [],
-    pukes: [],
-    skips: [],
-    score_per_checkpoint: [30, 0],
     checkpoints: [
       {
         checkpoint_id: CHECKPOINTS[0].id,

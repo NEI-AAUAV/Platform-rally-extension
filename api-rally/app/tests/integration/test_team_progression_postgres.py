@@ -71,7 +71,9 @@ async def test_arrival_times_survive_the_round_trip_as_instants(pg_session) -> N
     stamped = detailed.checkpoints[0].arrived_at
     assert stamped is not None
     assert stamped.utcoffset() == timedelta(0)
-    assert before <= stamped <= datetime.now(UTC)
+    # arrived_at is the database's now(): allow for clock skew between the
+    # test process and the Postgres container.
+    assert abs(stamped - before) < timedelta(minutes=1)
 
 
 async def test_record_visit_out_of_order_rejected(pg_session) -> None:

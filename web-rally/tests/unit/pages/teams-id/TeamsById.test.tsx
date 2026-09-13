@@ -54,7 +54,6 @@ const baseTeam: Partial<DetailedTeam> = {
   classification: 1,
   total: 100,
   last_checkpoint_number: 2,
-  times: ["2024-01-01T10:00:00Z", "2024-01-01T11:00:00Z"],
   members: [{ id: 1, name: "Alice Smith" }] as never,
 };
 
@@ -177,7 +176,7 @@ describe("TeamsById page", () => {
   });
 
   it('shows the "no checkpoints visited" placeholder when the team has none', () => {
-    const teamNoCheckpoints = { ...baseTeam, last_checkpoint_number: 0, times: [] };
+    const teamNoCheckpoints = { ...baseTeam, last_checkpoint_number: 0 };
     mockUseTeamDetails.mockReturnValue({
       settings: { show_team_details: true },
       team: teamNoCheckpoints,

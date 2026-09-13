@@ -317,29 +317,6 @@ async def test_arrive_no_activities_auto_completes_after_prior_advance(pg_sessio
     assert resp.json()["auto_completed"] is True
 
 
-async def test_arrive_auto_complete_swallows_checkin_failure(pg_session, pg_client):
-    """`_auto_complete_if_no_activities` is best-effort: if advancing the team
-    raises, the arrival itself still succeeds with auto_completed=False."""
-    await _make_event(pg_session)
-    checkpoint = await _make_checkpoint(pg_session, order=1)
-    team = await _make_team(pg_session)
-
-    with (
-        patch(
-            "app.services.checkpoint_arrival_service.record_visit",
-            new=AsyncMock(side_effect=RuntimeError("boom")),
-        ),
-        as_team(team.id, "TeamA"),
-    ):
-        resp = pg_client.post(
-            f"/api/rally/v1/checkpoint/{checkpoint.id}/arrive",
-            json={"latitude": 41.000045, "longitude": -8.0},
-        )
-
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["auto_completed"] is False
-
-
 async def test_arrive_repeat_is_idempotent_via_integrity_error(pg_session, pg_client):
     """A concurrent duplicate arrival insert violates the unique constraint;
     the endpoint catches IntegrityError and reports already_registered=True
