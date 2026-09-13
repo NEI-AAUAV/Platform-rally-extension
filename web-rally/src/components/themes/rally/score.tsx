@@ -38,7 +38,7 @@ const variantClassification = (classification: number) => {
 export function RallyScore({ className, team, isProvisional = false, ...props }: ScoreProps) {
   const lastCheckpointTime = team.last_checkpoint_time && new Date(team.last_checkpoint_time);
 
-  const checkpointNumber = team.last_checkpoint_number || team.times?.length || 0;
+  const checkpointNumber = team.last_checkpoint_number || 0;
   const isLeader = team.classification === 1;
 
   return (

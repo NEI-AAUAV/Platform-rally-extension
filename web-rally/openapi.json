@@ -9722,6 +9722,82 @@
         "title": "CheckpointPenalties",
         "description": "Points a team lost at one post, broken down by cause.\n\n``hints_cost`` is what the team paid unlocking guide indications there,\n``skip_cost`` the give-up penalty, ``activity_penalties`` the sum of the\nactivity-level deductions (v\u00f3mitos, n\u00e3o-beber, contadores din\u00e2micos).\nEvery field is negative or zero, the same sign convention as the rest of\nthe app. Only posts with at least one non-zero penalty are emitted, keyed\nby ``checkpoint_order`` so a client can line them up with\n``score_per_checkpoint[order - 1]``."
       },
+      "CheckpointProgress": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "checkpoint_order": {
+            "type": "integer",
+            "title": "Checkpoint Order"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "arrived",
+              "completed",
+              "skipped"
+            ],
+            "title": "Status"
+          },
+          "arrived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrived At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "skip_cost": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Cost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "checkpoint_order",
+          "status"
+        ],
+        "title": "CheckpointProgress",
+        "description": "One team's state at one post, keyed by the post's stable id.\n\nBuilt from the identity-keyed rows (arrivals, skips, activity results)\nrather than from ``Team``'s positional arrays, so reordering or drafting\nposts mid-event never reassigns a team's data to a different post.\n``checkpoint_order`` is the post's current route position, for display.\n``score`` and ``skip_cost`` are ``None`` when scores are hidden."
+      },
       "CheckpointSkipped": {
         "properties": {
           "checkpoint_id": {
@@ -10209,6 +10285,14 @@
             },
             "type": "array",
             "title": "Score Per Checkpoint"
+          },
+          "checkpoints": {
+            "items": {
+              "$ref": "#/components/schemas/CheckpointProgress"
+            },
+            "type": "array",
+            "title": "Checkpoints",
+            "default": []
           },
           "members": {
             "items": {
@@ -11671,6 +11755,14 @@
             },
             "type": "array",
             "title": "Score Per Checkpoint"
+          },
+          "checkpoints": {
+            "items": {
+              "$ref": "#/components/schemas/CheckpointProgress"
+            },
+            "type": "array",
+            "title": "Checkpoints",
+            "default": []
           },
           "members": {
             "items": {

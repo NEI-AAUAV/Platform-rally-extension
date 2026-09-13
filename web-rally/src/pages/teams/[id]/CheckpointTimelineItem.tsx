@@ -3,6 +3,7 @@ import { formatTime } from "@/utils/timeFormat";
 import { CheckpointDiscovery, ProvisionalBadge } from "@/components/shared";
 import type { CheckpointPenalties, DetailedTeam, DetailedCheckPoint } from "@/client";
 import type { EvaluationResult } from "./teamDetails.types";
+import { checkpointArrivedAt, checkpointScoreFor } from "@/lib/checkpointProgress";
 import React from "react";
 
 type CheckpointTimelineItemProps = Readonly<{
@@ -48,7 +49,7 @@ export function CheckpointTimelineItem({
 }: CheckpointTimelineItemProps) {
   const checkpointOrder = checkpoint.order;
   const isRedacted = checkpoint.is_redacted === true;
-  const checkpointScore = team.score_per_checkpoint?.[checkpointOrder - 1] ?? 0;
+  const checkpointScore = checkpointScoreFor(team, checkpoint.id);
 
   // Find the evaluation timestamp from activity results
   const checkpointId = checkpoint.id;
@@ -90,10 +91,10 @@ export function CheckpointTimelineItem({
   const isCurrentCheckpoint = isCurrent;
   const isCompletedByActivity = isResolved;
   const hasEvaluations = evaluationResults.length > 0 || isCompletedByActivity;
-  // Timestamp: prefer activity result, fall back to team.times entry for this checkpoint
+  // Timestamp: prefer activity result, fall back to the team's arrival at this post
+  const arrivedAt = checkpointArrivedAt(team, checkpointId);
   const displayTime =
-    evaluationTime ??
-    (isCompletedByActivity && team.times[index] ? new Date(team.times[index]) : null);
+    evaluationTime ?? (isCompletedByActivity && arrivedAt ? new Date(arrivedAt) : null);
 
   // Check if any activity in this checkpoint has pending completion (time-based activities)
   const hasPendingTimeBasedActivity = evaluationResults.some((result) => {

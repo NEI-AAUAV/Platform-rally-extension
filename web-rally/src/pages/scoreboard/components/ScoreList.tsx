@@ -74,7 +74,7 @@ function renderTeamAvatar(team: ListingTeam, champion: boolean) {
 }
 
 function reachedOf(team: ListingTeam): number {
-  return team.last_checkpoint_number ?? team.current_checkpoint_number ?? team.times?.length ?? 0;
+  return team.last_checkpoint_number ?? team.current_checkpoint_number ?? 0;
 }
 
 const MEDAL_RING = ["ring-amber-400", "ring-zinc-400", "ring-amber-700"];

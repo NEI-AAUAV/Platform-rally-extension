@@ -25,6 +25,7 @@ from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import team
 from app.crud.crud_versus import versus
 from app.models.activity import Activity, ActivityResult
+from app.models.checkpoint_arrival import ArrivalSource
 from app.models.team import Team
 from app.schemas.activity import (
     ActivityResultCreate,
@@ -34,8 +35,13 @@ from app.schemas.activity import (
 from app.schemas.user import DetailedUser
 from app.services.checkpoint_visits import append_visit_entry, record_visit
 from app.services.event_scope import require_same_event
-from app.services.route_progress import RouteSnapshot, progress_for_team
+from app.services.route_progress import RouteSnapshot, load_route_snapshot, progress_for_team
 from app.services.scoring_service import EvaluationEditor, ScoringService
+from app.services.team_checkpoint_progress import (
+    last_arrived_at,
+    last_checkpoint_score,
+    load_checkpoint_progress,
+)
 
 # Error message constants
 NO_CHECKPOINT_ASSIGNED = "No checkpoint assigned to this staff member"
@@ -121,9 +127,8 @@ async def validate_staff_checkpoint_access(
     # NOTE: We don't check team checkpoint progress here.
     # Staff should be able to evaluate any team at their assigned checkpoint,
     # regardless of whether the team has been formally checked in yet.
-    team_checkpoint_number = len(team_obj.times)
     logger.info(
-        f"Team {team_id} currently at checkpoint {team_checkpoint_number}, "
+        f"Team {team_id} being evaluated, "
         f"staff assigned to checkpoint {current_user.staff_checkpoint_id}"
     )
 
@@ -433,6 +438,7 @@ async def checkin_team_to_checkpoint(
     *,
     enforce_order: bool = True,
     arrival_already_recorded: bool = False,
+    source: ArrivalSource = "staff",
     commit: bool = True,
 ) -> None:
     """Record that the team visited this checkpoint.
@@ -472,6 +478,7 @@ async def checkin_team_to_checkpoint(
                 db,
                 team_id=team_id,
                 checkpoint_id=checkpoint_id,
+                source=source,
                 enforce_order=enforce_order,
                 commit=commit,
             )
@@ -522,6 +529,9 @@ async def build_team_for_staff(
 
     The caller must eager-load team_obj.members (accessed below).
     """
+    if route is None:
+        route = await load_route_snapshot(db, await rally_settings.get_or_create(db))
+    checkpoint_rows = await load_checkpoint_progress(db, team_obj.id, route)
 
     (
         last_checkpoint_number,
@@ -536,8 +546,8 @@ async def build_team_for_staff(
         "classification": team_obj.classification,
         "versus_group_id": team_obj.versus_group_id,
         "num_members": len(team_obj.members) if team_obj.members else 0,
-        "last_checkpoint_time": team_obj.times[-1] if team_obj.times else None,
-        "last_checkpoint_score": team_obj.last_checkpoint_score,
+        "last_checkpoint_time": last_arrived_at(checkpoint_rows),
+        "last_checkpoint_score": last_checkpoint_score(checkpoint_rows),
         "last_checkpoint_number": last_checkpoint_number,
         "current_checkpoint_number": current_checkpoint_number,
         "completed_checkpoint_numbers": completed_orders,

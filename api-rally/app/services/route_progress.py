@@ -166,6 +166,23 @@ def _is_resolved(
     return checkpoint.id in arrived_ids and checkpoint.id != ignore_arrival_for
 
 
+def is_checkpoint_resolved(
+    checkpoint: CheckPoint,
+    *,
+    activities: Sequence[Activity],
+    scored_activity_ids: frozenset[int],
+    arrived_ids: frozenset[int],
+) -> bool:
+    """Public form of :func:`_is_resolved` for read models (no ignored arrival)."""
+    return _is_resolved(
+        checkpoint,
+        activities=activities,
+        scored_activity_ids=scored_activity_ids,
+        arrived_ids=arrived_ids,
+        ignore_arrival_for=None,
+    )
+
+
 def _open_orders(
     *,
     checkpoints: Sequence[CheckPoint],

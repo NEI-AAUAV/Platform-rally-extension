@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -76,10 +77,39 @@ class CheckpointPenalties(BaseModel):
     total: int = 0
 
 
+CheckpointProgressStatus = Literal["pending", "arrived", "completed", "skipped"]
+
+
+class CheckpointProgress(BaseModel):
+    """One team's state at one post, keyed by the post's stable id.
+
+    Built from the identity-keyed rows (arrivals, skips, activity results)
+    rather than from ``Team``'s positional arrays, so reordering or drafting
+    posts mid-event never reassigns a team's data to a different post.
+    ``checkpoint_order`` is the post's current route position, for display.
+    ``score`` and ``skip_cost`` are ``None`` when scores are hidden.
+    """
+
+    checkpoint_id: int
+    checkpoint_order: int
+    status: CheckpointProgressStatus
+    arrived_at: datetime | None = None
+    completed_at: datetime | None = None
+    score: int | None = None
+    skip_cost: int | None = None
+
+
 class DetailedTeam(TeamBase, RouteProgressFields):
+    # Deprecated: visit-order log, not aligned with route order. Use
+    # ``checkpoints`` instead.
     times: list[datetime]
 
+    # Deprecated: positional by route order. Use ``checkpoints`` instead.
     score_per_checkpoint: list[int]
+
+    # Per-post progress keyed by checkpoint id. Filled when progress is
+    # requested; empty otherwise.
+    checkpoints: list[CheckpointProgress] = []
 
     members: list[ListingUser]
 

@@ -182,7 +182,7 @@ class CheckinController:
 
         arrival_status = await service.derive_staff_scan_status(team_obj, checkpoint)
         if arrival_status == "checked_in":
-            await service.check_in_and_publish(team_obj.id, checkpoint)
+            await service.check_in_and_publish(team_obj.id, checkpoint, source="staff")
             await record_audit(
                 db,
                 action="checkin.staff_scan",
@@ -232,7 +232,7 @@ class CheckinController:
         # post the current stage allows.
         await service.require_open(team_obj, checkpoint)
 
-        await service.check_in_and_publish(team.team_id, checkpoint)
+        await service.check_in_and_publish(team.team_id, checkpoint, source="qr")
         await record_audit(
             db,
             action="checkin.self_checkin",

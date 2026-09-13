@@ -330,7 +330,6 @@ class StaffEvaluationController:
                 "name": team_obj.name,
                 "total": team_obj.total,
                 "num_members": len(team_obj.members) if team_obj.members else 0,
-                "times": team_obj.times,
             },
             "activities": activities_with_status,
             "evaluation_summary": {

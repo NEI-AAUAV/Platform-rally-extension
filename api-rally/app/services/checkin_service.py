@@ -15,6 +15,7 @@ from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.events import TeamCheckpointAdvancedEvent, TeamCheckpointAdvancedPayload, publish_event
 from app.models.checkpoint import CheckPoint
+from app.models.checkpoint_arrival import ArrivalSource
 from app.models.team import Team
 from app.services.event_scope import CHECKPOINT_NOT_FOUND
 from app.services.route_progress import progress_for_team, unreachable_message
@@ -67,9 +68,11 @@ class CheckinService:
             raise RallyNotFoundError("Team not found")
         return team_obj
 
-    async def check_in_and_publish(self, team_id: int, checkpoint: CheckPoint) -> None:
+    async def check_in_and_publish(
+        self, team_id: int, checkpoint: CheckPoint, *, source: ArrivalSource
+    ) -> None:
         """Record the visit and publish the checkpoint-advanced event."""
-        await checkin_team_to_checkpoint(self._db, team_id, checkpoint.id)
+        await checkin_team_to_checkpoint(self._db, team_id, checkpoint.id, source=source)
         await publish_event(
             TeamCheckpointAdvancedEvent(
                 payload=TeamCheckpointAdvancedPayload(
