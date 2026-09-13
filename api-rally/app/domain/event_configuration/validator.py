@@ -32,6 +32,8 @@ class ConfigurationValidator:
                 issues.append(ConfigurationIssue("REQUIRED_CAPABILITY_DISABLED", ConfigurationIssueSeverity.ERROR, f"A capability obrigatória '{cap.value}' está desligada.", [cap.value]))
             if value.policy is CapabilityPolicy.FORBIDDEN and value.configured:
                 issues.append(ConfigurationIssue("FORBIDDEN_CAPABILITY_ENABLED", ConfigurationIssueSeverity.ERROR, f"A capability '{cap.value}' não está disponível neste perfil.", [cap.value]))
+        if caps[Capability.GUIDE_MODE].policy is CapabilityPolicy.REQUIRED and not getattr(settings, "guide_mode_active", False):
+            issues.append(ConfigurationIssue("REQUIRED_CAPABILITY_DISABLED", ConfigurationIssueSeverity.ERROR, "O modo guia é obrigatório neste perfil e tem de estar ativo.", ["guide_mode_active"]))
         return issues
 
     @classmethod

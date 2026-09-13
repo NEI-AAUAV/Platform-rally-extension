@@ -15,6 +15,9 @@ from app.crud import current_event_id
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
+from app.domain.event_configuration.policies import Capability
+from app.domain.event_configuration.resolver import resolve_capabilities
+from app.models.activity import RallyEvent
 from app.models.checkpoint_skip import CheckpointSkip
 from app.models.dynamic_scoring import DynamicAward
 from app.schemas.skip import CheckpointSkipped
@@ -52,7 +55,15 @@ class SkipService:
         require_same_event(team.event_id, checkpoint.event_id)
 
         settings = await rally_settings.get_or_create(self._db)
-        if not getattr(settings, "skip_enabled", True):
+        event = await self._db.get(RallyEvent, team.event_id)
+        enabled = resolve_capabilities(
+            event_type=event.event_type if event else "generic",
+            profile=event.event_profile if event else "custom",
+            settings=settings,
+            platform_qr_supported=False,
+            event_config=event.config if event else None,
+        )[Capability.SKIP].effective
+        if not enabled:
             raise RallyValidationError(SKIP_DISABLED)
         # Hours are not enforced here: giving up on a bar that has not opened
         # yet is exactly what a stuck team wants to do.

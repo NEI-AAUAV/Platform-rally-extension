@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import current_event_id
 from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
-from app.domain.event_configuration.policies import default_profile
+from app.domain.event_configuration.policies import default_profile, profile_is_supported
+from app.core.exceptions import RallyValidationError
 from app.schemas.activity import (
     ActivityCreate,
     ActivityResultCreate,
@@ -234,7 +235,13 @@ class CRUDRallyEvent:
             await self._demote_all(db)
 
         event_type = obj_in.event_type.value if isinstance(obj_in.event_type, EventType) else obj_in.event_type
-        event_profile = (obj_in.event_profile or default_profile(event_type)).value
+        profile = obj_in.event_profile or default_profile(event_type)
+        event_profile = profile.value if hasattr(profile, "value") else str(profile)
+        if not profile_is_supported(event_type, event_profile):
+            raise RallyValidationError(
+                "O perfil operacional não está disponível para este tipo de evento.",
+                details={"code": "UNSUPPORTED_EVENT_PROFILE", "event_type": event_type, "event_profile": event_profile},
+            )
         config = dict(obj_in.config)
         if event_profile == "self_checkin":
             config.setdefault("qr_checkin_enabled", True)

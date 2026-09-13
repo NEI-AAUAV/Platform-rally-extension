@@ -17,6 +17,9 @@ def resolve_capabilities(*, event_type: str, profile: str | None, settings: obje
         configured = not bool(raw) if inverted else bool(raw)
         available = platform_qr_supported if capability is Capability.QR_ARRIVAL else True
         cap_policy = policy.policy_for(capability)
-        effective = available and (cap_policy is CapabilityPolicy.REQUIRED or (cap_policy is CapabilityPolicy.OPTIONAL and configured))
+        # Required is a policy constraint, not a magical runtime override. A
+        # half-configured event must report it as ineffective and let
+        # preflight explain the required-capability error.
+        effective = available and configured and cap_policy is not CapabilityPolicy.FORBIDDEN
         result[capability] = EffectiveCapability(cap_policy, configured, available, effective)
     return result

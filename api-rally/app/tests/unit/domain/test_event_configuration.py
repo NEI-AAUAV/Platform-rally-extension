@@ -1,6 +1,13 @@
 from types import SimpleNamespace
 
-from app.domain.event_configuration.policies import Capability, CapabilityPolicy, EventProfile, resolve_policy
+from app.domain.event_configuration.policies import (
+    Capability,
+    CapabilityPolicy,
+    EventProfile,
+    initial_settings_defaults,
+    profile_is_supported,
+    resolve_policy,
+)
 from app.domain.event_configuration.validator import ConfigurationIssueSeverity, ConfigurationValidator
 
 
@@ -33,6 +40,39 @@ def test_autonomous_peddy_policy_requires_player_view_and_redaction():
 def test_self_checkin_rally_requires_qr_arrival():
     policy = resolve_policy("rally_tascas", EventProfile.SELF_CHECKIN)
     assert policy.policy_for(Capability.QR_ARRIVAL) is CapabilityPolicy.REQUIRED
+
+
+def test_profiles_are_family_scoped_but_custom_remains_the_legacy_escape_hatch():
+    assert profile_is_supported("peddy_paper", "autonomous")
+    assert not profile_is_supported("peddy_paper", "staffed")
+    assert profile_is_supported("peddy_paper", "custom")
+
+
+def test_profile_defaults_are_central_and_do_not_make_guided_peddy_gps_only():
+    autonomous = initial_settings_defaults("peddy_paper", "autonomous")
+    guided = initial_settings_defaults("peddy_paper", "guided")
+    assert autonomous["gps_checkin_enabled"] is True
+    assert autonomous["reveal_next_checkpoint"] is False
+    assert guided["gps_checkin_enabled"] is False
+    assert guided["guide_mode_enabled"] is True
+    assert guided["guide_mode_active"] is True
+
+
+def test_guided_peddy_requires_active_guide_mode():
+    issues = ConfigurationValidator.local_issues(event_type="peddy_paper", profile="guided", settings=settings(guide_manual_arrival_enabled=True, guide_mode_enabled=True, guide_mode_active=False))
+    assert any(issue.code == "REQUIRED_CAPABILITY_DISABLED" and issue.fields == ["guide_mode_active"] for issue in issues)
+
+
+def test_required_but_disabled_capability_is_not_reported_as_effective():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="guided"),
+        settings=settings(guide_manual_arrival_enabled=False, guide_mode_enabled=True, guide_mode_active=True),
+        checkpoints=[SimpleNamespace(id=1, latitude=1.0, longitude=1.0, arrival_radius_m=20)],
+        route_stages=[],
+        platform_qr_supported=False,
+    )
+    assert report.capabilities["guide_arrival"]["configured"] is False
+    assert report.capabilities["guide_arrival"]["effective"] is False
 
 
 def test_compass_and_guide_local_invariants_are_errors():

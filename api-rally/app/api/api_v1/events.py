@@ -26,11 +26,13 @@ from app.services.deps import get_event_service
 from app.services.event_service import EVENT_NOT_FOUND, EventService
 from app.core.config import settings as app_settings
 from app.core.exceptions import RallyConfigurationError, RallyConflictError
-from app.domain.event_configuration.policies import CapabilityPolicy, SETTING_CAPABILITIES, EventProfile, resolve_policy
+from app.domain.event_configuration.policies import CapabilityPolicy, SETTING_CAPABILITIES, EventProfile, profile_is_supported, resolve_policy
 from app.domain.event_configuration.validator import ConfigurationValidator
 from app.models.activity import Activity, ActivityResult, EventType
 from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_arrival import CheckpointArrival
+from app.models.checkpoint_skip import CheckpointSkip
+from app.models.dynamic_scoring import DynamicAward
 from app.models.rally_settings import RallySettings
 from app.models.route_stage import RouteStage
 
@@ -242,9 +244,16 @@ class EventController:
         event = await crud.rally_event.get(db, event_id)
         if event is None:
             raise RallyNotFoundError(EVENT_NOT_FOUND)
+        if not profile_is_supported(format_in.event_type.value, format_in.event_profile):
+            raise RallyConfigurationError(
+                "O perfil operacional não está disponível para este tipo de evento.",
+                details={"code": "UNSUPPORTED_EVENT_PROFILE", "event_type": format_in.event_type.value, "event_profile": format_in.event_profile.value},
+            )
         has_arrivals = bool(await db.scalar(select(func.count()).select_from(CheckpointArrival).join(CheckPoint).where(CheckPoint.event_id == event_id)))
+        has_skips = bool(await db.scalar(select(func.count()).select_from(CheckpointSkip).join(CheckPoint).where(CheckPoint.event_id == event_id)))
         has_results = bool(await db.scalar(select(func.count()).select_from(ActivityResult).join(Activity).where(Activity.event_id == event_id)))
-        if has_arrivals or has_results:
+        has_awards = bool(await db.scalar(select(func.count()).select_from(DynamicAward).where(DynamicAward.event_id == event_id)))
+        if has_arrivals or has_skips or has_results or has_awards:
             raise RallyConflictError("Não é possível alterar o formato de um evento que já possui progresso ou resultados.", details={"code": "EVENT_FORMAT_LOCKED"})
         settings_row = await db.scalar(select(RallySettings).where(RallySettings.event_id == event_id))
         if settings_row is None:

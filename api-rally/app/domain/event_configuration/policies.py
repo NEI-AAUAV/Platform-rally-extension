@@ -71,9 +71,58 @@ POLICIES: dict[tuple[str, EventProfile], EventPolicy] = {
     ("olympic", EventProfile.ROTATION): _policy("olympic", EventProfile.ROTATION, required={Capability.OLYMPIC_ROTATION}, forbidden={Capability.CHECKPOINT_REDACTION, Capability.PROXIMITY, Capability.COMPASS, Capability.HINTS, Capability.SKIP, Capability.DRINKING_SCORING}, description="Estações rodativas com resultados por prova."),
 }
 
+# ``custom`` is deliberately accepted for every family: it is the lossless
+# compatibility profile for existing editions and the explicit escape hatch
+# for organisers who need a workflow outside the opinionated profiles.
+AVAILABLE_PROFILES: dict[str, frozenset[EventProfile]] = {
+    "peddy_paper": frozenset({EventProfile.CUSTOM, EventProfile.AUTONOMOUS, EventProfile.GUIDED}),
+    "rally_tascas": frozenset({EventProfile.CUSTOM, EventProfile.STAFFED, EventProfile.SELF_CHECKIN}),
+    "olympic": frozenset({EventProfile.CUSTOM, EventProfile.ROTATION}),
+    "generic": frozenset({EventProfile.CUSTOM}),
+}
+
 
 def default_profile(event_type: str) -> EventProfile:
     return {"peddy_paper": EventProfile.AUTONOMOUS, "rally_tascas": EventProfile.STAFFED, "olympic": EventProfile.ROTATION}.get(event_type, EventProfile.CUSTOM)
+
+
+def profile_is_supported(event_type: str, profile: str | EventProfile) -> bool:
+    """Whether a profile is meaningful for an event family.
+
+    The resolver has a safe custom fallback for historic rows, while writes
+    must not turn a cross-family profile into an accidental generic policy.
+    """
+    try:
+        normalized = EventProfile(profile)
+    except ValueError:
+        return False
+    return normalized in AVAILABLE_PROFILES.get(event_type, frozenset({EventProfile.CUSTOM}))
+
+
+def initial_settings_defaults(event_type: str, profile: str | EventProfile | None) -> dict[str, object]:
+    """The small set of *profile* defaults, separate from model defaults.
+
+    Persisted column defaults still belong to ``RallySettings``.  This only
+    answers the domain question "what should a newly-created format start
+    with?" and is shared by every settings bootstrap.
+    """
+    try:
+        normalized = EventProfile(profile) if profile else default_profile(event_type)
+    except ValueError:
+        # Historic rows must stay readable; the preflight/API can surface the
+        # unsupported value without making settings bootstrap crash.
+        normalized = EventProfile.CUSTOM
+    peddy = event_type == "peddy_paper"
+    guided = peddy and normalized is EventProfile.GUIDED
+    return {
+        "gps_checkin_enabled": peddy and normalized is EventProfile.AUTONOMOUS,
+        "reveal_next_checkpoint": not peddy,
+        "hint_penalty": -10 if peddy else 0,
+        "skip_penalty": -25 if peddy else 0,
+        "participant_view_enabled": peddy,
+        "guide_mode_enabled": guided,
+        "guide_mode_active": guided,
+    }
 
 
 def resolve_policy(event_type: str, profile: str | EventProfile | None) -> EventPolicy:

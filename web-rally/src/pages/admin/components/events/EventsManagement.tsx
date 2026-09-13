@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarRange,
   Check,
@@ -14,7 +14,7 @@ import {
   FileText,
   Copy,
 } from "lucide-react";
-import { generateRotationSchedule } from "@/client";
+import { changeEventFormat, eventConfigurationStatus, generateRotationSchedule } from "@/client";
 import { downloadEventResults, downloadEventReport } from "@/services/eventExport";
 import RotationScheduleView from "./RotationScheduleView";
 import { EmptyState, LoadingState } from "@/components/shared";
@@ -186,6 +186,65 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
   );
 }
 
+function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
+  const toast = useAppToast();
+  const qc = useQueryClient();
+  const [eventType, setEventType] = useState<EventType>(event.event_type);
+  const [profile, setProfile] = useState<EventProfile>(event.event_profile ?? "custom");
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await changeEventFormat({ path: { event_id: event.id }, body: { event_type: eventType, event_profile: profile } });
+      return data;
+    },
+    onSuccess: (result) => {
+      void qc.invalidateQueries({ queryKey: ["events"] });
+      void qc.invalidateQueries({ queryKey: ["event-configuration-status"] });
+      const changes = result?.changes.length ?? 0;
+      toast.success(`Formato aplicado${changes ? ` · ${changes} definições ajustadas` : ""}`);
+      if (result && !result.ready) toast.error(`${result.issues.filter((issue) => issue.severity === "error").length} problemas de preflight permanecem`);
+    },
+    onError: (error) => toast.error(getErrorMessage(error, "Não foi possível alterar o formato")),
+  });
+  const profiles = PROFILE_OPTIONS[eventType];
+  return (
+    <div className="flex gap-2">
+      <Select value={eventType} onValueChange={(value) => { const next = value as EventType; setEventType(next); setProfile(defaultProfile(next)); }}>
+        <SelectTrigger className="h-8 w-[135px] text-xs"><SelectValue /></SelectTrigger>
+        <SelectContent>{(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((type) => <SelectItem key={type} value={type}>{EVENT_TYPE_LABELS[type]}</SelectItem>)}</SelectContent>
+      </Select>
+      <Select value={profile} onValueChange={(value) => setProfile(value as EventProfile)}>
+        <SelectTrigger className="h-8 w-[135px] text-xs"><SelectValue /></SelectTrigger>
+        <SelectContent>{profiles.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
+      </Select>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={mutation.isPending}
+        onClick={() => {
+          if (window.confirm("Aplicar este formato? As capabilities obrigatórias e indisponíveis serão reconciliadas.")) mutation.mutate();
+        }}
+      >
+        {mutation.isPending ? "A aplicar…" : "Aplicar formato"}
+      </Button>
+    </div>
+  );
+}
+
+function EventReadiness({ eventId }: Readonly<{ eventId: number }>) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["event-configuration-status", eventId],
+    queryFn: async () => (await eventConfigurationStatus({ path: { event_id: eventId } })).data,
+    staleTime: 20_000,
+  });
+  if (isLoading || !data) return <span className="text-xs text-muted-foreground">A verificar configuração…</span>;
+  const errors = data.issues.filter((issue) => issue.severity === "error").length;
+  return data.ready ? (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5" /> Pronto</span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><AlertCircle className="h-3.5 w-3.5" /> Não pronto · {errors} {errors === 1 ? "erro" : "erros"}</span>
+  );
+}
+
 function CloneStructureButton({
   event,
   others,
@@ -350,8 +409,10 @@ export default function EventsManagement() {
                 </div>
                 <p className="mt-0.5 text-xs uppercase tracking-[0.14em] text-muted-foreground">
                   {EVENT_TYPE_LABELS[ev.event_type]}
+                  {ev.event_profile ? ` · ${PROFILE_OPTIONS[ev.event_type].find((profile) => profile.value === ev.event_profile)?.label ?? ev.event_profile}` : ""}
                   {formatRange(ev) ? ` · ${formatRange(ev)}` : ""}
                 </p>
+                <div className="mt-1"><EventReadiness eventId={ev.id} /></div>
                 {ev.description && (
                   <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>
                 )}
@@ -366,6 +427,7 @@ export default function EventsManagement() {
               <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:flex-wrap xl:items-center xl:justify-end xl:gap-2">
                 <ExportResultsButton event={ev} />
                 <ReportButton event={ev} />
+                <ChangeFormatButton event={ev} />
                 {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
                 <CloneStructureButton event={ev} others={list.filter((o) => o.id !== ev.id)} />
                 {!ev.is_current && (
