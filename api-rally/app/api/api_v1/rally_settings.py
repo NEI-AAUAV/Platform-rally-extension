@@ -18,6 +18,9 @@ from app.services.image_upload import (
     MAX_DOCUMENT_SIZE_BYTES,
 )
 from app.services.rally_settings_service import RallySettingsService
+from app.crud.crud_activity import rally_event
+from app.core.exceptions import RallyConfigurationError
+from app.domain.event_configuration.validator import ConfigurationValidator
 
 INVALID_FILE_ERROR = "Invalid file"
 NOT_AUTHORIZED_ERROR = "Not authorized"
@@ -139,6 +142,16 @@ class RallySettingsController:
         validate_settings_update_access(curr_user, auth)
         # Resolve the current event's settings row (per-event, no more id=1 singleton).
         current = await rally_settings.get_or_create(db)
+        event = await rally_event.ensure_current(db)
+        local_issues = ConfigurationValidator.local_issues(
+            event_type=event.event_type, profile=event.event_profile, settings=settings_in, config=event.config
+        )
+        errors = [issue for issue in local_issues if issue.severity.value == "error"]
+        if errors:
+            raise RallyConfigurationError(
+                "Configuração de evento inválida.",
+                details={"code": "INVALID_EVENT_CONFIGURATION", "issues": [issue.__dict__ | {"severity": issue.severity.value} for issue in errors]},
+            )
         before = snapshot_fields(current, _SETTINGS_AUDITED_FIELDS)
         updated = await rally_settings.update(db, id=current.id, obj_in=settings_in, commit=True)  # type: ignore[arg-type]
         await record_field_changes(

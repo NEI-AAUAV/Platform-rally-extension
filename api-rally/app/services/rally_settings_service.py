@@ -12,6 +12,8 @@ from app.crud.crud_rally_settings import rally_settings
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import RallySettingsResponse
 from app.schemas.user import DetailedUser
+from app.core.config import settings as app_settings
+from app.domain.event_configuration.resolver import resolve_capabilities
 from app.services.image_upload import MAX_IMAGE_SIZE_BYTES, validate_and_store
 from app.services.storage import storage_client
 
@@ -30,7 +32,17 @@ class RallySettingsService:
         """
         event = await rally_event.ensure_current(self._db)
         response = RallySettingsResponse.model_validate(settings_row)
-        return response.model_copy(update={"event_type": event.event_type})
+        capabilities = resolve_capabilities(
+            event_type=event.event_type,
+            profile=event.event_profile,
+            settings=settings_row,
+            platform_qr_supported=app_settings.SELF_CHECKIN_ENABLED,
+            event_config=event.config,
+        )
+        effective = {name.value: capability.effective for name, capability in capabilities.items()}
+        # Guide content has a live activation switch in addition to its feature flag.
+        effective["guide_mode"] = effective["guide_mode"] and settings_row.guide_mode_active
+        return response.model_copy(update={"event_type": event.event_type, "event_profile": event.event_profile, "effective_capabilities": effective})
 
     async def upload_branding_image(
         self,

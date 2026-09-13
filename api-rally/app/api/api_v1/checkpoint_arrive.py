@@ -19,6 +19,9 @@ from app.schemas.team_auth import TeamTokenData
 from app.services.audit_service import AuditActor, record_audit
 from app.services.checkpoint_arrival_service import CheckpointArrivalService
 from app.services.deps import get_checkpoint_arrival_service
+from app.domain.event_configuration.policies import Capability
+from app.domain.event_configuration.resolver import resolve_capabilities
+from app.core.config import settings as app_settings
 
 
 class ArriveRequest(BaseModel):
@@ -72,7 +75,14 @@ class CheckpointArriveController:
     ) -> ArriveResponse:
         event = await crud_activity.rally_event.get_current(db)
         settings = await rally_settings.get_or_create(db)
-        if not event or not settings.gps_checkin_enabled:
+        capabilities = resolve_capabilities(
+            event_type=event.event_type if event else "generic",
+            profile=event.event_profile if event else "custom",
+            settings=settings,
+            platform_qr_supported=app_settings.SELF_CHECKIN_ENABLED,
+            event_config=event.config if event else {},
+        )
+        if not event or not capabilities[Capability.GPS_ARRIVAL].effective:
             raise HTTPException(
                 status_code=400, detail="GPS check-in is not enabled for this event"
             )

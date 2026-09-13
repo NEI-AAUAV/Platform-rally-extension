@@ -42,6 +42,7 @@ from app.services.checkin_token import (
 )
 from app.services.deps import get_checkin_service
 from app.services.event_scope import require_same_event
+from app.crud.crud_activity import rally_event
 
 
 class CheckinRequest(BaseModel):
@@ -212,6 +213,12 @@ class CheckinController:
     ) -> CheckinResponse:
         """Check the calling team into the checkpoint encoded in the scanned token."""
         self._require_enabled(settings)
+        # Platform support is not event intent. Legacy custom events preserve
+        # their historical platform-gated behaviour; opinionated profiles must
+        # explicitly opt into QR through their policy/configuration.
+        event = await rally_event.get_current(db)
+        if event is not None and event.event_profile != "custom" and not event.config.get("qr_checkin_enabled", False):
+            raise RallyNotFoundError("QR self check-in is not enabled for this event")
 
         try:
             claims = verify_checkin_token(body.token)

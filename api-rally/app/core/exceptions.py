@@ -37,6 +37,12 @@ class RallyValidationError(RallyError):
     status_code = 400
 
 
+class RallyConfigurationError(RallyError):
+    """A persisted settings combination violates a hard domain invariant."""
+
+    status_code = 422
+
+
 class RallyForbiddenError(RallyError):
     """The action is understood but not permitted (HTTP 403)."""
 

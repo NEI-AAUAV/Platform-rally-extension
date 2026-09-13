@@ -9,6 +9,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Security
 from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
@@ -23,6 +24,15 @@ from app.schemas.activity import (
 from app.schemas.user import DetailedUser
 from app.services.deps import get_event_service
 from app.services.event_service import EVENT_NOT_FOUND, EventService
+from app.core.config import settings as app_settings
+from app.core.exceptions import RallyConfigurationError, RallyConflictError
+from app.domain.event_configuration.policies import CapabilityPolicy, SETTING_CAPABILITIES, EventProfile, resolve_policy
+from app.domain.event_configuration.validator import ConfigurationValidator
+from app.models.activity import Activity, ActivityResult, EventType
+from app.models.checkpoint import CheckPoint
+from app.models.checkpoint_arrival import CheckpointArrival
+from app.models.rally_settings import RallySettings
+from app.models.route_stage import RouteStage
 
 EVENT_NOT_FOUND_RESPONSES: dict[int | str, dict[str, Any]] = {404: {"description": EVENT_NOT_FOUND}}
 
@@ -40,6 +50,44 @@ class CloneStructureResponse(BaseModel):
     created: dict[str, int]
 
 
+class ChangeEventFormatRequest(BaseModel):
+    event_type: EventType
+    event_profile: EventProfile
+
+
+class ChangeEventFormatResponse(BaseModel):
+    event: RallyEventResponse
+    changes: list[dict[str, Any]]
+    issues: list[dict[str, Any]]
+    ready: bool
+
+
+class ConfigurationIssueResponse(BaseModel):
+    code: str
+    severity: str
+    message: str
+    fields: list[str] | None = None
+    entity_type: str | None = None
+    entity_ids: list[int] | None = None
+    suggestion: str | None = None
+    autofix: str | None = None
+
+
+class EffectiveCapabilityResponse(BaseModel):
+    policy: str
+    configured: bool
+    available: bool
+    effective: bool
+
+
+class ConfigurationStatusResponse(BaseModel):
+    event_type: str
+    event_profile: str
+    ready: bool
+    capabilities: dict[str, EffectiveCapabilityResponse]
+    issues: list[ConfigurationIssueResponse]
+
+
 class EventController:
     """REST controller for rally event editions."""
 
@@ -50,6 +98,14 @@ class EventController:
     def _register_routes(self) -> None:
         self.router.add_api_route(
             "/events", self.list_events, methods=["GET"], name="list_events", tags=["Events"]
+        )
+        self.router.add_api_route(
+            "/events/{event_id}/configuration-status", self.configuration_status,
+            methods=["GET"], name="event_configuration_status", tags=["Events"], responses=EVENT_NOT_FOUND_RESPONSES,
+        )
+        self.router.add_api_route(
+            "/events/{event_id}/change-format", self.change_format,
+            methods=["POST"], name="change_event_format", tags=["Events"], responses=EVENT_NOT_FOUND_RESPONSES,
         )
         self.router.add_api_route(
             "/events/current",
@@ -159,6 +215,74 @@ class EventController:
             raise RallyNotFoundError(EVENT_NOT_FOUND)
         updated = await crud.rally_event.update(db, db_obj=event, obj_in=event_in)
         return RallyEventResponse.model_validate(updated)
+
+    async def configuration_status(
+        self, event_id: int, db: Annotated[AsyncSession, Depends(get_db)],
+        _admin: Annotated[DetailedUser, Depends(get_admin)],
+        _auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    ) -> ConfigurationStatusResponse:
+        event = await crud.rally_event.get(db, event_id)
+        if event is None:
+            raise RallyNotFoundError(EVENT_NOT_FOUND)
+        settings_row = await db.scalar(select(RallySettings).where(RallySettings.event_id == event_id))
+        # A just-created edition has no settings yet: do not mutate it merely to inspect readiness.
+        if settings_row is None:
+            settings_row = RallySettings(event_id=event_id)
+        checkpoints = list((await db.scalars(select(CheckPoint).where(CheckPoint.event_id == event_id, CheckPoint.is_draft.is_(False)))).all())
+        stages = list((await db.scalars(select(RouteStage).where(RouteStage.event_id == event_id))).all())
+        report = ConfigurationValidator.validate(event=event, settings=settings_row, checkpoints=checkpoints, route_stages=stages, platform_qr_supported=app_settings.SELF_CHECKIN_ENABLED)
+        return ConfigurationStatusResponse(event_type=report.event_type, event_profile=report.event_profile, ready=report.ready, capabilities=report.capabilities, issues=[{**issue.__dict__, "severity": issue.severity.value} for issue in report.issues])
+
+    async def change_format(
+        self, event_id: int, format_in: ChangeEventFormatRequest,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        _admin: Annotated[DetailedUser, Depends(get_admin)],
+        _auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+    ) -> ChangeEventFormatResponse:
+        event = await crud.rally_event.get(db, event_id)
+        if event is None:
+            raise RallyNotFoundError(EVENT_NOT_FOUND)
+        has_arrivals = bool(await db.scalar(select(func.count()).select_from(CheckpointArrival).join(CheckPoint).where(CheckPoint.event_id == event_id)))
+        has_results = bool(await db.scalar(select(func.count()).select_from(ActivityResult).join(Activity).where(Activity.event_id == event_id)))
+        if has_arrivals or has_results:
+            raise RallyConflictError("Não é possível alterar o formato de um evento que já possui progresso ou resultados.", details={"code": "EVENT_FORMAT_LOCKED"})
+        settings_row = await db.scalar(select(RallySettings).where(RallySettings.event_id == event_id))
+        if settings_row is None:
+            settings_row = RallySettings(event_id=event_id)
+            db.add(settings_row)
+        policy = resolve_policy(format_in.event_type.value, format_in.event_profile)
+        config = dict(event.config or {})
+        changes: list[dict[str, Any]] = []
+        for capability, (field, inverted) in SETTING_CAPABILITIES.items():
+            desired = policy.policy_for(capability)
+            if field == "qr_checkin_enabled" and desired is not CapabilityPolicy.OPTIONAL:
+                value = desired is CapabilityPolicy.REQUIRED
+                if config.get(field, False) != value:
+                    changes.append({"field": field, "from": config.get(field, False), "to": value, "reason": f"{desired.value}_by_policy"})
+                    config[field] = value
+                continue
+            if field in {"drinking_scoring", "olympic_rotation"}:
+                continue
+            if desired is CapabilityPolicy.OPTIONAL:
+                continue
+            target = desired is CapabilityPolicy.REQUIRED
+            value = not target if inverted else target
+            if getattr(settings_row, field) != value:
+                changes.append({"field": field, "from": getattr(settings_row, field), "to": value, "reason": f"{desired.value}_by_policy"})
+                setattr(settings_row, field, value)
+            if capability.name == "GUIDE_MODE" and desired is not CapabilityPolicy.OPTIONAL:
+                active = desired is CapabilityPolicy.REQUIRED
+                if settings_row.guide_mode_active != active:
+                    changes.append({"field": "guide_mode_active", "from": settings_row.guide_mode_active, "to": active, "reason": f"{desired.value}_by_policy"})
+                    settings_row.guide_mode_active = active
+        event.event_type, event.event_profile, event.config = format_in.event_type.value, format_in.event_profile.value, config
+        db.add(event)
+        await db.commit()
+        await db.refresh(event)
+        checkpoints = list((await db.scalars(select(CheckPoint).where(CheckPoint.event_id == event_id, CheckPoint.is_draft.is_(False)))).all())
+        stages = list((await db.scalars(select(RouteStage).where(RouteStage.event_id == event_id))).all())
+        report = ConfigurationValidator.validate(event=event, settings=settings_row, checkpoints=checkpoints, route_stages=stages, platform_qr_supported=app_settings.SELF_CHECKIN_ENABLED)
+        return ChangeEventFormatResponse(event=RallyEventResponse.model_validate(event), changes=changes, issues=[{**issue.__dict__, "severity": issue.severity.value} for issue in report.issues], ready=report.ready)
 
     async def set_current_event(
         self,

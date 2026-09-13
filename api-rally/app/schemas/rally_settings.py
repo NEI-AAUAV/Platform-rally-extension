@@ -345,6 +345,10 @@ class RallySettingsResponse(RallySettingsBase):
     # Read-only: it lives on the event, not the settings row, and drives
     # terminology/mechanics on the client. Resolved by the route layer.
     event_type: str = "rally_tascas"
+    event_profile: str = "custom"
+    # Participant-safe effective gates. Full configured/available/policy state
+    # is intentionally restricted to the admin preflight endpoint.
+    effective_capabilities: dict[str, bool] = Field(default_factory=dict)
 
     # Image URLs are read-only here: set via the R2 upload endpoints so a
     # plain settings PUT can never clobber them with a stale value.

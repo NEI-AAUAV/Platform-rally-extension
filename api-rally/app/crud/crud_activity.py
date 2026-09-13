@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import current_event_id
 from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
+from app.domain.event_configuration.policies import default_profile
 from app.schemas.activity import (
     ActivityCreate,
     ActivityResultCreate,
@@ -232,14 +233,18 @@ class CRUDRallyEvent:
         if obj_in.is_current:
             await self._demote_all(db)
 
+        event_type = obj_in.event_type.value if isinstance(obj_in.event_type, EventType) else obj_in.event_type
+        event_profile = (obj_in.event_profile or default_profile(event_type)).value
+        config = dict(obj_in.config)
+        if event_profile == "self_checkin":
+            config.setdefault("qr_checkin_enabled", True)
         db_obj = RallyEvent(
             name=obj_in.name,
             slug=slug,
             description=obj_in.description,
-            event_type=obj_in.event_type.value
-            if isinstance(obj_in.event_type, EventType)
-            else obj_in.event_type,
-            config=obj_in.config,
+            event_type=event_type,
+            event_profile=event_profile,
+            config=config,
             is_active=obj_in.is_active,
             is_current=obj_in.is_current,
             start_time=obj_in.start_time,

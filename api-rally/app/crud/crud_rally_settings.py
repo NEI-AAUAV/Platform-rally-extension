@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from app.crud.base import CRUDBase
 from app.crud.crud_activity import rally_event
 from app.models.activity import EventType
+from app.domain.event_configuration.policies import default_profile
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import (
     DEFAULT_HOME_LAYOUT,
@@ -47,6 +48,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         # from the column defaults in ``app.models.rally_settings``, which are
         # the single default table — restating them here is how the two sets
         # came to disagree on six fields.
+        profile = event.event_profile or default_profile(event.event_type).value
         settings = RallySettings(
             event_id=event_id,
             # Rally timing mirrors the event; synced below.
@@ -55,7 +57,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             # GPS self-check-in: on by default for peddy paper, where reaching
             # the post *is* the mechanic; off for formats that check teams in
             # through staff or QR.
-            gps_checkin_enabled=event.event_type == EventType.PEDDY_PAPER.value,
+            gps_checkin_enabled=(event.event_type == EventType.PEDDY_PAPER.value and profile == "autonomous"),
             # Redact next checkpoint until check-in for peddy paper, where the
             # location itself is the puzzle answer; every other format keeps
             # today's fully-revealed next checkpoint.
@@ -70,6 +72,8 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
             # equipas belong there by default. Other formats keep the
             # existing opt-in (staff must switch it on).
             participant_view_enabled=event.event_type == EventType.PEDDY_PAPER.value,
+            guide_mode_enabled=(event.event_type == EventType.PEDDY_PAPER.value and profile == "guided"),
+            guide_mode_active=(event.event_type == EventType.PEDDY_PAPER.value and profile == "guided"),
             # Event identity: data, so one build serves every edition.
             event_name="Rally Tascas",
             event_subtitle="Competição de Equipas",
