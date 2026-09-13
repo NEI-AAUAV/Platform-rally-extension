@@ -7,6 +7,11 @@ const POLICY_LABEL: Record<string, string> = {
   optional: "Opcional",
   forbidden: "Indisponível",
 };
+const CAPABILITY_LABEL: Record<string, string> = {
+  participant_view: "Vista de participante", checkpoint_redaction: "Redação de postos",
+  gps_arrival: "Check-in GPS", qr_arrival: "Check-in QR", guide_arrival: "Chegada por guia",
+  staff_scoring: "Avaliação por staff", guide_mode: "Modo guia", olympic_rotation: "Rotação olímpica",
+};
 
 function Issue({ issue }: Readonly<{ issue: ConfigurationIssueResponse }>) {
   const Icon = issue.severity === "error" ? XCircle : issue.severity === "warning" ? AlertTriangle : Info;
@@ -44,7 +49,7 @@ export default function ConfigurationReadiness() {
         <div className="mt-3 flex flex-wrap gap-2">
           {important.map(([name, capability]) => (
             <span key={name} className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              {name.replace(/_/g, " ")} · {POLICY_LABEL[capability.policy] ?? capability.policy}
+              {CAPABILITY_LABEL[name] ?? name.replace(/_/g, " ")} · {POLICY_LABEL[capability.policy] ?? capability.policy}
             </span>
           ))}
         </div>

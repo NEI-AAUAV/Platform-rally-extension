@@ -22,6 +22,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useEventConfiguration } from "./useEventConfiguration";
+
+const FIELD_CAPABILITY: Record<string, string> = {
+  participant_view_enabled: "participant_view", reveal_next_checkpoint: "checkpoint_redaction",
+  gps_checkin_enabled: "gps_arrival", guide_manual_arrival_enabled: "guide_arrival",
+  hints_enabled: "hints", skip_enabled: "skip", proximity_enabled: "proximity",
+  compass_enabled: "compass", enable_staff_scoring: "staff_scoring",
+  enable_versus: "versus", route_stages_enabled: "route_stages",
+  checkpoint_hours_enabled: "checkpoint_hours", leg_time_scoring_enabled: "leg_time_scoring",
+  guide_mode_enabled: "guide_mode", badges_enabled: "badges",
+};
 
 type SettingRowProps = Readonly<{
   name: string;
@@ -58,16 +69,21 @@ type SettingSwitchProps = Readonly<{
 
 export function SettingSwitch({ name, label, help, defaultValue = false, policy }: SettingSwitchProps) {
   const { control, setValue } = useFormContext();
+  const configuration = useEventConfiguration();
+  const apiPolicy = FIELD_CAPABILITY[name]
+    ? configuration.data?.capabilities[FIELD_CAPABILITY[name]]?.policy
+    : undefined;
+  const resolvedPolicy = policy ?? (apiPolicy === "required" || apiPolicy === "optional" || apiPolicy === "forbidden" ? apiPolicy : undefined);
   useEffect(() => {
-    if (policy === "required") setValue(name, true, { shouldDirty: false });
-    if (policy === "forbidden") setValue(name, false, { shouldDirty: false });
-  }, [name, policy, setValue]);
+    if (resolvedPolicy === "required") setValue(name, true, { shouldDirty: false });
+    if (resolvedPolicy === "forbidden") setValue(name, false, { shouldDirty: false });
+  }, [name, resolvedPolicy, setValue]);
 
   return (
     <SettingRow name={name} label={label} help={help}>
-      {policy && policy !== "optional" && (
+      {resolvedPolicy && resolvedPolicy !== "optional" && (
         <span className="mr-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-          {policy === "required" ? "Obrigatório" : "Indisponível"}
+          {resolvedPolicy === "required" ? "Obrigatório" : "Indisponível"}
         </span>
       )}
       <Controller
@@ -77,8 +93,8 @@ export function SettingSwitch({ name, label, help, defaultValue = false, policy 
         render={({ field }) => (
           <Switch
             id={name}
-            checked={policy === "forbidden" ? false : !!field.value}
-            disabled={policy === "required" || policy === "forbidden"}
+            checked={resolvedPolicy === "forbidden" ? false : !!field.value}
+            disabled={resolvedPolicy === "required" || resolvedPolicy === "forbidden"}
             onCheckedChange={(checked) => {
               // A local UX convenience; the API enforces the same invariant for direct clients.
               if (name === "compass_enabled" && checked) setValue("proximity_enabled", true, { shouldDirty: true });
