@@ -9815,6 +9815,82 @@
         "title": "CheckpointProgress",
         "description": "One team's state at one post, keyed by the post's stable id.\n\nBuilt from the identity-keyed rows (arrivals, skips, activity results)\nrather than from ``Team``'s positional arrays, so reordering or drafting\nposts mid-event never reassigns a team's data to a different post.\n``checkpoint_order`` is the post's current route position, for display.\n``score`` and ``skip_cost`` are ``None`` when scores are hidden."
       },
+      "CheckpointProgress": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "integer",
+            "title": "Checkpoint Id"
+          },
+          "checkpoint_order": {
+            "type": "integer",
+            "title": "Checkpoint Order"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "arrived",
+              "completed",
+              "skipped"
+            ],
+            "title": "Status"
+          },
+          "arrived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrived At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "skip_cost": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Cost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "checkpoint_order",
+          "status"
+        ],
+        "title": "CheckpointProgress",
+        "description": "One team's state at one post, keyed by the post's stable id.\n\nBuilt from the identity-keyed rows (arrivals, skips, activity results)\nrather than from ``Team``'s positional arrays, so reordering or drafting\nposts mid-event never reassigns a team's data to a different post.\n``checkpoint_order`` is the post's current route position, for display.\n``score`` and ``skip_cost`` are ``None`` when scores are hidden."
+      },
       "CheckpointSkipped": {
         "properties": {
           "checkpoint_id": {
@@ -10287,6 +10363,14 @@
             "type": "integer",
             "title": "Start Offset Minutes",
             "default": 0
+          },
+          "checkpoints": {
+            "items": {
+              "$ref": "#/components/schemas/CheckpointProgress"
+            },
+            "type": "array",
+            "title": "Checkpoints",
+            "default": []
           },
           "checkpoints": {
             "items": {
@@ -11731,6 +11815,14 @@
             "type": "integer",
             "title": "Start Offset Minutes",
             "default": 0
+          },
+          "checkpoints": {
+            "items": {
+              "$ref": "#/components/schemas/CheckpointProgress"
+            },
+            "type": "array",
+            "title": "Checkpoints",
+            "default": []
           },
           "checkpoints": {
             "items": {
