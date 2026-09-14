@@ -218,3 +218,81 @@ async def test_same_format_clone_copies_domain_capability_config(pg_session) -> 
     assert target.config["qr_checkin_enabled"] is True
     assert target.config["target_only"] == "keep"
     assert "source_only" not in target.config
+
+
+async def test_same_format_clone_copies_domain_config_without_source_settings(pg_session) -> None:
+    """`event.config` and `RallySettings` are separate stores: a capability can
+    be set via the capabilities endpoint without ever bootstrapping a
+    `RallySettings` row. The clone must still carry it over."""
+    source = await _make_event(pg_session, "tascas source", is_current=True)
+    source.event_type = "rally_tascas"
+    source.event_profile = "staffed"
+    source.config = {"drinking_scoring": False, "qr_checkin_enabled": True, "source_only": "keep"}
+    target = await _make_event(pg_session, "tascas target")
+    target.event_type = "rally_tascas"
+    target.event_profile = "staffed"
+    target.config = {"drinking_scoring": True, "qr_checkin_enabled": False, "target_only": "keep"}
+    pg_session.add_all([source, target])
+    await _populate(pg_session, source)
+    await pg_session.commit()
+
+    created = await EventService(pg_session).clone_structure(target.id, source.id)
+
+    await pg_session.refresh(target)
+    assert target.config["drinking_scoring"] is False
+    assert target.config["qr_checkin_enabled"] is True
+    assert target.config["target_only"] == "keep"
+    assert "source_only" not in target.config
+    assert created["rally_settings"] == 0
+
+
+async def test_clone_copies_global_activities(pg_session) -> None:
+    source = await _make_event(pg_session, "2025", is_current=True)
+    await _populate(pg_session, source)
+    pg_session.add(
+        Activity(
+            name="Global Quiz",
+            activity_type="score_based",
+            checkpoint_id=None,
+            is_global=True,
+            event_id=source.id,
+            config={},
+        )
+    )
+    await pg_session.commit()
+    target = await _make_event(pg_session, "2026")
+
+    created = await EventService(pg_session).clone_structure(target.id, source.id)
+
+    assert created["activities"] == 2
+    global_activity = await pg_session.scalar(
+        select(Activity).where(Activity.event_id == target.id, Activity.name == "Global Quiz")
+    )
+    assert global_activity is not None
+    assert global_activity.is_global is True
+    assert global_activity.checkpoint_id is None
+
+
+async def test_clone_skips_non_global_activity_with_no_checkpoint(pg_session) -> None:
+    source = await _make_event(pg_session, "2025", is_current=True)
+    await _populate(pg_session, source)
+    pg_session.add(
+        Activity(
+            name="Orphan",
+            activity_type="score_based",
+            checkpoint_id=None,
+            is_global=False,
+            event_id=source.id,
+            config={},
+        )
+    )
+    await pg_session.commit()
+    target = await _make_event(pg_session, "2026")
+
+    created = await EventService(pg_session).clone_structure(target.id, source.id)
+
+    assert created["activities"] == 1
+    orphan = await pg_session.scalar(
+        select(Activity).where(Activity.event_id == target.id, Activity.name == "Orphan")
+    )
+    assert orphan is None

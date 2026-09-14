@@ -27,6 +27,7 @@ const {
   mockDownloadEventResults,
   mockDownloadEventReport,
   mockGenerateRotationSchedule,
+  mockEventConfigurationStatus,
 } = vi.hoisted(() => ({
   mockUseEvents: vi.fn(),
   mockCreateMutate: vi.fn(),
@@ -38,6 +39,7 @@ const {
   mockDownloadEventResults: vi.fn(),
   mockDownloadEventReport: vi.fn(),
   mockGenerateRotationSchedule: vi.fn(),
+  mockEventConfigurationStatus: vi.fn(),
 }));
 
 vi.mock("@/hooks/useEvents", () => ({
@@ -61,6 +63,8 @@ vi.mock("@/services/eventExport", () => ({
 
 vi.mock("@/client", () => ({
   generateRotationSchedule: (...args: unknown[]) => mockGenerateRotationSchedule(...args),
+  eventConfigurationStatus: (...args: unknown[]) => mockEventConfigurationStatus(...args),
+  changeEventFormat: vi.fn(),
 }));
 
 function makeEvent(overrides: Partial<RallyEvent> = {}): RallyEvent {
@@ -80,6 +84,7 @@ describe("EventsManagement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseEvents.mockReturnValue({ data: [], isLoading: false, isError: false });
+    mockEventConfigurationStatus.mockResolvedValue({ data: { ready: true, issues: [] } });
   });
 
   it("shows a loading state", () => {
@@ -341,6 +346,17 @@ describe("EventsManagement", () => {
     });
     renderWithClient();
     expect(screen.getByText("Rally 2024")).toBeInTheDocument();
+  });
+
+  describe("event readiness", () => {
+    it("shows an error state when the configuration status request fails", async () => {
+      mockEventConfigurationStatus.mockRejectedValue(new Error("network error"));
+      mockUseEvents.mockReturnValue({ data: [makeEvent()], isLoading: false, isError: false });
+      renderWithClient();
+
+      expect(await screen.findByText("Não foi possível verificar")).toBeInTheDocument();
+      expect(screen.queryByText("A verificar configuração…")).not.toBeInTheDocument();
+    });
   });
 
   describe("cloning an edition", () => {

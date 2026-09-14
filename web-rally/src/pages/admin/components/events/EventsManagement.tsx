@@ -284,13 +284,19 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
 }
 
 function EventReadiness({ eventId }: Readonly<{ eventId: number }>) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["event-configuration-status", eventId],
     queryFn: async () => (await eventConfigurationStatus({ path: { event_id: eventId } })).data,
     staleTime: 20_000,
   });
-  if (isLoading || !data)
+  if (isLoading)
     return <span className="text-xs text-muted-foreground">A verificar configuração…</span>;
+  if (isError || !data)
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-destructive">
+        <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" /> Não foi possível verificar
+      </span>
+    );
   const errors = data.issues.filter((issue) => issue.severity === "error").length;
   return data.ready ? (
     <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
