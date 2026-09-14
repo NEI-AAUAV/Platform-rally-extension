@@ -51,9 +51,7 @@ export default function ConfigurationReadiness() {
   const errors = issues.filter((issue) => issue.severity === "error").length;
   const warnings = issues.filter((issue) => issue.severity === "warning").length;
   const errorCountLabel = `${errors} erro${errors === 1 ? "" : "s"}`;
-  const warningCountLabel = warnings
-    ? ` · ${warnings} aviso${warnings === 1 ? "" : "s"}`
-    : "";
+  const warningCountLabel = warnings ? ` · ${warnings} aviso${warnings === 1 ? "" : "s"}` : "";
   const readinessDescription = ready
     ? "O formato e os dados necessários para o percurso estão coerentes."
     : errorCountLabel + warningCountLabel;
