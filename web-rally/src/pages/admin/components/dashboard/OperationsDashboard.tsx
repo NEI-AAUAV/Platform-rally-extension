@@ -93,7 +93,7 @@ function StatCard({
   );
 }
 
-export default function LiveDashboard() {
+export default function OperationsDashboard() {
   const { settings } = useRallySettings();
   const countdownState = useCountdown(settings?.rally_start_time, settings?.rally_end_time);
 

@@ -1,4 +1,4 @@
-export { default as LiveDashboard } from "./dashboard/LiveDashboard";
+export { default as OperationsDashboard } from "./dashboard/OperationsDashboard";
 export { default as TeamManagement } from "./teams/TeamManagement";
 export { default as CheckpointManagement } from "./checkpoints/CheckpointManagement";
 export { default as ActivityManagement } from "./activity/ActivityManagement";

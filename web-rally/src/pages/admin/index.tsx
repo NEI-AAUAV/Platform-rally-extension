@@ -32,7 +32,7 @@ import GuideAssignment from "@/pages/guide-assignment";
 import Versus from "@/pages/versus";
 import TeamMembers from "@/pages/team-members";
 import ManagerEvaluationPage from "@/pages/staff-evaluation/manager-only";
-import LiveDashboard from "./components/dashboard/LiveDashboard";
+import AdminDashboard from "./components/dashboard/AdminDashboard";
 import { adminRoute, type AdminTabId } from "@/router/routes";
 
 interface Checkpoint {
@@ -134,7 +134,7 @@ export default function Admin() {
 
         {/* Tab content */}
         <div className="min-w-0">
-          {activeTab === "dashboard" && <LiveDashboard />}
+          {activeTab === "dashboard" && <AdminDashboard onNavigate={setActiveTab} />}
           {activeTab === "teams" && <TeamManagement />}
           {activeTab === "checkpoints" && <CheckpointManagement userStore={userStore} />}
           {activeTab === "activities" && <ActivityManagement checkpoints={checkpoints || []} />}

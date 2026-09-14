@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import LiveDashboard from "@/pages/admin/components/dashboard/LiveDashboard";
+import OperationsDashboard from "@/pages/admin/components/dashboard/OperationsDashboard";
 
 const {
   mockGetTeams,
@@ -82,7 +82,7 @@ const checkpoint = (overrides: Partial<any> = {}) => ({
   ...overrides,
 });
 
-describe("LiveDashboard", () => {
+describe("OperationsDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseRallySettings.mockReturnValue({
@@ -95,7 +95,7 @@ describe("LiveDashboard", () => {
   });
 
   it("renders the phase chip and stat cards with empty data", async () => {
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     expect(await screen.findByText("Estado do evento")).toBeInTheDocument();
     expect(screen.getByText("Equipas")).toBeInTheDocument();
     expect(screen.getByText("Postos")).toBeInTheDocument();
@@ -104,19 +104,19 @@ describe("LiveDashboard", () => {
   });
 
   it("shows live phase chip with countdown", async () => {
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     expect(await screen.findByText(/A decorrer — termina em/)).toBeInTheDocument();
   });
 
   it("shows pre phase chip with countdown", async () => {
     mockUseCountdown.mockReturnValue({ phase: "pre", days: 1, hours: 2, minutes: 3, seconds: 4 });
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     expect(await screen.findByText(/Começa em/)).toBeInTheDocument();
   });
 
   it("shows post phase chip", async () => {
     mockUseCountdown.mockReturnValue({ phase: "post", days: 0, hours: 0, minutes: 0, seconds: 0 });
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     expect(await screen.findByText("Terminada")).toBeInTheDocument();
   });
 
@@ -127,7 +127,7 @@ describe("LiveDashboard", () => {
         team({ id: 2, last_checkpoint_number: 3 }),
       ],
     });
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     expect(await screen.findByText(/ainda não iniciou o percurso/)).toBeInTheDocument();
   });
 
@@ -135,7 +135,7 @@ describe("LiveDashboard", () => {
     mockGetTeams.mockResolvedValue({
       data: [team({ id: 1, last_checkpoint_number: 1 })],
     });
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     await screen.findByText("Estado do evento");
     expect(screen.queryByText(/ainda não iniciou o percurso/)).not.toBeInTheDocument();
   });
@@ -143,19 +143,19 @@ describe("LiveDashboard", () => {
   it("renders per-checkpoint chart when checkpoints exist", async () => {
     mockGetCheckpoints.mockResolvedValue({ data: [checkpoint()] });
     mockGetTeams.mockResolvedValue({ data: [team()] });
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     expect(await screen.findByText("Equipas por posto")).toBeInTheDocument();
   });
 
   it("renders points distribution chart when more than one team exists", async () => {
     mockGetTeams.mockResolvedValue({ data: [team({ id: 1 }), team({ id: 2 })] });
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     expect(await screen.findByTestId("points-distribution-chart")).toBeInTheDocument();
   });
 
   it("does not render points distribution chart with a single team", async () => {
     mockGetTeams.mockResolvedValue({ data: [team({ id: 1 })] });
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     await screen.findByText("Estado do evento");
     expect(screen.queryByTestId("points-distribution-chart")).not.toBeInTheDocument();
   });
@@ -168,7 +168,7 @@ describe("LiveDashboard", () => {
       ],
     });
     mockGetCheckpoints.mockResolvedValue({ data: [checkpoint()] });
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     const rows = await screen.findAllByText(/Team [AB]/);
     expect(rows[0]).toHaveTextContent("Team A");
     expect(rows[1]).toHaveTextContent("Team B");
@@ -176,12 +176,12 @@ describe("LiveDashboard", () => {
 
   it("shows the provisional badge during live phase when teams exist", async () => {
     mockGetTeams.mockResolvedValue({ data: [team()] });
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     expect(await screen.findByTestId("provisional-badge")).toBeInTheDocument();
   });
 
   it("does not show teams table when there are no teams", async () => {
-    renderWithClient(<LiveDashboard />);
+    renderWithClient(<OperationsDashboard />);
     await screen.findByText("Estado do evento");
     expect(screen.queryByText("Equipas ao vivo")).not.toBeInTheDocument();
   });
