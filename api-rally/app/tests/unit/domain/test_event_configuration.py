@@ -49,7 +49,9 @@ def test_autonomous_peddy_policy_requires_player_view_and_redaction():
     policy = resolve_policy("peddy_paper", EventProfile.AUTONOMOUS)
     assert policy.policy_for(Capability.PARTICIPANT_VIEW) is CapabilityPolicy.REQUIRED
     assert policy.policy_for(Capability.CHECKPOINT_REDACTION) is CapabilityPolicy.REQUIRED
-    assert policy.policy_for(Capability.GUIDE_ARRIVAL) is CapabilityPolicy.FORBIDDEN
+    # Optional, not forbidden: a team with a dead phone still needs a guide
+    # able to vouch for its arrival alongside the GPS-driven autonomous flow.
+    assert policy.policy_for(Capability.GUIDE_ARRIVAL) is CapabilityPolicy.OPTIONAL
 
 
 def test_self_checkin_rally_requires_qr_arrival():
@@ -71,7 +73,9 @@ def test_profile_defaults_are_central_and_do_not_make_guided_peddy_gps_only():
     assert guided["gps_checkin_enabled"] is False
     assert guided["guide_mode_enabled"] is True
     assert guided["guide_mode_active"] is True
-    assert autonomous["guide_manual_arrival_enabled"] is False
+    # The guide fallback bootstraps on for every peddy-paper profile, not
+    # just "guided" — it's a dead-phone safety net for the GPS flow too.
+    assert autonomous["guide_manual_arrival_enabled"] is True
 
 
 def test_real_settings_bootstrap_is_policy_coherent_for_opinionated_profiles():

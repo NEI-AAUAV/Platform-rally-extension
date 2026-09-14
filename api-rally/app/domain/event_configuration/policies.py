@@ -76,7 +76,11 @@ POLICIES: dict[tuple[str, EventProfile], EventPolicy] = {
         "peddy_paper",
         EventProfile.AUTONOMOUS,
         required={Capability.PARTICIPANT_VIEW, Capability.CHECKPOINT_REDACTION},
-        forbidden=_PEDDY_FORBIDDEN | {Capability.GUIDE_ARRIVAL},
+        # GUIDE_ARRIVAL stays OPTIONAL, not forbidden: a team with a dead
+        # phone still needs a guide able to vouch for its arrival even on an
+        # otherwise GPS-driven autonomous route, so the two check-in paths
+        # coexist rather than being mutually exclusive with the profile.
+        forbidden=_PEDDY_FORBIDDEN,
         description="As equipas descobrem e validam o percurso autonomamente.",
     ),
     ("peddy_paper", EventProfile.GUIDED): _policy(
@@ -180,9 +184,10 @@ def initial_settings_defaults(
         "participant_view_enabled": peddy,
         "guide_mode_enabled": guided,
         "guide_mode_active": guided,
-        # Model default is true for backwards compatibility, but autonomous
-        # peddy explicitly forbids a guide recording arrivals.
-        "guide_manual_arrival_enabled": guided,
+        # The dead-phone fallback: any peddy-paper edition — autonomous or
+        # guided — bootstraps with a guide able to vouch for a team's
+        # arrival, independent of the full guide_mode workflow.
+        "guide_manual_arrival_enabled": peddy,
     }
 
 

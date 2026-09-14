@@ -195,7 +195,9 @@ async def test_cross_format_clone_bootstraps_target_policy_settings(pg_session) 
     assert settings is not None
     assert settings.participant_view_enabled is True
     assert settings.reveal_next_checkpoint is False
-    assert settings.guide_manual_arrival_enabled is False
+    # OPTIONAL, not forbidden, under autonomous: the source's explicit True
+    # survives the clone instead of being forced back off.
+    assert settings.guide_manual_arrival_enabled is True
     assert target.config["drinking_scoring"] is False
 
 
