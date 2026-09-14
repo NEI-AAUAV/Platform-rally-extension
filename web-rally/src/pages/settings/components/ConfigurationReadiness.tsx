@@ -19,14 +19,16 @@ const CAPABILITY_LABEL: Record<string, string> = {
 };
 
 function Issue({ issue }: Readonly<{ issue: ConfigurationIssueResponse }>) {
-  const Icon =
-    issue.severity === "error" ? XCircle : issue.severity === "warning" ? AlertTriangle : Info;
-  const tone =
-    issue.severity === "error"
-      ? "text-destructive"
-      : issue.severity === "warning"
-        ? "text-amber-600"
-        : "text-muted-foreground";
+  let Icon = Info;
+  let tone = "text-muted-foreground";
+
+  if (issue.severity === "error") {
+    Icon = XCircle;
+    tone = "text-destructive";
+  } else if (issue.severity === "warning") {
+    Icon = AlertTriangle;
+    tone = "text-amber-600";
+  }
   return (
     <li className="flex gap-2 text-sm">
       <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} />
@@ -48,6 +50,13 @@ export default function ConfigurationReadiness() {
   const { ready, issues, capabilities } = query.data;
   const errors = issues.filter((issue) => issue.severity === "error").length;
   const warnings = issues.filter((issue) => issue.severity === "warning").length;
+  const errorCountLabel = `${errors} erro${errors === 1 ? "" : "s"}`;
+  const warningCountLabel = warnings
+    ? ` · ${warnings} aviso${warnings === 1 ? "" : "s"}`
+    : "";
+  const readinessDescription = ready
+    ? "O formato e os dados necessários para o percurso estão coerentes."
+    : errorCountLabel + warningCountLabel;
   const important = Object.entries(capabilities).filter(
     ([, capability]) => capability.policy !== "optional",
   );
@@ -67,11 +76,7 @@ export default function ConfigurationReadiness() {
           <h2 className="font-semibold">
             {ready ? "Configuração pronta" : "Configuração incompleta"}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            {ready
-              ? "O formato e os dados necessários para o percurso estão coerentes."
-              : `${errors} erro${errors === 1 ? "" : "s"}${warnings ? ` · ${warnings} aviso${warnings === 1 ? "" : "s"}` : ""}`}
-          </p>
+          <p className="text-sm text-muted-foreground">{readinessDescription}</p>
         </div>
       </div>
       {important.length > 0 && (

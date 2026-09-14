@@ -57,7 +57,7 @@ export const FIELD_CAPABILITY: Record<string, CapabilityBinding> = {
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function forcedValueForPolicy(
-  policy?: CapabilityPolicy | string | null,
+  policy?: CapabilityPolicy | null,
   inverted = false,
 ): boolean | null {
   if (policy === "required") {
@@ -115,13 +115,11 @@ export function SettingSwitch({
   const configQuery = useEventConfiguration();
 
   const binding = FIELD_CAPABILITY[name];
-  const resolvedPolicy =
-    policy ??
-    (binding
-      ? (configQuery?.data?.capabilities?.[binding.capability]?.policy as
-          | CapabilityPolicy
-          | undefined)
-      : undefined);
+  const capabilityName = binding?.capability ?? "";
+  const configurationPolicy = configQuery?.data?.capabilities?.[capabilityName]?.policy as
+    | CapabilityPolicy
+    | undefined;
+  const resolvedPolicy = policy ?? configurationPolicy;
   const resolvedInverted = inverted ?? binding?.inverted ?? false;
   const forced = forcedValueForPolicy(resolvedPolicy, resolvedInverted);
 

@@ -29,6 +29,14 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
   const configQuery = useEventConfiguration();
   const updateCapabilities = useUpdateEventCapabilities();
   const qrCap = configQuery.data?.capabilities?.qr_arrival;
+  let qrStatusLabel = "Opcional";
+
+  if (qrCap?.policy === "required") {
+    qrStatusLabel = "Obrigatório";
+  }
+  if (!qrCap?.available) {
+    qrStatusLabel = "Indisponível no servidor";
+  }
 
   return (
     <div className={className}>
@@ -77,19 +85,9 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
                   <label htmlFor="qr_checkin_enabled" className="text-sm font-medium leading-snug">
                     Check-in por QR Code feito pela equipa
                   </label>
-                  {!qrCap.available ? (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                      Indisponível no servidor
-                    </span>
-                  ) : qrCap.policy === "required" ? (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                      Obrigatório
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                      Opcional
-                    </span>
-                  )}
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {qrStatusLabel}
+                  </span>
                 </div>
                 <p className="text-xs leading-snug text-muted-foreground">
                   Permite à equipa fazer check-in lendo o código QR do posto em vez de depender
