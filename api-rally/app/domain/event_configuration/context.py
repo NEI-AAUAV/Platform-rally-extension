@@ -65,7 +65,11 @@ async def load_configuration_context(
         (await db.scalars(select(RouteStage).where(RouteStage.event_id == event_id))).all()
     )
     activities = list(
-        (await db.scalars(select(Activity).where(Activity.event_id == event_id))).all()
+        (
+            await db.scalars(
+                select(Activity).where(Activity.event_id == event_id, Activity.is_active.is_(True))
+            )
+        ).all()
     )
     staff_assignments = list(
         (

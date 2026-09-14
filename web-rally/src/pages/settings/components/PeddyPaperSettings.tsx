@@ -4,8 +4,8 @@
  * These used to be split between the display card (redaction, participant view)
  * and the scoring card (GPS, hints, skips), which meant nobody could see the
  * mechanic whole. They belong together: redaction is what makes a clue a puzzle,
- * GPS check-in is the only proof of arrival that redaction leaves available, and
- * hints and skips are the two exits for a team that cannot solve it.
+ * GPS and QR check-in let teams prove arrival autonomously, while hints and
+ * skips are the two exits for a team that cannot solve it.
  *
  * Split into three runs of at most three settings, because "together" stops
  * helping once the list is long enough to scroll.
@@ -65,15 +65,18 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
           <SettingSwitch
             name="gps_checkin_enabled"
             label="Check-in por GPS feito pela equipa"
-            help="Com a rota tapada, é a única prova de chegada que a equipa consegue dar sozinha. Requer coordenadas e raio de chegada definidos em cada posto."
+            help="Permite à equipa validar autonomamente a chegada através da localização GPS. Requer coordenadas e raio de chegada configurados em cada posto."
           />
           {qrCap && qrCap.policy !== "forbidden" && (
-            <div data-admin-search-key="qr_checkin_enabled" className="flex items-start justify-between gap-4 py-3">
+            <div
+              data-admin-search-key="qr_checkin_enabled"
+              className="flex items-start justify-between gap-4 py-3"
+            >
               <div className="min-w-0 flex-1 space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium leading-snug">
+                  <label htmlFor="qr_checkin_enabled" className="text-sm font-medium leading-snug">
                     Check-in por QR Code feito pela equipa
-                  </span>
+                  </label>
                   {!qrCap.available ? (
                     <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                       Indisponível no servidor
@@ -89,15 +92,19 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
                   )}
                 </div>
                 <p className="text-xs leading-snug text-muted-foreground">
-                  Permite à equipa fazer check-in lendo o código QR do posto em vez de depender apenas do GPS.
-                  {!qrCap.available && " (A funcionalidade de auto check-in está desativada no servidor.)"}
+                  Permite à equipa fazer check-in lendo o código QR do posto em vez de depender
+                  apenas do GPS.
+                  {!qrCap.available &&
+                    " (A funcionalidade de auto check-in está desativada no servidor.)"}
                 </p>
               </div>
               <div className="mt-0.5 shrink-0">
                 <Switch
                   id="qr_checkin_enabled"
                   checked={qrCap.configured}
-                  disabled={!qrCap.available || qrCap.policy === "required" || updateCapabilities.isPending}
+                  disabled={
+                    !qrCap.available || qrCap.policy === "required" || updateCapabilities.isPending
+                  }
                   onCheckedChange={(checked) => {
                     updateCapabilities.mutate({ qr_arrival: checked });
                   }}

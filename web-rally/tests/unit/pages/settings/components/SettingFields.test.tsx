@@ -1,10 +1,15 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { useForm, FormProvider } from "react-hook-form";
 import {
   SettingSwitch,
   forcedValueForPolicy,
 } from "@/pages/settings/components/SettingFields";
+import { useEventConfiguration } from "@/pages/settings/components/useEventConfiguration";
+
+vi.mock("@/pages/settings/components/useEventConfiguration", () => ({
+  useEventConfiguration: vi.fn(),
+}));
 
 describe("forcedValueForPolicy", () => {
   it("computes correct forced boolean for non-inverted policies", () => {
@@ -31,7 +36,7 @@ function SwitchWrapper({
   policy,
   inverted,
 }: {
-  readonly name: "participant_view_enabled" | "reveal_next_checkpoint" | "gps_checkin_enabled";
+  readonly name: string;
   readonly label: string;
   readonly defaultValue?: boolean;
   readonly policy?: "required" | "optional" | "forbidden";
@@ -51,6 +56,11 @@ function SwitchWrapper({
 }
 
 describe("SettingSwitch policy binding", () => {
+  beforeEach(() => {
+    vi.mocked(useEventConfiguration).mockReturnValue({ data: undefined } as ReturnType<
+      typeof useEventConfiguration
+    >);
+  });
   it("enables the switch and allows user editing when capability is optional", () => {
     render(
       <SwitchWrapper
@@ -114,8 +124,7 @@ describe("SettingSwitch policy binding", () => {
     const switchInput = screen.getByRole("switch", { name: "Revelar próximo posto" });
     expect(switchInput).toBeDisabled();
     expect(switchInput).not.toBeChecked();
-    // Because forced is false, the badge displays 'Indisponível' (forced false)
-    expect(screen.getByText("Indisponível")).toBeInTheDocument();
+    expect(screen.getByText("Obrigatório")).toBeInTheDocument();
   });
 
   it("handles inverted capability binding (checkpoint_redaction forbidden forces reveal_next_checkpoint true)", () => {
@@ -132,7 +141,28 @@ describe("SettingSwitch policy binding", () => {
     const switchInput = screen.getByRole("switch", { name: "Revelar próximo posto" });
     expect(switchInput).toBeDisabled();
     expect(switchInput).toBeChecked();
-    // Because forced is true, the badge displays 'Obrigatório' (forced true)
-    expect(screen.getByText("Obrigatório")).toBeInTheDocument();
+    expect(screen.getByText("Indisponível")).toBeInTheDocument();
   });
+
+  it.each([
+    ["enable_staff_scoring", "Pontuação staff", "staff_scoring", "required", true, "Obrigatório"],
+    ["skip_enabled", "Desistir", "skip", "forbidden", false, "Indisponível"],
+    ["guide_mode_enabled", "Modo guia", "guide_mode", "required", true, "Obrigatório"],
+    ["guide_mode_active", "Modo guia ativo", "guide_mode", "required", true, "Obrigatório"],
+    ["enable_versus", "Versus", "versus", "forbidden", false, "Indisponível"],
+  ])(
+    "resolves %s from its backend capability mapping",
+    (name, label, capability, policy, expectedChecked, badge) => {
+      vi.mocked(useEventConfiguration).mockReturnValue({
+        data: { capabilities: { [capability]: { policy } } },
+      } as ReturnType<typeof useEventConfiguration>);
+
+      render(<SwitchWrapper name={name} label={label} defaultValue={!expectedChecked} />);
+
+      const control = screen.getByRole("switch", { name: label });
+      expect(control).toBeDisabled();
+      expect(control).toHaveProperty("checked", expectedChecked);
+      expect(screen.getByText(badge)).toBeInTheDocument();
+    },
+  );
 });

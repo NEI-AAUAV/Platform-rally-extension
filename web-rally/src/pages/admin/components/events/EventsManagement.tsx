@@ -31,7 +31,12 @@ import {
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 import { useEvents, useEventMutations } from "@/hooks/useEvents";
-import { EVENT_TYPE_LABELS, type EventProfile, type EventType, type RallyEvent } from "@/types/event";
+import {
+  EVENT_TYPE_LABELS,
+  type EventProfile,
+  type EventType,
+  type RallyEvent,
+} from "@/types/event";
 import {
   utcISOStringToLocalDatetimeLocal,
   localDatetimeLocalToUTCISOString,
@@ -56,9 +61,20 @@ const EMPTY_FORM: FormState = {
 };
 
 const PROFILE_OPTIONS: Record<EventType, ReadonlyArray<{ value: EventProfile; label: string }>> = {
-  peddy_paper: [{ value: "autonomous", label: "Autónomo" }, { value: "guided", label: "Guiado" }, { value: "custom", label: "Personalizado" }],
-  rally_tascas: [{ value: "staffed", label: "Com staff" }, { value: "self_checkin", label: "Auto check-in" }, { value: "custom", label: "Personalizado" }],
-  olympic: [{ value: "rotation", label: "Rotação" }, { value: "custom", label: "Personalizado" }],
+  peddy_paper: [
+    { value: "autonomous", label: "Autónomo" },
+    { value: "guided", label: "Guiado" },
+    { value: "custom", label: "Personalizado" },
+  ],
+  rally_tascas: [
+    { value: "staffed", label: "Com staff" },
+    { value: "self_checkin", label: "Auto check-in" },
+    { value: "custom", label: "Personalizado" },
+  ],
+  olympic: [
+    { value: "rotation", label: "Rotação" },
+    { value: "custom", label: "Personalizado" },
+  ],
   generic: [{ value: "custom", label: "Personalizado" }],
 };
 
@@ -196,7 +212,10 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
   const [profile, setProfile] = useState<EventProfile>(event.event_profile ?? "custom");
   const mutation = useMutation({
     mutationFn: async () => {
-      const { data } = await changeEventFormat({ path: { event_id: event.id }, body: { event_type: eventType, event_profile: profile } });
+      const { data } = await changeEventFormat({
+        path: { event_id: event.id },
+        body: { event_type: eventType, event_profile: profile },
+      });
       return data;
     },
     onSuccess: (result) => {
@@ -204,27 +223,58 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
       void qc.invalidateQueries({ queryKey: ["event-configuration-status"] });
       const changes = result?.changes.length ?? 0;
       toast.success(`Formato aplicado${changes ? ` · ${changes} definições ajustadas` : ""}`);
-      if (result && !result.ready) toast.error(`${result.issues.filter((issue) => issue.severity === "error").length} problemas de preflight permanecem`);
+      if (result && !result.ready)
+        toast.error(
+          `${result.issues.filter((issue) => issue.severity === "error").length} problemas de preflight permanecem`,
+        );
     },
     onError: (error) => toast.error(getErrorMessage(error, "Não foi possível alterar o formato")),
   });
   const profiles = PROFILE_OPTIONS[eventType];
   return (
     <div className="flex gap-2">
-      <Select value={eventType} onValueChange={(value) => { const next = value as EventType; setEventType(next); setProfile(defaultProfile(next)); }}>
-        <SelectTrigger className="h-8 w-[135px] text-xs"><SelectValue /></SelectTrigger>
-        <SelectContent>{(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((type) => <SelectItem key={type} value={type}>{EVENT_TYPE_LABELS[type]}</SelectItem>)}</SelectContent>
+      <Select
+        value={eventType}
+        onValueChange={(value) => {
+          const next = value as EventType;
+          setEventType(next);
+          setProfile(defaultProfile(next));
+        }}
+      >
+        <SelectTrigger className="h-8 w-[135px] text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((type) => (
+            <SelectItem key={type} value={type}>
+              {EVENT_TYPE_LABELS[type]}
+            </SelectItem>
+          ))}
+        </SelectContent>
       </Select>
       <Select value={profile} onValueChange={(value) => setProfile(value as EventProfile)}>
-        <SelectTrigger className="h-8 w-[135px] text-xs"><SelectValue /></SelectTrigger>
-        <SelectContent>{profiles.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
+        <SelectTrigger className="h-8 w-[135px] text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {profiles.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
       </Select>
       <Button
         variant="outline"
         size="sm"
         disabled={mutation.isPending}
         onClick={() => {
-          if (window.confirm("Aplicar este formato? As capabilities obrigatórias e indisponíveis serão reconciliadas.")) mutation.mutate();
+          if (
+            window.confirm(
+              "Aplicar este formato? As capabilities obrigatórias e indisponíveis serão reconciliadas.",
+            )
+          )
+            mutation.mutate();
         }}
       >
         {mutation.isPending ? "A aplicar…" : "Aplicar formato"}
@@ -239,12 +289,18 @@ function EventReadiness({ eventId }: Readonly<{ eventId: number }>) {
     queryFn: async () => (await eventConfigurationStatus({ path: { event_id: eventId } })).data,
     staleTime: 20_000,
   });
-  if (isLoading || !data) return <span className="text-xs text-muted-foreground">A verificar configuração…</span>;
+  if (isLoading || !data)
+    return <span className="text-xs text-muted-foreground">A verificar configuração…</span>;
   const errors = data.issues.filter((issue) => issue.severity === "error").length;
   return data.ready ? (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5" /> Pronto</span>
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+      <CheckCircle2 className="h-3.5 w-3.5" /> Pronto
+    </span>
   ) : (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><AlertCircle className="h-3.5 w-3.5" /> Não pronto · {errors} {errors === 1 ? "erro" : "erros"}</span>
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+      <AlertCircle className="h-3.5 w-3.5" /> Não pronto · {errors}{" "}
+      {errors === 1 ? "erro" : "erros"}
+    </span>
   );
 }
 
@@ -355,13 +411,16 @@ export default function EventsManagement() {
         },
       );
     } else {
-      create.mutate({ ...body, event_type: form.event_type, event_profile: form.event_profile }, {
-        onSuccess: () => {
-          toast.success("Evento criado");
-          resetForm();
+      create.mutate(
+        { ...body, event_type: form.event_type, event_profile: form.event_profile },
+        {
+          onSuccess: () => {
+            toast.success("Evento criado");
+            resetForm();
+          },
+          onError,
         },
-        onError,
-      });
+      );
     }
   };
 
@@ -412,10 +471,14 @@ export default function EventsManagement() {
                 </div>
                 <p className="mt-0.5 text-xs uppercase tracking-[0.14em] text-muted-foreground">
                   {EVENT_TYPE_LABELS[ev.event_type]}
-                  {ev.event_profile ? ` · ${PROFILE_OPTIONS[ev.event_type].find((profile) => profile.value === ev.event_profile)?.label ?? ev.event_profile}` : ""}
+                  {ev.event_profile
+                    ? ` · ${PROFILE_OPTIONS[ev.event_type].find((profile) => profile.value === ev.event_profile)?.label ?? ev.event_profile}`
+                    : ""}
                   {formatRange(ev) ? ` · ${formatRange(ev)}` : ""}
                 </p>
-                <div className="mt-1"><EventReadiness eventId={ev.id} /></div>
+                <div className="mt-1">
+                  <EventReadiness eventId={ev.id} />
+                </div>
                 {ev.description && (
                   <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>
                 )}
@@ -518,14 +581,30 @@ export default function EventsManagement() {
                     ))}
                   </SelectContent>
                 </Select>
-                {editingId != null && <p className="text-xs text-muted-foreground">O formato é alterado pela operação explícita de mudança de formato, para preservar settings e progresso.</p>}
+                {editingId != null && (
+                  <p className="text-xs text-muted-foreground">
+                    O formato é alterado pela operação explícita de mudança de formato, para
+                    preservar settings e progresso.
+                  </p>
+                )}
               </div>
               {editingId == null && (
                 <div data-admin-search-key="ev-profile" className="space-y-1.5">
                   <Label htmlFor="ev-profile">Perfil operacional</Label>
-                  <Select value={form.event_profile} onValueChange={(v) => setForm({ ...form, event_profile: v as EventProfile })}>
-                    <SelectTrigger id="ev-profile"><SelectValue /></SelectTrigger>
-                    <SelectContent>{PROFILE_OPTIONS[form.event_type].map((profile) => <SelectItem key={profile.value} value={profile.value}>{profile.label}</SelectItem>)}</SelectContent>
+                  <Select
+                    value={form.event_profile}
+                    onValueChange={(v) => setForm({ ...form, event_profile: v as EventProfile })}
+                  >
+                    <SelectTrigger id="ev-profile">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROFILE_OPTIONS[form.event_type].map((profile) => (
+                        <SelectItem key={profile.value} value={profile.value}>
+                          {profile.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
               )}

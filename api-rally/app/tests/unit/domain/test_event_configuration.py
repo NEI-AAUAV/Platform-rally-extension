@@ -297,3 +297,21 @@ async def test_load_configuration_context_with_preloaded_event_and_settings():
     assert ctx.settings is st
     assert ctx.checkpoints == []
     assert ctx.teams == []
+
+
+async def test_load_configuration_context_limits_activities_to_active_ones():
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.domain.event_configuration.context import load_configuration_context
+
+    result = MagicMock()
+    result.all.return_value = []
+    db = AsyncMock()
+    db.scalars = AsyncMock(side_effect=[result] * 7)
+    ev = SimpleNamespace(id=1, event_type="rally_tascas", event_profile="staffed", config={})
+    st = SimpleNamespace(id=1, event_id=1)
+
+    await load_configuration_context(db, 1, event=ev, settings=st)
+
+    activity_query = db.scalars.await_args_list[2].args[0]
+    assert "activities.is_active IS true" in str(activity_query)

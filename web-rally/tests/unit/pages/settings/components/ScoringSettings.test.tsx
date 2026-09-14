@@ -98,7 +98,7 @@ describe("ScoringSettings", () => {
     expect(screen.getByText("Opcional")).toBeInTheDocument();
     expect(screen.queryByLabelText("Penalização por vómito")).not.toBeInTheDocument();
 
-    const switchEl = screen.getByRole("switch", { name: "" });
+    const switchEl = screen.getByRole("switch", { name: "Ativar mecânicas de bebida" });
     await user.click(switchEl);
     expect(mockUpdateMutate).toHaveBeenCalledWith({ drinking_scoring: true });
   });

@@ -43,11 +43,16 @@ export default function EventModeBanner({ eventType, eventProfile }: EventModeBa
       <Compass className="mt-0.5 h-5 w-5 shrink-0" />
       <div className="space-y-1">
         <p className="text-sm font-semibold">
-          Este evento corre como <strong>{EVENT_TYPE_LABELS[type]}{eventProfile ? ` · ${PROFILE_LABELS[eventProfile] ?? eventProfile}` : ""}</strong>
+          Este evento corre como{" "}
+          <strong>
+            {EVENT_TYPE_LABELS[type]}
+            {eventProfile ? ` · ${PROFILE_LABELS[eventProfile] ?? eventProfile}` : ""}
+          </strong>
         </p>
         <p className="text-sm text-muted-foreground">{MODE_SUMMARY[type]}</p>
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Info className="h-3 w-3 shrink-0" />O perfil define capacidades obrigatórias, opcionais e indisponíveis. A verificação de configuração mostra os dados que ainda faltam.
+          <Info className="h-3 w-3 shrink-0" />O perfil define capacidades obrigatórias, opcionais e
+          indisponíveis. A verificação de configuração mostra os dados que ainda faltam.
         </p>
       </div>
     </div>

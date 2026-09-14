@@ -1,15 +1,6 @@
 import { useContext } from "react";
-import {
-  QueryClient,
-  QueryClientContext,
-  useMutation,
-  useQuery,
-} from "@tanstack/react-query";
-import {
-  eventConfigurationStatus,
-  getCurrentEvent,
-  updateEventCapabilities,
-} from "@/client";
+import { QueryClient, QueryClientContext, useMutation, useQuery } from "@tanstack/react-query";
+import { eventConfigurationStatus, getCurrentEvent, updateEventCapabilities } from "@/client";
 
 export const EVENT_CONFIGURATION_ROOT_KEY = ["event-configuration-status"] as const;
 export const EVENT_CONFIGURATION_KEY = [...EVENT_CONFIGURATION_ROOT_KEY, "current"] as const;
@@ -42,7 +33,7 @@ export function useEventConfiguration() {
       staleTime: 15_000,
       enabled: !!client,
     },
-    target
+    target,
   );
 }
 
@@ -66,9 +57,10 @@ export function useUpdateEventCapabilities() {
       },
       onSuccess: () => {
         target?.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
-        target?.invalidateQueries({ queryKey: ["settings"] });
+        target?.invalidateQueries({ queryKey: ["rallySettings-public"] });
+        target?.invalidateQueries({ queryKey: ["rallySettings-admin"] });
       },
     },
-    target
+    target,
   );
 }

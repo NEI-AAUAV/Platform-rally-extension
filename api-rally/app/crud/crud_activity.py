@@ -315,7 +315,12 @@ class CRUDRallyEvent:
             slug="rally-tascas",
             description="",
             event_type=EventType.RALLY_TASCAS.value,
-            config={},
+            event_profile=default_profile(EventType.RALLY_TASCAS.value).value,
+            config=reconcile_event_config(
+                event_type=EventType.RALLY_TASCAS.value,
+                profile=default_profile(EventType.RALLY_TASCAS.value),
+                config={},
+            ),
             is_active=True,
             is_current=True,
         )

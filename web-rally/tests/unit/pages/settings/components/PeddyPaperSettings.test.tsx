@@ -106,7 +106,7 @@ describe("PeddyPaperSettings", () => {
 
     expect(screen.getByText("Check-in por QR Code feito pela equipa")).toBeInTheDocument();
     expect(screen.getByText("Opcional")).toBeInTheDocument();
-    const qrSwitch = screen.getByRole("switch", { name: "" }); // or target container
+    const qrSwitch = screen.getByRole("switch", { name: "Check-in por QR Code feito pela equipa" });
     await user.click(qrSwitch);
     expect(mockUpdateMutate).toHaveBeenCalledWith({ qr_arrival: true });
   });
@@ -128,7 +128,7 @@ describe("PeddyPaperSettings", () => {
     render(<Wrapper />);
 
     expect(screen.getByText("Indisponível no servidor")).toBeInTheDocument();
-    const qrSwitch = screen.getByRole("switch", { name: "" });
+    const qrSwitch = screen.getByRole("switch", { name: "Check-in por QR Code feito pela equipa" });
     expect(qrSwitch).toBeDisabled();
   });
 

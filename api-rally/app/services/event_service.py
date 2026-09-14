@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
+from app.domain.event_configuration.policies import DOMAIN_CONFIG_KEYS
+from app.domain.event_configuration.reconciler import reconcile_event_config
 from app.domain.event_configuration.settings import new_settings_for_profile
 from app.models.activity import Activity, EventType, RallyEvent
 from app.models.badge_definition import BadgeDefinition
@@ -51,7 +53,11 @@ class EventService:
         teams = list((await self._db.scalars(select(Team).where(Team.event_id == event_id))).all())
         checkpoints = list(
             (
-                await self._db.scalars(select(CheckPoint).where(CheckPoint.event_id == event_id))
+                await self._db.scalars(
+                    select(CheckPoint).where(
+                        CheckPoint.event_id == event_id, CheckPoint.is_draft.is_(False)
+                    )
+                )
             ).all()
         )
 
@@ -199,6 +205,11 @@ class EventService:
             source_event.event_type,
             source_event.event_profile,
         ):
+            target_event.config = reconcile_event_config(
+                event_type=target_event.event_type,
+                profile=target_event.event_profile,
+                config=dict(target_event.config or {}),
+            )
             self._db.add(
                 new_settings_for_profile(
                     event_id=event_id,
@@ -209,6 +220,16 @@ class EventService:
             )
             await self._db.flush()
             return 1
+        target_config = dict(target_event.config or {})
+        source_config = dict(source_event.config or {})
+        for key in DOMAIN_CONFIG_KEYS:
+            if key in source_config:
+                target_config[key] = source_config[key]
+        target_event.config = reconcile_event_config(
+            event_type=target_event.event_type,
+            profile=target_event.event_profile,
+            config=target_config,
+        )
         await self._copy_row(RallySettings, source, {"event_id": event_id})
         return 1
 

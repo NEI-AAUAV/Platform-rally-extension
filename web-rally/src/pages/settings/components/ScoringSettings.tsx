@@ -24,7 +24,9 @@ export default function ScoringSettings({ className = "", eventType }: ScoringSe
 
   // If policy is explicitly defined, forbidden hides drinking mechanics entirely.
   // Otherwise, fallback to formatHasDrinkingMechanics.
-  const isForbidden = drinkingCap ? drinkingCap.policy === "forbidden" : !hasDrinkingMechanics(eventType);
+  const isForbidden = drinkingCap
+    ? drinkingCap.policy === "forbidden"
+    : !hasDrinkingMechanics(eventType);
   const isOptional = drinkingCap?.policy === "optional";
   const isEffective = drinkingCap ? drinkingCap.effective : hasDrinkingMechanics(eventType);
 
@@ -43,12 +45,15 @@ export default function ScoringSettings({ className = "", eventType }: ScoringSe
       />
 
       {!isForbidden && isOptional && (
-        <div data-admin-search-key="drinking_scoring" className="flex items-start justify-between gap-4 py-3">
+        <div
+          data-admin-search-key="drinking_scoring"
+          className="flex items-start justify-between gap-4 py-3"
+        >
           <div className="min-w-0 flex-1 space-y-0.5">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium leading-snug">
+              <label htmlFor="drinking_scoring" className="text-sm font-medium leading-snug">
                 Ativar mecânicas de bebida
-              </span>
+              </label>
               <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                 Opcional
               </span>

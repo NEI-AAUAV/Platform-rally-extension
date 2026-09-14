@@ -196,3 +196,25 @@ async def test_cross_format_clone_bootstraps_target_policy_settings(pg_session) 
     assert settings.participant_view_enabled is True
     assert settings.reveal_next_checkpoint is False
     assert settings.guide_manual_arrival_enabled is False
+    assert target.config["drinking_scoring"] is False
+
+
+async def test_same_format_clone_copies_domain_capability_config(pg_session) -> None:
+    source = await _make_event(pg_session, "staffed source", is_current=True)
+    source.event_profile = "staffed"
+    source.config = {"drinking_scoring": False, "qr_checkin_enabled": True, "source_only": "keep"}
+    target = await _make_event(pg_session, "staffed target")
+    target.event_profile = "staffed"
+    target.config = {"drinking_scoring": True, "qr_checkin_enabled": False, "target_only": "keep"}
+    pg_session.add_all([source, target])
+    await _populate(pg_session, source)
+    pg_session.add(RallySettings(event_id=source.id))
+    await pg_session.commit()
+
+    await EventService(pg_session).clone_structure(target.id, source.id)
+
+    await pg_session.refresh(target)
+    assert target.config["drinking_scoring"] is False
+    assert target.config["qr_checkin_enabled"] is True
+    assert target.config["target_only"] == "keep"
+    assert "source_only" not in target.config

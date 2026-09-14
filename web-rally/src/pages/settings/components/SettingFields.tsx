@@ -36,16 +36,19 @@ export const FIELD_CAPABILITY: Record<string, CapabilityBinding> = {
   participant_view_enabled: { capability: "participant_view" },
   reveal_next_checkpoint: { capability: "checkpoint_redaction", inverted: true },
   gps_checkin_enabled: { capability: "gps_arrival" },
-  qr_checkin_enabled: { capability: "qr_arrival" },
   guide_manual_arrival_enabled: { capability: "guide_arrival" },
   hints_enabled: { capability: "hints" },
-  skip_enabled: { capability: "skips" },
-  compass_enabled: { capability: "compass" },
+  skip_enabled: { capability: "skip" },
   proximity_enabled: { capability: "proximity" },
-  activity_scoring_enabled: { capability: "staff_scoring" },
-  speed_bonus_enabled: { capability: "speed_bonus" },
-  freeze_leaderboard: { capability: "leaderboard_freeze" },
+  compass_enabled: { capability: "compass" },
+  enable_staff_scoring: { capability: "staff_scoring" },
+  enable_versus: { capability: "versus" },
+  route_stages_enabled: { capability: "route_stages" },
+  checkpoint_hours_enabled: { capability: "checkpoint_hours" },
   leg_time_scoring_enabled: { capability: "leg_time_scoring" },
+  guide_mode_enabled: { capability: "guide_mode" },
+  guide_mode_active: { capability: "guide_mode" },
+  badges_enabled: { capability: "badges" },
 };
 
 /**
@@ -55,7 +58,7 @@ export const FIELD_CAPABILITY: Record<string, CapabilityBinding> = {
 // eslint-disable-next-line react-refresh/only-export-components
 export function forcedValueForPolicy(
   policy?: CapabilityPolicy | string | null,
-  inverted = false
+  inverted = false,
 ): boolean | null {
   if (policy === "required") {
     return !inverted;
@@ -115,7 +118,9 @@ export function SettingSwitch({
   const resolvedPolicy =
     policy ??
     (binding
-      ? (configQuery?.data?.capabilities?.[binding.capability]?.policy as CapabilityPolicy | undefined)
+      ? (configQuery?.data?.capabilities?.[binding.capability]?.policy as
+          | CapabilityPolicy
+          | undefined)
       : undefined);
   const resolvedInverted = inverted ?? binding?.inverted ?? false;
   const forced = forcedValueForPolicy(resolvedPolicy, resolvedInverted);
@@ -128,9 +133,9 @@ export function SettingSwitch({
 
   return (
     <SettingRow name={name} label={label} help={help}>
-      {forced !== null && (
+      {resolvedPolicy && resolvedPolicy !== "optional" && (
         <span className="mr-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-          {forced ? "Obrigatório" : "Indisponível"}
+          {resolvedPolicy === "required" ? "Obrigatório" : "Indisponível"}
         </span>
       )}
       <Controller

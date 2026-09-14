@@ -8,6 +8,7 @@ an AsyncMock session.
 import pytest
 
 from app.crud.crud_activity import _slugify, rally_event
+from app.domain.event_configuration.policies import EventProfile
 from app.models.activity import EventType
 from app.schemas.activity import RallyEventCreate, RallyEventUpdate
 
@@ -77,6 +78,8 @@ async def test_ensure_current_creates_default_when_empty(pg_session) -> None:
 
     assert result.is_current is True
     assert result.event_type == EventType.RALLY_TASCAS.value
+    assert result.event_profile == EventProfile.STAFFED.value
+    assert result.config["drinking_scoring"] is True
     assert result.slug == "rally-tascas"
 
 

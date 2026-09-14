@@ -131,3 +131,30 @@ async def test_rotation_schedule_generates_and_persists(pg_session, pg_client, a
     body = resp.json()
     assert body["event_id"] == created.id
     assert len(body["rounds"]) > 0
+
+
+async def test_rotation_schedule_excludes_draft_checkpoints(pg_session, pg_client, as_admin):
+    from app.crud.crud_team import team as crud_team
+    from app.models.checkpoint import CheckPoint
+    from app.schemas.team import TeamCreate
+
+    created = await rally_event.create(
+        pg_session, obj_in=RallyEventCreate(name="Olympic drafts", event_type=EventType.OLYMPIC)
+    )
+    team = await crud_team.create(pg_session, obj_in=TeamCreate(name="Team A"))
+    team.event_id = created.id
+    published = CheckPoint(name="Published", order=1, arrival_radius_m=50, event_id=created.id)
+    draft = CheckPoint(
+        name="Draft", order=2, arrival_radius_m=50, event_id=created.id, is_draft=True
+    )
+    pg_session.add_all([team, published, draft])
+    await pg_session.commit()
+
+    response = pg_client.post(f"/api/rally/v1/events/{created.id}/rotation-schedule")
+
+    assert response.status_code == 200, response.text
+    checkpoint_ids = {
+        slot["checkpoint_id"] for round_ in response.json()["rounds"] for slot in round_
+    }
+    assert published.id in checkpoint_ids
+    assert draft.id not in checkpoint_ids

@@ -36,6 +36,8 @@ from app.crud.crud_team import CRUDTeam
 from app.crud.deps import get_team_crud
 from app.domain.event_configuration.policies import Capability
 from app.domain.event_configuration.resolver import resolve_capabilities
+from app.domain.event_configuration.settings import new_settings_for_profile
+from app.models.activity import RallyEvent
 from app.models.rally_settings import RallySettings
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
@@ -84,6 +86,23 @@ class StaffCheckinResponse(BaseModel):
     # "already_present": team had already reached this post.
     # "ahead": team has not yet reached this post (scanned too early).
     status: str
+
+
+async def load_effective_settings_for_event(db: AsyncSession, event: RallyEvent) -> RallySettings:
+    """Return persisted settings, or profile defaults when this edition is new.
+
+    QR is a runtime capability gate and must agree with preflight: an event
+    does not need a settings row merely because nobody has opened settings yet.
+    """
+    persisted = await db.scalar(select(RallySettings).where(RallySettings.event_id == event.id))
+    if persisted is not None:
+        return persisted
+    return new_settings_for_profile(
+        event_id=event.id,
+        event_type=event.event_type,
+        profile=event.event_profile,
+        config=dict(event.config or {}),
+    )
 
 
 class CheckinController:
@@ -147,12 +166,11 @@ class CheckinController:
             raise RallyForbiddenError("No checkpoint assigned")
         checkpoint = await crud.checkpoint.get(db, id=target)
         event = await rally_event.get(db, checkpoint.event_id)
-        event_settings = await db.scalar(
-            select(RallySettings).where(RallySettings.event_id == checkpoint.event_id)
+        event_settings = (
+            None if event is None else await load_effective_settings_for_event(db, event)
         )
         if (
             event is None
-            or event_settings is None
             or not resolve_capabilities(
                 event_type=event.event_type,
                 profile=event.event_profile,
@@ -247,12 +265,11 @@ class CheckinController:
 
         checkpoint = await service.get_checkpoint_or_raise(claims.checkpoint_id)
         event = await rally_event.get(db, checkpoint.event_id)
-        event_settings = await db.scalar(
-            select(RallySettings).where(RallySettings.event_id == checkpoint.event_id)
+        event_settings = (
+            None if event is None else await load_effective_settings_for_event(db, event)
         )
         if (
             event is None
-            or event_settings is None
             or not resolve_capabilities(
                 event_type=event.event_type,
                 profile=event.event_profile,
