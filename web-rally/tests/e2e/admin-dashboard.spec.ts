@@ -39,6 +39,32 @@ async function mockEvaluations(page: Page, count: number) {
   );
 }
 
+async function mockEventConfiguration(
+  page: Page,
+  report: { ready: boolean; issues: unknown[]; capabilities?: Record<string, unknown> },
+) {
+  await page.route("**/api/rally/v1/events/current", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ id: 1, event_type: "peddy_paper", event_profile: "autonomous" }),
+    }),
+  );
+  await page.route("**/api/rally/v1/events/*/configuration-status", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        event_type: "peddy_paper",
+        event_profile: "autonomous",
+        ready: report.ready,
+        capabilities: report.capabilities ?? {},
+        issues: report.issues,
+      }),
+    }),
+  );
+}
+
 function team(overrides: Record<string, unknown>) {
   return { ...MOCK_TEAM, ...overrides };
 }
@@ -92,7 +118,15 @@ test.describe("Admin dashboard", () => {
     await expect(page.getByText("ainda não iniciou o percurso")).toBeVisible();
   });
 
-  test("does not show not-started alert before the rally begins", async ({ page, context }) => {
+  test("shows the preparation dashboard, not live stats, before the rally begins", async ({
+    page,
+    context,
+  }) => {
+    // Regression guard: before this refactor the dashboard always rendered
+    // OperationsDashboard (né LiveDashboard) regardless of phase, so the
+    // "not started" alert was the only thing phase-gated. Now the whole
+    // tree switches — verify PreparationDashboard is what actually renders,
+    // not just that one unrelated alert is absent from something else.
     await mockSettings(page, {
       rally_start_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       rally_end_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
@@ -101,10 +135,15 @@ test.describe("Admin dashboard", () => {
     await mockTeams(page, [team({ id: 1, name: "Os Fintas", last_checkpoint_number: 0 })]);
     await mockCheckpoints(page, CHECKPOINTS);
     await mockEvaluations(page, 0);
+    await mockEventConfiguration(page, { ready: true, issues: [] });
 
     await page.goto("/rally/admin?tab=dashboard");
 
+    await expect(page.getByText("Preparação da prova")).toBeVisible();
     await expect(page.getByText("ainda não iniciou o percurso")).toHaveCount(0);
+    // Live-only stats/chart must not leak into the pre-event view.
+    await expect(page.getByText("Estado do evento")).toHaveCount(0);
+    await expect(page.getByText("Equipas por posto")).toHaveCount(0);
   });
 
   test("renders per-checkpoint progress chart when checkpoints exist", async ({
@@ -120,5 +159,85 @@ test.describe("Admin dashboard", () => {
     await page.goto("/rally/admin?tab=dashboard");
 
     await expect(page.getByText("Equipas por posto")).toBeVisible();
+  });
+});
+
+test.describe("Admin dashboard — preparation readiness", () => {
+  const PRE_EVENT_SETTINGS = {
+    rally_start_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    rally_end_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+  };
+
+  test("shows a ready summary with no issues to fix", async ({ page, context }) => {
+    await mockSettings(page, PRE_EVENT_SETTINGS);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockTeams(page, [team({ id: 1, name: "Os Fintas" })]);
+    await mockCheckpoints(page, CHECKPOINTS);
+    await mockEvaluations(page, 0);
+    await mockEventConfiguration(page, { ready: true, issues: [] });
+
+    await page.goto("/rally/admin?tab=dashboard");
+
+    await expect(page.getByText("Configuração pronta")).toBeVisible();
+    await expect(page.getByText("Corrigir →")).toHaveCount(0);
+  });
+
+  test("an actionable issue's Corrigir link navigates to its mapped tab", async ({
+    page,
+    context,
+  }) => {
+    await mockSettings(page, PRE_EVENT_SETTINGS);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockTeams(page, [team({ id: 1, name: "Os Fintas" })]);
+    await mockCheckpoints(page, []);
+    await mockEvaluations(page, 0);
+    await mockEventConfiguration(page, {
+      ready: false,
+      issues: [
+        {
+          code: "NO_CHECKPOINTS",
+          severity: "error",
+          message: "Este perfil necessita de pelo menos um posto publicado.",
+          entity_type: "checkpoint",
+          suggestion: "Crie e publique pelo menos um posto no percurso.",
+        },
+      ],
+    });
+
+    await page.goto("/rally/admin?tab=dashboard");
+
+    await expect(page.getByText("Configuração incompleta")).toBeVisible();
+    await expect(
+      page.getByText("Este perfil necessita de pelo menos um posto publicado."),
+    ).toBeVisible();
+
+    await page.getByText("Corrigir →").click();
+
+    // NO_CHECKPOINTS maps to the "checkpoints" tab (readinessNavigation.ts).
+    await expect(page).toHaveURL(/tab=checkpoints/);
+  });
+
+  test("warnings alone keep the event ready", async ({ page, context }) => {
+    await mockSettings(page, PRE_EVENT_SETTINGS);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockTeams(page, []);
+    await mockCheckpoints(page, CHECKPOINTS);
+    await mockEvaluations(page, 0);
+    await mockEventConfiguration(page, {
+      ready: true,
+      issues: [
+        {
+          code: "NO_TEAMS",
+          severity: "warning",
+          message: "Ainda não existem equipas registadas.",
+          entity_type: "team",
+        },
+      ],
+    });
+
+    await page.goto("/rally/admin?tab=dashboard");
+
+    await expect(page.getByText("Pronto para começar")).toBeVisible();
+    await expect(page.getByText("Ainda não existem equipas registadas.")).toBeVisible();
   });
 });
