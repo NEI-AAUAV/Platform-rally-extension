@@ -232,7 +232,7 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
   });
   const profiles = PROFILE_OPTIONS[eventType];
   return (
-    <div className="flex gap-2">
+    <div className="flex w-full min-w-0 flex-wrap gap-2">
       <Select
         value={eventType}
         onValueChange={(value) => {
@@ -241,7 +241,7 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
           setProfile(defaultProfile(next));
         }}
       >
-        <SelectTrigger className="h-8 w-[135px] text-xs">
+        <SelectTrigger className="h-8 min-w-0 flex-1 basis-[120px] text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -253,7 +253,7 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
         </SelectContent>
       </Select>
       <Select value={profile} onValueChange={(value) => setProfile(value as EventProfile)}>
-        <SelectTrigger className="h-8 w-[135px] text-xs">
+        <SelectTrigger className="h-8 min-w-0 flex-1 basis-[120px] text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -267,6 +267,7 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
       <Button
         variant="outline"
         size="sm"
+        className="w-full sm:w-auto"
         disabled={mutation.isPending}
         onClick={() => {
           if (
@@ -464,7 +465,7 @@ export default function EventsManagement() {
         {list.map((ev) => (
           <div
             key={ev.id}
-            className={`rally-surface rounded-2xl p-6 ${ev.is_current ? "rally-ring-accent" : ""}`}
+            className={`rally-surface min-w-0 rounded-2xl p-6 ${ev.is_current ? "rally-ring-accent" : ""}`}
           >
             {/* Header: identity + status live together; the two actions that
                 change what "current" means stay visually separate from the
@@ -520,7 +521,7 @@ export default function EventsManagement() {
                 of one flat stack of identical outline buttons — mobile stacks
                 each group full-width, desktop lets them sit inline. */}
             <div className="mt-5 grid gap-4 border-t border-border/60 pt-4 sm:grid-cols-3">
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Exportar
                 </span>
@@ -529,7 +530,7 @@ export default function EventsManagement() {
                   <ReportButton event={ev} />
                 </div>
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Formato
                 </span>
@@ -540,7 +541,7 @@ export default function EventsManagement() {
                   </div>
                 )}
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Copiar estrutura
                 </span>
