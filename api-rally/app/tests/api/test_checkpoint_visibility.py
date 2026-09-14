@@ -14,7 +14,12 @@ from app.tests.conftest import as_team, make_event
 
 
 async def _make_event(pg_session):
-    return await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+    # "autonomous" is peddy-paper's default profile and the one that
+    # bootstraps GPS check-in on, which these tests rely on to advance teams
+    # between checkpoints.
+    return await make_event(
+        pg_session, event_type=EventType.PEDDY_PAPER.value, event_profile="autonomous"
+    )
 
 
 async def _make_checkpoint(pg_session, order, lat=41.0, lon=-8.0):
