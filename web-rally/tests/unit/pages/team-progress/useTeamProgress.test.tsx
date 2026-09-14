@@ -133,4 +133,48 @@ describe("useTeamProgress", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.completedCheckpointsCount).toBe(0);
   });
+
+  it("does not report free choice for a sequential route with a single open checkpoint", async () => {
+    vi.mocked(getTeamById).mockResolvedValue({
+      data: {
+        id: 1,
+        name: "Team A",
+        total: 20,
+        last_checkpoint_number: 1,
+        current_checkpoint_number: 2,
+        open_checkpoint_orders: [2],
+      },
+    } as never);
+    const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.openCheckpointOrders).toEqual([2]);
+    expect(result.current.hasFreeChoice).toBe(false);
+  });
+
+  it("reports free choice when several checkpoints are open at once", async () => {
+    vi.mocked(getTeamById).mockResolvedValue({
+      data: {
+        id: 1,
+        name: "Team A",
+        total: 20,
+        last_checkpoint_number: 1,
+        current_checkpoint_number: 2,
+        open_checkpoint_orders: [2, 3, 4],
+      },
+    } as never);
+    const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.openCheckpointOrders).toEqual([2, 3, 4]);
+    expect(result.current.hasFreeChoice).toBe(true);
+  });
+
+  it("reports no free choice when open_checkpoint_orders is absent", async () => {
+    const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.openCheckpointOrders).toEqual([]);
+    expect(result.current.hasFreeChoice).toBe(false);
+  });
 });

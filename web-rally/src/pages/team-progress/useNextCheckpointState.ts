@@ -1,0 +1,141 @@
+import { useState } from "react";
+import type { DetailedCheckPoint } from "@/client";
+import useRallySettings from "@/hooks/useRallySettings";
+import useEventTerms from "@/hooks/useEventTerms";
+import useCheckpointHints from "@/hooks/useCheckpointHints";
+import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
+import { checkpointOpeningNotice } from "./checkpointHours";
+import { useCheckpointArrival, type GpsState } from "./useCheckpointArrival";
+
+/**
+ * View model for NextCheckpointCard: adapts backend/settings data into the
+ * flags and actions its subcomponents render, without owning domain rules.
+ *
+ * Three kinds of state stay explicit and separate here, on purpose:
+ *  - persistent progress (`CheckpointProgress.status` on the team, owned by
+ *    the backend — this hook doesn't compute or hold it, only the pieces
+ *    that decide what's currently *offered* for this checkpoint);
+ *  - access/gating (`access` below) — derived from settings + checkpoint +
+ *    opening hours, all backend data; this hook adapts it for rendering but
+ *    does not invent authorization. The arrival endpoint (useCheckpointArrival)
+ *    independently re-validates every attempt server-side (see its "too_far"/
+ *    "not_open" handling) — the flags here only gate the UI early so a team
+ *    doesn't tap a button that would inevitably fail. They are not a
+ *    substitute for that server-side check and must never become one.
+ *  - transient UI/action state (`ui` below) — gpsState, the confirm dialog —
+ *    genuinely local, describes the current HTTP/GPS operation, not the
+ *    rally's domain.
+ *
+ * A backend-computed "interaction" capability block (allowed/blocked_reason
+ * per action) was considered and deliberately deferred: every gate below is
+ * already independently re-validated server-side, so centralizing it would
+ * be a wire-protocol change for no closed security gap — see the refactor
+ * plan. Revisit only if a second client needs the same gating logic or it
+ * grows too complex to keep in sync here.
+ */
+export function useNextCheckpointState(checkpoint: DetailedCheckPoint) {
+  const { settings, error: settingsError, refetch: refetchSettings } = useRallySettings();
+  const terms = useEventTerms();
+  const feminino = terms.checkpointGender === "f";
+
+  const hasCoords = checkpoint.latitude != null && checkpoint.longitude != null;
+  const isRedacted = checkpoint.is_redacted === true;
+
+  const arrival = useCheckpointArrival(checkpoint);
+  const hints = useCheckpointHints(checkpoint.id);
+  const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
+
+  const openingNotice = checkpointOpeningNotice(
+    checkpoint,
+    undefined,
+    settings?.checkpoint_hours_enabled !== false,
+  );
+
+  // Don't offer a button the server will reject: GPS check-in needs the event
+  // setting on *and* a real geofence radius. Coordinates are deliberately NOT
+  // required when the post is redacted — that's the peddy-paper case, where
+  // the server withholds them because finding the place is the game.
+  const canCheckin =
+    settings?.gps_checkin_enabled === true &&
+    (hasCoords || isRedacted) &&
+    (checkpoint.arrival_radius_m ?? 0) > 0 &&
+    openingNotice === null;
+
+  // Every gate above reads event settings, so a failed settings fetch leaves
+  // the card with no button and nothing to explain it.
+  const settingsUnavailable = !settings && !!settingsError;
+
+  const hasHintLadder = hints.revealed.length > 0 || hints.remaining > 0;
+  const totalSpent = hints.revealed.reduce((sum, item) => sum + item.cost, 0);
+  const hintCostLabel = hints.nextCost === 0 ? "" : ` (${hints.nextCost} pts)`;
+
+  // "Spent" has to mean the team actually climbed the ladder, not that the
+  // mechanic is off (which also reports remaining: 0). See canGiveUp's own
+  // history in NextCheckpointCard before this extraction for why.
+  const skipCost = settings?.skip_penalty ?? 0;
+  const hintsOff = settings?.hints_enabled === false;
+  const hintLadderSpent = hintsOff || (hasHintLadder && hints.remaining === 0);
+  const canGiveUp = settings?.skip_enabled !== false && isRedacted && hintLadderSpent;
+
+  const proximityEnabled = isRedacted && settings?.proximity_enabled === true;
+
+  const discoveryDescription =
+    checkpoint.description && checkpoint.description === checkpoint.clue
+      ? null
+      : checkpoint.description;
+  const hasDiscovery = photos.length > 0 || funFacts.length > 0 || !!discoveryDescription;
+
+  // Both hint and give-up spend points, so each goes through an in-app
+  // confirmation instead of the browser's confirm().
+  const [pendingAction, setPendingAction] = useState<null | "hint" | "giveUp">(null);
+  const closeConfirm = () => setPendingAction(null);
+  const confirmPendingAction = () => {
+    if (pendingAction === "hint") hints.reveal.mutate();
+    else if (pendingAction === "giveUp") hints.giveUp.mutate();
+    setPendingAction(null);
+  };
+  const requestHint = () => {
+    // Points are spent here, so never on a stray tap — a free hint skips the prompt.
+    if (hints.nextCost === 0) hints.reveal.mutate();
+    else setPendingAction("hint");
+  };
+  const requestGiveUp = () => setPendingAction("giveUp");
+
+  return {
+    hasCoords,
+    isRedacted,
+    feminino,
+    access: {
+      canCheckin,
+      openingNotice,
+      settingsUnavailable,
+      canGiveUp,
+      hasHintLadder,
+      proximityEnabled,
+      hasDiscovery,
+      skipCost,
+      hintCostLabel,
+      totalSpent,
+      discoveryDescription,
+    },
+    ui: {
+      gpsState: arrival.gpsState as GpsState,
+      gpsMsg: arrival.gpsMsg,
+      isQueuedHere: arrival.isQueuedHere,
+      isPending: arrival.isPending,
+      pendingAction,
+    },
+    hints,
+    actions: {
+      handleCheckin: arrival.handleCheckin,
+      clearError: arrival.clearError,
+      refetchSettings,
+      requestHint,
+      requestGiveUp,
+      confirmPendingAction,
+      closeConfirm,
+    },
+  };
+}
+
+export type NextCheckpointState = ReturnType<typeof useNextCheckpointState>;

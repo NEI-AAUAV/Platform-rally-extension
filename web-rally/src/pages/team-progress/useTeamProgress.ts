@@ -107,6 +107,15 @@ export function useTeamProgress() {
     [team?.resolved_checkpoint_orders],
   );
   const isRouteFinished = team?.is_route_finished ?? false;
+  // How many posts the team can act on right now. A sequential route always
+  // has at most one; a free-choice stage can open several at once — the UI
+  // must say "3 postos disponíveis" instead of implying one arbitrary next
+  // post the team is required to visit first.
+  const openCheckpointOrders = useMemo(
+    () => team?.open_checkpoint_orders ?? [],
+    [team?.open_checkpoint_orders],
+  );
+  const hasFreeChoice = openCheckpointOrders.length > 1;
   // A loaded team's `current_checkpoint_number` is authoritative *including*
   // when it is null, which the server sends to mean "no post left to go to" —
   // the route is finished. That is why this cannot be a `??` fallback: null
@@ -166,6 +175,8 @@ export function useTeamProgress() {
     completedCheckpointsCount,
     resolvedOrders,
     isRouteFinished,
+    openCheckpointOrders,
+    hasFreeChoice,
     nextCheckpoint,
     showScore,
     showRanking,
