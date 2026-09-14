@@ -21,6 +21,7 @@ from app.domain.event_configuration.context import load_configuration_context
 from app.domain.event_configuration.policies import (
     Capability,
     CapabilityPolicy,
+    EventPolicy,
     EventProfile,
     profile_is_supported,
     resolve_policy,
@@ -132,6 +133,40 @@ def _serialize_capabilities(
         )
         for k, v in caps.items()
     }
+
+
+def _validate_capability_update(
+    capability: Capability,
+    value: bool,
+    policy: EventPolicy,
+) -> None:
+    """Reject capability values that contradict policy or platform support."""
+    cap_policy = policy.policy_for(capability)
+    if cap_policy is CapabilityPolicy.REQUIRED and value is False:
+        raise RallyConfigurationError(
+            f"A capacidade '{capability.value}' é obrigatória neste perfil.",
+            details={
+                "code": "REQUIRED_CAPABILITY_DISABLED",
+                "capability": capability.value,
+            },
+        )
+    if cap_policy is CapabilityPolicy.FORBIDDEN and value is True:
+        raise RallyConfigurationError(
+            f"A capacidade '{capability.value}' não é permitida neste perfil.",
+            details={
+                "code": "FORBIDDEN_CAPABILITY_ENABLED",
+                "capability": capability.value,
+            },
+        )
+    if (
+        capability is Capability.QR_ARRIVAL
+        and value is True
+        and not app_settings.SELF_CHECKIN_ENABLED
+    ):
+        raise RallyConfigurationError(
+            "Check-in por QR indisponível nesta plataforma.",
+            details={"code": "QR_UNAVAILABLE_ON_PLATFORM"},
+        )
 
 
 class EventController:
@@ -331,26 +366,7 @@ class EventController:
             if field not in cap_map or value is None:
                 continue
             cap, config_key = cap_map[field]
-            cap_policy = policy.policy_for(cap)
-            if cap_policy is CapabilityPolicy.REQUIRED and value is False:
-                raise RallyConfigurationError(
-                    f"A capacidade '{cap.value}' é obrigatória neste perfil.",
-                    details={"code": "REQUIRED_CAPABILITY_DISABLED", "capability": cap.value},
-                )
-            if cap_policy is CapabilityPolicy.FORBIDDEN and value is True:
-                raise RallyConfigurationError(
-                    f"A capacidade '{cap.value}' não é permitida neste perfil.",
-                    details={"code": "FORBIDDEN_CAPABILITY_ENABLED", "capability": cap.value},
-                )
-            if (
-                cap is Capability.QR_ARRIVAL
-                and value is True
-                and not app_settings.SELF_CHECKIN_ENABLED
-            ):
-                raise RallyConfigurationError(
-                    "Check-in por QR indisponível nesta plataforma.",
-                    details={"code": "QR_UNAVAILABLE_ON_PLATFORM"},
-                )
+            _validate_capability_update(cap, value, policy)
             config[config_key] = value
 
         event.config = config
