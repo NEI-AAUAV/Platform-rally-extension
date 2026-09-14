@@ -462,10 +462,16 @@ export default function EventsManagement() {
     eventsContent = (
       <div className="grid gap-3">
         {list.map((ev) => (
-          <div key={ev.id} className="rally-surface rounded-2xl p-6">
+          <div
+            key={ev.id}
+            className={`rally-surface rounded-2xl p-6 ${ev.is_current ? "rally-ring-accent" : ""}`}
+          >
+            {/* Header: identity + status live together; the two actions that
+                change what "current" means stay visually separate from the
+                utility tools below instead of competing in one button wall. */}
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="rally-display truncate text-lg font-bold text-foreground">
                     {ev.name}
                   </h3>
@@ -474,39 +480,24 @@ export default function EventsManagement() {
                       <Star className="h-3 w-3" /> Atual
                     </span>
                   )}
+                  <EventReadiness eventId={ev.id} />
                 </div>
-                <p className="mt-0.5 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">
                   {EVENT_TYPE_LABELS[ev.event_type]}
                   {ev.event_profile
                     ? ` · ${PROFILE_OPTIONS[ev.event_type].find((profile) => profile.value === ev.event_profile)?.label ?? ev.event_profile}`
                     : ""}
                   {formatRange(ev) ? ` · ${formatRange(ev)}` : ""}
                 </p>
-                <div className="mt-1">
-                  <EventReadiness eventId={ev.id} />
-                </div>
                 {ev.description && (
-                  <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{ev.description}</p>
                 )}
               </div>
-              {/* w-full on mobile: a `shrink-0` box sizes to its unwrapped
-                  content width, so `flex-wrap` on it alone is a no-op once
-                  there are enough buttons — the row just overflows the card
-                  sideways instead of wrapping. Forcing the full card width
-                  here gives it something to actually wrap against; sm+
-                  reverts to shrink-to-content since there's room to sit
-                  beside the title there. */}
-              <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:flex-wrap xl:items-center xl:justify-end xl:gap-2">
-                <ExportResultsButton event={ev} />
-                <ReportButton event={ev} />
-                <ChangeFormatButton event={ev} />
-                {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
-                <CloneStructureButton event={ev} others={list.filter((o) => o.id !== ev.id)} />
+              <div className="flex shrink-0 items-center gap-1">
                 {!ev.is_current && (
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
-                    className="justify-start"
                     onClick={() => handleSetCurrent(ev)}
                     disabled={setCurrent.isPending}
                   >
@@ -516,11 +507,44 @@ export default function EventsManagement() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="justify-start xl:w-8 xl:justify-center xl:px-0"
+                  className="w-8 justify-center px-0"
+                  aria-label="Editar edição"
                   onClick={() => startEdit(ev)}
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
+              </div>
+            </div>
+
+            {/* Tools: grouped by intent with a small caption per group instead
+                of one flat stack of identical outline buttons — mobile stacks
+                each group full-width, desktop lets them sit inline. */}
+            <div className="mt-5 grid gap-4 border-t border-border/60 pt-4 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  Exportar
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <ExportResultsButton event={ev} />
+                  <ReportButton event={ev} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  Formato
+                </span>
+                <ChangeFormatButton event={ev} />
+                {ev.event_type === "olympic" && (
+                  <div className="pt-1">
+                    <RotationScheduleButton eventId={ev.id} />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  Copiar estrutura
+                </span>
+                <CloneStructureButton event={ev} others={list.filter((o) => o.id !== ev.id)} />
               </div>
             </div>
           </div>
