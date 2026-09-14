@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
+from app.domain.event_configuration.policies import default_profile
 from app.models.activity import Activity, EventType, RallyEvent
 from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_arrival import CheckpointArrival
@@ -30,9 +31,21 @@ async def _reread_team(pg_session, team_id: int) -> Team:
 
 
 async def _make_event(
-    pg_session, event_type=EventType.PEDDY_PAPER.value, *, name="Test Event", is_current=True
+    pg_session,
+    event_type=EventType.PEDDY_PAPER.value,
+    *,
+    name="Test Event",
+    is_current=True,
+    event_profile=None,
 ):
-    event = RallyEvent(name=name, is_current=is_current, event_type=event_type)
+    # Mirror crud_activity.rally_event.create(): an unspecified profile
+    # resolves to the event type's default, not the model column's "custom"
+    # fallback, so fixtures see the same capabilities as events made through
+    # the real API (e.g. GPS check-in bootstrapped on for peddy-paper).
+    profile = event_profile or default_profile(event_type).value
+    event = RallyEvent(
+        name=name, is_current=is_current, event_type=event_type, event_profile=profile
+    )
     pg_session.add(event)
     await pg_session.commit()
     await pg_session.refresh(event)

@@ -268,8 +268,23 @@ def pg_client(_pg_engine) -> TestClient:
 
 
 async def make_event(pg_session, **overrides):
+    from app.domain.event_configuration.reconciler import reconcile_event_config
+
     overrides.setdefault("name", "Test Event")
     overrides.setdefault("is_current", True)
+    # event_profile keeps the model column's "custom" default when the caller
+    # doesn't ask for a specific profile, same as raw model construction
+    # always did. Whatever profile ends up in play, seed config-backed
+    # capabilities (e.g. QR self check-in) from it via the same reconciler
+    # crud_activity.rally_event.create() uses, so a fixture that does pass an
+    # explicit profile gets the matching config instead of an empty dict.
+    event_type = overrides.get("event_type", "rally_tascas")
+    event_profile = overrides.get("event_profile", "custom")
+    overrides["config"] = reconcile_event_config(
+        event_type=event_type,
+        profile=event_profile,
+        config=overrides.get("config"),
+    )
     event = RallyEvent(**overrides)
     pg_session.add(event)
     await pg_session.commit()
