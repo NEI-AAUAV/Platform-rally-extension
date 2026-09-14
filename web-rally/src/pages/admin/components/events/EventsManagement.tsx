@@ -626,7 +626,17 @@ export default function EventsManagement() {
                   <Label htmlFor="ev-profile">Perfil operacional</Label>
                   <Select
                     value={form.event_profile}
-                    onValueChange={(v) => setForm({ ...form, event_profile: v as EventProfile })}
+                    onValueChange={(v) => {
+                      // Radix fires onValueChange("") on this Select when its
+                      // options list changes underneath a controlled value
+                      // it no longer contains (e.g. right after the type
+                      // Select above swaps PROFILE_OPTIONS out) — a stale
+                      // reset signal, not a user pick. Ignoring it here
+                      // keeps the profile the type Select just defaulted to
+                      // instead of it landing on the server as "".
+                      if (!v) return;
+                      setForm({ ...form, event_profile: v as EventProfile });
+                    }}
                   >
                     <SelectTrigger id="ev-profile">
                       <SelectValue />

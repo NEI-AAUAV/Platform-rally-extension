@@ -34,10 +34,22 @@ test.describe("Admin results export", () => {
       });
     });
 
+    await page.route("**/api/rally/v1/events/*/configuration-status", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ready: true, issues: [], capabilities: {} }),
+      });
+    });
+
     await page.route("**/api/rally/v1/events**", async (route) => {
       // Only the list GET (no trailing path) returns the events array; the
-      // export sub-route is handled by its own more specific mock below.
-      if (route.request().url().includes("/export")) {
+      // export and configuration-status sub-routes are handled by their own
+      // more specific mocks above/below.
+      if (
+        route.request().url().includes("/export") ||
+        route.request().url().includes("/configuration-status")
+      ) {
         return route.fallback();
       }
       await route.fulfill({
