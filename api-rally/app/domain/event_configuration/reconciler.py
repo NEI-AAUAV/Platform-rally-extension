@@ -50,37 +50,67 @@ def reconcile_policy_state(
     policy = resolve_policy(event_type, profile)
     result = ReconciliationResult()
     if config is not None:
-        reconciled = reconcile_event_config(event_type=event_type, profile=profile, config=config)
-        for field in DOMAIN_CONFIG_KEYS:
-            if field in reconciled:
-                old = bool(config.get(field, False))
-                target = reconciled[field]
-                if old != target:
-                    config[field] = target
-                    cap = next(c for c, (f, _) in SETTING_CAPABILITIES.items() if f == field)
-                    desired = policy.policy_for(cap)
-                    result.changes.append(
-                        {
-                            "field": field,
-                            "from": old,
-                            "to": target,
-                            "reason": f"{desired.value}_by_policy",
-                        }
-                    )
-    for capability, (field, inverted) in SETTING_CAPABILITIES.items():
-        if field in DOMAIN_CONFIG_KEYS:
+        _reconcile_config_capabilities(event_type, profile, config, policy, result)
+    _reconcile_setting_capabilities(settings, policy, result)
+    _reconcile_guide_mode(settings, policy, result)
+    return result
+
+
+def _reconcile_config_capabilities(
+    event_type: str,
+    profile: str,
+    config: dict[str, Any],
+    policy: Any,
+    result: ReconciliationResult,
+) -> None:
+    reconciled = reconcile_event_config(event_type=event_type, profile=profile, config=config)
+    for config_field in DOMAIN_CONFIG_KEYS:
+        if config_field not in reconciled:
+            continue
+        old = bool(config.get(config_field, False))
+        target = reconciled[config_field]
+        if old == target:
+            continue
+        config[config_field] = target
+        cap = next(
+            c for c, (candidate, _) in SETTING_CAPABILITIES.items() if candidate == config_field
+        )
+        desired = policy.policy_for(cap)
+        result.changes.append(
+            {
+                "field": config_field,
+                "from": old,
+                "to": target,
+                "reason": f"{desired.value}_by_policy",
+            }
+        )
+
+
+def _reconcile_setting_capabilities(
+    settings: Any, policy: Any, result: ReconciliationResult
+) -> None:
+    for capability, (setting_field, inverted) in SETTING_CAPABILITIES.items():
+        if setting_field in DOMAIN_CONFIG_KEYS:
             continue
         desired = policy.policy_for(capability)
         if desired is CapabilityPolicy.OPTIONAL:
             continue
         target = desired is CapabilityPolicy.REQUIRED
         value = not target if inverted else target
-        old = getattr(settings, field, False)
+        old = getattr(settings, setting_field, False)
         if old != value:
-            setattr(settings, field, value)
+            setattr(settings, setting_field, value)
             result.changes.append(
-                {"field": field, "from": old, "to": value, "reason": f"{desired.value}_by_policy"}
+                {
+                    "field": setting_field,
+                    "from": old,
+                    "to": value,
+                    "reason": f"{desired.value}_by_policy",
+                }
             )
+
+
+def _reconcile_guide_mode(settings: Any, policy: Any, result: ReconciliationResult) -> None:
     # GUIDE_MODE is a two-field invariant; active is also required/forbidden.
     guide = policy.policy_for(next(c for c in SETTING_CAPABILITIES if c.value == "guide_mode"))
     if guide is not CapabilityPolicy.OPTIONAL:
@@ -95,4 +125,3 @@ def reconcile_policy_state(
                 }
             )
             settings.guide_mode_active = target
-    return result
