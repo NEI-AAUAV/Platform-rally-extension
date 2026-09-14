@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.domain.event_configuration.policies import EventProfile
 from app.models.activity import EventType
 from app.models.activity_factory import ActivityFactory
 from app.schemas.activity_types import ActivityType
@@ -221,6 +222,7 @@ class RallyEventBase(BaseModel):
     slug: str | None = Field(None, max_length=120)
     description: str | None = None
     event_type: EventType = EventType.RALLY_TASCAS
+    event_profile: EventProfile | None = None
     config: dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
     is_current: bool = False
@@ -235,10 +237,12 @@ class RallyEventCreate(RallyEventBase):
 class RallyEventUpdate(BaseModel):
     """Schema for updating a rally event"""
 
+    model_config = ConfigDict(extra="forbid")
+
     name: str | None = Field(None, min_length=1, max_length=255)
     slug: str | None = Field(None, max_length=120)
     description: str | None = None
-    event_type: EventType | None = None
+    # Event format is changed only by the explicit /change-format operation.
     config: dict[str, Any] | None = None
     is_active: bool | None = None
     is_current: bool | None = None

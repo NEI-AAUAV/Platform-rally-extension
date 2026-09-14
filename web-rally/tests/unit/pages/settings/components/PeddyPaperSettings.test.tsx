@@ -1,8 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useForm, FormProvider } from "react-hook-form";
 import PeddyPaperSettings from "@/pages/settings/components/PeddyPaperSettings";
+import { useEventConfiguration } from "@/pages/settings/components/useEventConfiguration";
+
+const mockUpdateMutate = vi.fn();
+
+vi.mock("@/pages/settings/components/useEventConfiguration", () => ({
+  useEventConfiguration: vi.fn(),
+  useUpdateEventCapabilities: () => ({
+    mutate: mockUpdateMutate,
+    isPending: false,
+  }),
+}));
 
 function Wrapper({
   hintsEnabled = true,
@@ -32,6 +43,13 @@ function Wrapper({
 }
 
 describe("PeddyPaperSettings", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useEventConfiguration).mockReturnValue({
+      data: undefined,
+    } as ReturnType<typeof useEventConfiguration>);
+  });
+
   // These two used to sit in the display card, away from the mechanic they
   // belong to; the whole point of the group is that they are here.
   it("carries the switches that define the treasure hunt", () => {
@@ -67,5 +85,69 @@ describe("PeddyPaperSettings", () => {
     render(<Wrapper hintsEnabled={false} />);
     await user.click(screen.getByLabelText("Permitir pedir pistas"));
     expect(screen.getByLabelText("Custo de uma pista")).toBeInTheDocument();
+  });
+
+  it("renders QR check-in switch when qr_arrival capability is optional and mutates on change", async () => {
+    vi.mocked(useEventConfiguration).mockReturnValue({
+      data: {
+        capabilities: {
+          qr_arrival: {
+            policy: "optional",
+            configured: false,
+            effective: false,
+            available: true,
+          },
+        },
+      },
+    } as unknown as ReturnType<typeof useEventConfiguration>);
+
+    const user = userEvent.setup();
+    render(<Wrapper />);
+
+    expect(screen.getByText("Check-in por QR Code feito pela equipa")).toBeInTheDocument();
+    expect(screen.getByText("Opcional")).toBeInTheDocument();
+    const qrSwitch = screen.getByRole("switch", { name: "Check-in por QR Code feito pela equipa" });
+    await user.click(qrSwitch);
+    expect(mockUpdateMutate).toHaveBeenCalledWith({ qr_arrival: true });
+  });
+
+  it("disables QR check-in switch with server unavailable badge when available is false", () => {
+    vi.mocked(useEventConfiguration).mockReturnValue({
+      data: {
+        capabilities: {
+          qr_arrival: {
+            policy: "optional",
+            configured: false,
+            effective: false,
+            available: false,
+          },
+        },
+      },
+    } as unknown as ReturnType<typeof useEventConfiguration>);
+
+    render(<Wrapper />);
+
+    expect(screen.getByText("Indisponível no servidor")).toBeInTheDocument();
+    const qrSwitch = screen.getByRole("switch", { name: "Check-in por QR Code feito pela equipa" });
+    expect(qrSwitch).toBeDisabled();
+  });
+
+  it("hides QR check-in row completely when qr_arrival policy is forbidden", () => {
+    vi.mocked(useEventConfiguration).mockReturnValue({
+      data: {
+        capabilities: {
+          qr_arrival: {
+            policy: "forbidden",
+            configured: false,
+            effective: false,
+            available: true,
+          },
+        },
+      },
+    } as unknown as ReturnType<typeof useEventConfiguration>);
+
+    render(<Wrapper />);
+
+    expect(screen.queryByText("Check-in por QR Code feito pela equipa")).not.toBeInTheDocument();
   });
 });

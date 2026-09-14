@@ -30,7 +30,7 @@ export type SettingsSectionId =
   | "regras";
 
 /** Props every section body receives from the page shell. */
-export type SectionProps = Readonly<{ eventType?: string | null }>;
+export type SectionProps = Readonly<{ eventType?: string | null; eventProfile?: string | null }>;
 
 export interface SettingsSection {
   readonly id: SettingsSectionId;
@@ -40,8 +40,8 @@ export interface SettingsSection {
   readonly Component: (props: SectionProps) => React.ReactElement;
 }
 
-function GameSection() {
-  return <PeddyPaperSettings />;
+function GameSection({ eventType, eventProfile }: SectionProps) {
+  return <PeddyPaperSettings eventType={eventType} eventProfile={eventProfile} />;
 }
 
 function RouteSection() {

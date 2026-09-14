@@ -5,6 +5,13 @@
  */
 
 export type EventType = "rally_tascas" | "peddy_paper" | "generic" | "olympic";
+export type EventProfile =
+  | "custom"
+  | "autonomous"
+  | "guided"
+  | "staffed"
+  | "self_checkin"
+  | "rotation";
 
 export interface RallyEvent {
   id: number;
@@ -12,6 +19,7 @@ export interface RallyEvent {
   slug?: string | null;
   description?: string | null;
   event_type: EventType;
+  event_profile?: EventProfile | null;
   is_active: boolean;
   is_current: boolean;
   start_time?: string | null;
@@ -25,6 +33,7 @@ export interface RallyEventCreate {
   slug?: string | null;
   description?: string | null;
   event_type?: EventType;
+  event_profile?: EventProfile | null;
   is_active?: boolean;
   is_current?: boolean;
   start_time?: string | null;

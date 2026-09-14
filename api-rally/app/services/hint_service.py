@@ -18,6 +18,9 @@ from app.crud import current_event_id
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
+from app.domain.event_configuration.policies import Capability
+from app.domain.event_configuration.resolver import resolve_capabilities
+from app.models.activity import RallyEvent
 from app.models.checkpoint_guide_indication import CheckpointGuideIndication
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
 from app.models.dynamic_scoring import DynamicAward
@@ -149,7 +152,14 @@ class HintService:
         settings = await rally_settings.get_or_create(self._db)
         # With the mechanic off, hints already bought stay readable — the team
         # paid for them — but nothing is left to buy.
-        enabled = bool(getattr(settings, "hints_enabled", True))
+        event = await self._db.get(RallyEvent, team.event_id)
+        enabled = resolve_capabilities(
+            event_type=event.event_type if event else "generic",
+            profile=event.event_profile if event else "custom",
+            settings=settings,
+            platform_qr_supported=False,
+            event_config=event.config if event else None,
+        )[Capability.HINTS].effective
         return TeamHints(
             checkpoint_id=checkpoint_id,
             revealed=revealed,
@@ -163,7 +173,16 @@ class HintService:
         # ``get_or_create`` three times per reveal — here, inside
         # ``_require_current_checkpoint``, and again for the cost.
         settings = await rally_settings.get_or_create(self._db)
-        if not getattr(settings, "hints_enabled", True):
+        team = await self._team_crud.get(db=self._db, id=team_id)
+        event = await self._db.get(RallyEvent, team.event_id) if team else None
+        enabled = resolve_capabilities(
+            event_type=event.event_type if event else "generic",
+            profile=event.event_profile if event else "custom",
+            settings=settings,
+            platform_qr_supported=False,
+            event_config=event.config if event else None,
+        )[Capability.HINTS].effective
+        if not enabled:
             raise RallyValidationError(HINTS_DISABLED)
         await self._require_current_checkpoint(team_id, checkpoint_id, settings=settings)
 

@@ -273,6 +273,8 @@ class RallyEvent(Base):
     event_type: Mapped[str] = mapped_column(
         String(20), nullable=False, default=EventType.RALLY_TASCAS.value
     )
+    # Operational execution profile; distinct from the semantic event type.
+    event_profile: Mapped[str] = mapped_column(String(32), nullable=False, default="custom")
 
     # Event configuration
     config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)

@@ -25,6 +25,9 @@ from app.core.exceptions import RallyNotFoundError, RallyValidationError
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
+from app.domain.event_configuration.policies import Capability
+from app.domain.event_configuration.resolver import resolve_capabilities
+from app.models.activity import RallyEvent
 from app.schemas.proximity import ProximityReading
 from app.services.checkpoint_arrival_service import _DISTANCE_BUCKETS, _distance_bucket
 from app.services.event_scope import require_same_event
@@ -68,9 +71,6 @@ class ProximityService:
         self, *, team_id: int, checkpoint_id: int, latitude: float, longitude: float
     ) -> ProximityReading:
         settings = await rally_settings.get_or_create(self._db)
-        if not getattr(settings, "proximity_enabled", False):
-            raise RallyValidationError(PROXIMITY_DISABLED)
-
         checkpoint = await self._checkpoint_crud.get(db=self._db, id=checkpoint_id)
         if checkpoint is None:
             raise RallyNotFoundError("Checkpoint not found")
@@ -79,6 +79,16 @@ class ProximityService:
             raise RallyNotFoundError("Team not found")
 
         require_same_event(team.event_id, checkpoint.event_id)
+        event = await self._db.get(RallyEvent, team.event_id)
+        capabilities = resolve_capabilities(
+            event_type=event.event_type if event else "generic",
+            profile=event.event_profile if event else "custom",
+            settings=settings,
+            platform_qr_supported=False,
+            event_config=event.config if event else None,
+        )
+        if not capabilities[Capability.PROXIMITY].effective:
+            raise RallyValidationError(PROXIMITY_DISABLED)
 
         if not await can_reach_checkpoint(
             self._db,
@@ -98,7 +108,7 @@ class ProximityService:
         is_closest_band = dist < _COMPASS_BAND_M
 
         direction: str | None = None
-        if is_closest_band and getattr(settings, "compass_enabled", False):
+        if is_closest_band and capabilities[Capability.COMPASS].effective:
             direction = bearing_sector(
                 from_lat=latitude,
                 from_lon=longitude,

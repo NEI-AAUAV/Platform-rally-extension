@@ -67,6 +67,7 @@ vi.mock("@/pages/settings/components", () => ({
   HomeLayoutSettings: () => <div>HomeLayoutSettings</div>,
   RulesSettings: () => <div>RulesSettings</div>,
   EventModeBanner: () => <div>EventModeBanner</div>,
+  ConfigurationReadiness: () => <div>ConfigurationReadiness</div>,
 }));
 
 function renderWithClient(ui: React.ReactElement) {

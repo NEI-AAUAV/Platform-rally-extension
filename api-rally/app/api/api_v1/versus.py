@@ -4,7 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.abac_deps import Action, Resource, require_permission
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_db, get_participant
+from app.core.exceptions import RallyForbiddenError
+from app.crud.crud_activity import rally_event
 from app.crud.crud_versus import versus
+from app.domain.event_configuration.policies import Capability, CapabilityPolicy, resolve_policy
 from app.schemas.user import DetailedUser
 from app.schemas.versus import (
     VersusGroupListResponse,
@@ -65,6 +68,13 @@ class VersusController:
             action=Action.CREATE_VERSUS_GROUP,
             resource=Resource.VERSUS_GROUP,
         )
+
+        event = await rally_event.ensure_current(db)
+        policy = resolve_policy(event.event_type, event.event_profile)
+        if policy.policy_for(Capability.VERSUS) is CapabilityPolicy.FORBIDDEN:
+            raise RallyForbiddenError(
+                "A funcionalidade versus está desativada para este perfil de evento."
+            )
 
         group_id = await versus.create_versus_pair(
             db, team_a_id=pair_in.team_a_id, team_b_id=pair_in.team_b_id

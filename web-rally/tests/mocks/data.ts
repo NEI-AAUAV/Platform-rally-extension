@@ -148,6 +148,9 @@ export const MOCK_RALLY_SETTINGS: RallySettingsResponse = {
   badges_enabled: true,
   home_layout: [],
   ticker_items: [],
+  effective_capabilities: {
+    guide_mode: false,
+  },
 };
 
 // Mock JWT token for staff (for testing - properly formatted with valid sub)

@@ -9,7 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.exceptions import RallyNotFoundError, RallyValidationError
-from app.models.activity import Activity, EventType
+from app.domain.event_configuration.policies import DOMAIN_CONFIG_KEYS
+from app.domain.event_configuration.reconciler import reconcile_event_config
+from app.domain.event_configuration.settings import new_settings_for_profile
+from app.models.activity import Activity, EventType, RallyEvent
 from app.models.badge_definition import BadgeDefinition
 from app.models.base import Base
 from app.models.checkpoint import CheckPoint
@@ -50,7 +53,11 @@ class EventService:
         teams = list((await self._db.scalars(select(Team).where(Team.event_id == event_id))).all())
         checkpoints = list(
             (
-                await self._db.scalars(select(CheckPoint).where(CheckPoint.event_id == event_id))
+                await self._db.scalars(
+                    select(CheckPoint).where(
+                        CheckPoint.event_id == event_id, CheckPoint.is_draft.is_(False)
+                    )
+                )
             ).all()
         )
 
@@ -84,9 +91,11 @@ class EventService:
         if event_id == source_event_id:
             raise RallyValidationError("Cannot clone an event into itself")
 
-        if await crud.rally_event.get(self._db, event_id) is None:
+        target_event = await crud.rally_event.get(self._db, event_id)
+        if target_event is None:
             raise RallyNotFoundError(EVENT_NOT_FOUND)
-        if await crud.rally_event.get(self._db, source_event_id) is None:
+        source_event = await crud.rally_event.get(self._db, source_event_id)
+        if source_event is None:
             raise RallyNotFoundError(SOURCE_EVENT_NOT_FOUND)
 
         # Guard against a second clone stacking a duplicate route on top.
@@ -111,7 +120,9 @@ class EventService:
             "dynamic_rules": len(
                 await self._copy_event_rows(DynamicRule, event_id, source_event_id)
             ),
-            "rally_settings": await self._clone_settings(event_id, source_event_id),
+            "rally_settings": await self._clone_settings(
+                event_id, source_event_id, target_event, source_event
+            ),
         }
 
         await self._db.commit()
@@ -155,24 +166,63 @@ class EventService:
         rows = await self._rows_for_event(Activity, source_event_id)
         copied = 0
         for row in rows:
-            new_checkpoint_id = (
-                None if row.checkpoint_id is None else checkpoint_ids.get(row.checkpoint_id)
-            )
-            if new_checkpoint_id is None:
-                # Its checkpoint was not part of the source edition; without a
-                # post to hang from the copy would be unreachable.
-                continue
+            if row.is_global:
+                # Global activities have no checkpoint by design; keep it that way.
+                new_checkpoint_id = None
+            else:
+                if row.checkpoint_id is None:
+                    # Inconsistent non-global activity: nothing to hang it from.
+                    continue
+                new_checkpoint_id = checkpoint_ids.get(row.checkpoint_id)
+                if new_checkpoint_id is None:
+                    # Its checkpoint was not part of the source edition; without a
+                    # post to hang from the copy would be unreachable.
+                    continue
             await self._copy_row(
                 Activity, row, {"event_id": event_id, "checkpoint_id": new_checkpoint_id}
             )
             copied += 1
         return copied
 
-    async def _clone_settings(self, event_id: int, source_event_id: int) -> int:
-        source = await self._db.scalar(
+    async def _clone_settings(
+        self,
+        event_id: int,
+        source_event_id: int,
+        target_event: RallyEvent,
+        source_event: RallyEvent,
+    ) -> int:
+        # `event.config` and `RallySettings` are separate stores: capabilities
+        # can live in `event.config` (e.g. via the capabilities endpoint) with
+        # no `RallySettings` row ever created for the source. Reconcile the
+        # config first, independently of whether a settings row exists.
+        same_format = (target_event.event_type, target_event.event_profile) == (
+            source_event.event_type,
+            source_event.event_profile,
+        )
+        if same_format:
+            target_config = dict(target_event.config or {})
+            source_config = dict(source_event.config or {})
+            for key in DOMAIN_CONFIG_KEYS:
+                if key in source_config:
+                    target_config[key] = source_config[key]
+            target_event.config = reconcile_event_config(
+                event_type=target_event.event_type,
+                profile=target_event.event_profile,
+                config=target_config,
+            )
+        else:
+            # Copying domain config across formats can immediately violate the
+            # target policy; reconcile against the target's own config instead.
+            target_event.config = reconcile_event_config(
+                event_type=target_event.event_type,
+                profile=target_event.event_profile,
+                config=dict(target_event.config or {}),
+            )
+
+        source_settings = await self._db.scalar(
             select(RallySettings).where(RallySettings.event_id == source_event_id)
         )
-        if source is None:
+        if source_settings is None:
             return 0
         # get_or_create may already have bootstrapped defaults for the target;
         # the source's values are not worth clobbering them mid-edition.
@@ -181,7 +231,21 @@ class EventService:
         )
         if existing is not None:
             return 0
-        await self._copy_row(RallySettings, source, {"event_id": event_id})
+        # Copying a settings row across formats can immediately violate the
+        # target policy. Bootstrap the target policy instead; structural rows
+        # remain cloneable and same-format clones preserve settings exactly.
+        if not same_format:
+            self._db.add(
+                new_settings_for_profile(
+                    event_id=event_id,
+                    event_type=target_event.event_type,
+                    profile=target_event.event_profile,
+                    config=target_event.config,
+                )
+            )
+            await self._db.flush()
+            return 1
+        await self._copy_row(RallySettings, source_settings, {"event_id": event_id})
         return 1
 
     async def _rows_for_event(self, model: type[ModelT], event_id: int) -> list[ModelT]:

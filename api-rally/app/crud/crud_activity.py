@@ -9,7 +9,14 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import RallyConfigurationError, RallyValidationError
 from app.crud import current_event_id
+from app.domain.event_configuration.policies import (
+    DOMAIN_CONFIG_KEYS,
+    default_profile,
+    profile_is_supported,
+)
+from app.domain.event_configuration.reconciler import reconcile_event_config
 from app.models.activity import Activity, ActivityResult, EventType, RallyEvent
 from app.schemas.activity import (
     ActivityCreate,
@@ -232,14 +239,34 @@ class CRUDRallyEvent:
         if obj_in.is_current:
             await self._demote_all(db)
 
+        event_type = (
+            obj_in.event_type.value
+            if isinstance(obj_in.event_type, EventType)
+            else obj_in.event_type
+        )
+        profile = obj_in.event_profile or default_profile(event_type)
+        event_profile = profile.value if hasattr(profile, "value") else str(profile)
+        if not profile_is_supported(event_type, event_profile):
+            raise RallyValidationError(
+                "O perfil operacional não está disponível para este tipo de evento.",
+                details={
+                    "code": "UNSUPPORTED_EVENT_PROFILE",
+                    "event_type": event_type,
+                    "event_profile": event_profile,
+                },
+            )
+        config = reconcile_event_config(
+            event_type=event_type,
+            profile=event_profile,
+            config=obj_in.config,
+        )
         db_obj = RallyEvent(
             name=obj_in.name,
             slug=slug,
             description=obj_in.description,
-            event_type=obj_in.event_type.value
-            if isinstance(obj_in.event_type, EventType)
-            else obj_in.event_type,
-            config=obj_in.config,
+            event_type=event_type,
+            event_profile=event_profile,
+            config=config,
             is_active=obj_in.is_active,
             is_current=obj_in.is_current,
             start_time=obj_in.start_time,
@@ -288,7 +315,12 @@ class CRUDRallyEvent:
             slug="rally-tascas",
             description="",
             event_type=EventType.RALLY_TASCAS.value,
-            config={},
+            event_profile=default_profile(EventType.RALLY_TASCAS.value).value,
+            config=reconcile_event_config(
+                event_type=EventType.RALLY_TASCAS.value,
+                profile=default_profile(EventType.RALLY_TASCAS.value),
+                config={},
+            ),
             is_active=True,
             is_current=True,
         )
@@ -347,6 +379,31 @@ class CRUDRallyEvent:
         update_data = obj_in.model_dump(exclude_unset=True)
         if update_data.get("is_current") is True and not db_obj.is_current:
             await self._demote_all(db)
+        if "config" in update_data:
+            incoming = update_data["config"] or {}
+            existing = db_obj.config or {}
+            changed_reserved = {
+                key
+                for key in DOMAIN_CONFIG_KEYS
+                if key in incoming and incoming[key] != existing.get(key)
+            }
+            if changed_reserved:
+                raise RallyConfigurationError(
+                    "As capacidades do domínio não podem ser alteradas pelo update genérico.",
+                    details={
+                        "code": "INVALID_EVENT_CONFIGURATION",
+                        "issues": [
+                            {
+                                "code": "RESERVED_EVENT_CONFIG_KEY",
+                                "severity": "error",
+                                "fields": sorted(changed_reserved),
+                            }
+                        ],
+                    },
+                )
+            # Generic config updates are non-destructive: preserve domain and
+            # unrelated existing values not mentioned by the caller.
+            update_data["config"] = dict(existing) | incoming
         for field, value in update_data.items():
             if field == "event_type" and isinstance(value, EventType):
                 value = value.value

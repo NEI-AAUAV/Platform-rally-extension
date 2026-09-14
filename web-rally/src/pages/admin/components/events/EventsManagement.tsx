@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarRange,
   Check,
@@ -14,7 +14,7 @@ import {
   FileText,
   Copy,
 } from "lucide-react";
-import { generateRotationSchedule } from "@/client";
+import { changeEventFormat, eventConfigurationStatus, generateRotationSchedule } from "@/client";
 import { downloadEventResults, downloadEventReport } from "@/services/eventExport";
 import RotationScheduleView from "./RotationScheduleView";
 import { EmptyState, LoadingState } from "@/components/shared";
@@ -31,7 +31,12 @@ import {
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 import { useEvents, useEventMutations } from "@/hooks/useEvents";
-import { EVENT_TYPE_LABELS, type EventType, type RallyEvent } from "@/types/event";
+import {
+  EVENT_TYPE_LABELS,
+  type EventProfile,
+  type EventType,
+  type RallyEvent,
+} from "@/types/event";
 import {
   utcISOStringToLocalDatetimeLocal,
   localDatetimeLocalToUTCISOString,
@@ -40,6 +45,7 @@ import {
 interface FormState {
   name: string;
   event_type: EventType;
+  event_profile: EventProfile;
   description: string;
   start_time: string;
   end_time: string;
@@ -48,15 +54,39 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   name: "",
   event_type: "rally_tascas",
+  event_profile: "staffed",
   description: "",
   start_time: "",
   end_time: "",
 };
 
+const PROFILE_OPTIONS: Record<EventType, ReadonlyArray<{ value: EventProfile; label: string }>> = {
+  peddy_paper: [
+    { value: "autonomous", label: "Autónomo" },
+    { value: "guided", label: "Guiado" },
+    { value: "custom", label: "Personalizado" },
+  ],
+  rally_tascas: [
+    { value: "staffed", label: "Com staff" },
+    { value: "self_checkin", label: "Auto check-in" },
+    { value: "custom", label: "Personalizado" },
+  ],
+  olympic: [
+    { value: "rotation", label: "Rotação" },
+    { value: "custom", label: "Personalizado" },
+  ],
+  generic: [{ value: "custom", label: "Personalizado" }],
+};
+
+function defaultProfile(type: EventType): EventProfile {
+  return PROFILE_OPTIONS[type][0]!.value;
+}
+
 function toForm(ev: RallyEvent): FormState {
   return {
     name: ev.name,
     event_type: ev.event_type,
+    event_profile: ev.event_profile ?? "custom",
     description: ev.description ?? "",
     start_time: ev.start_time ? (utcISOStringToLocalDatetimeLocal(ev.start_time) ?? "") : "",
     end_time: ev.end_time ? (utcISOStringToLocalDatetimeLocal(ev.end_time) ?? "") : "",
@@ -130,6 +160,7 @@ function ReportButton({ event }: Readonly<{ event: RallyEvent }>) {
 
 function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
   const toast = useAppToast();
+  const qc = useQueryClient();
   const [rounds, setRounds] = useState<ScheduleRounds | null>(null);
 
   const generateMutation = useMutation({
@@ -140,6 +171,8 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
     onSuccess: (data) => {
       setRounds(data?.rounds ?? []);
       toast.success("Escalonamento olímpico gerado");
+      void qc.invalidateQueries({ queryKey: ["events"] });
+      void qc.invalidateQueries({ queryKey: ["event-configuration-status"] });
     },
     onError: (err) => toast.error(getErrorMessage(err, "Erro ao gerar escalonamento")),
   });
@@ -169,6 +202,114 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
       </div>
       {rounds && <RotationScheduleView rounds={rounds} />}
     </div>
+  );
+}
+
+function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
+  const toast = useAppToast();
+  const qc = useQueryClient();
+  const [eventType, setEventType] = useState<EventType>(event.event_type);
+  const [profile, setProfile] = useState<EventProfile>(event.event_profile ?? "custom");
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await changeEventFormat({
+        path: { event_id: event.id },
+        body: { event_type: eventType, event_profile: profile },
+      });
+      return data;
+    },
+    onSuccess: (result) => {
+      void qc.invalidateQueries({ queryKey: ["events"] });
+      void qc.invalidateQueries({ queryKey: ["event-configuration-status"] });
+      const changes = result?.changes.length ?? 0;
+      toast.success(
+        changes ? `Formato aplicado · ${changes} definições ajustadas` : "Formato aplicado",
+      );
+      if (result && !result.ready)
+        toast.error(
+          `${result.issues.filter((issue) => issue.severity === "error").length} problemas de preflight permanecem`,
+        );
+    },
+    onError: (error) => toast.error(getErrorMessage(error, "Não foi possível alterar o formato")),
+  });
+  const profiles = PROFILE_OPTIONS[eventType];
+  return (
+    <div className="flex w-full min-w-0 flex-wrap gap-2">
+      <Select
+        value={eventType}
+        onValueChange={(value) => {
+          const next = value as EventType;
+          setEventType(next);
+          setProfile(defaultProfile(next));
+        }}
+      >
+        <SelectTrigger className="h-8 min-w-0 flex-1 basis-[120px] text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((type) => (
+            <SelectItem key={type} value={type}>
+              {EVENT_TYPE_LABELS[type]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={profile} onValueChange={(value) => setProfile(value as EventProfile)}>
+        <SelectTrigger className="h-8 min-w-0 flex-1 basis-[120px] text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {profiles.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full sm:w-auto"
+        disabled={mutation.isPending}
+        onClick={() => {
+          if (
+            window.confirm(
+              "Aplicar este formato? As capabilities obrigatórias e indisponíveis serão reconciliadas.",
+            )
+          )
+            mutation.mutate();
+        }}
+      >
+        {mutation.isPending ? "A aplicar…" : "Aplicar formato"}
+      </Button>
+    </div>
+  );
+}
+
+function EventReadiness({ eventId }: Readonly<{ eventId: number }>) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["event-configuration-status", eventId],
+    queryFn: async () => (await eventConfigurationStatus({ path: { event_id: eventId } })).data,
+    staleTime: 20_000,
+  });
+  if (isLoading)
+    return <span className="text-xs text-muted-foreground">A verificar configuração…</span>;
+  if (isError || !data)
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-destructive">
+        <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" /> Não foi possível verificar
+      </span>
+    );
+  const errors = data.issues.filter((issue) => issue.severity === "error").length;
+  return data.ready ? (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+      <CheckCircle2 className="h-3.5 w-3.5" /> Pronto
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+      <AlertCircle className="h-3.5 w-3.5" /> Não pronto · {errors}{" "}
+      {errors === 1 ? "erro" : "erros"}
+    </span>
   );
 }
 
@@ -202,7 +343,7 @@ function CloneStructureButton({
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
       <Select value={sourceId} onValueChange={setSourceId}>
-        <SelectTrigger className="h-8 w-full text-xs sm:w-[168px]">
+        <SelectTrigger aria-label="Clonar de…" className="h-8 w-full text-xs sm:w-[168px]">
           <SelectValue placeholder="Clonar de…" />
         </SelectTrigger>
         <SelectContent>
@@ -260,7 +401,6 @@ export default function EventsManagement() {
     }
     const body = {
       name: form.name.trim(),
-      event_type: form.event_type,
       description: form.description.trim() || null,
       start_time: form.start_time ? localDatetimeLocalToUTCISOString(form.start_time) : null,
       end_time: form.end_time ? localDatetimeLocalToUTCISOString(form.end_time) : null,
@@ -280,13 +420,16 @@ export default function EventsManagement() {
         },
       );
     } else {
-      create.mutate(body, {
-        onSuccess: () => {
-          toast.success("Evento criado");
-          resetForm();
+      create.mutate(
+        { ...body, event_type: form.event_type, event_profile: form.event_profile },
+        {
+          onSuccess: () => {
+            toast.success("Evento criado");
+            resetForm();
+          },
+          onError,
         },
-        onError,
-      });
+      );
     }
   };
 
@@ -322,10 +465,16 @@ export default function EventsManagement() {
     eventsContent = (
       <div className="grid gap-3">
         {list.map((ev) => (
-          <div key={ev.id} className="rally-surface rounded-2xl p-6">
+          <div
+            key={ev.id}
+            className={`rally-surface min-w-0 rounded-2xl p-6 ${ev.is_current ? "rally-ring-accent" : ""}`}
+          >
+            {/* Header: identity + status live together; the two actions that
+                change what "current" means stay visually separate from the
+                utility tools below instead of competing in one button wall. */}
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="rally-display truncate text-lg font-bold text-foreground">
                     {ev.name}
                   </h3>
@@ -334,32 +483,24 @@ export default function EventsManagement() {
                       <Star className="h-3 w-3" /> Atual
                     </span>
                   )}
+                  <EventReadiness eventId={ev.id} />
                 </div>
-                <p className="mt-0.5 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                <p className="mt-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">
                   {EVENT_TYPE_LABELS[ev.event_type]}
+                  {ev.event_profile
+                    ? ` · ${PROFILE_OPTIONS[ev.event_type].find((profile) => profile.value === ev.event_profile)?.label ?? ev.event_profile}`
+                    : ""}
                   {formatRange(ev) ? ` · ${formatRange(ev)}` : ""}
                 </p>
                 {ev.description && (
-                  <p className="mt-1 text-sm text-muted-foreground">{ev.description}</p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{ev.description}</p>
                 )}
               </div>
-              {/* w-full on mobile: a `shrink-0` box sizes to its unwrapped
-                  content width, so `flex-wrap` on it alone is a no-op once
-                  there are enough buttons — the row just overflows the card
-                  sideways instead of wrapping. Forcing the full card width
-                  here gives it something to actually wrap against; sm+
-                  reverts to shrink-to-content since there's room to sit
-                  beside the title there. */}
-              <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:flex-wrap xl:items-center xl:justify-end xl:gap-2">
-                <ExportResultsButton event={ev} />
-                <ReportButton event={ev} />
-                {ev.event_type === "olympic" && <RotationScheduleButton eventId={ev.id} />}
-                <CloneStructureButton event={ev} others={list.filter((o) => o.id !== ev.id)} />
+              <div className="flex shrink-0 items-center gap-1">
                 {!ev.is_current && (
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
-                    className="justify-start"
                     onClick={() => handleSetCurrent(ev)}
                     disabled={setCurrent.isPending}
                   >
@@ -369,11 +510,44 @@ export default function EventsManagement() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="justify-start xl:w-8 xl:justify-center xl:px-0"
+                  className="w-8 justify-center px-0"
+                  aria-label="Editar edição"
                   onClick={() => startEdit(ev)}
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
+              </div>
+            </div>
+
+            {/* Tools: grouped by intent with a small caption per group instead
+                of one flat stack of identical outline buttons — mobile stacks
+                each group full-width, desktop lets them sit inline. */}
+            <div className="mt-5 grid gap-4 border-t border-border/60 pt-4 sm:grid-cols-3">
+              <div className="min-w-0 space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  Exportar
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <ExportResultsButton event={ev} />
+                  <ReportButton event={ev} />
+                </div>
+              </div>
+              <div className="min-w-0 space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  Formato
+                </span>
+                <ChangeFormatButton event={ev} />
+                {ev.event_type === "olympic" && (
+                  <div className="pt-1">
+                    <RotationScheduleButton eventId={ev.id} />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 space-y-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  Copiar estrutura
+                </span>
+                <CloneStructureButton event={ev} others={list.filter((o) => o.id !== ev.id)} />
               </div>
             </div>
           </div>
@@ -423,7 +597,11 @@ export default function EventsManagement() {
                 <Label htmlFor="ev-type">Tipo</Label>
                 <Select
                   value={form.event_type}
-                  onValueChange={(v) => setForm({ ...form, event_type: v as EventType })}
+                  onValueChange={(v) => {
+                    const event_type = v as EventType;
+                    setForm({ ...form, event_type, event_profile: defaultProfile(event_type) });
+                  }}
+                  disabled={editingId != null}
                 >
                   <SelectTrigger id="ev-type">
                     <SelectValue />
@@ -436,7 +614,43 @@ export default function EventsManagement() {
                     ))}
                   </SelectContent>
                 </Select>
+                {editingId != null && (
+                  <p className="text-xs text-muted-foreground">
+                    O formato é alterado pela operação explícita de mudança de formato, para
+                    preservar settings e progresso.
+                  </p>
+                )}
               </div>
+              {editingId == null && (
+                <div data-admin-search-key="ev-profile" className="space-y-1.5">
+                  <Label htmlFor="ev-profile">Perfil operacional</Label>
+                  <Select
+                    value={form.event_profile}
+                    onValueChange={(v) => {
+                      // Radix fires onValueChange("") on this Select when its
+                      // options list changes underneath a controlled value
+                      // it no longer contains (e.g. right after the type
+                      // Select above swaps PROFILE_OPTIONS out) — a stale
+                      // reset signal, not a user pick. Ignoring it here
+                      // keeps the profile the type Select just defaulted to
+                      // instead of it landing on the server as "".
+                      if (!v) return;
+                      setForm({ ...form, event_profile: v as EventProfile });
+                    }}
+                  >
+                    <SelectTrigger id="ev-profile">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROFILE_OPTIONS[form.event_type].map((profile) => (
+                        <SelectItem key={profile.value} value={profile.value}>
+                          {profile.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div data-admin-search-key="ev-start" className="space-y-1.5">
                 <Label htmlFor="ev-start">Início</Label>
                 <Input

@@ -50,8 +50,15 @@ def as_guide():
             app.dependency_overrides.pop(dep, None)
 
 
-async def _make_event(pg_session):
-    return await make_event(pg_session, event_type=EventType.PEDDY_PAPER.value)
+async def _make_event(pg_session, event_profile="guided"):
+    # Guide field tools (manual arrival, route scoping) are only policy-legal
+    # under the "guided" peddy-paper profile — it's the one that requires
+    # GUIDE_ARRIVAL and GUIDE_MODE rather than forbidding them. Tests that
+    # need guide mode verifiably off pass a different profile instead, since
+    # "guided" forces it on regardless of settings overrides.
+    return await make_event(
+        pg_session, event_type=EventType.PEDDY_PAPER.value, event_profile=event_profile
+    )
 
 
 async def _make_checkpoint(pg_session, order, event_id=None):
@@ -362,7 +369,7 @@ class TestGuideOwnTeam:
 
     async def test_guide_team_403_when_guide_mode_off(self, pg_session, pg_client, as_guide):
         """Every guide surface is gated on the two switches, this one included."""
-        event = await _make_event(pg_session)
+        event = await _make_event(pg_session, event_profile="autonomous")
         team = await _make_team(pg_session, name="MyTeam", event_id=event.id)
         await _assign_guide(pg_session, team.id)
 

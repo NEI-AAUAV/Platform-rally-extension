@@ -1,11 +1,12 @@
 import { Navigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import useRallySettings from "@/hooks/useRallySettings";
 import usePagedSearch from "@/hooks/usePagedSearch";
 import { FeatureDisabledAlert, LoadingState, PageHeader } from "@/components/shared";
 import { Compass } from "lucide-react";
+import { EVENT_CONFIGURATION_ROOT_KEY } from "@/pages/settings/components/useEventConfiguration";
 import {
   GuideAssignmentList,
   AssignmentForm,
@@ -36,6 +37,7 @@ interface GuideAssignmentProps {
 const PAGE_SIZE = 20;
 
 export default function GuideAssignment({ embedded = false }: GuideAssignmentProps) {
+  const queryClient = useQueryClient();
   const { isLoading, isRallyAdmin } = useUser();
   const fallbackPath = useFallbackNavigation();
   const { settings } = useRallySettings();
@@ -83,6 +85,7 @@ export default function GuideAssignment({ embedded = false }: GuideAssignmentPro
     },
     onSuccess: () => {
       void refetchAssignments();
+      void queryClient.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
     },
   });
 

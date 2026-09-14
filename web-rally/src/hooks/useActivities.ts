@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useUser from "@/hooks/useUser";
 import { getActivities, createActivity, updateActivity, deleteActivity } from "@/client";
 import { type ActivityCreate, type ActivityUpdate } from "@/client";
+import { EVENT_CONFIGURATION_ROOT_KEY } from "@/pages/settings/components/useEventConfiguration";
 
 /**
  * Hook to fetch activities list
@@ -51,6 +52,7 @@ export function useCreateActivity() {
       // A new activity can flip a checkpoint's "sem desafio" readiness badge,
       // which reads from this query rather than ["activities"].
       void queryClient.invalidateQueries({ queryKey: ["route-status"] });
+      void queryClient.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
     },
   });
 }
@@ -81,6 +83,7 @@ export function useUpdateActivity() {
       // Editing is_active or moving the activity to another checkpoint can
       // flip the "sem desafio" readiness badge, which reads this query.
       void queryClient.invalidateQueries({ queryKey: ["route-status"] });
+      void queryClient.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
     },
   });
 }
@@ -107,6 +110,7 @@ export function useDeleteActivity() {
       // Deleting the last activity on a checkpoint should bring back the
       // "sem desafio" badge, which reads this query, not ["activities"].
       void queryClient.invalidateQueries({ queryKey: ["route-status"] });
+      void queryClient.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
     },
   });
 }

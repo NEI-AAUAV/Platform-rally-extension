@@ -4068,6 +4068,179 @@
         }
       }
     },
+    "/api/rally/v1/events/{event_id}/configuration-status": {
+      "get": {
+        "tags": [
+          "Events",
+          "Events"
+        ],
+        "summary": "Event Configuration Status",
+        "operationId": "event_configuration_status",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigurationStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/events/{event_id}/capabilities": {
+      "patch": {
+        "tags": [
+          "Events",
+          "Events"
+        ],
+        "summary": "Update Event Capabilities",
+        "operationId": "update_event_capabilities",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEventCapabilitiesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigurationStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/events/{event_id}/change-format": {
+      "post": {
+        "tags": [
+          "Events",
+          "Events"
+        ],
+        "summary": "Change Event Format",
+        "operationId": "change_event_format",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeEventFormatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeEventFormatResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/events/current": {
       "get": {
         "tags": [
@@ -9104,6 +9277,56 @@
         ],
         "title": "Body_upload_team_photo"
       },
+      "ChangeEventFormatRequest": {
+        "properties": {
+          "event_type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "event_profile": {
+            "$ref": "#/components/schemas/EventProfile"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_type",
+          "event_profile"
+        ],
+        "title": "ChangeEventFormatRequest"
+      },
+      "ChangeEventFormatResponse": {
+        "properties": {
+          "event": {
+            "$ref": "#/components/schemas/RallyEventResponse"
+          },
+          "changes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ConfigurationIssueResponse"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event",
+          "changes",
+          "issues",
+          "ready"
+        ],
+        "title": "ChangeEventFormatResponse"
+      },
       "CheckPointCreate": {
         "properties": {
           "is_draft": {
@@ -9936,6 +10159,129 @@
         "title": "CloneStructureResponse",
         "description": "How many rows of each kind the clone created."
       },
+      "ConfigurationIssueResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          },
+          "entity_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Type"
+          },
+          "entity_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Ids"
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestion"
+          },
+          "autofix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autofix"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "title": "ConfigurationIssueResponse"
+      },
+      "ConfigurationStatusResponse": {
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "event_profile": {
+            "type": "string",
+            "title": "Event Profile"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "capabilities": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EffectiveCapabilityResponse"
+            },
+            "type": "object",
+            "title": "Capabilities"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ConfigurationIssueResponse"
+            },
+            "type": "array",
+            "title": "Issues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_type",
+          "event_profile",
+          "ready",
+          "capabilities",
+          "issues"
+        ],
+        "title": "ConfigurationStatusResponse"
+      },
       "ContestRequest": {
         "properties": {
           "reason": {
@@ -10634,6 +10980,34 @@
         "title": "EarnedBadge",
         "description": "A badge a team has earned, keyed by definition code."
       },
+      "EffectiveCapabilityResponse": {
+        "properties": {
+          "policy": {
+            "type": "string",
+            "title": "Policy"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "effective": {
+            "type": "boolean",
+            "title": "Effective"
+          }
+        },
+        "type": "object",
+        "required": [
+          "policy",
+          "configured",
+          "available",
+          "effective"
+        ],
+        "title": "EffectiveCapabilityResponse"
+      },
       "EvaluationHistoryEntry": {
         "properties": {
           "id": {
@@ -10701,6 +11075,18 @@
         ],
         "title": "EvaluationHistoryEntry",
         "description": "One audit-trail row: who changed what (or contested), and when."
+      },
+      "EventProfile": {
+        "type": "string",
+        "enum": [
+          "custom",
+          "autonomous",
+          "guided",
+          "staffed",
+          "self_checkin",
+          "rotation"
+        ],
+        "title": "EventProfile"
       },
       "EventType": {
         "type": "string",
@@ -12084,6 +12470,16 @@
             "$ref": "#/components/schemas/EventType",
             "default": "rally_tascas"
           },
+          "event_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "config": {
             "additionalProperties": true,
             "type": "object",
@@ -12165,6 +12561,16 @@
           "event_type": {
             "$ref": "#/components/schemas/EventType",
             "default": "rally_tascas"
+          },
+          "event_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "config": {
             "additionalProperties": true,
@@ -12268,16 +12674,6 @@
             ],
             "title": "Description"
           },
-          "event_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/EventType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "config": {
             "anyOf": [
               {
@@ -12337,6 +12733,7 @@
             "title": "End Time"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "RallyEventUpdate",
         "description": "Schema for updating a rally event"
@@ -12735,6 +13132,18 @@
             "type": "string",
             "title": "Event Type",
             "default": "rally_tascas"
+          },
+          "event_profile": {
+            "type": "string",
+            "title": "Event Profile",
+            "default": "custom"
+          },
+          "effective_capabilities": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Effective Capabilities"
           },
           "banner_url": {
             "type": "string",
@@ -14122,6 +14531,34 @@
         },
         "type": "object",
         "title": "TeamUpdate"
+      },
+      "UpdateEventCapabilitiesRequest": {
+        "properties": {
+          "qr_arrival": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qr Arrival"
+          },
+          "drinking_scoring": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drinking Scoring"
+          }
+        },
+        "type": "object",
+        "title": "UpdateEventCapabilitiesRequest"
       },
       "ValidationError": {
         "properties": {

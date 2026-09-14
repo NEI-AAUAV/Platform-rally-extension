@@ -8,10 +8,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings as app_settings
 from app.core.exceptions import RallyForbiddenError
 from app.crud import current_event_id
+from app.crud.crud_activity import rally_event
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
 from app.crud.crud_rally_settings import rally_settings
+from app.domain.event_configuration.policies import Capability
+from app.domain.event_configuration.resolver import resolve_capabilities
 from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.checkpoint_hint_reveal import CheckpointHintReveal
@@ -38,7 +42,16 @@ class GuideService:
         admin UI while guides went on working.
         """
         settings = await rally_settings.get_or_create(self._db)
-        if not (settings.guide_mode_enabled and settings.guide_mode_active):
+        event = await rally_event.ensure_current(self._db)
+        capabilities = resolve_capabilities(
+            event_type=event.event_type,
+            profile=event.event_profile,
+            settings=settings,
+            platform_qr_supported=app_settings.SELF_CHECKIN_ENABLED,
+            event_config=event.config,
+            rotation_schedule=event.rotation_schedule,
+        )
+        if not (capabilities[Capability.GUIDE_MODE].effective and settings.guide_mode_active):
             raise RallyForbiddenError("Guide mode is not active for this event")
 
     async def list_checkpoints_with_gallery(

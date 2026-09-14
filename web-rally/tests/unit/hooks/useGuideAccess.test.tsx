@@ -31,7 +31,9 @@ function setSettings(settings: Record<string, unknown> | undefined, isLoading = 
   } as ReturnType<typeof useRallySettings>);
 }
 
-const GUIDE_MODE_ON = { guide_mode_enabled: true, guide_mode_active: true };
+const GUIDE_MODE_ON = {
+  effective_capabilities: { guide_mode: true },
+};
 
 describe("useGuideAccess", () => {
   beforeEach(() => {
@@ -62,30 +64,18 @@ describe("useGuideAccess", () => {
     expect(result.current.isAllowed).toBe(false);
   });
 
-  it("hides feature when guide mode enabled but not active", () => {
+  it("hides feature when guide mode capability is false", () => {
     setStore({ scopes: ["rally-guide"], sessionLoading: false });
-    setSettings({ guide_mode_enabled: true, guide_mode_active: false });
+    setSettings({ effective_capabilities: { guide_mode: false } });
 
     const { result } = renderHook(() => useGuideAccess());
     expect(result.current.showGuideFeature).toBe(false);
     expect(result.current.isAllowed).toBe(false);
   });
 
-  it("hides feature when guide mode active but not enabled", () => {
+  it("shows feature when guide mode capability is true", () => {
     setStore({ scopes: ["rally-guide"], sessionLoading: false });
-    setSettings({ guide_mode_enabled: false, guide_mode_active: true });
-
-    const { result } = renderHook(() => useGuideAccess());
-    expect(result.current.showGuideFeature).toBe(false);
-  });
-
-  it("peddy paper events imply guide feature even with flags off", () => {
-    setStore({ scopes: ["rally-guide"], sessionLoading: false });
-    setSettings({
-      guide_mode_enabled: false,
-      guide_mode_active: false,
-      event_type: "peddy_paper",
-    });
+    setSettings(GUIDE_MODE_ON);
 
     const { result } = renderHook(() => useGuideAccess());
     expect(result.current.showGuideFeature).toBe(true);
@@ -94,7 +84,7 @@ describe("useGuideAccess", () => {
 
   it("feature without role is not enough", () => {
     setStore({ scopes: [], sessionLoading: false });
-    setSettings({ ...GUIDE_MODE_ON, event_type: "peddy_paper" });
+    setSettings(GUIDE_MODE_ON);
 
     const { result } = renderHook(() => useGuideAccess());
     expect(result.current.showGuideFeature).toBe(true);

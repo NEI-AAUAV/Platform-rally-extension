@@ -10,7 +10,9 @@ closed one door and left the other open on the same rows.
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyForbiddenError
+from app.crud.crud_activity import rally_event
 from app.crud.crud_rally_settings import rally_settings
+from app.domain.event_configuration.policies import Capability, CapabilityPolicy, resolve_policy
 
 STAFF_SCORING_DISABLED = (
     "Staff scoring is disabled for this event. Only an admin or manager can "
@@ -19,11 +21,17 @@ STAFF_SCORING_DISABLED = (
 
 
 async def require_staff_scoring_enabled(db: AsyncSession, *, is_admin_or_manager: bool) -> None:
-    """Block staff (non admin/manager) when ``enable_staff_scoring`` is off.
+    """Block staff (non admin/manager) when ``enable_staff_scoring`` is off or forbidden.
 
     Admins and managers keep write access so they can still correct results
-    while the master switch is disabled in the admin UI.
+    while the master switch is disabled in the admin UI, unless the profile forbids it.
     """
+    event = await rally_event.ensure_current(db)
+    policy = resolve_policy(event.event_type, event.event_profile)
+    if policy.policy_for(Capability.STAFF_SCORING) is CapabilityPolicy.FORBIDDEN:
+        raise RallyForbiddenError(
+            "A avaliação por staff está desativada para este perfil de evento."
+        )
     if is_admin_or_manager:
         return
     rally_config = await rally_settings.get_or_create(db)

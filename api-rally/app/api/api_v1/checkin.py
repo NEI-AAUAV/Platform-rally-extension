@@ -16,8 +16,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import crud
 from app.api import deps
 from app.api.abac_deps import get_staff_with_checkpoint_access
 from app.api.auth import AuthData, api_nei_auth
@@ -29,8 +31,14 @@ from app.core.exceptions import (
     RallyNotFoundError,
     RallyValidationError,
 )
+from app.crud.crud_activity import rally_event
 from app.crud.crud_team import CRUDTeam
 from app.crud.deps import get_team_crud
+from app.domain.event_configuration.policies import Capability
+from app.domain.event_configuration.resolver import resolve_capabilities
+from app.domain.event_configuration.settings import new_settings_for_profile
+from app.models.activity import RallyEvent
+from app.models.rally_settings import RallySettings
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.audit_service import AuditActor, record_audit
@@ -80,6 +88,23 @@ class StaffCheckinResponse(BaseModel):
     status: str
 
 
+async def load_effective_settings_for_event(db: AsyncSession, event: RallyEvent) -> RallySettings:
+    """Return persisted settings, or profile defaults when this edition is new.
+
+    QR is a runtime capability gate and must agree with preflight: an event
+    does not need a settings row merely because nobody has opened settings yet.
+    """
+    persisted = await db.scalar(select(RallySettings).where(RallySettings.event_id == event.id))
+    if persisted is not None:
+        return persisted
+    return new_settings_for_profile(
+        event_id=event.id,
+        event_type=event.event_type,
+        profile=event.event_profile,
+        config=dict(event.config or {}),
+    )
+
+
 class CheckinController:
     """REST controller for team QR self-check-in and staff scans."""
 
@@ -108,11 +133,12 @@ class CheckinController:
         if not settings.SELF_CHECKIN_ENABLED:
             raise RallyNotFoundError("Self check-in is disabled")
 
-    def get_checkin_token(
+    async def get_checkin_token(
         self,
         current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
         auth: Annotated[AuthData, Depends(api_nei_auth)],
         settings: SettingsDep,
+        db: Annotated[AsyncSession, Depends(get_db)],
         checkpoint_id: int | None = None,
     ) -> dict[str, str]:
         """Mint a rotating check-in QR token for a checkpoint.
@@ -138,6 +164,23 @@ class CheckinController:
         )
         if target is None:
             raise RallyForbiddenError("No checkpoint assigned")
+        checkpoint = await crud.checkpoint.get(db, id=target)
+        event = await rally_event.get(db, checkpoint.event_id)
+        event_settings = (
+            None if event is None else await load_effective_settings_for_event(db, event)
+        )
+        if (
+            event is None
+            or not resolve_capabilities(
+                event_type=event.event_type,
+                profile=event.event_profile,
+                settings=event_settings,
+                platform_qr_supported=settings.SELF_CHECKIN_ENABLED,
+                event_config=event.config,
+                rotation_schedule=event.rotation_schedule,
+            )[Capability.QR_ARRIVAL].effective
+        ):
+            raise RallyNotFoundError("QR self check-in is not enabled for this event")
         return {"token": generate_checkin_token(target)}
 
     async def staff_check_in(
@@ -212,7 +255,6 @@ class CheckinController:
     ) -> CheckinResponse:
         """Check the calling team into the checkpoint encoded in the scanned token."""
         self._require_enabled(settings)
-
         try:
             claims = verify_checkin_token(body.token)
         except CheckinTokenError as exc:
@@ -222,6 +264,22 @@ class CheckinController:
             raise RallyConflictError("This QR was already used by your team")
 
         checkpoint = await service.get_checkpoint_or_raise(claims.checkpoint_id)
+        event = await rally_event.get(db, checkpoint.event_id)
+        event_settings = (
+            None if event is None else await load_effective_settings_for_event(db, event)
+        )
+        if (
+            event is None
+            or not resolve_capabilities(
+                event_type=event.event_type,
+                profile=event.event_profile,
+                settings=event_settings,
+                platform_qr_supported=settings.SELF_CHECKIN_ENABLED,
+                event_config=event.config,
+                rotation_schedule=event.rotation_schedule,
+            )[Capability.QR_ARRIVAL].effective
+        ):
+            raise RallyNotFoundError("QR self check-in is not enabled for this event")
         team_obj = await service.get_team_or_raise(team.team_id)
         require_same_event(team_obj.event_id, checkpoint.event_id)
 

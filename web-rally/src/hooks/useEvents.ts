@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { EVENT_CONFIGURATION_ROOT_KEY } from "@/pages/settings/components/useEventConfiguration";
 import { EventsService } from "@/services/EventsService";
 import type { RallyEventCreate, RallyEventUpdate } from "@/types/event";
 
@@ -22,6 +23,7 @@ export function useEventMutations() {
     void qc.invalidateQueries({ queryKey: EVENTS_KEY });
     void qc.invalidateQueries({ queryKey: ["rallySettings-public"] });
     void qc.invalidateQueries({ queryKey: ["rallySettings-admin"] });
+    void qc.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
   };
 
   const create = useMutation({

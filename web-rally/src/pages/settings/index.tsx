@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, FormProvider, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,7 +15,7 @@ import useFallbackNavigation from "@/hooks/useFallbackNavigation";
 import { Navigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { PageHeader, LoadingState, ErrorState } from "@/components/shared";
-import { EventModeBanner } from "./components";
+import { ConfigurationReadiness, EventModeBanner } from "./components";
 import { SETTINGS_SECTIONS, DEFAULT_SECTION_ID, type SettingsSectionId } from "./sections";
 import {
   ADMIN_SEARCH_INDEX,
@@ -271,6 +271,7 @@ export default function RallySettings({
   searchTargetKey = null,
   onSearchTargetHandled,
 }: RallySettingsProps) {
+  const queryClient = useQueryClient();
   const { isLoading, isRallyAdmin } = useUser();
   const toast = useAppToast();
   const fallbackPath = useFallbackNavigation();
@@ -410,6 +411,7 @@ export default function RallySettings({
     onSuccess: () => {
       toast.success("Configurações atualizadas com sucesso!");
       void refetchSettings();
+      void queryClient.invalidateQueries({ queryKey: ["event-configuration-status"] });
     },
     onError: (error) => {
       toast.error(getErrorMessage(error, "Erro ao atualizar configurações"));
@@ -512,7 +514,8 @@ export default function RallySettings({
         />
       )}
 
-      <EventModeBanner eventType={settings?.event_type} />
+      <EventModeBanner eventType={settings?.event_type} eventProfile={settings?.event_profile} />
+      <ConfigurationReadiness />
 
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)}>
@@ -556,7 +559,7 @@ export default function RallySettings({
 
               {/* Only the active section is mounted. Values of the hidden ones
                   survive in the form state, so a save still sends everything. */}
-              <ActiveBody eventType={settings?.event_type} />
+              <ActiveBody eventType={settings?.event_type} eventProfile={settings?.event_profile} />
             </div>
           </div>
 

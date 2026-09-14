@@ -8,3 +8,4 @@ export { default as DisplaySettings } from "./DisplaySettings";
 export { default as HomeLayoutSettings } from "./HomeLayoutSettings";
 export { default as RulesSettings } from "./RulesSettings";
 export { default as EventModeBanner } from "./EventModeBanner";
+export { default as ConfigurationReadiness } from "./ConfigurationReadiness";

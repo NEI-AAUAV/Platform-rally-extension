@@ -98,18 +98,13 @@ async def test_activity_result_get_all_returns_every_result(pg_session) -> None:
     assert any(r.team_id == team.id for r in results)
 
 
-async def test_rally_event_update_with_event_type_enum_stores_its_value(pg_session) -> None:
-    event = await crud_rally_event.create(
-        pg_session, obj_in=RallyEventCreate(name="Enum Update Event")
-    )
+def test_rally_event_update_rejects_event_type() -> None:
+    """Changing type through the generic update would retain stale settings."""
+    import pytest
+    from pydantic import ValidationError
 
-    updated = await crud_rally_event.update(
-        pg_session,
-        db_obj=event,
-        obj_in=RallyEventUpdate(event_type=EventType.RALLY_TASCAS),
-    )
-
-    assert updated.event_type == EventType.RALLY_TASCAS.value
+    with pytest.raises(ValidationError):
+        RallyEventUpdate(event_type=EventType.RALLY_TASCAS)
 
 
 async def test_remove_rally_event_missing_returns_none(pg_session) -> None:

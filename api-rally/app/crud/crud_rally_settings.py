@@ -5,7 +5,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.crud.base import CRUDBase
 from app.crud.crud_activity import rally_event
-from app.models.activity import EventType
+from app.domain.event_configuration.policies import default_profile
+from app.domain.event_configuration.settings import new_settings_for_profile
 from app.models.rally_settings import RallySettings
 from app.schemas.rally_settings import (
     DEFAULT_HOME_LAYOUT,
@@ -42,41 +43,20 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         # 0055 gave every settings row an event and made the column NOT NULL,
         # so there is no longer such a row to adopt.
 
-        # Only the values that depend on the event type, or that this
-        # bootstrap genuinely decides, are named here. Everything else comes
-        # from the column defaults in ``app.models.rally_settings``, which are
-        # the single default table — restating them here is how the two sets
-        # came to disagree on six fields.
-        settings = RallySettings(
+        # Column defaults remain on RallySettings.  Profile defaults come from
+        # the domain layer, so creation and format policies cannot drift.
+        profile = event.event_profile or default_profile(event.event_type).value
+        settings = new_settings_for_profile(
             event_id=event_id,
-            # Rally timing mirrors the event; synced below.
-            rally_start_time=None,
-            rally_end_time=None,
-            # GPS self-check-in: on by default for peddy paper, where reaching
-            # the post *is* the mechanic; off for formats that check teams in
-            # through staff or QR.
-            gps_checkin_enabled=event.event_type == EventType.PEDDY_PAPER.value,
-            # Redact next checkpoint until check-in for peddy paper, where the
-            # location itself is the puzzle answer; every other format keeps
-            # today's fully-revealed next checkpoint.
-            reveal_next_checkpoint=event.event_type != EventType.PEDDY_PAPER.value,
-            # Asking for a hint costs points in a peddy paper (the riddle is
-            # the game); other formats have no hint economy, so it stays free.
-            hint_penalty=-10 if event.event_type == EventType.PEDDY_PAPER.value else 0,
-            # Giving up forfeits the post's score too, so it costs more than a
-            # hint. Only peddy paper can strand a team on a riddle at all.
-            skip_penalty=-25 if event.event_type == EventType.PEDDY_PAPER.value else 0,
-            # Peddy paper's participant view is the clue/check-in screen —
-            # equipas belong there by default. Other formats keep the
-            # existing opt-in (staff must switch it on).
-            participant_view_enabled=event.event_type == EventType.PEDDY_PAPER.value,
-            # Event identity: data, so one build serves every edition.
-            event_name="Rally Tascas",
-            event_subtitle="Competição de Equipas",
-            # Home page layout
-            home_layout=list(DEFAULT_HOME_LAYOUT),
-            ticker_items=list(DEFAULT_TICKER_ITEMS),
+            event_type=event.event_type,
+            profile=profile,
+            config=event.config,
         )
+        settings.rally_start_time = settings.rally_end_time = None  # type: ignore[assignment]
+        settings.event_name = "Rally Tascas"  # type: ignore[assignment]
+        settings.event_subtitle = "Competição de Equipas"  # type: ignore[assignment]
+        settings.home_layout = list(DEFAULT_HOME_LAYOUT)  # type: ignore[assignment]
+        settings.ticker_items = list(DEFAULT_TICKER_ITEMS)  # type: ignore[assignment]
         try:
             # SAVEPOINT: a losing race undoes only this insert, never the
             # caller's pending work in the surrounding transaction.

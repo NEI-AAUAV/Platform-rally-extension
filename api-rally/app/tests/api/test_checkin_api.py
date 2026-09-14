@@ -88,7 +88,7 @@ def _wire_token(monkeypatch: pytest.MonkeyPatch, checkpoint_id: int, *, nonce_fr
 
 
 async def test_check_in_success(pg_session, pg_client, as_checkin_team, monkeypatch):
-    event = await _make_event(pg_session)
+    event = await _make_event(pg_session, event_profile="self_checkin")
     await _activate_rally(pg_session, event)
     checkpoint = await _make_checkpoint(pg_session, order=1)
     team = await _make_team(pg_session)
@@ -134,7 +134,7 @@ async def test_check_in_bad_token_returns_400(pg_session, pg_client, as_checkin_
 async def test_check_in_out_of_order_returns_409(
     pg_session, pg_client, as_checkin_team, monkeypatch
 ):
-    event = await _make_event(pg_session)
+    event = await _make_event(pg_session, event_profile="self_checkin")
     await _activate_rally(pg_session, event)
     await _make_checkpoint(pg_session, order=1)
     checkpoint_3 = await _make_checkpoint(pg_session, order=3)
@@ -246,6 +246,32 @@ def _as_staff_user(
 
 
 class TestGetCheckinToken:
+    async def test_self_checkin_profile_uses_in_memory_settings_when_none_persisted(
+        self, pg_session, pg_client, as_checkin_team, monkeypatch
+    ):
+        event = await _make_event(
+            pg_session,
+            event_type="rally_tascas",
+            event_profile="self_checkin",
+            config={"qr_checkin_enabled": True},
+        )
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team = await _make_team(pg_session)
+        as_checkin_team(team.id, team.name)
+        _wire_token(monkeypatch, checkpoint.id)
+
+        with (
+            _as_staff_user(checkpoint_id=checkpoint.id),
+            _override_settings(SELF_CHECKIN_ENABLED=True),
+        ):
+            minted = pg_client.get(CHECKIN_TOKEN_URL)
+        with _override_settings(SELF_CHECKIN_ENABLED=True):
+            consumed = pg_client.post(CHECK_IN_URL, json={"token": "in-memory-settings"})
+
+        assert minted.status_code == 200, minted.text
+        assert consumed.status_code == 200, consumed.text
+        assert event.id == checkpoint.event_id
+
     async def test_get_checkin_token_disabled_404(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
@@ -255,7 +281,7 @@ class TestGetCheckinToken:
         assert resp.status_code == 404
 
     async def test_get_checkin_token_staff_own_checkpoint(self, pg_session, pg_client):
-        await _make_event(pg_session)
+        await _make_event(pg_session, event_profile="self_checkin")
         checkpoint = await _make_checkpoint(pg_session, order=1)
         with (
             _as_staff_user(checkpoint_id=checkpoint.id),
@@ -288,7 +314,7 @@ class TestGetCheckinToken:
     async def test_get_checkin_token_admin_explicit_checkpoint(
         self, pg_session, pg_client, as_admin
     ):
-        await _make_event(pg_session)
+        await _make_event(pg_session, event_profile="self_checkin")
         checkpoint = await _make_checkpoint(pg_session, order=1)
 
         with _override_settings(SELF_CHECKIN_ENABLED=True):

@@ -2,7 +2,8 @@ import React, { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { EVENT_CONFIGURATION_ROOT_KEY } from "@/pages/settings/components/useEventConfiguration";
 import {
   getRouteStatus,
   createCheckpoint as apiCreateCheckpoint,
@@ -108,9 +109,11 @@ export function useCheckpointManagement(userStore: UserState) {
   // sent right after the create mutation returns an id.
   const [pendingClueImage, setPendingClueImage] = React.useState<File | null>(null);
 
+  const qc = useQueryClient();
+
   // The planning view, not GET /checkpoint: it is the only one that returns
   // drafts, the staff-only columns, and what each post still lacks.
-  const { data: routeStatus, refetch: refetchCheckpoints } = useQuery<RouteStatus | null>({
+  const { data: routeStatus, refetch: originalRefetchCheckpoints } = useQuery<RouteStatus | null>({
     queryKey: ["route-status"],
     queryFn: async () => {
       const { data } = await getRouteStatus();
@@ -119,6 +122,11 @@ export function useCheckpointManagement(userStore: UserState) {
     enabled: !!userStore.token,
   });
   const checkpoints = routeStatus?.checkpoints;
+
+  const refetchCheckpoints = React.useCallback(async () => {
+    void qc.invalidateQueries({ queryKey: EVENT_CONFIGURATION_ROOT_KEY });
+    return originalRefetchCheckpoints();
+  }, [qc, originalRefetchCheckpoints]);
 
   // Stages are needed by the form's stage picker, and they are what decides
   // a post's position in the route.

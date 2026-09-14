@@ -20,10 +20,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth
 from app.api.deps import get_guide
+from app.core.config import settings as app_settings
 from app.core.exceptions import RallyForbiddenError, RallyNotFoundError, RallyValidationError
+from app.crud.crud_activity import rally_event
 from app.crud.crud_rally_settings import rally_settings
 from app.crud.crud_team import CRUDTeam
 from app.crud.deps import get_team_crud
+from app.domain.event_configuration.policies import Capability
+from app.domain.event_configuration.resolver import resolve_capabilities
 from app.schemas.team import PrivilegedDetailedTeam
 from app.schemas.user import DetailedUser
 from app.services.audit_service import AuditActor, record_audit
@@ -249,7 +253,16 @@ class GuideController:
                 raise RallyForbiddenError("Not this guide's team")
 
         settings = await rally_settings.get_or_create(db)
-        if not getattr(settings, "guide_manual_arrival_enabled", True):
+        event = await rally_event.ensure_current(db)
+        capabilities = resolve_capabilities(
+            event_type=event.event_type,
+            profile=event.event_profile,
+            settings=settings,
+            platform_qr_supported=app_settings.SELF_CHECKIN_ENABLED,
+            event_config=event.config,
+            rotation_schedule=event.rotation_schedule,
+        )
+        if not capabilities[Capability.GUIDE_ARRIVAL].effective:
             raise RallyValidationError("Guide-recorded arrivals are not enabled for this event")
 
         created = await arrival_service.record_manual_arrival(

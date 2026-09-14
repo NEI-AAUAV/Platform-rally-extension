@@ -6,6 +6,10 @@ const GUIDE_SETTINGS = {
   ...MOCK_RALLY_SETTINGS,
   guide_mode_enabled: true,
   guide_mode_active: true,
+  effective_capabilities: {
+    ...MOCK_RALLY_SETTINGS.effective_capabilities,
+    guide_mode: true,
+  },
 };
 
 const GUIDE_CHECKPOINTS = [
