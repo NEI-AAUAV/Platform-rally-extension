@@ -14,6 +14,7 @@ from app.domain.event_configuration.resolver import (
     is_rotation_schedule_valid_structure,
     resolve_capabilities,
 )
+from app.services.checkpoint_planning import missing_fields
 
 
 class ConfigurationIssueSeverity(str, Enum):
@@ -206,6 +207,161 @@ class ConfigurationValidator:
             )
 
     @classmethod
+    def _validate_guide_coverage(
+        cls,
+        teams: Sequence[object] | None,
+        guide_assignments: Sequence[object] | None,
+        issues: list[ConfigurationIssue],
+    ) -> None:
+        """Existence of *some* guide assignment (NO_GUIDE_ASSIGNMENTS) doesn't
+        mean every team has one. Only checked once at least one assignment
+        and one team exist — the zero-assignments case is its own, more
+        urgent issue and shouldn't also be reported as "N teams missing".
+        """
+        if not teams or not guide_assignments:
+            return
+        assigned_team_ids = {getattr(a, "team_id", None) for a in guide_assignments}
+        unassigned = [
+            t_id
+            for t in teams
+            if isinstance((t_id := getattr(t, "id", None)), int) and t_id not in assigned_team_ids
+        ]
+        if unassigned:
+            issues.append(
+                ConfigurationIssue(
+                    "UNASSIGNED_GUIDE_TEAMS",
+                    ConfigurationIssueSeverity.WARNING,
+                    f"{len(unassigned)} equipa(s) sem guia atribuído.",
+                    entity_type="team",
+                    entity_ids=unassigned,
+                    suggestion="Atribua um guia a cada equipa em Guias.",
+                )
+            )
+
+    @classmethod
+    def _validate_staff_coverage(
+        cls,
+        checkpoints: Sequence[object],
+        staff_assignments: Sequence[object] | None,
+        issues: list[ConfigurationIssue],
+    ) -> None:
+        """Mirrors _validate_guide_coverage for staff: existence of some
+        assignment doesn't mean every published checkpoint is staffed.
+        """
+        if not checkpoints or not staff_assignments:
+            return
+        staffed_checkpoint_ids = {getattr(a, "checkpoint_id", None) for a in staff_assignments}
+        unstaffed = [
+            c_id
+            for c in checkpoints
+            if isinstance((c_id := getattr(c, "id", None)), int)
+            and c_id not in staffed_checkpoint_ids
+        ]
+        if unstaffed:
+            issues.append(
+                ConfigurationIssue(
+                    "UNSTAFFED_CHECKPOINTS",
+                    ConfigurationIssueSeverity.WARNING,
+                    f"{len(unstaffed)} posto(s) publicado(s) sem staff atribuído.",
+                    entity_type="checkpoint",
+                    entity_ids=unstaffed,
+                    suggestion="Atribua staff a cada posto em Atribuições.",
+                )
+            )
+
+    @classmethod
+    def _validate_checkpoint_completeness(
+        cls,
+        checkpoints: Sequence[object],
+        activities: Sequence[object] | None,
+        staff_assignments: Sequence[object] | None,
+        settings: object,
+        issues: list[ConfigurationIssue],
+    ) -> None:
+        """Surfaces the same per-checkpoint completeness the admin planning
+        view (RouteStatus/AdminCheckPoint.missing) already computes via
+        ``missing_fields`` — reused here, not reimplemented, so the two
+        views can never drift apart.
+        """
+        if not checkpoints:
+            return
+        activity_ids = {getattr(a, "checkpoint_id", None) for a in (activities or [])}
+        staffed_ids = {getattr(a, "checkpoint_id", None) for a in (staff_assignments or [])}
+        requires_coordinates = bool(getattr(settings, "gps_checkin_enabled", False))
+        requires_clue = not getattr(settings, "reveal_next_checkpoint", True)
+        requires_stage = bool(getattr(settings, "route_stages_enabled", False))
+        incomplete_ids = [
+            c_id
+            for c in checkpoints
+            if missing_fields(
+                c,
+                has_activity=getattr(c, "id", None) in activity_ids,
+                has_staff=getattr(c, "id", None) in staffed_ids,
+                requires_coordinates=requires_coordinates,
+                requires_clue=requires_clue,
+                requires_stage=requires_stage,
+            )
+            and (c_id := getattr(c, "id", None)) is not None
+        ]
+        if incomplete_ids:
+            issues.append(
+                ConfigurationIssue(
+                    "INCOMPLETE_PUBLISHED_CHECKPOINTS",
+                    ConfigurationIssueSeverity.WARNING,
+                    f"{len(incomplete_ids)} posto(s) publicado(s) têm campos em falta.",
+                    entity_type="checkpoint",
+                    entity_ids=incomplete_ids,
+                    suggestion="Reveja os postos assinalados na gestão de Postos.",
+                )
+            )
+
+    @classmethod
+    def _validate_event_dates(cls, event: object, issues: list[ConfigurationIssue]) -> None:
+        start_time = getattr(event, "start_time", None)
+        end_time = getattr(event, "end_time", None)
+        if start_time is not None and end_time is not None and end_time <= start_time:
+            issues.append(
+                ConfigurationIssue(
+                    "EVENT_DATES_INVALID",
+                    ConfigurationIssueSeverity.ERROR,
+                    "A data de fim do evento não pode ser anterior ou igual à data de início.",
+                    ["start_time", "end_time"],
+                    suggestion="Corrija as datas do evento em Edições.",
+                )
+            )
+
+    @classmethod
+    def _validate_playable_basics(
+        cls,
+        event_type: str,
+        checkpoints: Sequence[object],
+        teams: Sequence[object] | None,
+        issues: list[ConfigurationIssue],
+    ) -> None:
+        if event_type not in {"peddy_paper", "rally_tascas", "olympic"}:
+            return
+        if not checkpoints:
+            issues.append(
+                ConfigurationIssue(
+                    "NO_CHECKPOINTS",
+                    ConfigurationIssueSeverity.ERROR,
+                    "Este perfil necessita de pelo menos um posto publicado para poder ser jogado.",
+                    entity_type="checkpoint",
+                    suggestion="Crie e publique pelo menos um posto no percurso.",
+                )
+            )
+        if not teams:
+            issues.append(
+                ConfigurationIssue(
+                    "NO_TEAMS",
+                    ConfigurationIssueSeverity.WARNING,
+                    "Ainda não existem equipas registadas.",
+                    entity_type="team",
+                    suggestion="Registe pelo menos uma equipa antes do evento começar.",
+                )
+            )
+
+    @classmethod
     def validate(
         cls,
         *,
@@ -247,16 +403,11 @@ class ConfigurationValidator:
                     [c.value for c in arrivals],
                 )
             )
-        if event_type in {"peddy_paper", "rally_tascas", "olympic"} and not checkpoints:
-            issues.append(
-                ConfigurationIssue(
-                    "NO_CHECKPOINTS",
-                    ConfigurationIssueSeverity.ERROR,
-                    "Este perfil necessita de pelo menos um posto publicado para poder ser jogado.",
-                    entity_type="checkpoint",
-                    suggestion="Crie e publique pelo menos um posto no percurso.",
-                )
-            )
+        cls._validate_event_dates(event, issues)
+        cls._validate_playable_basics(event_type, checkpoints, teams, issues)
+        cls._validate_checkpoint_completeness(
+            checkpoints, activities, staff_assignments, settings, issues
+        )
         if event_type == "olympic" and profile == EventProfile.ROTATION.value:
             cls._validate_rotation(event, teams, checkpoints, issues)
         if caps[Capability.STAFF_SCORING].policy is CapabilityPolicy.REQUIRED:
@@ -278,18 +429,20 @@ class ConfigurationValidator:
                         entity_type="staff_assignment",
                     )
                 )
-        if (
-            caps[Capability.GUIDE_MODE].policy is CapabilityPolicy.REQUIRED
-            and not guide_assignments
-        ):
-            issues.append(
-                ConfigurationIssue(
-                    "NO_GUIDE_ASSIGNMENTS",
-                    ConfigurationIssueSeverity.ERROR,
-                    "O perfil guiado requer pelo menos uma atribuição de guia.",
-                    entity_type="guide_assignment",
+            else:
+                cls._validate_staff_coverage(checkpoints, staff_assignments, issues)
+        if caps[Capability.GUIDE_MODE].policy is CapabilityPolicy.REQUIRED:
+            if not guide_assignments:
+                issues.append(
+                    ConfigurationIssue(
+                        "NO_GUIDE_ASSIGNMENTS",
+                        ConfigurationIssueSeverity.ERROR,
+                        "O perfil guiado requer pelo menos uma atribuição de guia.",
+                        entity_type="guide_assignment",
+                    )
                 )
-            )
+            else:
+                cls._validate_guide_coverage(teams, guide_assignments, issues)
         if (
             event_type == "peddy_paper"
             and not caps[Capability.HINTS].effective

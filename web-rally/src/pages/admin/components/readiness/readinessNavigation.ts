@@ -34,6 +34,7 @@ export const READINESS_ISSUE_TARGETS: Readonly<Record<string, ReadinessTarget>> 
   UNSTAFFED_CHECKPOINTS: { tabId: "assignment" },
   INCOMPLETE_PUBLISHED_CHECKPOINTS: { tabId: "checkpoints" },
   NO_TEAMS: { tabId: "teams" },
+  EVENT_DATES_INVALID: { tabId: "events" },
 };
 
 /** Resolves the admin destination for an issue, or undefined if unmapped. */

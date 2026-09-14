@@ -319,3 +319,178 @@ async def test_load_configuration_context_limits_activities_to_active_ones():
 
     activity_query = db.scalars.await_args_list[2].args[0]
     assert "activities.is_active IS true" in str(activity_query)
+
+
+def complete_checkpoint(cp_id: int):
+    """A checkpoint with every field missing_fields() checks for present, so
+    it never trips INCOMPLETE_PUBLISHED_CHECKPOINTS by accident in tests
+    that aren't exercising that check.
+    """
+    return SimpleNamespace(
+        id=cp_id,
+        name=f"Posto {cp_id}",
+        clue="Uma pista",
+        latitude=1.0,
+        longitude=1.0,
+        arrival_radius_m=20,
+        is_placeholder=False,
+        stage_id=None,
+    )
+
+
+def test_unassigned_guide_teams_emits_issue_with_missing_team_ids():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="guided"),
+        settings=settings(guide_mode_enabled=True, guide_mode_active=True),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        teams=[SimpleNamespace(id=1), SimpleNamespace(id=2)],
+        guide_assignments=[SimpleNamespace(team_id=1)],
+        activities=[SimpleNamespace(checkpoint_id=1)],
+    )
+    issue = next(i for i in report.issues if i.code == "UNASSIGNED_GUIDE_TEAMS")
+    assert issue.entity_type == "team"
+    assert issue.entity_ids == [2]
+    assert issue.severity is ConfigurationIssueSeverity.WARNING
+
+
+def test_unassigned_guide_teams_not_emitted_when_all_teams_covered():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="guided"),
+        settings=settings(guide_mode_enabled=True, guide_mode_active=True),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        teams=[SimpleNamespace(id=1), SimpleNamespace(id=2)],
+        guide_assignments=[SimpleNamespace(team_id=1), SimpleNamespace(team_id=2)],
+        activities=[SimpleNamespace(checkpoint_id=1)],
+    )
+    assert not any(issue.code == "UNASSIGNED_GUIDE_TEAMS" for issue in report.issues)
+
+
+def test_unstaffed_checkpoints_emits_issue_for_published_checkpoints_without_staff():
+    report = ConfigurationValidator.validate(
+        event=event(event_type="rally_tascas", event_profile="staffed"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1)],
+    )
+    issue = next(i for i in report.issues if i.code == "UNSTAFFED_CHECKPOINTS")
+    assert issue.entity_type == "checkpoint"
+    assert issue.entity_ids == [2]
+
+
+def test_unstaffed_checkpoints_not_emitted_when_all_checkpoints_covered():
+    report = ConfigurationValidator.validate(
+        event=event(event_type="rally_tascas", event_profile="staffed"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+    )
+    assert not any(issue.code == "UNSTAFFED_CHECKPOINTS" for issue in report.issues)
+
+
+def test_incomplete_published_checkpoints_uses_missing_fields():
+    incomplete = SimpleNamespace(
+        id=5,
+        name="",
+        clue="",
+        latitude=None,
+        longitude=None,
+        arrival_radius_m=None,
+        is_placeholder=False,
+        stage_id=None,
+    )
+    report = ConfigurationValidator.validate(
+        event=event(),
+        settings=settings(gps_checkin_enabled=False),
+        checkpoints=[incomplete],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=5)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=5)],
+    )
+    issue = next(i for i in report.issues if i.code == "INCOMPLETE_PUBLISHED_CHECKPOINTS")
+    assert issue.entity_type == "checkpoint"
+    assert issue.entity_ids == [5]
+    assert issue.severity is ConfigurationIssueSeverity.WARNING
+
+
+def test_incomplete_published_checkpoints_not_emitted_when_complete():
+    report = ConfigurationValidator.validate(
+        event=event(),
+        settings=settings(gps_checkin_enabled=False),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=1)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1)],
+    )
+    assert not any(issue.code == "INCOMPLETE_PUBLISHED_CHECKPOINTS" for issue in report.issues)
+
+
+def test_no_teams_emits_warning_not_error():
+    report = ConfigurationValidator.validate(
+        event=event(),
+        settings=settings(),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        teams=[],
+    )
+    issue = next(i for i in report.issues if i.code == "NO_TEAMS")
+    assert issue.severity is ConfigurationIssueSeverity.WARNING
+    assert report.ready is True
+
+
+def test_ready_true_when_only_warnings_present():
+    # Only warning-severity issues (no teams, incomplete checkpoint fields
+    # aside) should never flip readiness — ready means "no errors", not
+    # "no issues at all".
+    report = ConfigurationValidator.validate(
+        event=event(),
+        settings=settings(),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        teams=[],
+    )
+    assert all(
+        issue.severity is not ConfigurationIssueSeverity.ERROR for issue in report.issues
+    )
+    assert report.ready is True
+
+
+def test_event_dates_invalid_when_end_before_start():
+    report = ConfigurationValidator.validate(
+        event=event(
+            start_time="2026-06-10T10:00:00",
+            end_time="2026-06-09T10:00:00",
+        ),
+        settings=settings(),
+        checkpoints=[],
+        route_stages=[],
+        platform_qr_supported=False,
+    )
+    assert any(issue.code == "EVENT_DATES_INVALID" for issue in report.issues)
+
+
+def test_event_dates_valid_when_end_after_start():
+    report = ConfigurationValidator.validate(
+        event=event(
+            start_time="2026-06-09T10:00:00",
+            end_time="2026-06-10T10:00:00",
+        ),
+        settings=settings(),
+        checkpoints=[],
+        route_stages=[],
+        platform_qr_supported=False,
+    )
+    assert not any(issue.code == "EVENT_DATES_INVALID" for issue in report.issues)
