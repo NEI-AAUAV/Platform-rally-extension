@@ -1,34 +1,9 @@
 import { Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
-import {
-  Users,
-  MapPin,
-  Activity as ActivityIcon,
-  Palette,
-  CalendarRange,
-  Settings2,
-  ClipboardList,
-  Swords,
-  UserCog,
-  ClipboardCheck,
-  Compass,
-  LayoutDashboard,
-  Gavel,
-  Trophy,
-  Zap,
-  History,
-  Gauge,
-  BellRing,
-  Menu,
-  X,
-  type LucideIcon,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { Settings2 } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
-import useClickOutside from "@/hooks/useClickOutside";
-import { useBackDismiss } from "@/hooks/useBackDismiss";
 import { PageHeader, LoadingState, FeatureDisabledAlert } from "@/components/shared";
 import {
   TeamManagement,
@@ -44,6 +19,9 @@ import {
   BroadcastTab,
   AdminSearch,
 } from "./components";
+import AdminSidebar from "./components/AdminSidebar";
+import AdminMobileDrawer from "./components/AdminMobileDrawer";
+import { ADMIN_NAVIGATION, ADMIN_ITEMS, ADMIN_ITEM_BY_ID } from "./adminNavigation";
 import { getCheckpoints, getVapidPublicKey } from "@/client";
 import useRallySettings from "@/hooks/useRallySettings";
 import { type AdminSearchEntry } from "@/lib/adminSearchIndex";
@@ -63,27 +41,6 @@ interface Checkpoint {
   description?: string | null;
   order: number;
 }
-
-const TABS: ReadonlyArray<{ id: AdminTabId; label: string; icon: LucideIcon }> = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "teams", label: "Equipas", icon: Users },
-  { id: "checkpoints", label: "Postos", icon: MapPin },
-  { id: "activities", label: "Atividades", icon: ActivityIcon },
-  { id: "members", label: "Membros", icon: UserCog },
-  { id: "assignment", label: "Atribuições", icon: ClipboardList },
-  { id: "guide-assignment", label: "Guias", icon: Compass },
-  { id: "evaluation", label: "Avaliação", icon: ClipboardCheck },
-  { id: "versus", label: "Versus", icon: Swords },
-  { id: "judging", label: "Julgamento", icon: Gavel },
-  { id: "badges", label: "Crachás", icon: Trophy },
-  { id: "scoring", label: "Pontuação", icon: Zap },
-  { id: "branding", label: "Identidade", icon: Palette },
-  { id: "events", label: "Edições", icon: CalendarRange },
-  { id: "notifications", label: "Anúncios", icon: BellRing },
-  { id: "settings", label: "Configurações", icon: Settings2 },
-  { id: "audit", label: "Auditoria", icon: History },
-  { id: "metrics", label: "Métricas", icon: Gauge },
-];
 
 export default function Admin() {
   const { isLoading, isRallyAdmin, userStore } = useUser();
@@ -112,10 +69,10 @@ export default function Admin() {
   ]);
 
   const { tab: rawTab } = adminRoute.useSearch();
-  const activeTab: AdminTabId = rawTab && TABS.some((t) => t.id === rawTab) ? rawTab : "dashboard";
+  const activeTab: AdminTabId = rawTab && ADMIN_ITEMS.some((t) => t.id === rawTab) ? rawTab : "dashboard";
   const navigate = adminRoute.useNavigate();
   const setActiveTab = (id: AdminTabId) => navigate({ search: { tab: id }, replace: true });
-  const activeTabMeta = TABS.find((t) => t.id === activeTab) ?? TABS[0]!;
+  const activeTabMeta = ADMIN_ITEM_BY_ID.get(activeTab) ?? ADMIN_ITEMS[0]!;
 
   // A search result switches tab and, where the field has a DOM anchor, asks
   // the scroll hook to find and highlight it once the new tab has rendered.
@@ -129,16 +86,6 @@ export default function Admin() {
   useScrollToSearchTarget(activeTab === "settings" ? null : pendingSearchKey, () =>
     setPendingSearchKey(null),
   );
-
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const drawerRef = useRef<HTMLDialogElement>(null);
-  useClickOutside(drawerRef, isDrawerOpen, () => setIsDrawerOpen(false));
-  useBackDismiss(isDrawerOpen, () => setIsDrawerOpen(false));
-
-  const selectTab = (id: AdminTabId) => {
-    setActiveTab(id);
-    setIsDrawerOpen(false);
-  };
 
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
@@ -169,124 +116,21 @@ export default function Admin() {
       <AdminSearch onSelect={handleSearchSelect} />
 
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-        {/* Mobile: current-tab bar that opens a drawer with all sections */}
-        <div className="lg:hidden">
-          <button
-            type="button"
-            onClick={() => setIsDrawerOpen(true)}
-            aria-haspopup="menu"
-            aria-expanded={isDrawerOpen}
-            className="rally-surface rally-press flex w-full items-center gap-2.5 rounded-lg p-3 text-sm font-semibold text-foreground"
-          >
-            <Menu className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <activeTabMeta.icon className="h-4 w-4 shrink-0" />
-            <span className="flex-1 text-left">{activeTabMeta.label}</span>
-          </button>
+        <AdminMobileDrawer
+          groups={ADMIN_NAVIGATION}
+          activeTab={activeTab}
+          activeTabLabel={activeTabMeta.label}
+          activeTabIcon={activeTabMeta.icon}
+          disabledTabIds={disabledTabIds}
+          onSelect={setActiveTab}
+        />
 
-          {isDrawerOpen && (
-            <div
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-              onClick={() => setIsDrawerOpen(false)}
-              aria-hidden="true"
-            />
-          )}
-
-          <dialog
-            ref={drawerRef}
-            open={isDrawerOpen || undefined}
-            aria-modal="true"
-            aria-label="Secções de administração"
-            className={cn(
-              "rally-elevate fixed inset-y-0 left-auto right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
-              isDrawerOpen ? "translate-x-0" : "pointer-events-none invisible translate-x-full",
-            )}
-            style={{
-              paddingTop: "max(20px, var(--safe-top))",
-              paddingBottom: "calc(var(--safe-bottom) + var(--rally-tabbar-height))",
-              paddingRight: "var(--safe-right)",
-              paddingLeft: "var(--safe-left)",
-            }}
-          >
-            <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-              <span className="rally-display truncate text-sm font-black uppercase tracking-tight text-popover-foreground">
-                Administração
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsDrawerOpen(false)}
-                aria-label="Fechar menu"
-                className="-m-2 shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <nav
-              aria-label="Secções de administração"
-              className="flex-1 space-y-1 overflow-y-auto p-3"
-            >
-              {TABS.map(({ id, label, icon: Icon }) => {
-                const active = activeTab === id;
-                const disabled = disabledTabIds.has(id);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => selectTab(id)}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "rally-press flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
-                      active
-                        ? "rally-bg-accent text-white"
-                        : "text-foreground/80 hover:bg-accent hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="flex-1 text-left">{label}</span>
-                    {disabled && (
-                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
-                        desativado
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-          </dialog>
-        </div>
-
-        {/* Desktop: vertical sticky sidebar */}
-        <nav
-          aria-label="Secções de administração"
-          className="rally-surface hidden gap-1 p-1.5 lg:sticky lg:top-24 lg:flex lg:flex-col"
-        >
-          {TABS.map(({ id, label, icon: Icon }) => {
-            const active = activeTab === id;
-            const disabled = disabledTabIds.has(id);
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setActiveTab(id)}
-                aria-current={active ? "page" : undefined}
-                className={[
-                  "rally-press flex shrink-0 items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-colors lg:w-full",
-                  active
-                    ? "rally-bg-accent text-white"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                ].join(" ")}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1 text-left">{label}</span>
-                {disabled && (
-                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
-                    desativado
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+        <AdminSidebar
+          groups={ADMIN_NAVIGATION}
+          activeTab={activeTab}
+          disabledTabIds={disabledTabIds}
+          onSelect={setActiveTab}
+        />
 
         {/* Tab content */}
         <div className="min-w-0">
