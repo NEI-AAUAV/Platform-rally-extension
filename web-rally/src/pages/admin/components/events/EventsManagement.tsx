@@ -222,7 +222,9 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
       void qc.invalidateQueries({ queryKey: ["events"] });
       void qc.invalidateQueries({ queryKey: ["event-configuration-status"] });
       const changes = result?.changes.length ?? 0;
-      toast.success(`Formato aplicado${changes ? ` · ${changes} definições ajustadas` : ""}`);
+      toast.success(
+        changes ? `Formato aplicado · ${changes} definições ajustadas` : "Formato aplicado",
+      );
       if (result && !result.ready)
         toast.error(
           `${result.issues.filter((issue) => issue.severity === "error").length} problemas de preflight permanecem`,

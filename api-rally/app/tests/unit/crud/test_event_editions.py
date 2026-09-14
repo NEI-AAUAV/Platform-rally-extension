@@ -116,12 +116,10 @@ async def test_update_event_rejects_changing_domain_config_keys(pg_session) -> N
             config={"drinking_scoring": True},
         ),
     )
+    update = RallyEventUpdate(config={"drinking_scoring": False})
+
     with pytest.raises(RallyConfigurationError) as exc_info:
-        await rally_event.update(
-            pg_session,
-            db_obj=event,
-            obj_in=RallyEventUpdate(config={"drinking_scoring": False}),
-        )
+        await rally_event.update(pg_session, db_obj=event, obj_in=update)
     assert exc_info.value.details["issues"][0]["code"] == "RESERVED_EVENT_CONFIG_KEY"
 
 
