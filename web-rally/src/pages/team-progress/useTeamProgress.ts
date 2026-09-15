@@ -98,7 +98,10 @@ export function useTeamProgress() {
   };
 
   // Activity-based completion count from the server's progress engine.
-  const completedCheckpointsCount = team?.last_checkpoint_number ?? 0;
+  // This is a quantity, not the sequential-prefix compatibility field
+  // `last_checkpoint_number`: free-order routes may resolve 3 and 4 while
+  // that prefix is still zero.
+  const completedCheckpointsCount = team?.resolved_checkpoint_orders?.length ?? 0;
   // The authoritative "which posts are done" and "is the route over", straight
   // from the server's progress engine. Neither can be derived from a count
   // once the route is free-order or staged.

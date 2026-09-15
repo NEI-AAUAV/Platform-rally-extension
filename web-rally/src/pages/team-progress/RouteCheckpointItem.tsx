@@ -3,7 +3,7 @@ import { Lock, Camera, Sparkles, Check } from "lucide-react";
 import { formatTime } from "@/utils/timeFormat";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import { cn } from "@/lib/utils";
-import { checkpointArrivedAt, checkpointScoreFor } from "@/lib/checkpointProgress";
+import { checkpointArrivedAt, checkpointScoreFor, findCheckpointProgress } from "@/lib/checkpointProgress";
 import { CheckpointDiscoveryModal } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 import { useCheckpointArrival } from "./useCheckpointArrival";
@@ -211,6 +211,7 @@ export default function RouteCheckpointItem({
   // team resolves posts out of sequence, so a post it had finished was
   // labelled "Pendente" and several genuinely open posts collapsed to one.
   const isCompleted = resolvedOrders.has(order);
+  const progress = findCheckpointProgress(team, checkpoint.id);
   const isCurrent = !isCompleted && checkpoint.is_reachable === true;
   const isFuture = !isCompleted && !isCurrent;
   const arrival = useCheckpointArrival(checkpoint);
@@ -229,12 +230,13 @@ export default function RouteCheckpointItem({
   const hasDiscovery =
     canReveal && (photos.length > 0 || funFacts.length > 0 || !!checkpoint.description);
 
-  let statusLabel = "Pendente";
-  if (isCompleted) {
-    statusLabel = "Concluído";
-  } else if (isCurrent) {
-    statusLabel = "Em curso";
-  }
+  const statusLabel = progress?.status === "skipped"
+    ? "Desistiu"
+    : progress?.status === "completed"
+      ? "Concluído"
+      : progress?.status === "arrived"
+        ? "Chegada registada"
+        : isCurrent ? "Em curso" : "Pendente";
 
   const CardElement = (canReveal ? "button" : "div") as React.ElementType;
   const cardProps = canReveal

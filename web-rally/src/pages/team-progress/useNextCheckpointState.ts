@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { DetailedCheckPoint } from "@/client";
+import type { CheckpointProgress, DetailedCheckPoint } from "@/client";
 import useRallySettings from "@/hooks/useRallySettings";
 import useEventTerms from "@/hooks/useEventTerms";
 import useCheckpointHints from "@/hooks/useCheckpointHints";
@@ -33,7 +33,10 @@ import { useCheckpointArrival, type GpsState } from "./useCheckpointArrival";
  * plan. Revisit only if a second client needs the same gating logic or it
  * grows too complex to keep in sync here.
  */
-export function useNextCheckpointState(checkpoint: DetailedCheckPoint) {
+export function useNextCheckpointState(
+  checkpoint: DetailedCheckPoint,
+  checkpointProgress?: CheckpointProgress,
+) {
   const { settings, error: settingsError, refetch: refetchSettings } = useRallySettings();
   const terms = useEventTerms();
   const feminino = terms.checkpointGender === "f";
@@ -78,6 +81,7 @@ export function useNextCheckpointState(checkpoint: DetailedCheckPoint) {
   const canGiveUp = settings?.skip_enabled !== false && isRedacted && hintLadderSpent;
 
   const proximityEnabled = isRedacted && settings?.proximity_enabled === true;
+  const status = checkpointProgress?.status ?? "pending";
 
   const discoveryDescription =
     checkpoint.description && checkpoint.description === checkpoint.clue
@@ -105,6 +109,12 @@ export function useNextCheckpointState(checkpoint: DetailedCheckPoint) {
     hasCoords,
     isRedacted,
     feminino,
+    persistent: {
+      status,
+      hasArrived: status === "arrived" || status === "completed",
+      isCompleted: status === "completed",
+      isSkipped: status === "skipped",
+    },
     access: {
       canCheckin,
       openingNotice,

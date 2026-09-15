@@ -1,6 +1,6 @@
 import { MapPin, Sparkles } from "lucide-react";
 import { CheckpointDiscovery } from "@/components/shared";
-import type { DetailedCheckPoint } from "@/client";
+import type { CheckpointProgress, DetailedCheckPoint } from "@/client";
 import useEventTerms from "@/hooks/useEventTerms";
 import ProximityButton from "./ProximityButton";
 import CheckpointHeader from "./CheckpointHeader";
@@ -16,6 +16,7 @@ type NextCheckpointCardProps = Readonly<{
   showMap: boolean;
   /** Set while the team's own departure is still ahead; see departureNotice. */
   notYetDeparted?: string | null;
+  checkpointProgress?: CheckpointProgress;
 }>;
 
 /**
@@ -27,15 +28,24 @@ export default function NextCheckpointCard({
   checkpoint,
   showMap,
   notYetDeparted = null,
+  checkpointProgress,
 }: NextCheckpointCardProps) {
   const terms = useEventTerms();
-  const { hasCoords, isRedacted, feminino, access, ui, hints, actions } =
-    useNextCheckpointState(checkpoint);
+  const { hasCoords, isRedacted, feminino, persistent, access, ui, hints, actions } =
+    useNextCheckpointState(checkpoint, checkpointProgress);
 
   // notYetDeparted takes priority over the checkpoint's own hours — a team
   // that hasn't left yet can't be "at" this post regardless of its window.
   const openingNotice = notYetDeparted ?? access.openingNotice;
   const canCheckin = access.canCheckin && openingNotice === null;
+  const persistentNotice =
+    persistent.status === "arrived"
+      ? "Chegada registada — a aguardar atividade/avaliação."
+      : persistent.status === "completed"
+        ? "Posto concluído."
+        : persistent.status === "skipped"
+          ? "Desistência registada neste posto."
+          : null;
 
   return (
     <div className="rally-surface rally-elevate space-y-4 rounded-2xl p-6">
@@ -59,6 +69,12 @@ export default function NextCheckpointCard({
         totalSpent={access.totalSpent}
         onRequestHint={actions.requestHint}
       />
+
+      {persistentNotice && (
+        <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          {persistentNotice}
+        </p>
+      )}
 
       {access.proximityEnabled && <ProximityButton checkpointId={checkpoint.id} />}
 
@@ -90,7 +106,7 @@ export default function NextCheckpointCard({
         </div>
       )}
 
-      <CheckpointArrivalAction
+      {!persistent.hasArrived && !persistent.isSkipped && <CheckpointArrivalAction
         openingNotice={openingNotice}
         settingsUnavailable={access.settingsUnavailable}
         canCheckin={canCheckin}
@@ -101,7 +117,7 @@ export default function NextCheckpointCard({
         onCheckin={actions.handleCheckin}
         onClearError={actions.clearError}
         onRetrySettings={() => void actions.refetchSettings()}
-      />
+      />}
 
       {/* Discover the place — revealed as the reward for reaching this stop */}
       {access.hasDiscovery && (

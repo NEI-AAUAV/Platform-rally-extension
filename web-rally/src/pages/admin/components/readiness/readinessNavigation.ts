@@ -16,9 +16,9 @@ export const READINESS_ISSUE_TARGETS: Readonly<Record<string, ReadinessTarget>> 
   GUIDE_ACTIVE_REQUIRES_GUIDE_ENABLED: { tabId: "settings" },
   REQUIRED_CAPABILITY_DISABLED: { tabId: "settings" },
   FORBIDDEN_CAPABILITY_ENABLED: { tabId: "settings" },
-  ROTATION_SCHEDULE_MISSING: { tabId: "checkpoints" },
-  ROTATION_SCHEDULE_INVALID: { tabId: "checkpoints" },
-  ROTATION_SCHEDULE_STALE: { tabId: "checkpoints" },
+  ROTATION_SCHEDULE_MISSING: { tabId: "events" },
+  ROTATION_SCHEDULE_INVALID: { tabId: "events" },
+  ROTATION_SCHEDULE_STALE: { tabId: "events" },
   GPS_CHECKPOINT_MISSING_COORDINATES: { tabId: "checkpoints" },
   NO_ARRIVAL_METHOD: { tabId: "settings" },
   NO_CHECKPOINTS: { tabId: "checkpoints" },
@@ -35,6 +35,7 @@ export const READINESS_ISSUE_TARGETS: Readonly<Record<string, ReadinessTarget>> 
   INCOMPLETE_PUBLISHED_CHECKPOINTS: { tabId: "checkpoints" },
   NO_TEAMS: { tabId: "teams" },
   EVENT_DATES_INVALID: { tabId: "events" },
+  EVENT_START_TIME_MISSING: { tabId: "events" },
 };
 
 /** Resolves the admin destination for an issue, or undefined if unmapped. */

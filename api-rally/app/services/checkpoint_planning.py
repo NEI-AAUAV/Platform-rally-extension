@@ -23,6 +23,8 @@ def missing_fields(
     requires_coordinates: bool,
     requires_clue: bool,
     requires_stage: bool = False,
+    requires_activity: bool = True,
+    requires_staff: bool = True,
 ) -> list[str]:
     """What a checkpoint still lacks before it can be published.
 
@@ -47,9 +49,9 @@ def missing_fields(
         or getattr(checkpoint, "longitude", None) is None
     ):
         missing.append(MISSING_COORDINATES)
-    if not has_activity:
+    if requires_activity and not has_activity:
         missing.append(MISSING_ACTIVITY)
-    if not has_staff:
+    if requires_staff and not has_staff:
         missing.append(MISSING_STAFF)
     if requires_stage and getattr(checkpoint, "stage_id", None) is None:
         missing.append(MISSING_STAGE)

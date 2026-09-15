@@ -40,7 +40,12 @@ def settings(**overrides):
 
 
 def event(**overrides):
-    values = dict(event_type="peddy_paper", event_profile="autonomous", config={})
+    values = dict(
+        event_type="peddy_paper",
+        event_profile="autonomous",
+        config={},
+        start_time="2026-06-10T10:00:00",
+    )
     values.update(overrides)
     return SimpleNamespace(**values)
 
@@ -352,7 +357,7 @@ def test_unassigned_guide_teams_emits_issue_with_missing_team_ids():
     issue = next(i for i in report.issues if i.code == "UNASSIGNED_GUIDE_TEAMS")
     assert issue.entity_type == "team"
     assert issue.entity_ids == [2]
-    assert issue.severity is ConfigurationIssueSeverity.WARNING
+    assert issue.severity is ConfigurationIssueSeverity.ERROR
 
 
 def test_unassigned_guide_teams_not_emitted_when_all_teams_covered():
@@ -462,9 +467,7 @@ def test_ready_true_when_only_warnings_present():
         platform_qr_supported=False,
         teams=[],
     )
-    assert all(
-        issue.severity is not ConfigurationIssueSeverity.ERROR for issue in report.issues
-    )
+    assert all(issue.severity is not ConfigurationIssueSeverity.ERROR for issue in report.issues)
     assert report.ready is True
 
 

@@ -1,8 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import useClickOutside from "@/hooks/useClickOutside";
-import { useBackDismiss } from "@/hooks/useBackDismiss";
 import type { AdminNavGroup } from "../adminNavigation";
 import type { AdminTabId } from "@/router/routes";
 
@@ -31,12 +29,23 @@ export default function AdminMobileDrawer({
 }: AdminMobileDrawerProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const drawerRef = useRef<HTMLDialogElement>(null);
-  useClickOutside(drawerRef, isDrawerOpen, () => setIsDrawerOpen(false));
-  useBackDismiss(isDrawerOpen, () => setIsDrawerOpen(false));
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const dialog = drawerRef.current;
+    if (!dialog) return;
+    if (isDrawerOpen && !dialog.open) dialog.showModal();
+    if (!isDrawerOpen && dialog.open) dialog.close();
+  }, [isDrawerOpen]);
+
+  const closeDrawer = () => {
+    setIsDrawerOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus());
+  };
 
   const selectTab = (id: AdminTabId) => {
     onSelect(id);
-    setIsDrawerOpen(false);
+    closeDrawer();
   };
 
   const overviewGroup = groups.find((g) => g.id === "overview");
@@ -71,8 +80,9 @@ export default function AdminMobileDrawer({
     <div className="lg:hidden">
       <button
         type="button"
+        ref={triggerRef}
         onClick={() => setIsDrawerOpen(true)}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={isDrawerOpen}
         className="rally-surface rally-press flex w-full items-center gap-2.5 rounded-lg p-3 text-sm font-semibold text-foreground"
       >
@@ -81,22 +91,19 @@ export default function AdminMobileDrawer({
         <span className="flex-1 text-left">{activeTabLabel}</span>
       </button>
 
-      {isDrawerOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-          onClick={() => setIsDrawerOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
       <dialog
         ref={drawerRef}
-        open={isDrawerOpen || undefined}
         aria-modal="true"
         aria-label="Secções de administração"
+        onCancel={(event) => {
+          event.preventDefault();
+          closeDrawer();
+        }}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) closeDrawer();
+        }}
         className={cn(
-          "rally-elevate fixed inset-y-0 left-auto right-0 z-50 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none transition-transform duration-300 ease-out",
-          isDrawerOpen ? "translate-x-0" : "pointer-events-none invisible translate-x-full",
+          "rally-elevate fixed inset-y-0 left-auto right-0 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none backdrop:bg-black/50 backdrop:backdrop-blur-sm",
         )}
         style={{
           paddingTop: "max(20px, var(--safe-top))",
@@ -111,7 +118,7 @@ export default function AdminMobileDrawer({
           </span>
           <button
             type="button"
-            onClick={() => setIsDrawerOpen(false)}
+            onClick={closeDrawer}
             aria-label="Fechar menu"
             className="-m-2 shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >

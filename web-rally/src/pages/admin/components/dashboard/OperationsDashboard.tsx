@@ -6,6 +6,7 @@ import { Activity, CheckCircle, Clock, Flag, Users } from "lucide-react";
 import { getTeams, getCheckpoints, getAllEvaluations, type ListingTeam } from "@/client";
 import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
 import useRallySettings from "@/hooks/useRallySettings";
+import { useEventConfiguration } from "@/pages/settings/components/useEventConfiguration";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import { useCountdown } from "@/pages/home/useCountdown";
 import { sortTeamsByRank } from "@/lib/teamRanking";
@@ -95,6 +96,7 @@ function StatCard({
 
 export default function OperationsDashboard() {
   const { settings } = useRallySettings();
+  const configuration = useEventConfiguration();
   const countdownState = useCountdown(settings?.rally_start_time, settings?.rally_end_time);
 
   useScoreboardStream([["teams"]]);
@@ -132,7 +134,7 @@ export default function OperationsDashboard() {
   );
   const totalEvals = allEvals?.evaluations?.length ?? 0;
 
-  const teamsStarted = teamList.filter((t) => (t.last_checkpoint_number ?? 0) > 0).length;
+  const teamsStarted = teamList.filter((t) => t.started_at != null).length;
   const teamsNotStarted = teamList.length - teamsStarted;
   const checkpointsTotal = checkpointList.length;
 
@@ -140,7 +142,7 @@ export default function OperationsDashboard() {
 
   const perCheckpointData = useMemo(() => {
     return checkpointList.map((cp) => {
-      const reached = teamList.filter((t) => (t.last_checkpoint_number ?? 0) >= cp.order).length;
+      const reached = teamList.filter((t) => t.resolved_checkpoint_orders?.includes(cp.order)).length;
       return { name: cp.name.slice(0, 14), reached, total: teamList.length, order: cp.order };
     });
   }, [checkpointList, teamList]);
@@ -153,6 +155,12 @@ export default function OperationsDashboard() {
         <PhaseChip phase={countdownState.phase} state={countdownState} />
         <FreshnessIndicator updatedAt={teamsUpdatedAt} className="ml-auto" />
       </div>
+
+      {(configuration.data?.issues.filter((issue) => issue.severity === "error").length ?? 0) > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          ⚠ Existem {configuration.data!.issues.filter((issue) => issue.severity === "error").length} problema(s) de configuração que podem afetar a prova.
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -176,7 +184,7 @@ export default function OperationsDashboard() {
       {perCheckpointData.length > 0 && (
         <div className="rally-surface rounded-xl border border-border p-5 shadow-[var(--rally-shadow-sm)]">
           <h3 className="rally-display mb-4 text-base font-bold text-foreground">
-            Equipas por posto
+            Equipas que concluíram por posto
           </h3>
           <ResponsiveContainer width="100%" height={Math.max(180, perCheckpointData.length * 36)}>
             <BarChart
@@ -200,7 +208,7 @@ export default function OperationsDashboard() {
                 width={90}
               />
               <Tooltip
-                formatter={(val: unknown) => [`${val} equipas`, "Chegaram"]}
+                formatter={(val: unknown) => [`${val} equipas`, "Concluíram"]}
                 contentStyle={{
                   background: "hsl(var(--popover))",
                   border: "1px solid hsl(var(--border))",
@@ -253,8 +261,8 @@ export default function OperationsDashboard() {
                 </span>
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {checkpointsTotal
-                    ? `${team.last_checkpoint_number ?? 0}/${checkpointsTotal} postos`
-                    : `${team.last_checkpoint_number ?? 0} postos`}
+                    ? `${team.resolved_checkpoint_orders?.length ?? 0}/${checkpointsTotal} postos`
+                    : `${team.resolved_checkpoint_orders?.length ?? 0} postos`}
                 </span>
                 <span className="rally-display shrink-0 text-[15px] font-bold tabular-nums text-foreground">
                   {team.total}

@@ -212,6 +212,7 @@ class ConfigurationValidator:
         teams: Sequence[object] | None,
         guide_assignments: Sequence[object] | None,
         issues: list[ConfigurationIssue],
+        severity: ConfigurationIssueSeverity = ConfigurationIssueSeverity.WARNING,
     ) -> None:
         """Existence of *some* guide assignment (NO_GUIDE_ASSIGNMENTS) doesn't
         mean every team has one. Only checked once at least one assignment
@@ -230,7 +231,7 @@ class ConfigurationValidator:
             issues.append(
                 ConfigurationIssue(
                     "UNASSIGNED_GUIDE_TEAMS",
-                    ConfigurationIssueSeverity.WARNING,
+                    severity,
                     f"{len(unassigned)} equipa(s) sem guia atribuído.",
                     entity_type="team",
                     entity_ids=unassigned,
@@ -244,6 +245,7 @@ class ConfigurationValidator:
         checkpoints: Sequence[object],
         staff_assignments: Sequence[object] | None,
         issues: list[ConfigurationIssue],
+        severity: ConfigurationIssueSeverity = ConfigurationIssueSeverity.WARNING,
     ) -> None:
         """Mirrors _validate_guide_coverage for staff: existence of some
         assignment doesn't mean every published checkpoint is staffed.
@@ -261,7 +263,7 @@ class ConfigurationValidator:
             issues.append(
                 ConfigurationIssue(
                     "UNSTAFFED_CHECKPOINTS",
-                    ConfigurationIssueSeverity.WARNING,
+                    severity,
                     f"{len(unstaffed)} posto(s) publicado(s) sem staff atribuído.",
                     entity_type="checkpoint",
                     entity_ids=unstaffed,
@@ -275,7 +277,7 @@ class ConfigurationValidator:
         checkpoints: Sequence[object],
         activities: Sequence[object] | None,
         staff_assignments: Sequence[object] | None,
-        settings: object,
+        caps: dict[Capability, EffectiveCapability],
         issues: list[ConfigurationIssue],
     ) -> None:
         """Surfaces the same per-checkpoint completeness the admin planning
@@ -287,9 +289,13 @@ class ConfigurationValidator:
             return
         activity_ids = {getattr(a, "checkpoint_id", None) for a in (activities or [])}
         staffed_ids = {getattr(a, "checkpoint_id", None) for a in (staff_assignments or [])}
-        requires_coordinates = bool(getattr(settings, "gps_checkin_enabled", False))
-        requires_clue = not getattr(settings, "reveal_next_checkpoint", True)
-        requires_stage = bool(getattr(settings, "route_stages_enabled", False))
+        requires_coordinates = (
+            caps[Capability.GPS_ARRIVAL].effective or caps[Capability.PROXIMITY].effective
+        )
+        requires_clue = caps[Capability.CHECKPOINT_REDACTION].effective
+        requires_stage = caps[Capability.ROUTE_STAGES].effective
+        requires_activity = caps[Capability.STAFF_SCORING].policy is CapabilityPolicy.REQUIRED
+        requires_staff = caps[Capability.STAFF_SCORING].policy is CapabilityPolicy.REQUIRED
         incomplete_ids = [
             c_id
             for c in checkpoints
@@ -300,6 +306,8 @@ class ConfigurationValidator:
                 requires_coordinates=requires_coordinates,
                 requires_clue=requires_clue,
                 requires_stage=requires_stage,
+                requires_activity=requires_activity,
+                requires_staff=requires_staff,
             )
             and (c_id := getattr(c, "id", None)) is not None
         ]
@@ -327,6 +335,20 @@ class ConfigurationValidator:
                     "A data de fim do evento não pode ser anterior ou igual à data de início.",
                     ["start_time", "end_time"],
                     suggestion="Corrija as datas do evento em Edições.",
+                )
+            )
+        if start_time is None and getattr(event, "event_type", "") in {
+            "peddy_paper",
+            "rally_tascas",
+            "olympic",
+        }:
+            issues.append(
+                ConfigurationIssue(
+                    "EVENT_START_TIME_MISSING",
+                    ConfigurationIssueSeverity.ERROR,
+                    "Este perfil requer uma data de início para operar o percurso.",
+                    ["start_time"],
+                    suggestion="Defina a data de início do evento em Edições.",
                 )
             )
 
@@ -406,7 +428,7 @@ class ConfigurationValidator:
         cls._validate_event_dates(event, issues)
         cls._validate_playable_basics(event_type, checkpoints, teams, issues)
         cls._validate_checkpoint_completeness(
-            checkpoints, activities, staff_assignments, settings, issues
+            checkpoints, activities, staff_assignments, caps, issues
         )
         if event_type == "olympic" and profile == EventProfile.ROTATION.value:
             cls._validate_rotation(event, teams, checkpoints, issues)
@@ -430,7 +452,9 @@ class ConfigurationValidator:
                     )
                 )
             else:
-                cls._validate_staff_coverage(checkpoints, staff_assignments, issues)
+                cls._validate_staff_coverage(
+                    checkpoints, staff_assignments, issues, ConfigurationIssueSeverity.ERROR
+                )
         if caps[Capability.GUIDE_MODE].policy is CapabilityPolicy.REQUIRED:
             if not guide_assignments:
                 issues.append(
@@ -442,7 +466,9 @@ class ConfigurationValidator:
                     )
                 )
             else:
-                cls._validate_guide_coverage(teams, guide_assignments, issues)
+                cls._validate_guide_coverage(
+                    teams, guide_assignments, issues, ConfigurationIssueSeverity.ERROR
+                )
         if (
             event_type == "peddy_paper"
             and not caps[Capability.HINTS].effective

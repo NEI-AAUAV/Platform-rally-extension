@@ -12,6 +12,7 @@ import RouteFinishedCard from "./RouteFinishedCard";
 import RouteCheckpointItem from "./RouteCheckpointItem";
 import { departureNotice } from "./checkpointHours";
 import MapSection from "@/pages/checkpoints/components/MapSection";
+import { findCheckpointProgress } from "@/lib/checkpointProgress";
 
 export default function TeamProgress() {
   const {
@@ -90,6 +91,7 @@ export default function TeamProgress() {
       {freeChoiceNotice}
       <NextCheckpointCard
         checkpoint={nextCheckpoint}
+        checkpointProgress={findCheckpointProgress(team, nextCheckpoint.id)}
         showMap={showMap}
         notYetDeparted={departureNotice(settings?.rally_start_time, team.start_offset_minutes ?? 0)}
       />
