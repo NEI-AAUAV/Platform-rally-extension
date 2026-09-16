@@ -38,7 +38,7 @@ const variantClassification = (classification: number) => {
 export function RallyScore({ className, team, isProvisional = false, ...props }: ScoreProps) {
   const lastCheckpointTime = team.last_checkpoint_time && new Date(team.last_checkpoint_time);
 
-  const checkpointNumber = team.last_checkpoint_number || 0;
+  const resolvedCount = team.resolved_checkpoint_orders?.length ?? 0;
   const isLeader = team.classification === 1;
 
   return (
@@ -68,10 +68,10 @@ export function RallyScore({ className, team, isProvisional = false, ...props }:
 
       <span className="grow text-center text-2xl font-bold text-foreground">{team.name}</span>
       <span className="grow text-center">
-        {checkpointNumber > 0 ? (
+        {resolvedCount > 0 ? (
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">
-              {team.last_checkpoint_name || `Checkpoint #${checkpointNumber}`}
+              {team.last_checkpoint_name || `${resolvedCount} postos resolvidos`}
             </div>
             <div
               className={cn("text-sm font-medium text-foreground/80", isProvisional && "italic")}

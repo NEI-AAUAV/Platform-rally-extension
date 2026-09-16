@@ -292,6 +292,44 @@ class ConfigurationValidator:
             )
 
     @classmethod
+    def _validate_activity_coverage(
+        cls,
+        checkpoints: Sequence[object],
+        activities: Sequence[object] | None,
+        issues: list[ConfigurationIssue],
+        severity: ConfigurationIssueSeverity = ConfigurationIssueSeverity.WARNING,
+    ) -> None:
+        """Mirrors _validate_staff_coverage for activities: existence of some
+        activity doesn't mean every published checkpoint has one. Only checked
+        once at least one activity exists — the zero-activity case is the
+        more urgent NO_ACTIVITIES issue and shouldn't also be reported here.
+        """
+        if not checkpoints or not activities:
+            return
+        activity_checkpoint_ids = {
+            cp_id
+            for a in activities
+            if (cp_id := getattr(a, "checkpoint_id", None)) is not None
+        }
+        missing = [
+            c_id
+            for c in checkpoints
+            if isinstance((c_id := getattr(c, "id", None)), int)
+            and c_id not in activity_checkpoint_ids
+        ]
+        if missing:
+            issues.append(
+                ConfigurationIssue(
+                    "CHECKPOINTS_WITHOUT_ACTIVITIES",
+                    severity,
+                    f"{len(missing)} posto(s) publicado(s) sem atividade associada.",
+                    entity_type="checkpoint",
+                    entity_ids=missing,
+                    suggestion="Associe uma atividade a cada posto em Atividades.",
+                )
+            )
+
+    @classmethod
     def _validate_checkpoint_completeness(
         cls,
         checkpoints: Sequence[object],
@@ -456,6 +494,10 @@ class ConfigurationValidator:
                         "A avaliação por staff requer pelo menos uma atividade.",
                         entity_type="activity",
                     )
+                )
+            else:
+                cls._validate_activity_coverage(
+                    checkpoints, activities, issues, ConfigurationIssueSeverity.ERROR
                 )
             if not staff_assignments:
                 issues.append(

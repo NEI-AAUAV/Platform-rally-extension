@@ -23,6 +23,7 @@ export const READINESS_ISSUE_TARGETS: Readonly<Record<string, ReadinessTarget>> 
   NO_ARRIVAL_METHOD: { tabId: "settings" },
   NO_CHECKPOINTS: { tabId: "checkpoints" },
   NO_ACTIVITIES: { tabId: "activities" },
+  CHECKPOINTS_WITHOUT_ACTIVITIES: { tabId: "activities" },
   NO_STAFF_ASSIGNMENTS: { tabId: "assignment" },
   NO_GUIDE_ASSIGNMENTS: { tabId: "guide-assignment" },
   NO_RECOVERY_PATH: { tabId: "settings" },

@@ -62,6 +62,7 @@ describe("useTeamProgress", () => {
         total: 20,
         last_checkpoint_number: 1,
         current_checkpoint_number: 2,
+        resolved_checkpoint_orders: [1],
       },
     } as never);
     vi.mocked(getCheckpoints).mockResolvedValue({
@@ -122,7 +123,7 @@ describe("useTeamProgress", () => {
     await waitFor(() => expect(result.current.totalCount).toBe(2));
   });
 
-  it("falls back to zero completed posts when last_checkpoint_number is absent", async () => {
+  it("falls back to zero completed posts when resolved_checkpoint_orders is absent", async () => {
     // Completion comes from the server's progress engine, never from a count
     // the client derives itself.
     vi.mocked(getTeamById).mockResolvedValue({

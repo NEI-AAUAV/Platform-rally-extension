@@ -29,7 +29,7 @@ vi.mock("@/hooks/useEventTerms", () => ({
 import useTeamNotifications from "@/hooks/useTeamNotifications";
 
 function makeTeam(over: Partial<DetailedTeam>): DetailedTeam {
-  return { classification: 1, last_checkpoint_number: 0, ...over } as DetailedTeam;
+  return { classification: 1, resolved_checkpoint_orders: [], ...over } as DetailedTeam;
 }
 
 describe("useTeamNotifications", () => {
@@ -45,61 +45,78 @@ describe("useTeamNotifications", () => {
 
   it("does not announce on the first observation (seeds the baseline)", () => {
     const { rerender } = renderHook(({ team }) => useTeamNotifications(team), {
-      initialProps: { team: makeTeam({ classification: 3, last_checkpoint_number: 1 }) },
+      initialProps: { team: makeTeam({ classification: 3, resolved_checkpoint_orders: [1] }) },
     });
     expect(h.success).not.toHaveBeenCalled();
     expect(h.info).not.toHaveBeenCalled();
-    rerender({ team: makeTeam({ classification: 3, last_checkpoint_number: 1 }) });
+    rerender({ team: makeTeam({ classification: 3, resolved_checkpoint_orders: [1] }) });
     expect(h.success).not.toHaveBeenCalled();
   });
 
-  it("announces when checkpoint advances", () => {
+  it("announces when a checkpoint resolves", () => {
     const { rerender } = renderHook(({ team }) => useTeamNotifications(team), {
-      initialProps: { team: makeTeam({ classification: 3, last_checkpoint_number: 1 }) },
+      initialProps: { team: makeTeam({ classification: 3, resolved_checkpoint_orders: [1] }) },
     });
-    rerender({ team: makeTeam({ classification: 3, last_checkpoint_number: 2 }) });
-    expect(h.success).toHaveBeenCalledWith("Chegaste ao posto 2!");
+    rerender({ team: makeTeam({ classification: 3, resolved_checkpoint_orders: [1, 2] }) });
+    expect(h.success).toHaveBeenCalledWith("posto 2 resolvido!");
+  });
+
+  it("announces free-order resolution out of sequence (not a sequential prefix)", () => {
+    const { rerender } = renderHook(({ team }) => useTeamNotifications(team), {
+      initialProps: { team: makeTeam({ classification: 3, resolved_checkpoint_orders: [3] }) },
+    });
+    rerender({ team: makeTeam({ classification: 3, resolved_checkpoint_orders: [3, 4] }) });
+    expect(h.success).toHaveBeenCalledWith("posto 4 resolvido!");
+  });
+
+  it("summarizes multiple simultaneously-resolved checkpoints instead of an avalanche of toasts", () => {
+    const { rerender } = renderHook(({ team }) => useTeamNotifications(team), {
+      initialProps: { team: makeTeam({ classification: 3, resolved_checkpoint_orders: [] }) },
+    });
+    rerender({ team: makeTeam({ classification: 3, resolved_checkpoint_orders: [1, 2, 3] }) });
+    expect(h.success).toHaveBeenCalledTimes(1);
+    expect(h.success).toHaveBeenCalledWith("3 postos resolvidos!");
   });
 
   it("announces when rank improves (lower number)", () => {
     const { rerender } = renderHook(({ team }) => useTeamNotifications(team), {
-      initialProps: { team: makeTeam({ classification: 5, last_checkpoint_number: 1 }) },
+      initialProps: { team: makeTeam({ classification: 5, resolved_checkpoint_orders: [1] }) },
     });
-    rerender({ team: makeTeam({ classification: 3, last_checkpoint_number: 1 }) });
+    rerender({ team: makeTeam({ classification: 3, resolved_checkpoint_orders: [1] }) });
     expect(h.info).toHaveBeenCalledWith("Subiste para 3º lugar!");
   });
 
   it("does not announce a climb from the unranked sentinel (-1)", () => {
     const { rerender } = renderHook(({ team }) => useTeamNotifications(team), {
-      initialProps: { team: makeTeam({ classification: -1, last_checkpoint_number: 1 }) },
+      initialProps: { team: makeTeam({ classification: -1, resolved_checkpoint_orders: [1] }) },
     });
-    rerender({ team: makeTeam({ classification: 2, last_checkpoint_number: 1 }) });
+    rerender({ team: makeTeam({ classification: 2, resolved_checkpoint_orders: [1] }) });
     expect(h.info).not.toHaveBeenCalled();
   });
 
   it("does not announce when rank worsens", () => {
     const { rerender } = renderHook(({ team }) => useTeamNotifications(team), {
-      initialProps: { team: makeTeam({ classification: 2, last_checkpoint_number: 1 }) },
+      initialProps: { team: makeTeam({ classification: 2, resolved_checkpoint_orders: [1] }) },
     });
-    rerender({ team: makeTeam({ classification: 4, last_checkpoint_number: 1 }) });
+    rerender({ team: makeTeam({ classification: 4, resolved_checkpoint_orders: [1] }) });
     expect(h.info).not.toHaveBeenCalled();
   });
 
   it("does not announce a climb when the new rank becomes the unranked sentinel", () => {
     const { rerender } = renderHook(({ team }) => useTeamNotifications(team), {
-      initialProps: { team: makeTeam({ classification: 3, last_checkpoint_number: 1 }) },
+      initialProps: { team: makeTeam({ classification: 3, resolved_checkpoint_orders: [1] }) },
     });
-    rerender({ team: makeTeam({ classification: -1, last_checkpoint_number: 1 }) });
+    rerender({ team: makeTeam({ classification: -1, resolved_checkpoint_orders: [1] }) });
     expect(h.info).not.toHaveBeenCalled();
   });
 
-  it("treats a missing last_checkpoint_number as 0", () => {
+  it("treats a missing resolved_checkpoint_orders as empty", () => {
     const { rerender } = renderHook(({ team }) => useTeamNotifications(team), {
       initialProps: {
-        team: makeTeam({ classification: 3, last_checkpoint_number: undefined }),
+        team: makeTeam({ classification: 3, resolved_checkpoint_orders: undefined }),
       },
     });
-    rerender({ team: makeTeam({ classification: 3, last_checkpoint_number: 1 }) });
-    expect(h.success).toHaveBeenCalledWith("Chegaste ao posto 1!");
+    rerender({ team: makeTeam({ classification: 3, resolved_checkpoint_orders: [1] }) });
+    expect(h.success).toHaveBeenCalledWith("posto 1 resolvido!");
   });
 });

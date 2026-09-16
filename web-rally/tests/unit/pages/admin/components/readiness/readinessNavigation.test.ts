@@ -23,6 +23,11 @@ describe("readinessNavigation", () => {
     expect(READINESS_ISSUE_TARGETS.UNASSIGNED_GUIDE_TEAMS?.tabId).toBe("guide-assignment");
   });
 
+  it("maps activity coverage issues to activities", () => {
+    expect(READINESS_ISSUE_TARGETS.NO_ACTIVITIES?.tabId).toBe("activities");
+    expect(READINESS_ISSUE_TARGETS.CHECKPOINTS_WITHOUT_ACTIVITIES?.tabId).toBe("activities");
+  });
+
   it("maps NO_TEAMS to teams", () => {
     expect(READINESS_ISSUE_TARGETS.NO_TEAMS?.tabId).toBe("teams");
   });

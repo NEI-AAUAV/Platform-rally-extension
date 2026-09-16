@@ -261,11 +261,11 @@ export default function RouteCheckpointItem({
     canReveal && (photos.length > 0 || funFacts.length > 0 || !!checkpoint.description);
 
   const statusLabel =
-    progress?.status === "skipped"
+    status === "skipped"
       ? "Desistiu"
-      : progress?.status === "completed"
+      : status === "completed"
         ? "Concluído"
-        : progress?.status === "arrived"
+        : status === "arrived"
           ? "Chegada registada"
           : isCurrent
             ? "Em curso"

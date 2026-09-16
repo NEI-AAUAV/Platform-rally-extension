@@ -71,7 +71,10 @@ const team = (overrides: Partial<any> = {}) => ({
   name: "Team Alpha",
   classification: 1,
   total: 100,
-  last_checkpoint_number: 2,
+  last_checkpoint_number: 0,
+  resolved_checkpoint_orders: [],
+  open_checkpoint_orders: [],
+  started_at: "2026-09-16T20:00:00Z",
   ...overrides,
 });
 
@@ -123,8 +126,8 @@ describe("OperationsDashboard", () => {
   it("renders team stats and not-started alert during live phase", async () => {
     mockGetTeams.mockResolvedValue({
       data: [
-        team({ id: 1, last_checkpoint_number: 0 }),
-        team({ id: 2, last_checkpoint_number: 3 }),
+        team({ id: 1, started_at: null }),
+        team({ id: 2, started_at: "2026-09-16T20:00:00Z" }),
       ],
     });
     renderWithClient(<OperationsDashboard />);
@@ -133,7 +136,7 @@ describe("OperationsDashboard", () => {
 
   it("does not show not-started alert when all teams started", async () => {
     mockGetTeams.mockResolvedValue({
-      data: [team({ id: 1, last_checkpoint_number: 1 })],
+      data: [team({ id: 1, started_at: "2026-09-16T20:00:00Z" })],
     });
     renderWithClient(<OperationsDashboard />);
     await screen.findByText("Estado do evento");
@@ -145,6 +148,31 @@ describe("OperationsDashboard", () => {
     mockGetTeams.mockResolvedValue({ data: [team()] });
     renderWithClient(<OperationsDashboard />);
     expect(await screen.findByText("Equipas que concluíram por posto")).toBeInTheDocument();
+  });
+
+  it("counts free-choice progress via resolved_checkpoint_orders, not last_checkpoint_number", async () => {
+    mockGetCheckpoints.mockResolvedValue({
+      data: [
+        checkpoint({ id: 1, order: 1 }),
+        checkpoint({ id: 2, order: 2 }),
+        checkpoint({ id: 3, order: 3 }),
+        checkpoint({ id: 4, order: 4 }),
+      ],
+    });
+    mockGetTeams.mockResolvedValue({
+      data: [
+        team({
+          id: 1,
+          last_checkpoint_number: 0,
+          resolved_checkpoint_orders: [3, 4],
+          started_at: "2026-09-16T20:00:00Z",
+        }),
+      ],
+    });
+    renderWithClient(<OperationsDashboard />);
+    expect(await screen.findByText("Estado do evento")).toBeInTheDocument();
+    expect(screen.queryByText(/ainda não iniciou o percurso/)).not.toBeInTheDocument();
+    expect(await screen.findByText("2/4 postos")).toBeInTheDocument();
   });
 
   it("renders points distribution chart when more than one team exists", async () => {

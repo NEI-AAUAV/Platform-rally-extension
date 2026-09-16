@@ -85,8 +85,14 @@ test.describe("Admin dashboard", () => {
     });
     await seedOidcSession(context, ADMIN_GROUPS);
     await mockTeams(page, [
-      team({ id: 1, name: "Os Fintas", last_checkpoint_number: 1 }),
-      team({ id: 2, name: "Engenhocas", last_checkpoint_number: 0 }),
+      team({
+        id: 1,
+        name: "Os Fintas",
+        started_at: "2026-09-16T19:00:00Z",
+        resolved_checkpoint_orders: [1],
+        last_checkpoint_number: 1,
+      }),
+      team({ id: 2, name: "Engenhocas", started_at: null, resolved_checkpoint_orders: [] }),
     ]);
     await mockCheckpoints(page, CHECKPOINTS);
     await mockEvaluations(page, 4);
@@ -109,7 +115,7 @@ test.describe("Admin dashboard", () => {
       rally_end_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     });
     await seedOidcSession(context, ADMIN_GROUPS);
-    await mockTeams(page, [team({ id: 1, name: "Os Fintas", last_checkpoint_number: 0 })]);
+    await mockTeams(page, [team({ id: 1, name: "Os Fintas", started_at: null })]);
     await mockCheckpoints(page, CHECKPOINTS);
     await mockEvaluations(page, 0);
 
@@ -132,7 +138,7 @@ test.describe("Admin dashboard", () => {
       rally_end_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
     });
     await seedOidcSession(context, ADMIN_GROUPS);
-    await mockTeams(page, [team({ id: 1, name: "Os Fintas", last_checkpoint_number: 0 })]);
+    await mockTeams(page, [team({ id: 1, name: "Os Fintas", started_at: null })]);
     await mockCheckpoints(page, CHECKPOINTS);
     await mockEvaluations(page, 0);
     await mockEventConfiguration(page, { ready: true, issues: [] });
@@ -143,7 +149,7 @@ test.describe("Admin dashboard", () => {
     await expect(page.getByText("ainda não iniciou o percurso")).toHaveCount(0);
     // Live-only stats/chart must not leak into the pre-event view.
     await expect(page.getByText("Estado do evento")).toHaveCount(0);
-    await expect(page.getByText("Equipas por posto")).toHaveCount(0);
+    await expect(page.getByText("Equipas que concluíram por posto")).toHaveCount(0);
   });
 
   test("renders per-checkpoint progress chart when checkpoints exist", async ({
@@ -152,13 +158,21 @@ test.describe("Admin dashboard", () => {
   }) => {
     await mockSettings(page);
     await seedOidcSession(context, ADMIN_GROUPS);
-    await mockTeams(page, [team({ id: 1, name: "Os Fintas", last_checkpoint_number: 2 })]);
+    await mockTeams(page, [
+      team({
+        id: 1,
+        name: "Os Fintas",
+        started_at: "2026-09-16T19:00:00Z",
+        resolved_checkpoint_orders: [1, 2],
+        last_checkpoint_number: 2,
+      }),
+    ]);
     await mockCheckpoints(page, CHECKPOINTS);
     await mockEvaluations(page, 1);
 
     await page.goto("/rally/admin?tab=dashboard");
 
-    await expect(page.getByText("Equipas por posto")).toBeVisible();
+    await expect(page.getByText("Equipas que concluíram por posto")).toBeVisible();
   });
 });
 

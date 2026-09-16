@@ -10,6 +10,7 @@ describe("EvaluationTeamCard", () => {
     num_members: 4,
     total: 120,
     last_checkpoint_number: 2,
+    resolved_checkpoint_orders: [1, 2],
   } as ListingTeam;
 
   it("renders team info for current variant with score", () => {
@@ -48,6 +49,6 @@ describe("EvaluationTeamCard", () => {
     const barren = { id: 2, name: "Solo", num_members: 0, total: 0 } as ListingTeam;
     render(<EvaluationTeamCard team={barren} variant="current" showScore onSelect={onSelect} />);
     expect(screen.getByText("S")).toBeInTheDocument();
-    expect(screen.getByText(/Posto —/)).toBeInTheDocument();
+    expect(screen.getByText(/0 postos resolvidos/)).toBeInTheDocument();
   });
 });
