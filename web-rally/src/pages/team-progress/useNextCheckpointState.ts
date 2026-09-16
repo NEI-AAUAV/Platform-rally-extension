@@ -4,8 +4,8 @@ import useRallySettings from "@/hooks/useRallySettings";
 import useEventTerms from "@/hooks/useEventTerms";
 import useCheckpointHints from "@/hooks/useCheckpointHints";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
-import { checkpointOpeningNotice } from "./checkpointHours";
 import { useCheckpointArrival, type GpsState } from "./useCheckpointArrival";
+import { useCheckpointArrivalAvailability } from "./useCheckpointArrivalAvailability";
 
 /**
  * View model for NextCheckpointCard: adapts backend/settings data into the
@@ -37,7 +37,7 @@ export function useNextCheckpointState(
   checkpoint: DetailedCheckPoint,
   checkpointProgress?: CheckpointProgress,
 ) {
-  const { settings, error: settingsError, refetch: refetchSettings } = useRallySettings();
+  const { settings } = useRallySettings();
   const terms = useEventTerms();
   const feminino = terms.checkpointGender === "f";
 
@@ -48,25 +48,7 @@ export function useNextCheckpointState(
   const hints = useCheckpointHints(checkpoint.id);
   const { photos, funFacts } = useCheckpointMedia(checkpoint.id);
 
-  const openingNotice = checkpointOpeningNotice(
-    checkpoint,
-    undefined,
-    settings?.checkpoint_hours_enabled !== false,
-  );
-
-  // Don't offer a button the server will reject: GPS check-in needs the event
-  // setting on *and* a real geofence radius. Coordinates are deliberately NOT
-  // required when the post is redacted — that's the peddy-paper case, where
-  // the server withholds them because finding the place is the game.
-  const canCheckin =
-    settings?.gps_checkin_enabled === true &&
-    (hasCoords || isRedacted) &&
-    (checkpoint.arrival_radius_m ?? 0) > 0 &&
-    openingNotice === null;
-
-  // Every gate above reads event settings, so a failed settings fetch leaves
-  // the card with no button and nothing to explain it.
-  const settingsUnavailable = !settings && !!settingsError;
+  const arrivalAvailability = useCheckpointArrivalAvailability(checkpoint, checkpointProgress);
 
   const hasHintLadder = hints.revealed.length > 0 || hints.remaining > 0;
   const totalSpent = hints.revealed.reduce((sum, item) => sum + item.cost, 0);
@@ -78,10 +60,15 @@ export function useNextCheckpointState(
   const skipCost = settings?.skip_penalty ?? 0;
   const hintsOff = settings?.hints_enabled === false;
   const hintLadderSpent = hintsOff || (hasHintLadder && hints.remaining === 0);
-  const canGiveUp = settings?.skip_enabled !== false && isRedacted && hintLadderSpent;
+  const canGiveUp =
+    !arrivalAvailability.terminal &&
+    settings?.skip_enabled !== false &&
+    isRedacted &&
+    hintLadderSpent;
 
-  const proximityEnabled = isRedacted && settings?.proximity_enabled === true;
-  const status = checkpointProgress?.status ?? "pending";
+  const proximityEnabled =
+    !arrivalAvailability.terminal && isRedacted && settings?.proximity_enabled === true;
+  const status = arrivalAvailability.status;
 
   const discoveryDescription =
     checkpoint.description && checkpoint.description === checkpoint.clue
@@ -116,9 +103,9 @@ export function useNextCheckpointState(
       isSkipped: status === "skipped",
     },
     access: {
-      canCheckin,
-      openingNotice,
-      settingsUnavailable,
+      canCheckin: arrivalAvailability.canCheckin,
+      openingNotice: arrivalAvailability.openingNotice,
+      settingsUnavailable: arrivalAvailability.settingsUnavailable,
       canGiveUp,
       hasHintLadder,
       proximityEnabled,
@@ -139,7 +126,7 @@ export function useNextCheckpointState(
     actions: {
       handleCheckin: arrival.handleCheckin,
       clearError: arrival.clearError,
-      refetchSettings,
+      refetchSettings: arrivalAvailability.refetchSettings,
       requestHint,
       requestGiveUp,
       confirmPendingAction,

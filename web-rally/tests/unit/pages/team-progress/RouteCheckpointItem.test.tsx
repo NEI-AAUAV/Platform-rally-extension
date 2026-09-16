@@ -82,7 +82,7 @@ describe("RouteCheckpointItem", () => {
       <RouteCheckpointItem
         checkpoint={{ ...checkpoint, is_reachable: true } as DetailedCheckPoint}
         index={0}
-        team={team}
+        team={{ ...team, checkpoints: [] } as DetailedTeam}
         resolvedOrders={new Set()}
         showScore
         showMap
@@ -103,7 +103,7 @@ describe("RouteCheckpointItem", () => {
       <RouteCheckpointItem
         checkpoint={futureCheckpoint}
         index={2}
-        team={team}
+        team={{ ...team, checkpoints: [] } as DetailedTeam}
         resolvedOrders={new Set()}
         showScore
         showMap

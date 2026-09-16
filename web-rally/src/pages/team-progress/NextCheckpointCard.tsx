@@ -38,6 +38,7 @@ export default function NextCheckpointCard({
   // that hasn't left yet can't be "at" this post regardless of its window.
   const openingNotice = notYetDeparted ?? access.openingNotice;
   const canCheckin = access.canCheckin && openingNotice === null;
+  const isTerminal = persistent.isCompleted || persistent.isSkipped;
   const persistentNotice =
     persistent.status === "arrived"
       ? "Chegada registada — a aguardar atividade/avaliação."
@@ -62,13 +63,15 @@ export default function NextCheckpointCard({
         clueMediaUrl={checkpoint.clue_media_url}
       />
 
-      <CheckpointHints
-        hints={hints}
-        hasHintLadder={access.hasHintLadder}
-        hintCostLabel={access.hintCostLabel}
-        totalSpent={access.totalSpent}
-        onRequestHint={actions.requestHint}
-      />
+      {!isTerminal && (
+        <CheckpointHints
+          hints={hints}
+          hasHintLadder={access.hasHintLadder}
+          hintCostLabel={access.hintCostLabel}
+          totalSpent={access.totalSpent}
+          onRequestHint={actions.requestHint}
+        />
+      )}
 
       {persistentNotice && (
         <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
@@ -76,14 +79,16 @@ export default function NextCheckpointCard({
         </p>
       )}
 
-      {access.proximityEnabled && <ProximityButton checkpointId={checkpoint.id} />}
+      {!isTerminal && access.proximityEnabled && <ProximityButton checkpointId={checkpoint.id} />}
 
-      <CheckpointGiveUpAction
-        canGiveUp={access.canGiveUp}
-        skipCost={access.skipCost}
-        giveUp={hints.giveUp}
-        onRequestGiveUp={actions.requestGiveUp}
-      />
+      {!isTerminal && (
+        <CheckpointGiveUpAction
+          canGiveUp={access.canGiveUp}
+          skipCost={access.skipCost}
+          giveUp={hints.giveUp}
+          onRequestGiveUp={actions.requestGiveUp}
+        />
+      )}
 
       {showMap && hasCoords && (
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -106,18 +111,20 @@ export default function NextCheckpointCard({
         </div>
       )}
 
-      {!persistent.hasArrived && !persistent.isSkipped && <CheckpointArrivalAction
-        openingNotice={openingNotice}
-        settingsUnavailable={access.settingsUnavailable}
-        canCheckin={canCheckin}
-        gpsState={ui.gpsState}
-        gpsMsg={ui.gpsMsg}
-        isQueuedHere={ui.isQueuedHere}
-        isPending={ui.isPending}
-        onCheckin={actions.handleCheckin}
-        onClearError={actions.clearError}
-        onRetrySettings={() => void actions.refetchSettings()}
-      />}
+      {!persistent.hasArrived && !persistent.isSkipped && (
+        <CheckpointArrivalAction
+          openingNotice={openingNotice}
+          settingsUnavailable={access.settingsUnavailable}
+          canCheckin={canCheckin}
+          gpsState={ui.gpsState}
+          gpsMsg={ui.gpsMsg}
+          isQueuedHere={ui.isQueuedHere}
+          isPending={ui.isPending}
+          onCheckin={actions.handleCheckin}
+          onClearError={actions.clearError}
+          onRetrySettings={() => void actions.refetchSettings()}
+        />
+      )}
 
       {/* Discover the place — revealed as the reward for reaching this stop */}
       {access.hasDiscovery && (

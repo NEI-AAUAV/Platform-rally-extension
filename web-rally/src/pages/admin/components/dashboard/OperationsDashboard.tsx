@@ -133,6 +133,8 @@ export default function OperationsDashboard() {
     [checkpoints],
   );
   const totalEvals = allEvals?.evaluations?.length ?? 0;
+  const configurationErrors =
+    configuration.data?.issues.filter((issue) => issue.severity === "error") ?? [];
 
   const teamsStarted = teamList.filter((t) => t.started_at != null).length;
   const teamsNotStarted = teamList.length - teamsStarted;
@@ -142,7 +144,9 @@ export default function OperationsDashboard() {
 
   const perCheckpointData = useMemo(() => {
     return checkpointList.map((cp) => {
-      const reached = teamList.filter((t) => t.resolved_checkpoint_orders?.includes(cp.order)).length;
+      const reached = teamList.filter((t) =>
+        t.resolved_checkpoint_orders?.includes(cp.order),
+      ).length;
       return { name: cp.name.slice(0, 14), reached, total: teamList.length, order: cp.order };
     });
   }, [checkpointList, teamList]);
@@ -156,9 +160,10 @@ export default function OperationsDashboard() {
         <FreshnessIndicator updatedAt={teamsUpdatedAt} className="ml-auto" />
       </div>
 
-      {(configuration.data?.issues.filter((issue) => issue.severity === "error").length ?? 0) > 0 && (
+      {configurationErrors.length > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-          ⚠ Existem {configuration.data!.issues.filter((issue) => issue.severity === "error").length} problema(s) de configuração que podem afetar a prova.
+          ⚠ Existem {configurationErrors.length} problema(s) de configuração que podem afetar a
+          prova.
         </div>
       )}
 

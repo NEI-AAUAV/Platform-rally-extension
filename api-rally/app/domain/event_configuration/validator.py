@@ -49,6 +49,26 @@ class ConfigurationReport:
 
 class ConfigurationValidator:
     @staticmethod
+    def checkpoint_requirements(
+        caps: dict[Capability, EffectiveCapability],
+    ) -> dict[str, bool]:
+        """Requirements shared by preflight and route planning.
+
+        An optional feature becomes a real requirement once an organiser
+        enables it.  Keeping this here makes the planning screen use the same
+        capability semantics as readiness instead of maintaining a second
+        settings matrix.
+        """
+        return {
+            "coordinates": caps[Capability.GPS_ARRIVAL].effective
+            or caps[Capability.PROXIMITY].effective,
+            "clue": caps[Capability.CHECKPOINT_REDACTION].effective,
+            "stage": caps[Capability.ROUTE_STAGES].effective,
+            "activity": caps[Capability.STAFF_SCORING].effective,
+            "staff": caps[Capability.STAFF_SCORING].effective,
+        }
+
+    @staticmethod
     def local_issues(
         *,
         event_type: str,
@@ -289,26 +309,23 @@ class ConfigurationValidator:
             return
         activity_ids = {getattr(a, "checkpoint_id", None) for a in (activities or [])}
         staffed_ids = {getattr(a, "checkpoint_id", None) for a in (staff_assignments or [])}
-        requires_coordinates = (
-            caps[Capability.GPS_ARRIVAL].effective or caps[Capability.PROXIMITY].effective
-        )
-        requires_clue = caps[Capability.CHECKPOINT_REDACTION].effective
-        requires_stage = caps[Capability.ROUTE_STAGES].effective
-        requires_activity = caps[Capability.STAFF_SCORING].policy is CapabilityPolicy.REQUIRED
-        requires_staff = caps[Capability.STAFF_SCORING].policy is CapabilityPolicy.REQUIRED
+        requirements = cls.checkpoint_requirements(caps)
         incomplete_ids = [
             c_id
             for c in checkpoints
-            if missing_fields(
+            # Activity and staff are operational relations.  They have their
+            # own actionable readiness issues below, so this generic issue is
+            # reserved for intrinsic checkpoint structure.
+            if any(field not in {"activity", "staff"} for field in missing_fields(
                 c,
                 has_activity=getattr(c, "id", None) in activity_ids,
                 has_staff=getattr(c, "id", None) in staffed_ids,
-                requires_coordinates=requires_coordinates,
-                requires_clue=requires_clue,
-                requires_stage=requires_stage,
-                requires_activity=requires_activity,
-                requires_staff=requires_staff,
-            )
+                requires_coordinates=requirements["coordinates"],
+                requires_clue=requirements["clue"],
+                requires_stage=requirements["stage"],
+                requires_activity=requirements["activity"],
+                requires_staff=requirements["staff"],
+            ))
             and (c_id := getattr(c, "id", None)) is not None
         ]
         if incomplete_ids:
@@ -337,11 +354,9 @@ class ConfigurationValidator:
                     suggestion="Corrija as datas do evento em Edições.",
                 )
             )
-        if start_time is None and getattr(event, "event_type", "") in {
-            "peddy_paper",
-            "rally_tascas",
-            "olympic",
-        }:
+        if start_time is None and profile_requires_start_time(
+            getattr(event, "event_type", ""), getattr(event, "event_profile", None)
+        ):
             issues.append(
                 ConfigurationIssue(
                     "EVENT_START_TIME_MISSING",
@@ -432,7 +447,7 @@ class ConfigurationValidator:
         )
         if event_type == "olympic" and profile == EventProfile.ROTATION.value:
             cls._validate_rotation(event, teams, checkpoints, issues)
-        if caps[Capability.STAFF_SCORING].policy is CapabilityPolicy.REQUIRED:
+        if caps[Capability.STAFF_SCORING].effective:
             if not activities:
                 issues.append(
                     ConfigurationIssue(
@@ -455,7 +470,7 @@ class ConfigurationValidator:
                 cls._validate_staff_coverage(
                     checkpoints, staff_assignments, issues, ConfigurationIssueSeverity.ERROR
                 )
-        if caps[Capability.GUIDE_MODE].policy is CapabilityPolicy.REQUIRED:
+        if caps[Capability.GUIDE_MODE].effective:
             if not guide_assignments:
                 issues.append(
                     ConfigurationIssue(
@@ -529,3 +544,18 @@ class ConfigurationValidator:
 SETTING_FIELDS = {
     capability: field for capability, (field, _inverted) in SETTING_CAPABILITIES.items()
 }
+
+
+def profile_requires_start_time(event_type: str, profile: str | None) -> bool:
+    """Opinionated operational profiles require a scheduled start.
+
+    ``custom`` is deliberately an escape hatch: organisers can use its
+    features without committing to the timed route workflow.
+    """
+    return (event_type, profile) in {
+        ("peddy_paper", EventProfile.AUTONOMOUS.value),
+        ("peddy_paper", EventProfile.GUIDED.value),
+        ("rally_tascas", EventProfile.STAFFED.value),
+        ("rally_tascas", EventProfile.SELF_CHECKIN.value),
+        ("olympic", EventProfile.ROTATION.value),
+    }

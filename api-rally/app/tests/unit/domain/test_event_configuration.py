@@ -113,7 +113,7 @@ def test_olympic_rotation_is_derived_from_schedule_not_event_config():
             config={"olympic_rotation": True},
             rotation_schedule=[],
         ),
-        settings=settings(),
+        settings=settings(enable_staff_scoring=False),
         checkpoints=[SimpleNamespace(id=1)],
         route_stages=[],
         platform_qr_supported=True,
@@ -125,7 +125,7 @@ def test_olympic_rotation_is_derived_from_schedule_not_event_config():
             event_profile="rotation",
             rotation_schedule=[[{"team_id": 1, "checkpoint_id": 1}]],
         ),
-        settings=settings(),
+        settings=settings(enable_staff_scoring=False),
         checkpoints=[SimpleNamespace(id=1)],
         route_stages=[],
         platform_qr_supported=True,
@@ -444,7 +444,7 @@ def test_incomplete_published_checkpoints_not_emitted_when_complete():
 def test_no_teams_emits_warning_not_error():
     report = ConfigurationValidator.validate(
         event=event(),
-        settings=settings(),
+        settings=settings(enable_staff_scoring=False),
         checkpoints=[complete_checkpoint(1)],
         route_stages=[],
         platform_qr_supported=False,
@@ -461,7 +461,7 @@ def test_ready_true_when_only_warnings_present():
     # "no issues at all".
     report = ConfigurationValidator.validate(
         event=event(),
-        settings=settings(),
+        settings=settings(enable_staff_scoring=False),
         checkpoints=[complete_checkpoint(1)],
         route_stages=[],
         platform_qr_supported=False,
@@ -469,6 +469,31 @@ def test_ready_true_when_only_warnings_present():
     )
     assert all(issue.severity is not ConfigurationIssueSeverity.ERROR for issue in report.issues)
     assert report.ready is True
+
+
+def test_optional_staff_scoring_is_validated_when_enabled():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="custom"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[],
+        staff_assignments=[],
+    )
+    assert {issue.code for issue in report.issues} >= {"NO_ACTIVITIES", "NO_STAFF_ASSIGNMENTS"}
+    assert report.ready is False
+
+
+def test_custom_profile_does_not_require_start_time():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="custom", start_time=None),
+        settings=settings(enable_staff_scoring=False),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+    )
+    assert not any(issue.code == "EVENT_START_TIME_MISSING" for issue in report.issues)
 
 
 def test_event_dates_invalid_when_end_before_start():

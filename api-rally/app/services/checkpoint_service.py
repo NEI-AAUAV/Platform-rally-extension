@@ -16,7 +16,9 @@ from app.core.exceptions import RallyValidationError
 from app.crud._event_scope import current_event_id
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_team import CRUDTeam
-from app.models.activity import Activity, ActivityResult
+from app.domain.event_configuration.resolver import resolve_capabilities
+from app.domain.event_configuration.validator import ConfigurationValidator
+from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.checkpoint import CheckPoint
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.checkpoint_skip import CheckpointSkip
@@ -439,9 +441,16 @@ class CheckpointService:
         checkpoints = await self._checkpoint_crud.get_all_ordered(db=self._db, include_drafts=True)
         with_activity = await self._checkpoint_ids_with_activity()
         with_staff = await self._checkpoint_ids_with_staff()
-        requires_coordinates = bool(getattr(settings, "gps_checkin_enabled", False))
-        requires_clue = not getattr(settings, "reveal_next_checkpoint", True)
-        requires_stage = bool(getattr(settings, "route_stages_enabled", False))
+        event = await self._db.get(RallyEvent, await current_event_id(self._db))
+        caps = resolve_capabilities(
+            event_type=getattr(event, "event_type", "generic"),
+            profile=getattr(event, "event_profile", "custom"),
+            settings=settings,
+            platform_qr_supported=True,
+            event_config=getattr(event, "config", None),
+            rotation_schedule=getattr(event, "rotation_schedule", None),
+        )
+        requirements = ConfigurationValidator.checkpoint_requirements(caps)
 
         adapter = TypeAdapter(list[AdminCheckPoint])
         validated = adapter.validate_python(checkpoints)
@@ -451,9 +460,11 @@ class CheckpointService:
                 by_id[item.id],
                 has_activity=item.id in with_activity,
                 has_staff=item.id in with_staff,
-                requires_coordinates=requires_coordinates,
-                requires_clue=requires_clue,
-                requires_stage=requires_stage,
+                requires_coordinates=requirements["coordinates"],
+                requires_clue=requirements["clue"],
+                requires_stage=requirements["stage"],
+                requires_activity=requirements["activity"],
+                requires_staff=requirements["staff"],
             )
 
         return RouteStatus(

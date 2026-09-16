@@ -144,7 +144,7 @@ describe("OperationsDashboard", () => {
     mockGetCheckpoints.mockResolvedValue({ data: [checkpoint()] });
     mockGetTeams.mockResolvedValue({ data: [team()] });
     renderWithClient(<OperationsDashboard />);
-    expect(await screen.findByText("Equipas por posto")).toBeInTheDocument();
+    expect(await screen.findByText("Equipas que concluíram por posto")).toBeInTheDocument();
   });
 
   it("renders points distribution chart when more than one team exists", async () => {

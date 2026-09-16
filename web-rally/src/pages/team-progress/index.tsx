@@ -71,6 +71,10 @@ export default function TeamProgress() {
   // so they aren't duplicated here for this event type.
   const isPeddyPaper = settings?.event_type === "peddy_paper";
   const terms = getEventTerms(settings?.event_type);
+  const notYetDeparted = departureNotice(
+    settings?.rally_start_time,
+    team.start_offset_minutes ?? 0,
+  );
 
   // The server says so. `!nextCheckpoint` was also true whenever
   // `current_checkpoint_number` named an order outside the returned slice —
@@ -93,7 +97,7 @@ export default function TeamProgress() {
         checkpoint={nextCheckpoint}
         checkpointProgress={findCheckpointProgress(team, nextCheckpoint.id)}
         showMap={showMap}
-        notYetDeparted={departureNotice(settings?.rally_start_time, team.start_offset_minutes ?? 0)}
+        notYetDeparted={notYetDeparted}
       />
     </>
   ) : (
@@ -187,6 +191,7 @@ export default function TeamProgress() {
                   offerCheckIn={
                     checkpoint.is_reachable === true && checkpoint.id !== nextCheckpoint?.id
                   }
+                  notYetDeparted={notYetDeparted}
                 />
               ))}
             </div>
