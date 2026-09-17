@@ -43,6 +43,7 @@ export async function openAdminNavIfMobile(page: Page): Promise<void> {
   // sections nav live inside <main>; scope the trigger there as well.
   const main = page.locator("main");
   const trigger = main.locator('button[aria-haspopup="dialog"][aria-expanded]').first();
+  const drawer = main.getByRole("dialog", { name: "Secções de administração" });
   // admin/index.tsx renders TWO <nav aria-label="Secções de administração">:
   // the drawer's (mobile) copy first in markup, nested in the same
   // `lg:hidden` wrapper as the trigger, then the always-in-DOM desktop copy
@@ -73,5 +74,6 @@ export async function openAdminNavIfMobile(page: Page): Promise<void> {
   await expect(async () => {
     await trigger.click();
     await expect(trigger).toHaveAttribute("aria-expanded", "true", { timeout: 2000 });
+    await expect(drawer).toHaveAttribute("open", "", { timeout: 2000 });
   }).toPass({ timeout: 15000 });
 }

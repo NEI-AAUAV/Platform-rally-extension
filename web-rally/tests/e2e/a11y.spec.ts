@@ -219,7 +219,10 @@ test.describe("Accessibility", () => {
     // collapsed-accordion behaviour covered in admin.spec.ts.
     await page.goto("/rally/admin?tab=teams", { waitUntil: "domcontentloaded" });
     await openAdminNavIfMobile(page);
-    await expect(page.getByRole("button", { name: /Equipas/i })).toBeVisible({
+    const adminSections = page.locator(
+      'nav[aria-label="Secções de administração"]:visible',
+    );
+    await expect(adminSections.getByRole("button", { name: /Equipas/i })).toBeVisible({
       timeout: 10000,
     });
     await expectNoSeriousViolations(page);
