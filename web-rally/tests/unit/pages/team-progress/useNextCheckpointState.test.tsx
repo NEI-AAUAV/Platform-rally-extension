@@ -163,4 +163,74 @@ describe("useNextCheckpointState", () => {
     });
     expect(result.current.access.canGiveUp).toBe(false);
   });
+
+  describe("persistent status", () => {
+    beforeEach(() => {
+      mockUseRallySettings.mockReturnValue({
+        settings: { gps_checkin_enabled: true, skip_enabled: true },
+      });
+    });
+
+    it("reports pending status with no arrival/completion flags", () => {
+      const { result } = renderHook(
+        () =>
+          useNextCheckpointState(checkpoint(), {
+            checkpoint_id: 1,
+            status: "pending",
+          } as unknown as never),
+        { wrapper: createWrapper() },
+      );
+      expect(result.current.persistent.status).toBe("pending");
+      expect(result.current.persistent.hasArrived).toBe(false);
+      expect(result.current.persistent.isCompleted).toBe(false);
+      expect(result.current.persistent.isSkipped).toBe(false);
+    });
+
+    it("reports arrived status and disables check-in", () => {
+      const { result } = renderHook(
+        () =>
+          useNextCheckpointState(checkpoint(), {
+            checkpoint_id: 1,
+            status: "arrived",
+          } as unknown as never),
+        { wrapper: createWrapper() },
+      );
+      expect(result.current.persistent.status).toBe("arrived");
+      expect(result.current.persistent.hasArrived).toBe(true);
+      expect(result.current.persistent.isCompleted).toBe(false);
+      expect(result.current.persistent.isSkipped).toBe(false);
+      expect(result.current.access.canCheckin).toBe(false);
+    });
+
+    it("reports completed status and locks all interactive access", () => {
+      const { result } = renderHook(
+        () =>
+          useNextCheckpointState(checkpoint(), {
+            checkpoint_id: 1,
+            status: "completed",
+          } as unknown as never),
+        { wrapper: createWrapper() },
+      );
+      expect(result.current.persistent.isCompleted).toBe(true);
+      expect(result.current.persistent.hasArrived).toBe(true);
+      expect(result.current.access.canCheckin).toBe(false);
+      expect(result.current.access.canGiveUp).toBe(false);
+      expect(result.current.access.proximityEnabled).toBe(false);
+    });
+
+    it("reports skipped status and locks all interactive access", () => {
+      const { result } = renderHook(
+        () =>
+          useNextCheckpointState(checkpoint({ is_redacted: true }), {
+            checkpoint_id: 1,
+            status: "skipped",
+          } as unknown as never),
+        { wrapper: createWrapper() },
+      );
+      expect(result.current.persistent.isSkipped).toBe(true);
+      expect(result.current.access.canCheckin).toBe(false);
+      expect(result.current.access.canGiveUp).toBe(false);
+      expect(result.current.access.proximityEnabled).toBe(false);
+    });
+  });
 });
