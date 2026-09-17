@@ -84,7 +84,7 @@ export default function AdminMobileDrawer({
         type="button"
         ref={triggerRef}
         onClick={() => setIsDrawerOpen(true)}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={isDrawerOpen}
         className="rally-surface rally-press flex w-full items-center gap-2.5 rounded-lg p-3 text-sm font-semibold text-foreground"
       >

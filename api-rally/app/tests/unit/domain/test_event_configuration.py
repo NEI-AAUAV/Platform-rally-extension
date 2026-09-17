@@ -540,7 +540,7 @@ def test_checkpoints_without_activities_not_emitted_with_full_coverage():
     assert not any(issue.code == "CHECKPOINTS_WITHOUT_ACTIVITIES" for issue in report.issues)
 
 
-def test_global_activity_covers_all_checkpoints():
+def test_global_activity_does_not_cover_checkpoint_activities():
     report = ConfigurationValidator.validate(
         event=event(event_type="rally_tascas", event_profile="staffed"),
         settings=settings(enable_staff_scoring=True),
@@ -553,7 +553,8 @@ def test_global_activity_covers_all_checkpoints():
 
     codes = {issue.code for issue in report.issues}
     assert "NO_ACTIVITIES" not in codes
-    assert "CHECKPOINTS_WITHOUT_ACTIVITIES" not in codes
+    issue = next(i for i in report.issues if i.code == "CHECKPOINTS_WITHOUT_ACTIVITIES")
+    assert issue.entity_ids == [1, 2]
 
 
 def test_checkpoints_without_activities_emitted_for_partial_coverage():

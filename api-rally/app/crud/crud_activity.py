@@ -79,6 +79,8 @@ class CRUDActivity:
             update_data["checkpoint_id"] = None
         resulting_is_global = update_data.get("is_global", db_obj.is_global)
         resulting_checkpoint_id = update_data.get("checkpoint_id", db_obj.checkpoint_id)
+        if resulting_is_global and resulting_checkpoint_id is not None:
+            raise RallyValidationError("Global activities cannot have a checkpoint_id")
         if not resulting_is_global and resulting_checkpoint_id is None:
             raise RallyValidationError("Checkpoint activities require a checkpoint_id")
         for field, value in update_data.items():

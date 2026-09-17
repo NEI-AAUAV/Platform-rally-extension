@@ -728,7 +728,7 @@ class TestCheckpointCRUDApi:
 
         assert response.status_code == 404
 
-    async def test_route_status_global_activity_covers_every_checkpoint(
+    async def test_route_status_global_activity_does_not_satisfy_checkpoint_activity_requirement(
         self, pg_session, pg_client, as_admin
     ):
         from app.crud.crud_activity import activity as crud_activity
@@ -751,8 +751,35 @@ class TestCheckpointCRUDApi:
 
         assert response.status_code == 200, response.text
         assert all(
-            "activity" not in checkpoint["missing"] for checkpoint in response.json()["checkpoints"]
+            "activity" in checkpoint["missing"] for checkpoint in response.json()["checkpoints"]
         )
+
+    async def test_route_status_scoped_activity_only_covers_its_checkpoint(
+        self, pg_session, pg_client, as_admin
+    ):
+        from app.crud.crud_activity import activity as crud_activity
+        from app.schemas.activity import ActivityCreate, ActivityType
+
+        await _make_event(pg_session)
+        await set_rally_settings(pg_session, enable_staff_scoring=True)
+        checkpoint_1 = await _make_checkpoint(pg_session, order=1)
+        await _make_checkpoint(pg_session, order=2)
+        await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Checkpoint activity",
+                activity_type=ActivityType.GENERAL,
+                checkpoint_id=checkpoint_1.id,
+                is_global=False,
+            ),
+        )
+
+        response = pg_client.get("/api/rally/v1/checkpoint/admin/route")
+
+        assert response.status_code == 200, response.text
+        checkpoints = response.json()["checkpoints"]
+        assert "activity" not in checkpoints[0]["missing"]
+        assert "activity" in checkpoints[1]["missing"]
 
 
 class TestCheckpointBusinessLogic:
