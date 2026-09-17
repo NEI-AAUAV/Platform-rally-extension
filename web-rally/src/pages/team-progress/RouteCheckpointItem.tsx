@@ -301,10 +301,10 @@ export default function RouteCheckpointItem({
           )}
           {...cardProps}
         >
-          {canReveal && cover && (
+          {canReveal && cover && cover.image_url && (
             <CheckpointCardHeader
               checkpointName={checkpoint.name}
-              coverUrl={cover.image_url!}
+              coverUrl={cover.image_url}
               coverCaption={cover.caption}
               totalPhotos={photos.length}
             />
@@ -312,7 +312,7 @@ export default function RouteCheckpointItem({
 
           <CheckpointCardBody
             checkpointName={checkpoint.name}
-            hasCover={!!(canReveal && cover)}
+            hasCover={!!(canReveal && cover?.image_url)}
             isCompleted={isCompleted}
             isSkipped={isSkipped}
             isCurrent={isCurrent}

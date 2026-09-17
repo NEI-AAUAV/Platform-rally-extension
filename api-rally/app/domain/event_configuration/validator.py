@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from app.domain.event_configuration.activity_coverage import (
+    checkpoint_ids_covered_by_activities,
+)
 from app.domain.event_configuration.policies import (
     SETTING_CAPABILITIES,
     Capability,
@@ -306,11 +309,12 @@ class ConfigurationValidator:
         """
         if not checkpoints or not activities:
             return
-        activity_checkpoint_ids = {
-            cp_id
-            for a in activities
-            if (cp_id := getattr(a, "checkpoint_id", None)) is not None
-        }
+        checkpoint_ids = [
+            c_id
+            for checkpoint in checkpoints
+            if isinstance((c_id := getattr(checkpoint, "id", None)), int)
+        ]
+        activity_checkpoint_ids = checkpoint_ids_covered_by_activities(activities, checkpoint_ids)
         missing = [
             c_id
             for c in checkpoints
@@ -354,16 +358,19 @@ class ConfigurationValidator:
             # Activity and staff are operational relations.  They have their
             # own actionable readiness issues below, so this generic issue is
             # reserved for intrinsic checkpoint structure.
-            if any(field not in {"activity", "staff"} for field in missing_fields(
-                c,
-                has_activity=getattr(c, "id", None) in activity_ids,
-                has_staff=getattr(c, "id", None) in staffed_ids,
-                requires_coordinates=requirements["coordinates"],
-                requires_clue=requirements["clue"],
-                requires_stage=requirements["stage"],
-                requires_activity=requirements["activity"],
-                requires_staff=requirements["staff"],
-            ))
+            if any(
+                field not in {"activity", "staff"}
+                for field in missing_fields(
+                    c,
+                    has_activity=getattr(c, "id", None) in activity_ids,
+                    has_staff=getattr(c, "id", None) in staffed_ids,
+                    requires_coordinates=requirements["coordinates"],
+                    requires_clue=requirements["clue"],
+                    requires_stage=requirements["stage"],
+                    requires_activity=requirements["activity"],
+                    requires_staff=requirements["staff"],
+                )
+            )
             and (c_id := getattr(c, "id", None)) is not None
         ]
         if incomplete_ids:

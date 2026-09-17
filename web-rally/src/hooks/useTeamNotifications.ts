@@ -34,7 +34,7 @@ export default function useTeamNotifications(team: DetailedTeam | undefined): vo
       if (newlyResolved.length === 1) {
         toast.success(`${terms.checkpoint} ${newlyResolved[0]} resolvido!`);
       } else if (newlyResolved.length > 1) {
-        toast.success(`${newlyResolved.length} ${terms.checkpoint}s resolvidos!`);
+        toast.success(`${newlyResolved.length} ${terms.checkpoints} resolvidos!`);
       }
     }
 

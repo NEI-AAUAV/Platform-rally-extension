@@ -62,7 +62,9 @@ export default function AdminMobileDrawer({
         aria-current={active ? "page" : undefined}
         className={cn(
           "rally-press flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
-          active ? "rally-bg-accent text-white" : "text-foreground/80 hover:bg-accent hover:text-foreground",
+          active
+            ? "rally-bg-accent text-white"
+            : "text-foreground/80 hover:bg-accent hover:text-foreground",
         )}
       >
         <Icon className="h-4 w-4 shrink-0" />
@@ -82,7 +84,7 @@ export default function AdminMobileDrawer({
         type="button"
         ref={triggerRef}
         onClick={() => setIsDrawerOpen(true)}
-        aria-haspopup="dialog"
+        aria-haspopup="menu"
         aria-expanded={isDrawerOpen}
         className="rally-surface rally-press flex w-full items-center gap-2.5 rounded-lg p-3 text-sm font-semibold text-foreground"
       >
@@ -103,7 +105,7 @@ export default function AdminMobileDrawer({
           if (event.target === event.currentTarget) closeDrawer();
         }}
         className={cn(
-          "rally-elevate fixed inset-y-0 left-auto right-0 m-0 flex h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none backdrop:bg-black/50 backdrop:backdrop-blur-sm",
+          "rally-elevate fixed inset-y-0 left-auto right-0 m-0 hidden h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none backdrop:bg-black/50 backdrop:backdrop-blur-sm open:flex",
         )}
         style={{
           paddingTop: "max(20px, var(--safe-top))",

@@ -69,7 +69,8 @@ export default function Admin() {
   ]);
 
   const { tab: rawTab } = adminRoute.useSearch();
-  const activeTab: AdminTabId = rawTab && ADMIN_ITEMS.some((t) => t.id === rawTab) ? rawTab : "dashboard";
+  const activeTab: AdminTabId =
+    rawTab && ADMIN_ITEMS.some((t) => t.id === rawTab) ? rawTab : "dashboard";
   const navigate = adminRoute.useNavigate();
   const setActiveTab = (id: AdminTabId) => navigate({ search: { tab: id }, replace: true });
   const activeTabMeta = ADMIN_ITEM_BY_ID.get(activeTab) ?? ADMIN_ITEMS[0]!;

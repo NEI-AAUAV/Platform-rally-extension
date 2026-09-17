@@ -540,6 +540,22 @@ def test_checkpoints_without_activities_not_emitted_with_full_coverage():
     assert not any(issue.code == "CHECKPOINTS_WITHOUT_ACTIVITIES" for issue in report.issues)
 
 
+def test_global_activity_covers_all_checkpoints():
+    report = ConfigurationValidator.validate(
+        event=event(event_type="rally_tascas", event_profile="staffed"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=None, is_global=True)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+    )
+
+    codes = {issue.code for issue in report.issues}
+    assert "NO_ACTIVITIES" not in codes
+    assert "CHECKPOINTS_WITHOUT_ACTIVITIES" not in codes
+
+
 def test_checkpoints_without_activities_emitted_for_partial_coverage():
     report = ConfigurationValidator.validate(
         event=event(event_type="rally_tascas", event_profile="staffed"),
@@ -637,7 +653,9 @@ def test_opinionated_profiles_emit_start_time_missing_error(event_type, profile)
         if profile == "guided"
         else {}
     )
-    extra_settings = {"guide_mode_enabled": True, "guide_mode_active": True} if profile == "guided" else {}
+    extra_settings = (
+        {"guide_mode_enabled": True, "guide_mode_active": True} if profile == "guided" else {}
+    )
     report = ConfigurationValidator.validate(
         event=event(event_type=event_type, event_profile=profile, start_time=None),
         settings=settings(enable_staff_scoring=False, **extra_settings),

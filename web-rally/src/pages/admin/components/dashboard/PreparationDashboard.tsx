@@ -48,7 +48,10 @@ export default function PreparationDashboard({ onNavigate }: Readonly<Preparatio
   });
 
   const teamList = useMemo(() => (Array.isArray(teams) ? (teams as ListingTeam[]) : []), [teams]);
-  const checkpointList = useMemo(() => (Array.isArray(checkpoints) ? checkpoints : []), [checkpoints]);
+  const checkpointList = useMemo(
+    () => (Array.isArray(checkpoints) ? checkpoints : []),
+    [checkpoints],
+  );
 
   return (
     <div className="space-y-6">

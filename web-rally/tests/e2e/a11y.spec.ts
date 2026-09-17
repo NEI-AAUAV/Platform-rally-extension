@@ -213,7 +213,11 @@ test.describe("Accessibility", () => {
       }),
     );
 
-    await page.goto("/rally/admin", { waitUntil: "domcontentloaded" });
+    // tab=teams so the mobile drawer's "Preparação" group (which "Equipas"
+    // belongs to) auto-expands via its containsActive check — the group
+    // stays collapsed by default otherwise, matching the intentional
+    // collapsed-accordion behaviour covered in admin.spec.ts.
+    await page.goto("/rally/admin?tab=teams", { waitUntil: "domcontentloaded" });
     await openAdminNavIfMobile(page);
     await expect(page.getByRole("button", { name: /Equipas/i })).toBeVisible({
       timeout: 10000,

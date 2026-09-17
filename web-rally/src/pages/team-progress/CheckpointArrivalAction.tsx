@@ -18,7 +18,10 @@ const MESSAGE_CLASSES: Record<GpsState, string> = {
   error: "text-red-500",
 };
 
-function ButtonContent({ gpsState, isPending }: Readonly<{ gpsState: GpsState; isPending: boolean }>) {
+function ButtonContent({
+  gpsState,
+  isPending,
+}: Readonly<{ gpsState: GpsState; isPending: boolean }>) {
   if (gpsState === "locating" || isPending) {
     return (
       <>

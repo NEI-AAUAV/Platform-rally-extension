@@ -9,7 +9,12 @@ interface AdminSidebarProps {
 }
 
 /** Desktop sticky sidebar: admin nav grouped under secondary-styled headings. */
-export default function AdminSidebar({ groups, activeTab, disabledTabIds, onSelect }: AdminSidebarProps) {
+export default function AdminSidebar({
+  groups,
+  activeTab,
+  disabledTabIds,
+  onSelect,
+}: AdminSidebarProps) {
   return (
     <nav
       aria-label="Secções de administração"
@@ -17,7 +22,7 @@ export default function AdminSidebar({ groups, activeTab, disabledTabIds, onSele
     >
       {groups.map((group) => (
         <div key={group.id} className="flex flex-col gap-1">
-          <span className="px-3.5 pt-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground/70">
+          <span className="px-3.5 pt-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
             {group.label}
           </span>
           {group.items.map(({ id, label, icon: Icon }) => {

@@ -41,6 +41,9 @@ class CRUDActivity:
             checkpoint_id=obj_in.checkpoint_id,
             config=obj_in.config,
             is_active=obj_in.is_active,
+            is_global=obj_in.is_global,
+            available_from=obj_in.available_from,
+            available_until=obj_in.available_until,
             event_id=await current_event_id(db),
         )
         db.add(db_obj)
@@ -72,6 +75,12 @@ class CRUDActivity:
     ) -> Activity:
         """Update an activity"""
         update_data = obj_in.model_dump(exclude_unset=True, mode="json")
+        if update_data.get("is_global") is True:
+            update_data["checkpoint_id"] = None
+        resulting_is_global = update_data.get("is_global", db_obj.is_global)
+        resulting_checkpoint_id = update_data.get("checkpoint_id", db_obj.checkpoint_id)
+        if not resulting_is_global and resulting_checkpoint_id is None:
+            raise RallyValidationError("Checkpoint activities require a checkpoint_id")
         for field, value in update_data.items():
             setattr(db_obj, field, value)
         db.add(db_obj)

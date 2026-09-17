@@ -21,7 +21,13 @@ import {
 } from "lucide-react";
 import type { AdminTabId } from "@/router/routes";
 
-export type AdminSectionId = "overview" | "preparation" | "operations" | "competition" | "event" | "system";
+export type AdminSectionId =
+  | "overview"
+  | "preparation"
+  | "operations"
+  | "competition"
+  | "event"
+  | "system";
 
 export interface AdminNavItem {
   id: AdminTabId;
@@ -96,7 +102,9 @@ export const ADMIN_NAVIGATION: readonly AdminNavGroup[] = [
 ] as const;
 
 /** Flat list of every admin nav item, derived from ADMIN_NAVIGATION. */
-export const ADMIN_ITEMS: readonly AdminNavItem[] = ADMIN_NAVIGATION.flatMap((group) => group.items);
+export const ADMIN_ITEMS: readonly AdminNavItem[] = ADMIN_NAVIGATION.flatMap(
+  (group) => group.items,
+);
 
 /** Lookup map from tab id to its nav item, derived from ADMIN_NAVIGATION. */
 export const ADMIN_ITEM_BY_ID: ReadonlyMap<AdminTabId, AdminNavItem> = new Map(

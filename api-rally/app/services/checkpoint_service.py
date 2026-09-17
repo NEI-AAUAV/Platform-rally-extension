@@ -16,6 +16,9 @@ from app.core.exceptions import RallyValidationError
 from app.crud._event_scope import current_event_id
 from app.crud.crud_checkpoint import CRUDCheckPoint
 from app.crud.crud_team import CRUDTeam
+from app.domain.event_configuration.activity_coverage import (
+    checkpoint_ids_covered_by_activities,
+)
 from app.domain.event_configuration.resolver import resolve_capabilities
 from app.domain.event_configuration.validator import ConfigurationValidator
 from app.models.activity import Activity, ActivityResult, RallyEvent
@@ -419,11 +422,11 @@ class CheckpointService:
         team_service = TeamService(self._db, self._team_crud)
         return [await team_service.build_listing_team(team, is_privileged=True) for team in teams]
 
-    async def _checkpoint_ids_with_activity(self) -> set[int]:
-        stmt = select(Activity.checkpoint_id).where(
-            Activity.checkpoint_id.is_not(None), Activity.is_active.is_(True)
-        )
-        return {cid for cid in (await self._db.scalars(stmt)).all() if cid is not None}
+    async def _checkpoint_ids_with_activity(self, checkpoint_ids: set[int]) -> set[int]:
+        event_id = await current_event_id(self._db)
+        stmt = select(Activity).where(Activity.event_id == event_id, Activity.is_active.is_(True))
+        activities = (await self._db.scalars(stmt)).all()
+        return checkpoint_ids_covered_by_activities(activities, checkpoint_ids)
 
     async def _checkpoint_ids_with_staff(self) -> set[int]:
         stmt = select(RallyStaffAssignment.checkpoint_id)
@@ -439,7 +442,7 @@ class CheckpointService:
         redacted. Both are read from settings rather than assumed.
         """
         checkpoints = await self._checkpoint_crud.get_all_ordered(db=self._db, include_drafts=True)
-        with_activity = await self._checkpoint_ids_with_activity()
+        with_activity = await self._checkpoint_ids_with_activity({cp.id for cp in checkpoints})
         with_staff = await self._checkpoint_ids_with_staff()
         event = await self._db.get(RallyEvent, await current_event_id(self._db))
         caps = resolve_capabilities(

@@ -62,14 +62,19 @@ export default function EventReadinessSummary({
           <XCircle className="mt-0.5 h-5 w-5 text-destructive" />
         )}
         <div className="min-w-0 flex-1">
-          <h2 className="font-semibold">{ready ? "Configuração pronta" : "Configuração incompleta"}</h2>
+          <h2 className="font-semibold">
+            {ready ? "Configuração pronta" : "Configuração incompleta"}
+          </h2>
           <p className="text-sm text-muted-foreground">{readinessDescription}</p>
         </div>
       </div>
       {showCapabilities && important.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {important.map(([name, capability]) => (
-            <span key={name} className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            <span
+              key={name}
+              className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+            >
               {CAPABILITY_LABEL[name] ?? name.replace(/_/g, " ")} ·{" "}
               {POLICY_LABEL[capability.policy] ?? capability.policy}
             </span>
