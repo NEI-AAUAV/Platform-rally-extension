@@ -39,15 +39,10 @@ export async function expectLoggedOutLoginCta(page: Page): Promise<void> {
  * with any admin tab button so the same test body works on both projects.
  */
 export async function openAdminNavIfMobile(page: Page): Promise<void> {
-  // `button[aria-haspopup="menu"][aria-expanded]` also matches the header's
-  // own NavGroup dropdown trigger (nav-tabs.tsx), which renders before
-  // admin/index.tsx's content in DOM order and is itself CSS-hidden below
-  // `sm`. `.first()` on the unscoped selector locks onto that header button
-  // — never the admin drawer trigger — and every wait then times out against
-  // a permanently-hidden element regardless of viewport. The admin trigger
-  // and both copies of the sections nav live inside <main>; scope to it.
+  // The admin drawer is a dialog, not an ARIA menu. It and both copies of the
+  // sections nav live inside <main>; scope the trigger there as well.
   const main = page.locator("main");
-  const trigger = main.locator('button[aria-haspopup="menu"][aria-expanded]').first();
+  const trigger = main.locator('button[aria-haspopup="dialog"][aria-expanded]').first();
   // admin/index.tsx renders TWO <nav aria-label="Secções de administração">:
   // the drawer's (mobile) copy first in markup, nested in the same
   // `lg:hidden` wrapper as the trigger, then the always-in-DOM desktop copy
