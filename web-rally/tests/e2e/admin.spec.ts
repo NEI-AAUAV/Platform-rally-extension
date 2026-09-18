@@ -100,7 +100,7 @@ test.describe("Admin Panel", () => {
     // <details> must start open without any click, per PARTE 3's
     // requirement, while an unrelated group (Sistema) stays collapsed.
     await page.goto("/rally/admin?tab=checkpoints", { waitUntil: "domcontentloaded" });
-    await openAdminNavIfMobile(page);
+    await openAdminNavIfMobile(page, { preserveCollapsedGroups: true });
 
     const preparacao = page.getByText("Preparação", { exact: true });
     await expect(preparacao).toBeVisible();

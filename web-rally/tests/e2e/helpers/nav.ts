@@ -38,7 +38,10 @@ export async function expectLoggedOutLoginCta(page: Page): Promise<void> {
  * desktop `<nav>` is CSS-hidden there instead. Call this before interacting
  * with any admin tab button so the same test body works on both projects.
  */
-export async function openAdminNavIfMobile(page: Page): Promise<void> {
+export async function openAdminNavIfMobile(
+  page: Page,
+  { preserveCollapsedGroups = false }: { preserveCollapsedGroups?: boolean } = {},
+): Promise<void> {
   // The admin drawer is a dialog, not an ARIA menu. It and both copies of the
   // sections nav live inside <main>; scope the trigger there as well.
   const main = page.locator("main");
@@ -76,4 +79,11 @@ export async function openAdminNavIfMobile(page: Page): Promise<void> {
     await expect(trigger).toHaveAttribute("aria-expanded", "true", { timeout: 2000 });
     await expect(drawer).toHaveAttribute("open", "", { timeout: 2000 });
   }).toPass({ timeout: 15000 });
+
+  if (!preserveCollapsedGroups) {
+    const collapsedGroups = drawer.locator("details:not([open]) > summary");
+    while ((await collapsedGroups.count()) > 0) {
+      await collapsedGroups.first().click();
+    }
+  }
 }
