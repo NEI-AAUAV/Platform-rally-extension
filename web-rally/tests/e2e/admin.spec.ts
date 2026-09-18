@@ -102,15 +102,16 @@ test.describe("Admin Panel", () => {
     await page.goto("/rally/admin?tab=checkpoints", { waitUntil: "domcontentloaded" });
     await openAdminNavIfMobile(page, { preserveCollapsedGroups: true });
 
-    const preparacao = page.getByText("Preparação", { exact: true });
+    const drawer = page.getByRole("dialog", { name: "Secções de administração" });
+    const preparacao = drawer.getByText("Preparação", { exact: true });
     await expect(preparacao).toBeVisible();
-    const systemGroup = page.locator("details", { hasText: "Sistema" });
+    const systemGroup = drawer.locator("details", { hasText: "Sistema" });
     await expect(systemGroup).toHaveJSProperty("open", false);
-    const preparacaoGroup = page.locator("details", { hasText: "Preparação" });
+    const preparacaoGroup = drawer.locator("details", { hasText: "Preparação" });
     await expect(preparacaoGroup).toHaveJSProperty("open", true);
 
     // Toggling a collapsed group must not itself change the active tab.
-    await page.getByText("Sistema", { exact: true }).click();
+    await drawer.getByText("Sistema", { exact: true }).click();
     await expect(systemGroup).toHaveJSProperty("open", true);
     await expect(page).toHaveURL(/tab=checkpoints/);
 

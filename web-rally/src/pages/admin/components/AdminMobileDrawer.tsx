@@ -135,7 +135,7 @@ export default function AdminMobileDrawer({
             const containsActive = group.items.some((item) => item.id === activeTab);
             return (
               <details key={group.id} className="group" open={containsActive}>
-                <summary className="rally-press flex min-h-[44px] cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground/80 hover:bg-accent/50">
+                <summary className="rally-press flex min-h-[44px] cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground hover:bg-accent/50">
                   <span>{group.label}</span>
                   <span className="text-xs transition-transform group-open:rotate-90">▸</span>
                 </summary>
