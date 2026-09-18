@@ -15,17 +15,27 @@ export default function useTeamNotifications(team: DetailedTeam | undefined): vo
   const toast = useAppToast();
   const terms = useEventTerms();
   const prevRank = useRef<number | null>(null);
-  const prevCheckpoint = useRef<number | null>(null);
+  const prevResolved = useRef<ReadonlySet<number> | null>(null);
 
   useEffect(() => {
     if (!team) return;
 
     const rank = team.classification;
-    const checkpoint = team.last_checkpoint_number ?? 0;
+    const resolved = team.resolved_checkpoint_orders ?? [];
 
-    // Checkpoint advanced.
-    if (prevCheckpoint.current !== null && checkpoint > prevCheckpoint.current) {
-      toast.success(`Chegaste ao ${terms.checkpoint} ${checkpoint}!`);
+    // Newly resolved orders since the last observation. Uses a set diff
+    // (not last_checkpoint_number, a sequential-prefix pointer) so free-order
+    // and free-choice routes — where resolution isn't strictly sequential —
+    // still surface a notification.
+    if (prevResolved.current) {
+      const newlyResolved = resolved.filter((order) => !prevResolved.current!.has(order));
+      // A reconnect/refresh can reveal many at once; announce a summary
+      // instead of one toast per order to avoid a notification avalanche.
+      if (newlyResolved.length === 1) {
+        toast.success(`${terms.checkpoint} ${newlyResolved[0]} resolvido!`);
+      } else if (newlyResolved.length > 1) {
+        toast.success(`${newlyResolved.length} ${terms.checkpoints} resolvidos!`);
+      }
     }
 
     // Climbed the ranking (a smaller classification number is a better place).
@@ -36,6 +46,6 @@ export default function useTeamNotifications(team: DetailedTeam | undefined): vo
     }
 
     prevRank.current = rank;
-    prevCheckpoint.current = checkpoint;
+    prevResolved.current = new Set(resolved);
   }, [team, toast, terms]);
 }

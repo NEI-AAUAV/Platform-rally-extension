@@ -70,8 +70,8 @@ vi.mock("@/pages/admin/components", () => ({
   AdminSearch: () => <div data-testid="admin-search">AdminSearch</div>,
 }));
 
-vi.mock("@/pages/admin/components/dashboard/LiveDashboard", () => ({
-  default: () => <div data-testid="tab-dashboard">LiveDashboard</div>,
+vi.mock("@/pages/admin/components/dashboard/AdminDashboard", () => ({
+  default: () => <div data-testid="tab-dashboard">AdminDashboard</div>,
 }));
 
 vi.mock("@/pages/settings", () => ({

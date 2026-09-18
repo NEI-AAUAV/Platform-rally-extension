@@ -3,21 +3,28 @@ gaps not already covered by test_event_editions.py (against real Postgres).
 """
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 
+import pytest
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from app.core.exceptions import RallyValidationError
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_activity import activity_result as crud_activity_result
 from app.crud.crud_activity import rally_event as crud_rally_event
+from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
 from app.crud.crud_team import team as crud_team
 from app.models.activity import EventType
 from app.schemas.activity import (
     ActivityCreate,
     ActivityResultCreate,
+    ActivityUpdate,
     RallyEventCreate,
     RallyEventUpdate,
 )
 from app.schemas.activity_types import ActivityType
+from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
 
 
@@ -28,8 +35,109 @@ async def _make_activity(pg_session, name="Shot Relâmpago"):
             name=name,
             activity_type=ActivityType.GENERAL,
             config={"min_points": 0, "max_points": 100},
+            is_global=True,
         ),
     )
+
+
+async def test_create_activity_persists_global_scope_and_availability(pg_session) -> None:
+    available_from = datetime(2026, 9, 17, 10, tzinfo=UTC)
+    available_until = available_from + timedelta(hours=2)
+
+    created = await crud_activity.create(
+        pg_session,
+        obj_in=ActivityCreate(
+            name="Global challenge",
+            activity_type=ActivityType.GENERAL,
+            config={},
+            is_global=True,
+            available_from=available_from,
+            available_until=available_until,
+        ),
+    )
+
+    assert created.is_global is True
+    assert created.checkpoint_id is None
+    assert created.available_from == available_from
+    assert created.available_until == available_until
+
+
+def test_activity_create_rejects_contradictory_scope() -> None:
+    with pytest.raises(ValidationError, match="Global activities cannot have a checkpoint_id"):
+        ActivityCreate(
+            name="Invalid global",
+            activity_type=ActivityType.GENERAL,
+            checkpoint_id=1,
+            is_global=True,
+        )
+
+    with pytest.raises(ValidationError, match="Checkpoint activities require a checkpoint_id"):
+        ActivityCreate(name="Invalid scoped", activity_type=ActivityType.GENERAL)
+
+
+async def test_global_activity_update_rejects_checkpoint_id(pg_session) -> None:
+    activity = await _make_activity(pg_session)
+    checkpoint = await crud_checkpoint.create(
+        pg_session, obj_in=CheckPointCreate(name="Checkpoint", order=1)
+    )
+
+    with pytest.raises(RallyValidationError, match="Global activities cannot have a checkpoint_id"):
+        await crud_activity.update(
+            pg_session,
+            db_obj=activity,
+            obj_in=ActivityUpdate(checkpoint_id=checkpoint.id),
+        )
+
+
+async def test_global_activity_update_rejects_scoped_without_checkpoint(pg_session) -> None:
+    activity = await _make_activity(pg_session)
+
+    with pytest.raises(RallyValidationError, match="Checkpoint activities require a checkpoint_id"):
+        await crud_activity.update(
+            pg_session,
+            db_obj=activity,
+            obj_in=ActivityUpdate(is_global=False),
+        )
+
+
+async def test_global_activity_update_converts_to_scoped_with_checkpoint(pg_session) -> None:
+    activity = await _make_activity(pg_session)
+    checkpoint = await crud_checkpoint.create(
+        pg_session, obj_in=CheckPointCreate(name="Checkpoint", order=1)
+    )
+
+    updated = await crud_activity.update(
+        pg_session,
+        db_obj=activity,
+        obj_in=ActivityUpdate(is_global=False, checkpoint_id=checkpoint.id),
+    )
+
+    assert updated.is_global is False
+    assert updated.checkpoint_id == checkpoint.id
+
+
+async def test_scoped_activity_update_converts_to_global_and_clears_checkpoint(pg_session) -> None:
+    checkpoint = await crud_checkpoint.create(
+        pg_session, obj_in=CheckPointCreate(name="Checkpoint", order=1)
+    )
+    activity = await crud_activity.create(
+        pg_session,
+        obj_in=ActivityCreate(
+            name="Scoped activity",
+            activity_type=ActivityType.GENERAL,
+            checkpoint_id=checkpoint.id,
+            is_global=False,
+        ),
+    )
+
+    updated = await crud_activity.update(
+        pg_session,
+        db_obj=activity,
+        obj_in=ActivityUpdate(is_global=True),
+    )
+
+    assert updated.is_global is True
+    assert updated.checkpoint_id is None
 
 
 async def test_remove_activity_missing_returns_none(pg_session) -> None:
@@ -100,9 +208,6 @@ async def test_activity_result_get_all_returns_every_result(pg_session) -> None:
 
 def test_rally_event_update_rejects_event_type() -> None:
     """Changing type through the generic update would retain stale settings."""
-    import pytest
-    from pydantic import ValidationError
-
     with pytest.raises(ValidationError):
         RallyEventUpdate(event_type=EventType.RALLY_TASCAS)
 

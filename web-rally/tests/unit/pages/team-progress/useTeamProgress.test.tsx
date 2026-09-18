@@ -62,6 +62,7 @@ describe("useTeamProgress", () => {
         total: 20,
         last_checkpoint_number: 1,
         current_checkpoint_number: 2,
+        resolved_checkpoint_orders: [1],
       },
     } as never);
     vi.mocked(getCheckpoints).mockResolvedValue({
@@ -122,7 +123,7 @@ describe("useTeamProgress", () => {
     await waitFor(() => expect(result.current.totalCount).toBe(2));
   });
 
-  it("falls back to zero completed posts when last_checkpoint_number is absent", async () => {
+  it("falls back to zero completed posts when resolved_checkpoint_orders is absent", async () => {
     // Completion comes from the server's progress engine, never from a count
     // the client derives itself.
     vi.mocked(getTeamById).mockResolvedValue({
@@ -132,5 +133,49 @@ describe("useTeamProgress", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.completedCheckpointsCount).toBe(0);
+  });
+
+  it("does not report free choice for a sequential route with a single open checkpoint", async () => {
+    vi.mocked(getTeamById).mockResolvedValue({
+      data: {
+        id: 1,
+        name: "Team A",
+        total: 20,
+        last_checkpoint_number: 1,
+        current_checkpoint_number: 2,
+        open_checkpoint_orders: [2],
+      },
+    } as never);
+    const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.openCheckpointOrders).toEqual([2]);
+    expect(result.current.hasFreeChoice).toBe(false);
+  });
+
+  it("reports free choice when several checkpoints are open at once", async () => {
+    vi.mocked(getTeamById).mockResolvedValue({
+      data: {
+        id: 1,
+        name: "Team A",
+        total: 20,
+        last_checkpoint_number: 1,
+        current_checkpoint_number: 2,
+        open_checkpoint_orders: [2, 3, 4],
+      },
+    } as never);
+    const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.openCheckpointOrders).toEqual([2, 3, 4]);
+    expect(result.current.hasFreeChoice).toBe(true);
+  });
+
+  it("reports no free choice when open_checkpoint_orders is absent", async () => {
+    const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.openCheckpointOrders).toEqual([]);
+    expect(result.current.hasFreeChoice).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
-import { MapPin } from "lucide-react";
+import { MapPin, Route } from "lucide-react";
 import { useTeamProgress } from "./useTeamProgress";
 import useTeamNotifications from "@/hooks/useTeamNotifications";
+import { getEventTerms } from "@/lib/eventTerms";
 import StatusScreen from "./StatusScreen";
 import TeamProgressSkeleton from "./TeamProgressSkeleton";
 import TeamHeaderCard from "./TeamHeaderCard";
@@ -11,6 +12,7 @@ import RouteFinishedCard from "./RouteFinishedCard";
 import RouteCheckpointItem from "./RouteCheckpointItem";
 import { departureNotice } from "./checkpointHours";
 import MapSection from "@/pages/checkpoints/components/MapSection";
+import { findCheckpointProgress } from "@/lib/checkpointProgress";
 
 export default function TeamProgress() {
   const {
@@ -24,6 +26,8 @@ export default function TeamProgress() {
     completedCheckpointsCount,
     resolvedOrders,
     isRouteFinished,
+    openCheckpointOrders,
+    hasFreeChoice,
     nextCheckpoint,
     showScore,
     showRanking,
@@ -66,18 +70,36 @@ export default function TeamProgress() {
   // Team roster/access code already live at /team-info (in the bottom nav),
   // so they aren't duplicated here for this event type.
   const isPeddyPaper = settings?.event_type === "peddy_paper";
+  const terms = getEventTerms(settings?.event_type);
+  const notYetDeparted = departureNotice(
+    settings?.rally_start_time,
+    team.start_offset_minutes ?? 0,
+  );
 
   // The server says so. `!nextCheckpoint` was also true whenever
   // `current_checkpoint_number` named an order outside the returned slice —
   // the normal case with stages — so a team with posts still to visit was
   // shown "Chegaram ao fim!".
   const isFinished = isRouteFinished;
+  // A free-choice stage can leave several posts reachable at once — say so
+  // instead of presenting one of them as if it were the only option, which
+  // would read as the app arbitrarily picking for the team.
+  const freeChoiceNotice = hasFreeChoice && (
+    <p className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+      <Route className="h-4 w-4 shrink-0" />
+      {openCheckpointOrders.length} {terms.checkpoints} disponíveis — escolham por onde continuar.
+    </p>
+  );
   const nextCheckpointCard = nextCheckpoint ? (
-    <NextCheckpointCard
-      checkpoint={nextCheckpoint}
-      showMap={showMap}
-      notYetDeparted={departureNotice(settings?.rally_start_time, team.start_offset_minutes ?? 0)}
-    />
+    <>
+      {freeChoiceNotice}
+      <NextCheckpointCard
+        checkpoint={nextCheckpoint}
+        checkpointProgress={findCheckpointProgress(team, nextCheckpoint.id)}
+        showMap={showMap}
+        notYetDeparted={notYetDeparted}
+      />
+    </>
   ) : (
     isFinished && (
       <RouteFinishedCard
@@ -169,6 +191,7 @@ export default function TeamProgress() {
                   offerCheckIn={
                     checkpoint.is_reachable === true && checkpoint.id !== nextCheckpoint?.id
                   }
+                  notYetDeparted={notYetDeparted}
                 />
               ))}
             </div>

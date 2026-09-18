@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from app.domain.event_configuration.policies import (
     Capability,
     CapabilityPolicy,
@@ -12,6 +14,7 @@ from app.domain.event_configuration.settings import new_settings_for_profile
 from app.domain.event_configuration.validator import (
     ConfigurationIssueSeverity,
     ConfigurationValidator,
+    profile_requires_start_time,
 )
 
 
@@ -40,7 +43,12 @@ def settings(**overrides):
 
 
 def event(**overrides):
-    values = dict(event_type="peddy_paper", event_profile="autonomous", config={})
+    values = dict(
+        event_type="peddy_paper",
+        event_profile="autonomous",
+        config={},
+        start_time="2026-06-10T10:00:00",
+    )
     values.update(overrides)
     return SimpleNamespace(**values)
 
@@ -108,7 +116,7 @@ def test_olympic_rotation_is_derived_from_schedule_not_event_config():
             config={"olympic_rotation": True},
             rotation_schedule=[],
         ),
-        settings=settings(),
+        settings=settings(enable_staff_scoring=False),
         checkpoints=[SimpleNamespace(id=1)],
         route_stages=[],
         platform_qr_supported=True,
@@ -120,7 +128,7 @@ def test_olympic_rotation_is_derived_from_schedule_not_event_config():
             event_profile="rotation",
             rotation_schedule=[[{"team_id": 1, "checkpoint_id": 1}]],
         ),
-        settings=settings(),
+        settings=settings(enable_staff_scoring=False),
         checkpoints=[SimpleNamespace(id=1)],
         route_stages=[],
         platform_qr_supported=True,
@@ -319,3 +327,358 @@ async def test_load_configuration_context_limits_activities_to_active_ones():
 
     activity_query = db.scalars.await_args_list[2].args[0]
     assert "activities.is_active IS true" in str(activity_query)
+
+
+def complete_checkpoint(cp_id: int):
+    """A checkpoint with every field missing_fields() checks for present, so
+    it never trips INCOMPLETE_PUBLISHED_CHECKPOINTS by accident in tests
+    that aren't exercising that check.
+    """
+    return SimpleNamespace(
+        id=cp_id,
+        name=f"Posto {cp_id}",
+        clue="Uma pista",
+        latitude=1.0,
+        longitude=1.0,
+        arrival_radius_m=20,
+        is_placeholder=False,
+        stage_id=None,
+    )
+
+
+def test_unassigned_guide_teams_emits_issue_with_missing_team_ids():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="guided"),
+        settings=settings(guide_mode_enabled=True, guide_mode_active=True),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        teams=[SimpleNamespace(id=1), SimpleNamespace(id=2)],
+        guide_assignments=[SimpleNamespace(team_id=1)],
+        activities=[SimpleNamespace(checkpoint_id=1)],
+    )
+    issue = next(i for i in report.issues if i.code == "UNASSIGNED_GUIDE_TEAMS")
+    assert issue.entity_type == "team"
+    assert issue.entity_ids == [2]
+    assert issue.severity is ConfigurationIssueSeverity.ERROR
+
+
+def test_unassigned_guide_teams_not_emitted_when_all_teams_covered():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="guided"),
+        settings=settings(guide_mode_enabled=True, guide_mode_active=True),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        teams=[SimpleNamespace(id=1), SimpleNamespace(id=2)],
+        guide_assignments=[SimpleNamespace(team_id=1), SimpleNamespace(team_id=2)],
+        activities=[SimpleNamespace(checkpoint_id=1)],
+    )
+    assert not any(issue.code == "UNASSIGNED_GUIDE_TEAMS" for issue in report.issues)
+
+
+def test_unstaffed_checkpoints_emits_issue_for_published_checkpoints_without_staff():
+    report = ConfigurationValidator.validate(
+        event=event(event_type="rally_tascas", event_profile="staffed"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1)],
+    )
+    issue = next(i for i in report.issues if i.code == "UNSTAFFED_CHECKPOINTS")
+    assert issue.entity_type == "checkpoint"
+    assert issue.entity_ids == [2]
+
+
+def test_unstaffed_checkpoints_not_emitted_when_all_checkpoints_covered():
+    report = ConfigurationValidator.validate(
+        event=event(event_type="rally_tascas", event_profile="staffed"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+    )
+    assert not any(issue.code == "UNSTAFFED_CHECKPOINTS" for issue in report.issues)
+
+
+def test_incomplete_published_checkpoints_uses_missing_fields():
+    incomplete = SimpleNamespace(
+        id=5,
+        name="",
+        clue="",
+        latitude=None,
+        longitude=None,
+        arrival_radius_m=None,
+        is_placeholder=False,
+        stage_id=None,
+    )
+    report = ConfigurationValidator.validate(
+        event=event(),
+        settings=settings(gps_checkin_enabled=False),
+        checkpoints=[incomplete],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=5)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=5)],
+    )
+    issue = next(i for i in report.issues if i.code == "INCOMPLETE_PUBLISHED_CHECKPOINTS")
+    assert issue.entity_type == "checkpoint"
+    assert issue.entity_ids == [5]
+    assert issue.severity is ConfigurationIssueSeverity.WARNING
+
+
+def test_incomplete_published_checkpoints_not_emitted_when_complete():
+    report = ConfigurationValidator.validate(
+        event=event(),
+        settings=settings(gps_checkin_enabled=False),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=1)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1)],
+    )
+    assert not any(issue.code == "INCOMPLETE_PUBLISHED_CHECKPOINTS" for issue in report.issues)
+
+
+def test_no_teams_emits_warning_not_error():
+    report = ConfigurationValidator.validate(
+        event=event(),
+        settings=settings(enable_staff_scoring=False),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        teams=[],
+    )
+    issue = next(i for i in report.issues if i.code == "NO_TEAMS")
+    assert issue.severity is ConfigurationIssueSeverity.WARNING
+    assert report.ready is True
+
+
+def test_ready_true_when_only_warnings_present():
+    # Only warning-severity issues (no teams, incomplete checkpoint fields
+    # aside) should never flip readiness — ready means "no errors", not
+    # "no issues at all".
+    report = ConfigurationValidator.validate(
+        event=event(),
+        settings=settings(enable_staff_scoring=False),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        teams=[],
+    )
+    assert all(issue.severity is not ConfigurationIssueSeverity.ERROR for issue in report.issues)
+    assert report.ready is True
+
+
+def test_optional_staff_scoring_is_validated_when_enabled():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="custom"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[],
+        staff_assignments=[],
+    )
+    assert {issue.code for issue in report.issues} >= {"NO_ACTIVITIES", "NO_STAFF_ASSIGNMENTS"}
+    assert report.ready is False
+
+
+def test_custom_profile_does_not_require_start_time():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="custom", start_time=None),
+        settings=settings(enable_staff_scoring=False),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=False,
+    )
+    assert not any(issue.code == "EVENT_START_TIME_MISSING" for issue in report.issues)
+
+
+def test_event_dates_invalid_when_end_before_start():
+    report = ConfigurationValidator.validate(
+        event=event(
+            start_time="2026-06-10T10:00:00",
+            end_time="2026-06-09T10:00:00",
+        ),
+        settings=settings(),
+        checkpoints=[],
+        route_stages=[],
+        platform_qr_supported=False,
+    )
+    assert any(issue.code == "EVENT_DATES_INVALID" for issue in report.issues)
+
+
+def test_event_dates_valid_when_end_after_start():
+    report = ConfigurationValidator.validate(
+        event=event(
+            start_time="2026-06-09T10:00:00",
+            end_time="2026-06-10T10:00:00",
+        ),
+        settings=settings(),
+        checkpoints=[],
+        route_stages=[],
+        platform_qr_supported=False,
+    )
+    assert not any(issue.code == "EVENT_DATES_INVALID" for issue in report.issues)
+
+
+def test_checkpoints_without_activities_not_emitted_with_full_coverage():
+    report = ConfigurationValidator.validate(
+        event=event(event_type="rally_tascas", event_profile="staffed"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+    )
+    assert not any(issue.code == "CHECKPOINTS_WITHOUT_ACTIVITIES" for issue in report.issues)
+
+
+def test_global_activity_does_not_cover_checkpoint_activities():
+    report = ConfigurationValidator.validate(
+        event=event(event_type="rally_tascas", event_profile="staffed"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=None, is_global=True)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+    )
+
+    codes = {issue.code for issue in report.issues}
+    assert "NO_ACTIVITIES" not in codes
+    issue = next(i for i in report.issues if i.code == "CHECKPOINTS_WITHOUT_ACTIVITIES")
+    assert issue.entity_ids == [1, 2]
+
+
+def test_checkpoints_without_activities_emitted_for_partial_coverage():
+    report = ConfigurationValidator.validate(
+        event=event(event_type="rally_tascas", event_profile="staffed"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=1)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+    )
+    issue = next(i for i in report.issues if i.code == "CHECKPOINTS_WITHOUT_ACTIVITIES")
+    assert issue.entity_type == "checkpoint"
+    assert issue.entity_ids == [2]
+    assert issue.severity is ConfigurationIssueSeverity.ERROR
+
+
+def test_no_activities_emitted_and_not_duplicated_with_coverage_issue():
+    report = ConfigurationValidator.validate(
+        event=event(event_type="rally_tascas", event_profile="staffed"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+    )
+    codes = {issue.code for issue in report.issues}
+    assert "NO_ACTIVITIES" in codes
+    assert "CHECKPOINTS_WITHOUT_ACTIVITIES" not in codes
+
+
+def test_activity_coverage_not_checked_when_staff_scoring_disabled():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="custom"),
+        settings=settings(enable_staff_scoring=False),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=1)],
+    )
+    codes = {issue.code for issue in report.issues}
+    assert "NO_ACTIVITIES" not in codes
+    assert "CHECKPOINTS_WITHOUT_ACTIVITIES" not in codes
+
+
+def test_activity_coverage_checked_when_staff_scoring_enabled_via_custom_profile():
+    report = ConfigurationValidator.validate(
+        event=event(event_profile="custom"),
+        settings=settings(enable_staff_scoring=True),
+        checkpoints=[complete_checkpoint(1), complete_checkpoint(2)],
+        route_stages=[],
+        platform_qr_supported=False,
+        activities=[SimpleNamespace(checkpoint_id=1)],
+        staff_assignments=[SimpleNamespace(checkpoint_id=1), SimpleNamespace(checkpoint_id=2)],
+    )
+    issue = next(i for i in report.issues if i.code == "CHECKPOINTS_WITHOUT_ACTIVITIES")
+    assert issue.entity_ids == [2]
+
+
+@pytest.mark.parametrize(
+    ("event_type", "profile"),
+    [
+        ("peddy_paper", "autonomous"),
+        ("peddy_paper", "guided"),
+        ("rally_tascas", "staffed"),
+        ("rally_tascas", "self_checkin"),
+        ("olympic", "rotation"),
+    ],
+)
+def test_opinionated_profiles_require_start_time(event_type, profile):
+    assert profile_requires_start_time(event_type, profile) is True
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    ["peddy_paper", "rally_tascas", "olympic", "generic"],
+)
+def test_custom_profile_never_requires_start_time_for_any_event_type(event_type):
+    assert profile_requires_start_time(event_type, "custom") is False
+
+
+@pytest.mark.parametrize(
+    ("event_type", "profile"),
+    [
+        ("peddy_paper", "autonomous"),
+        ("peddy_paper", "guided"),
+        ("rally_tascas", "staffed"),
+        ("rally_tascas", "self_checkin"),
+        ("olympic", "rotation"),
+    ],
+)
+def test_opinionated_profiles_emit_start_time_missing_error(event_type, profile):
+    guide_kwargs = (
+        {"guide_assignments": [SimpleNamespace(team_id=1)], "teams": [SimpleNamespace(id=1)]}
+        if profile == "guided"
+        else {}
+    )
+    extra_settings = (
+        {"guide_mode_enabled": True, "guide_mode_active": True} if profile == "guided" else {}
+    )
+    report = ConfigurationValidator.validate(
+        event=event(event_type=event_type, event_profile=profile, start_time=None),
+        settings=settings(enable_staff_scoring=False, **extra_settings),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=True,
+        **guide_kwargs,
+    )
+    issue = next(i for i in report.issues if i.code == "EVENT_START_TIME_MISSING")
+    assert issue.severity is ConfigurationIssueSeverity.ERROR
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    ["peddy_paper", "rally_tascas", "olympic", "generic"],
+)
+def test_custom_profile_scenarios_do_not_emit_start_time_missing(event_type):
+    report = ConfigurationValidator.validate(
+        event=event(event_type=event_type, event_profile="custom", start_time=None),
+        settings=settings(enable_staff_scoring=False),
+        checkpoints=[complete_checkpoint(1)],
+        route_stages=[],
+        platform_qr_supported=True,
+    )
+    assert not any(issue.code == "EVENT_START_TIME_MISSING" for issue in report.issues)

@@ -82,7 +82,7 @@ describe("RouteCheckpointItem", () => {
       <RouteCheckpointItem
         checkpoint={{ ...checkpoint, is_reachable: true } as DetailedCheckPoint}
         index={0}
-        team={team}
+        team={{ ...team, checkpoints: [] } as DetailedTeam}
         resolvedOrders={new Set()}
         showScore
         showMap
@@ -103,7 +103,7 @@ describe("RouteCheckpointItem", () => {
       <RouteCheckpointItem
         checkpoint={futureCheckpoint}
         index={2}
-        team={team}
+        team={{ ...team, checkpoints: [] } as DetailedTeam}
         resolvedOrders={new Set()}
         showScore
         showMap
@@ -147,6 +147,83 @@ describe("RouteCheckpointItem", () => {
       />,
     );
     expect(screen.queryByText("+10 pts")).not.toBeInTheDocument();
+  });
+
+  it("renders as skipped, not completed, when the server marks the order as given up", () => {
+    const skippedTeam = {
+      checkpoints: [
+        {
+          checkpoint_id: 1,
+          checkpoint_order: 1,
+          status: "skipped",
+          arrived_at: null,
+          score: 0,
+        },
+      ],
+    } as DetailedTeam;
+    renderWithQueryClient(
+      <RouteCheckpointItem
+        checkpoint={checkpoint}
+        index={0}
+        team={skippedTeam}
+        resolvedOrders={new Set([1])}
+        showScore
+        showMap
+        isExpanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Desistiu")).toBeInTheDocument();
+    expect(screen.queryByText("Concluído")).not.toBeInTheDocument();
+    expect(screen.queryByText(/pts/)).not.toBeInTheDocument();
+  });
+
+  it("renders as arrived, not completed, when the team has checked in but not scored", () => {
+    const arrivedTeam = {
+      checkpoints: [
+        {
+          checkpoint_id: 1,
+          checkpoint_order: 1,
+          status: "arrived",
+          arrived_at: "2024-01-01T10:00:00Z",
+          score: 0,
+        },
+      ],
+    } as DetailedTeam;
+    renderWithQueryClient(
+      <RouteCheckpointItem
+        checkpoint={checkpoint}
+        index={0}
+        team={arrivedTeam}
+        resolvedOrders={new Set()}
+        showScore
+        showMap
+        isExpanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Chegada registada")).toBeInTheDocument();
+    expect(screen.queryByText("Concluído")).not.toBeInTheDocument();
+  });
+
+  it("falls back to Concluído (not Pendente) when resolvedOrders has the order but no CheckpointProgress detail exists", () => {
+    // Regression guard: an older payload can omit `checkpoints` detail
+    // entirely. The status derived from resolvedOrders must drive the label
+    // too, not just the icon/styling.
+    renderWithQueryClient(
+      <RouteCheckpointItem
+        checkpoint={checkpoint}
+        index={0}
+        team={{ checkpoints: [] } as unknown as DetailedTeam}
+        resolvedOrders={new Set([1])}
+        showScore
+        showMap
+        isExpanded={false}
+        onToggle={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Concluído")).toBeInTheDocument();
+    expect(screen.queryByText("Pendente")).not.toBeInTheDocument();
   });
 
   it("renders a cover image header when photos are available", () => {

@@ -90,6 +90,38 @@ test.describe("Admin Panel", () => {
     );
   });
 
+  test("mobile drawer groups sections and opens the active tab's group", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, "grouped-drawer regression only applies below the lg breakpoint");
+
+    // Deep-linked into "checkpoints" (Preparação group) — that group's
+    // <details> must start open without any click, per PARTE 3's
+    // requirement, while an unrelated group (Sistema) stays collapsed.
+    await page.goto("/rally/admin?tab=checkpoints", { waitUntil: "domcontentloaded" });
+    await openAdminNavIfMobile(page, { preserveCollapsedGroups: true });
+
+    const drawer = page.getByRole("dialog", { name: "Secções de administração" });
+    const preparacao = drawer.getByText("Preparação", { exact: true });
+    await expect(preparacao).toBeVisible();
+    const systemGroup = drawer.locator("details", { hasText: "Sistema" });
+    await expect(systemGroup).toHaveJSProperty("open", false);
+    const preparacaoGroup = drawer.locator("details", { hasText: "Preparação" });
+    await expect(preparacaoGroup).toHaveJSProperty("open", true);
+
+    // Toggling a collapsed group must not itself change the active tab.
+    await drawer.getByText("Sistema", { exact: true }).click();
+    await expect(systemGroup).toHaveJSProperty("open", true);
+    await expect(page).toHaveURL(/tab=checkpoints/);
+
+    // Selecting an item still closes the whole drawer.
+    await page.getByRole("button", { name: /Auditoria/i }).click();
+    await expect(page).toHaveURL(/tab=audit/);
+    const dialog = page.locator('dialog[aria-label="Secções de administração"]');
+    await expect(dialog).toBeHidden();
+  });
+
   test("should redirect non-managers to scoreboard", async ({ page, context }) => {
     // Re-seed with a staff-only session (runs after the beforeEach seed and
     // overwrites the same storage key, so the staff identity wins).

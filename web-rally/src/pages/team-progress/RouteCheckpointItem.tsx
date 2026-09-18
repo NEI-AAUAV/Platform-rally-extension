@@ -1,12 +1,18 @@
 import React, { useState } from "react";
-import { Lock, Camera, Sparkles, Check } from "lucide-react";
+import { Lock, Camera, Sparkles, Check, SkipForward } from "lucide-react";
 import { formatTime } from "@/utils/timeFormat";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import { cn } from "@/lib/utils";
-import { checkpointArrivedAt, checkpointScoreFor } from "@/lib/checkpointProgress";
+import {
+  checkpointArrivedAt,
+  checkpointScoreFor,
+  findCheckpointProgress,
+} from "@/lib/checkpointProgress";
 import { CheckpointDiscoveryModal } from "@/components/shared";
 import { useCheckpointMedia } from "@/hooks/useCheckpointMedia";
 import { useCheckpointArrival } from "./useCheckpointArrival";
+import CheckpointArrivalAction from "./CheckpointArrivalAction";
+import { useCheckpointArrivalAvailability } from "./useCheckpointArrivalAvailability";
 
 type RouteCheckpointItemProps = Readonly<{
   checkpoint: DetailedCheckPoint;
@@ -21,11 +27,13 @@ type RouteCheckpointItemProps = Readonly<{
   isLast?: boolean;
   /** Render a check-in button on this row (see the component's note). */
   offerCheckIn?: boolean;
+  notYetDeparted?: string | null;
 }>;
 
 interface CheckpointTimelineDotProps {
   readonly order: number;
   readonly isCompleted: boolean;
+  readonly isSkipped: boolean;
   readonly isCurrent: boolean;
   readonly isFuture: boolean;
   readonly isLast: boolean;
@@ -34,6 +42,7 @@ interface CheckpointTimelineDotProps {
 function CheckpointTimelineDot({
   order,
   isCompleted,
+  isSkipped,
   isCurrent,
   isFuture,
   isLast,
@@ -44,15 +53,25 @@ function CheckpointTimelineDot({
         className={cn(
           "rally-display relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold",
           isCompleted && "rally-bg-accent text-white",
+          isSkipped && "bg-amber-500/15 text-amber-700",
           isCurrent && "rally-bg-accent text-white",
           isFuture && "bg-secondary text-muted-foreground",
         )}
       >
-        {isCompleted ? <Check className="h-4 w-4" /> : order}
+        {isCompleted ? (
+          <Check className="h-4 w-4" />
+        ) : isSkipped ? (
+          <SkipForward className="h-4 w-4" />
+        ) : (
+          order
+        )}
       </div>
       {!isLast && (
         <div
-          className={cn("mt-1 w-0.5 flex-1", isCompleted ? "rally-bg-accent" : "bg-border")}
+          className={cn(
+            "mt-1 w-0.5 flex-1",
+            isCompleted || isSkipped ? "rally-bg-accent" : "bg-border",
+          )}
           style={{ minHeight: "28px" }}
         />
       )}
@@ -101,6 +120,7 @@ interface CheckpointCardBodyProps {
   readonly checkpointName: string;
   readonly hasCover: boolean;
   readonly isCompleted: boolean;
+  readonly isSkipped: boolean;
   readonly isCurrent: boolean;
   readonly isFuture: boolean;
   readonly canReveal: boolean;
@@ -116,6 +136,7 @@ function CheckpointCardBody({
   checkpointName,
   hasCover,
   isCompleted,
+  isSkipped,
   isCurrent,
   isFuture,
   canReveal,
@@ -149,6 +170,7 @@ function CheckpointCardBody({
               className={cn(
                 "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
                 isCompleted && "rally-bg-accent-soft text-foreground",
+                isSkipped && "bg-amber-500/15 text-amber-800",
                 isCurrent && "rally-bg-accent text-white",
                 isFuture && "bg-secondary text-muted-foreground",
               )}
@@ -202,6 +224,7 @@ export default function RouteCheckpointItem({
   showMap,
   isLast = false,
   offerCheckIn = false,
+  notYetDeparted = null,
 }: RouteCheckpointItemProps) {
   const order = checkpoint.order;
   // Both states come from the server's progress engine, which is the only
@@ -210,10 +233,18 @@ export default function RouteCheckpointItem({
   // described a strictly sequential route only: under free order or stages a
   // team resolves posts out of sequence, so a post it had finished was
   // labelled "Pendente" and several genuinely open posts collapsed to one.
-  const isCompleted = resolvedOrders.has(order);
-  const isCurrent = !isCompleted && checkpoint.is_reachable === true;
-  const isFuture = !isCompleted && !isCurrent;
+  const progress = findCheckpointProgress(team, checkpoint.id);
+  // Older payloads can omit the keyed detail.  Their resolved-order set only
+  // represented successful completion, so retain that compatibility fallback;
+  // current payloads always use the explicit status (and can distinguish skip).
+  const status = progress?.status ?? (resolvedOrders.has(order) ? "completed" : "pending");
+  const isCompleted = status === "completed";
+  const isSkipped = status === "skipped";
+  const isResolved = resolvedOrders.has(order);
+  const isCurrent = !isResolved && checkpoint.is_reachable === true;
+  const isFuture = !isResolved && !isCurrent;
   const arrival = useCheckpointArrival(checkpoint);
+  const availability = useCheckpointArrivalAvailability(checkpoint, progress, notYetDeparted);
 
   const checkpointScore = isCompleted ? checkpointScoreFor(team, checkpoint.id) : 0;
   // What the server actually revealed, not what the client guessed. A post the
@@ -229,12 +260,16 @@ export default function RouteCheckpointItem({
   const hasDiscovery =
     canReveal && (photos.length > 0 || funFacts.length > 0 || !!checkpoint.description);
 
-  let statusLabel = "Pendente";
-  if (isCompleted) {
-    statusLabel = "Concluído";
-  } else if (isCurrent) {
-    statusLabel = "Em curso";
-  }
+  const statusLabel =
+    status === "skipped"
+      ? "Desistiu"
+      : status === "completed"
+        ? "Concluído"
+        : status === "arrived"
+          ? "Chegada registada"
+          : isCurrent
+            ? "Em curso"
+            : "Pendente";
 
   const CardElement = (canReveal ? "button" : "div") as React.ElementType;
   const cardProps = canReveal
@@ -249,6 +284,7 @@ export default function RouteCheckpointItem({
       <CheckpointTimelineDot
         order={order}
         isCompleted={isCompleted}
+        isSkipped={isSkipped}
         isCurrent={isCurrent}
         isFuture={isFuture}
         isLast={isLast}
@@ -265,10 +301,10 @@ export default function RouteCheckpointItem({
           )}
           {...cardProps}
         >
-          {canReveal && cover && (
+          {canReveal && cover && cover.image_url && (
             <CheckpointCardHeader
               checkpointName={checkpoint.name}
-              coverUrl={cover.image_url!}
+              coverUrl={cover.image_url}
               coverCaption={cover.caption}
               totalPhotos={photos.length}
             />
@@ -276,8 +312,9 @@ export default function RouteCheckpointItem({
 
           <CheckpointCardBody
             checkpointName={checkpoint.name}
-            hasCover={!!(canReveal && cover)}
+            hasCover={!!(canReveal && cover?.image_url)}
             isCompleted={isCompleted}
+            isSkipped={isSkipped}
             isCurrent={isCurrent}
             isFuture={isFuture}
             canReveal={canReveal}
@@ -295,21 +332,18 @@ export default function RouteCheckpointItem({
             button here the rest of the stage is unreachable for the team even
             though the server would take them. */}
         {offerCheckIn && (
-          <div className="mt-2 space-y-1.5">
-            <button
-              type="button"
-              disabled={
-                arrival.gpsState === "locating" || arrival.isPending || arrival.gpsState === "done"
-              }
-              onClick={arrival.handleCheckin}
-              className="rally-press w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold transition-all hover:bg-accent/40 disabled:opacity-60"
-            >
-              {arrival.gpsState === "done" ? "Check-in feito" : "Check-in GPS aqui"}
-            </button>
-            {arrival.gpsMsg && (
-              <p className="text-center text-xs text-muted-foreground">{arrival.gpsMsg}</p>
-            )}
-          </div>
+          <CheckpointArrivalAction
+            openingNotice={availability.openingNotice}
+            settingsUnavailable={availability.settingsUnavailable}
+            canCheckin={availability.canCheckin}
+            gpsState={arrival.gpsState}
+            gpsMsg={arrival.gpsMsg}
+            isQueuedHere={arrival.isQueuedHere}
+            isPending={arrival.isPending}
+            onCheckin={arrival.handleCheckin}
+            onClearError={arrival.clearError}
+            onRetrySettings={() => void availability.refetchSettings()}
+          />
         )}
       </div>
 
