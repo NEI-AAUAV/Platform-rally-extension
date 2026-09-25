@@ -192,7 +192,7 @@ jobs:
     # the leaderboard, so it doesn't get to hide behind well-covered code
     # elsewhere) are enforced against the same combined data.
     - name: Download coverage data from all shards
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v8
       with:
         pattern: api-coverage-data-*
         path: api-rally
