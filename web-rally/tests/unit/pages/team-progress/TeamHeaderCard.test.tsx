@@ -31,7 +31,7 @@ describe("TeamHeaderCard", () => {
         showScore
         showRanking
         rank={2}
-        completedCount={3}
+        resolvedCount={3}
         totalCount={5}
       />,
     );
@@ -48,7 +48,7 @@ describe("TeamHeaderCard", () => {
         showScore
         showRanking
         rank={2}
-        completedCount={0}
+        resolvedCount={0}
         totalCount={5}
       />,
     );
@@ -63,7 +63,7 @@ describe("TeamHeaderCard", () => {
         showScore={false}
         showRanking={false}
         rank={2}
-        completedCount={0}
+        resolvedCount={0}
         totalCount={5}
       />,
     );
@@ -79,7 +79,7 @@ describe("TeamHeaderCard", () => {
         showScore
         showRanking
         rank={2}
-        completedCount={0}
+        resolvedCount={0}
         totalCount={5}
       />,
     );

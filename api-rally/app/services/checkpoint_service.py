@@ -19,6 +19,7 @@ from app.crud.crud_team import CRUDTeam
 from app.domain.event_configuration.activity_coverage import (
     checkpoint_ids_covered_by_activities,
 )
+from app.domain.event_configuration.checkpoint_readiness import missing_fields
 from app.domain.event_configuration.resolver import resolve_capabilities
 from app.domain.event_configuration.validator import ConfigurationValidator
 from app.models.activity import Activity, ActivityResult, RallyEvent
@@ -34,7 +35,6 @@ from app.schemas.checkpoint import (
     RouteStatus,
 )
 from app.schemas.team import ListingTeam
-from app.domain.event_configuration.checkpoint_readiness import missing_fields
 from app.services.route_progress import TeamProgress
 from app.services.team_service import TeamService
 

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Flag } from "lucide-react";
 import { getTeams, type ListingTeam } from "@/client";
 import { sortTeamsByRank, displayRank } from "@/lib/teamRanking";
+import { LoadingState, ErrorState } from "@/components/shared";
 
 function initialsOf(name: string): string {
   return name
@@ -16,7 +17,11 @@ function initialsOf(name: string): string {
 
 /** Shown once the event has ended — final standings, no readiness UI (that's moot post-event). */
 export default function PostEventDashboard() {
-  const { data: teams } = useQuery({
+  const {
+    data: teams,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => (await getTeams()).data,
   });
@@ -25,6 +30,17 @@ export default function PostEventDashboard() {
     () => sortTeamsByRank(Array.isArray(teams) ? (teams as ListingTeam[]) : []),
     [teams],
   );
+
+  // A failed/loading fetch must not render as "sem equipas" — that reads as
+  // a valid final result (zero teams ran) rather than a fetch that failed.
+  if (isLoading) {
+    return <LoadingState message="A carregar classificação final..." />;
+  }
+  if (isError) {
+    return (
+      <ErrorState message="Não foi possível carregar a classificação final. Tente novamente em instantes." />
+    );
+  }
 
   return (
     <div className="space-y-6">

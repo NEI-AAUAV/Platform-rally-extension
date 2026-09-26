@@ -728,9 +728,13 @@ class TestCheckpointCRUDApi:
 
         assert response.status_code == 404
 
-    async def test_route_status_global_activity_does_not_satisfy_checkpoint_activity_requirement(
+    async def test_route_status_global_activity_satisfies_every_checkpoint_activity_requirement(
         self, pg_session, pg_client, as_admin
     ):
+        """A global activity applies across every checkpoint by definition —
+        see checkpoint_ids_covered_by_activities — so it must satisfy each
+        post's activity requirement, not just the one it happens to be
+        attached to (it isn't attached to any)."""
         from app.crud.crud_activity import activity as crud_activity
         from app.schemas.activity import ActivityCreate, ActivityType
 
@@ -751,7 +755,8 @@ class TestCheckpointCRUDApi:
 
         assert response.status_code == 200, response.text
         assert all(
-            "activity" in checkpoint["missing"] for checkpoint in response.json()["checkpoints"]
+            "activity" not in checkpoint["missing"]
+            for checkpoint in response.json()["checkpoints"]
         )
 
     async def test_route_status_scoped_activity_only_covers_its_checkpoint(

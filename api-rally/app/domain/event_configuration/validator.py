@@ -6,6 +6,7 @@ from typing import Any
 from app.domain.event_configuration.activity_coverage import (
     checkpoint_ids_covered_by_activities,
 )
+from app.domain.event_configuration.checkpoint_readiness import missing_fields
 from app.domain.event_configuration.policies import (
     SETTING_CAPABILITIES,
     Capability,
@@ -17,7 +18,6 @@ from app.domain.event_configuration.resolver import (
     is_rotation_schedule_valid_structure,
     resolve_capabilities,
 )
-from app.domain.event_configuration.checkpoint_readiness import missing_fields
 
 
 class ConfigurationIssueSeverity(str, Enum):

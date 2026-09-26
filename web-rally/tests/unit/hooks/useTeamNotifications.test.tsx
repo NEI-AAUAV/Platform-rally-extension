@@ -88,7 +88,10 @@ describe("useTeamNotifications", () => {
 
   it("does not announce a climb from an unranked (null) baseline", () => {
     const { rerender } = renderHook(({ team, rank }) => useTeamNotifications(team, rank), {
-      initialProps: { team: makeTeam({ resolved_checkpoint_orders: [1] }), rank: null },
+      initialProps: {
+        team: makeTeam({ resolved_checkpoint_orders: [1] }),
+        rank: null as number | null,
+      },
     });
     rerender({ team: makeTeam({ resolved_checkpoint_orders: [1] }), rank: 2 });
     expect(h.info).not.toHaveBeenCalled();
@@ -104,7 +107,10 @@ describe("useTeamNotifications", () => {
 
   it("does not announce a climb when the new rank becomes unranked (null)", () => {
     const { rerender } = renderHook(({ team, rank }) => useTeamNotifications(team, rank), {
-      initialProps: { team: makeTeam({ resolved_checkpoint_orders: [1] }), rank: 3 },
+      initialProps: {
+        team: makeTeam({ resolved_checkpoint_orders: [1] }),
+        rank: 3 as number | null,
+      },
     });
     rerender({ team: makeTeam({ resolved_checkpoint_orders: [1] }), rank: null });
     expect(h.info).not.toHaveBeenCalled();

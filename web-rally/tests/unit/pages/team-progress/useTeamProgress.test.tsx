@@ -79,7 +79,7 @@ describe("useTeamProgress", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.team?.name).toBe("Team A");
-    expect(result.current.completedCheckpointsCount).toBe(1);
+    expect(result.current.resolvedCheckpointsCount).toBe(1);
     expect(result.current.nextCheckpoint?.order).toBe(2);
     expect(result.current.showScore).toBe(true);
     expect(result.current.showRanking).toBe(false);
@@ -132,7 +132,7 @@ describe("useTeamProgress", () => {
     const { result } = renderHook(() => useTeamProgress(), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.completedCheckpointsCount).toBe(0);
+    expect(result.current.resolvedCheckpointsCount).toBe(0);
   });
 
   it("does not report free choice for a sequential route with a single open checkpoint", async () => {

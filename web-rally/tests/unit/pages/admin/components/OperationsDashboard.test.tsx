@@ -41,6 +41,10 @@ vi.mock("@/components/shared", () => ({
   Spinner: () => <div data-testid="spinner" />,
   ProvisionalBadge: () => <span data-testid="provisional-badge" />,
   FreshnessIndicator: () => <span data-testid="freshness-indicator" />,
+  LoadingState: ({ message }: { message: string }) => (
+    <div data-testid="loading-state">{message}</div>
+  ),
+  ErrorState: ({ message }: { message: string }) => <div data-testid="error-state">{message}</div>,
 }));
 
 vi.mock("@/components/scoreboard/PointsDistributionChart", () => ({
@@ -212,5 +216,19 @@ describe("OperationsDashboard", () => {
     renderWithClient(<OperationsDashboard />);
     await screen.findByText("Estado do evento");
     expect(screen.queryByText("Equipas ao vivo")).not.toBeInTheDocument();
+  });
+
+  it("shows a loading state instead of a false '0 equipas' while teams are fetching", () => {
+    mockGetTeams.mockReturnValue(new Promise(() => {})); // never resolves
+    renderWithClient(<OperationsDashboard />);
+    expect(screen.getByTestId("loading-state")).toBeInTheDocument();
+    expect(screen.queryByText("Estado do evento")).not.toBeInTheDocument();
+  });
+
+  it("shows an error state instead of a false '0 equipas' when the teams fetch fails", async () => {
+    mockGetTeams.mockRejectedValue(new Error("network down"));
+    renderWithClient(<OperationsDashboard />);
+    expect(await screen.findByTestId("error-state")).toBeInTheDocument();
+    expect(screen.queryByText("Estado do evento")).not.toBeInTheDocument();
   });
 });

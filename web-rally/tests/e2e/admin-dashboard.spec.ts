@@ -174,6 +174,34 @@ test.describe("Admin dashboard", () => {
 
     await expect(page.getByText("Equipas que concluíram por posto")).toBeVisible();
   });
+
+  test("shows the post-event dashboard with final standings once the rally has ended", async ({
+    page,
+    context,
+  }) => {
+    // Deterministic phase via start/end timestamps, not implicit "now"
+    // behavior — the event ended an hour ago.
+    await mockSettings(page, {
+      rally_start_time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      rally_end_time: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+    });
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockTeams(page, [
+      team({ id: 1, name: "Os Fintas", classification: 1, total: 120 }),
+      team({ id: 2, name: "Engenhocas", classification: 2, total: 90 }),
+    ]);
+    await mockCheckpoints(page, CHECKPOINTS);
+    await mockEvaluations(page, 4);
+
+    await page.goto("/rally/admin?tab=dashboard");
+
+    await expect(page.getByText("Prova terminada")).toBeVisible();
+    await expect(page.getByText("Classificação final")).toBeVisible();
+    await expect(page.getByText("Os Fintas")).toBeVisible();
+    // The live-only surface must not leak into the post-event view.
+    await expect(page.getByText("Estado do evento")).toHaveCount(0);
+    await expect(page.getByText("Equipas que concluíram por posto")).toHaveCount(0);
+  });
 });
 
 test.describe("Admin dashboard — preparation readiness", () => {

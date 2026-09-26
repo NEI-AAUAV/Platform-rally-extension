@@ -684,3 +684,65 @@ def test_custom_profile_scenarios_do_not_emit_start_time_missing(event_type):
         platform_qr_supported=True,
     )
     assert not any(issue.code == "EVENT_START_TIME_MISSING" for issue in report.issues)
+
+
+def test_every_issue_code_has_a_frontend_remediation_destination():
+    """Drift guard between this validator and web-rally's
+    READINESS_ISSUE_TARGETS (src/pages/admin/components/readiness/
+    readinessNavigation.ts). The two are independent maps in separate
+    languages with no shared source of truth, so nothing else stops one side
+    from adding a code the other doesn't know about.
+
+    This test hardcodes the codes the frontend map currently lists. If it
+    fails, either a new issue code was added here and the frontend map (and
+    this test) need updating, or a code was renamed/removed and both need
+    the same edit — the point is to force that to be a deliberate, visible
+    change in the same PR rather than a silent gap in "Corrigir →"'s
+    navigation for whoever hits it first in production.
+    """
+    import inspect
+    import re
+
+    source = inspect.getsource(ConfigurationValidator)
+    emitted_codes = set(re.findall(r'ConfigurationIssue\(\s*\n?\s*"([A-Z_]+)"', source))
+
+    frontend_mapped_codes = {
+        "COMPASS_REQUIRES_PROXIMITY",
+        "GUIDE_ACTIVE_REQUIRES_GUIDE_ENABLED",
+        "REQUIRED_CAPABILITY_DISABLED",
+        "FORBIDDEN_CAPABILITY_ENABLED",
+        "ROTATION_SCHEDULE_MISSING",
+        "ROTATION_SCHEDULE_INVALID",
+        "ROTATION_SCHEDULE_STALE",
+        "GPS_CHECKPOINT_MISSING_COORDINATES",
+        "NO_ARRIVAL_METHOD",
+        "NO_CHECKPOINTS",
+        "NO_ACTIVITIES",
+        "CHECKPOINTS_WITHOUT_ACTIVITIES",
+        "NO_STAFF_ASSIGNMENTS",
+        "NO_GUIDE_ASSIGNMENTS",
+        "NO_RECOVERY_PATH",
+        "QR_UNAVAILABLE_ON_PLATFORM",
+        "NO_ROUTE_STAGES",
+        "LEG_TIME_SCORING_ZERO_POINTS",
+        "UNASSIGNED_GUIDE_TEAMS",
+        "UNSTAFFED_CHECKPOINTS",
+        "INCOMPLETE_PUBLISHED_CHECKPOINTS",
+        "NO_TEAMS",
+        "EVENT_DATES_INVALID",
+        "EVENT_START_TIME_MISSING",
+    }
+
+    missing_from_frontend = emitted_codes - frontend_mapped_codes
+    assert not missing_from_frontend, (
+        f"Validator emits {missing_from_frontend} but web-rally's "
+        "READINESS_ISSUE_TARGETS doesn't map it — add an entry there (and to "
+        "this test's frontend_mapped_codes) so 'Corrigir →' has somewhere to go."
+    )
+
+    stale_in_frontend = frontend_mapped_codes - emitted_codes
+    assert not stale_in_frontend, (
+        f"frontend_mapped_codes lists {stale_in_frontend} but the validator "
+        "no longer emits it — the code was likely renamed or removed; update "
+        "both this test and READINESS_ISSUE_TARGETS."
+    )

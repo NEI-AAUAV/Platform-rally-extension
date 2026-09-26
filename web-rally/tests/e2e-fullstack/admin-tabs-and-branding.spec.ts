@@ -113,6 +113,25 @@ test.describe("Fase 5: Separadores de Administração e Identidade Visual", () =
     const adminPage = await newAuthedPage(browser, admin);
 
     try {
+      // The admin dashboard is phase-aware: with no start/end time configured
+      // (the event's state fresh out of 5.0) it renders PreparationDashboard,
+      // not the live operations view this test checks. Make the phase
+      // explicit and deterministic — start in the past, end in the future —
+      // instead of relying on whatever the event's dates happen to default to.
+      await adminPage.goto("/rally/admin?tab=events");
+      await adminPage.getByRole("button", { name: "Editar edição" }).first().click();
+      // datetime-local wants the browser's local wall-clock time, not UTC —
+      // build it from local date parts rather than slicing an ISO string.
+      const toLocalDatetimeInput = (date: Date) => {
+        const pad = (n: number) => String(n).padStart(2, "0");
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      };
+      const past = toLocalDatetimeInput(new Date(Date.now() - 60 * 60 * 1000));
+      const future = toLocalDatetimeInput(new Date(Date.now() + 60 * 60 * 1000));
+      await adminPage.locator("#ev-start").fill(past);
+      await adminPage.locator("#ev-end").fill(future);
+      await adminPage.getByRole("button", { name: "Guardar" }).click();
+
       await adminPage.goto("/rally/admin?tab=dashboard");
 
       // Verificar cabeçalho do Dashboard

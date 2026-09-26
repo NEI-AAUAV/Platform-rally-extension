@@ -4,7 +4,7 @@ import { Bar, BarChart, Rectangle, ResponsiveContainer, Tooltip, XAxis, YAxis } 
 import type { BarShapeProps } from "recharts/types/cartesian/Bar";
 import { Activity, CheckCircle, Clock, Flag, Users } from "lucide-react";
 import { getTeams, getCheckpoints, getAllEvaluations, type ListingTeam } from "@/client";
-import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
+import { ProvisionalBadge, FreshnessIndicator, LoadingState, ErrorState } from "@/components/shared";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useEventConfiguration } from "@/pages/settings/components/useEventConfiguration";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
@@ -101,7 +101,12 @@ export default function OperationsDashboard() {
 
   useScoreboardStream([["teams"]]);
 
-  const { data: teams, dataUpdatedAt: teamsUpdatedAt } = useQuery({
+  const {
+    data: teams,
+    dataUpdatedAt: teamsUpdatedAt,
+    isLoading: teamsLoading,
+    isError: teamsErrored,
+  } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
       const { data } = await getTeams();
@@ -155,6 +160,18 @@ export default function OperationsDashboard() {
       return { name: cp.name.slice(0, 14), reached: completed, total: teamList.length, order: cp.order };
     });
   }, [checkpointList, teamList]);
+
+  // A failed/loading teams fetch must never render as "0 equipas" — that's
+  // indistinguishable from a real, empty event and hides an outage from the
+  // person watching this screen during a live rally.
+  if (teamsLoading) {
+    return <LoadingState message="A carregar dados operacionais..." />;
+  }
+  if (teamsErrored) {
+    return (
+      <ErrorState message="Não foi possível carregar as equipas. Tente novamente em instantes." />
+    );
+  }
 
   return (
     <div className="space-y-6">
