@@ -12,18 +12,34 @@ function renderWithQueryClient(ui: React.ReactElement) {
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }
 
-const { mockUseCheckpointMedia } = vi.hoisted(() => ({
-  mockUseCheckpointMedia: vi.fn(),
-}));
+const { mockUseCheckpointMedia, mockUseCheckpointArrival, mockUseCheckpointArrivalAvailability } =
+  vi.hoisted(() => ({
+    mockUseCheckpointMedia: vi.fn(),
+    mockUseCheckpointArrival: vi.fn(),
+    mockUseCheckpointArrivalAvailability: vi.fn(),
+  }));
 
 vi.mock("@/hooks/useCheckpointMedia", () => ({
   useCheckpointMedia: (...args: unknown[]) => mockUseCheckpointMedia(...args),
 }));
 
+vi.mock("@/pages/team-progress/useCheckpointArrival", () => ({
+  useCheckpointArrival: (...args: unknown[]) => mockUseCheckpointArrival(...args),
+}));
+
+vi.mock("@/pages/team-progress/useCheckpointArrivalAvailability", () => ({
+  useCheckpointArrivalAvailability: (...args: unknown[]) =>
+    mockUseCheckpointArrivalAvailability(...args),
+}));
+
+const { mockDiscoveryModal } = vi.hoisted(() => ({ mockDiscoveryModal: vi.fn() }));
+
 vi.mock("@/components/shared", () => ({
   Spinner: () => <div data-testid="spinner" />,
-  CheckpointDiscoveryModal: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="discovery-modal" /> : null,
+  CheckpointDiscoveryModal: (props: { open: boolean; latitude?: number | null }) => {
+    mockDiscoveryModal(props);
+    return props.open ? <div data-testid="discovery-modal" /> : null;
+  },
 }));
 
 const checkpoint = {
@@ -58,6 +74,20 @@ describe("RouteCheckpointItem", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseCheckpointMedia.mockReturnValue({ photos: [], funFacts: [] });
+    mockUseCheckpointArrival.mockReturnValue({
+      gpsState: "idle",
+      gpsMsg: "",
+      isQueuedHere: false,
+      isPending: false,
+      handleCheckin: vi.fn(),
+      clearError: vi.fn(),
+    });
+    mockUseCheckpointArrivalAvailability.mockReturnValue({
+      canCheckin: false,
+      openingNotice: null,
+      settingsUnavailable: false,
+      refetchSettings: vi.fn(),
+    });
   });
 
   it("renders as completed when the server lists the order as resolved", () => {
@@ -244,5 +274,123 @@ describe("RouteCheckpointItem", () => {
       />,
     );
     expect(screen.getByAltText("Cover")).toBeInTheDocument();
+  });
+
+  describe("free-choice contextual check-in (offerCheckIn)", () => {
+    beforeEach(() => {
+      mockUseCheckpointArrivalAvailability.mockReturnValue({
+        canCheckin: true,
+        openingNotice: null,
+        settingsUnavailable: false,
+        refetchSettings: vi.fn(),
+      });
+    });
+
+    it("shows a contextual 'aqui' label, distinct from the primary card's button", () => {
+      renderWithQueryClient(
+        <RouteCheckpointItem
+          checkpoint={{ ...checkpoint, is_reachable: true } as DetailedCheckPoint}
+          index={0}
+          team={{ ...team, checkpoints: [] } as DetailedTeam}
+          resolvedOrders={new Set()}
+          showScore
+          showMap
+          isExpanded={false}
+          onToggle={vi.fn()}
+          offerCheckIn
+        />,
+      );
+      expect(screen.getByRole("button", { name: /check-in gps aqui/i })).toBeInTheDocument();
+    });
+
+    it("includes the checkpoint name in the accessible name when not redacted", () => {
+      renderWithQueryClient(
+        <RouteCheckpointItem
+          checkpoint={{ ...checkpoint, name: "Miradouro", is_reachable: true } as DetailedCheckPoint}
+          index={0}
+          team={{ ...team, checkpoints: [] } as DetailedTeam}
+          resolvedOrders={new Set()}
+          showScore
+          showMap
+          isExpanded={false}
+          onToggle={vi.fn()}
+          offerCheckIn
+        />,
+      );
+      expect(
+        screen.getByRole("button", { name: /check-in gps aqui, em miradouro/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("never leaks a redacted checkpoint's name into the accessible name", () => {
+      renderWithQueryClient(
+        <RouteCheckpointItem
+          checkpoint={
+            {
+              ...checkpoint,
+              name: "Segredo Secreto",
+              is_redacted: true,
+              is_reachable: true,
+            } as DetailedCheckPoint
+          }
+          index={0}
+          team={{ ...team, checkpoints: [] } as DetailedTeam}
+          resolvedOrders={new Set()}
+          showScore
+          showMap
+          isExpanded={false}
+          onToggle={vi.fn()}
+          offerCheckIn
+        />,
+      );
+      const button = screen.getByRole("button", { name: /check-in gps aqui/i });
+      expect(button.getAttribute("aria-label") ?? "").not.toMatch(/Segredo Secreto/);
+    });
+
+    it("never passes coordinates to the discovery modal for a redacted checkpoint", () => {
+      // Defense in depth: the modal can in principle only ever be opened for
+      // a revealable post, but coordinates must not even reach it for a
+      // redacted one — a single UI gate must not be the only thing between a
+      // secret checkpoint and its location leaking.
+      renderWithQueryClient(
+        <RouteCheckpointItem
+          checkpoint={
+            {
+              ...checkpoint,
+              is_redacted: true,
+              latitude: 41.1,
+              longitude: -8.6,
+              is_reachable: true,
+            } as DetailedCheckPoint
+          }
+          index={0}
+          team={{ ...team, checkpoints: [] } as DetailedTeam}
+          resolvedOrders={new Set()}
+          showScore
+          showMap
+          isExpanded={false}
+          onToggle={vi.fn()}
+        />,
+      );
+      expect(mockDiscoveryModal).toHaveBeenCalledWith(
+        expect.objectContaining({ latitude: null, longitude: null }),
+      );
+    });
+
+    it("does not render the contextual check-in action when offerCheckIn is false", () => {
+      renderWithQueryClient(
+        <RouteCheckpointItem
+          checkpoint={{ ...checkpoint, is_reachable: true } as DetailedCheckPoint}
+          index={0}
+          team={{ ...team, checkpoints: [] } as DetailedTeam}
+          resolvedOrders={new Set()}
+          showScore
+          showMap
+          isExpanded={false}
+          onToggle={vi.fn()}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /check-in gps/i })).not.toBeInTheDocument();
+    });
   });
 });

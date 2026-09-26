@@ -21,7 +21,8 @@ const MESSAGE_CLASSES: Record<GpsState, string> = {
 function ButtonContent({
   gpsState,
   isPending,
-}: Readonly<{ gpsState: GpsState; isPending: boolean }>) {
+  idleLabel,
+}: Readonly<{ gpsState: GpsState; isPending: boolean; idleLabel: string }>) {
   if (gpsState === "locating" || isPending) {
     return (
       <>
@@ -56,7 +57,7 @@ function ButtonContent({
   return (
     <>
       <LocateFixed className="h-5 w-5" />
-      Check-in GPS
+      {idleLabel}
     </>
   );
 }
@@ -72,6 +73,15 @@ interface CheckpointArrivalActionProps {
   onCheckin: () => void;
   onClearError: () => void;
   onRetrySettings: () => void;
+  /** Idle-state button text. Defaults to "Check-in GPS" — override when a
+   * screen renders several of these at once (a free-choice stage) so each
+   * control reads as pointing somewhere specific, e.g. "Check-in GPS aqui". */
+  idleLabel?: string;
+  /** Accessible name for the idle button, for when several check-in controls
+   * render on the same screen and need distinct names for screen readers.
+   * Callers must never pass a redacted checkpoint's name here — pass
+   * `undefined` (falls back to `idleLabel`) in that case. */
+  ariaLabel?: string;
 }
 
 /**
@@ -91,6 +101,8 @@ export default function CheckpointArrivalAction({
   onCheckin,
   onClearError,
   onRetrySettings,
+  idleLabel = "Check-in GPS",
+  ariaLabel,
 }: Readonly<CheckpointArrivalActionProps>) {
   return (
     <>
@@ -121,12 +133,13 @@ export default function CheckpointArrivalAction({
             type="button"
             disabled={gpsState === "locating" || isPending || gpsState === "done"}
             onClick={onCheckin}
+            aria-label={gpsState === "idle" ? (ariaLabel ?? idleLabel) : undefined}
             className={[
               "rally-press flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold transition-all",
               BUTTON_CLASSES[gpsState],
             ].join(" ")}
           >
-            <ButtonContent gpsState={gpsState} isPending={isPending} />
+            <ButtonContent gpsState={gpsState} isPending={isPending} idleLabel={idleLabel} />
           </button>
           {gpsMsg && (
             <p className={["text-center text-xs", MESSAGE_CLASSES[gpsState]].join(" ")}>{gpsMsg}</p>

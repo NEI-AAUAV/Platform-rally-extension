@@ -9,7 +9,7 @@ import useRallySettings from "@/hooks/useRallySettings";
 import { useEventConfiguration } from "@/pages/settings/components/useEventConfiguration";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import { useCountdown } from "@/pages/home/useCountdown";
-import { sortTeamsByRank } from "@/lib/teamRanking";
+import { sortTeamsByRank, displayRank } from "@/lib/teamRanking";
 
 const PointsDistributionChart = lazy(
   () => import("@/components/scoreboard/PointsDistributionChart"),
@@ -142,12 +142,17 @@ export default function OperationsDashboard() {
 
   const rankedTeams = sortTeamsByRank(teamList);
 
+  // "Concluíram" means genuinely completed, not merely resolved — a team
+  // that gave up on a post is resolved but did not complete it, so it must
+  // not count here even though `resolved_checkpoint_orders` includes it.
   const perCheckpointData = useMemo(() => {
     return checkpointList.map((cp) => {
-      const reached = teamList.filter((t) =>
-        t.resolved_checkpoint_orders?.includes(cp.order),
+      const completed = teamList.filter(
+        (t) =>
+          t.resolved_checkpoint_orders?.includes(cp.order) &&
+          !t.skipped_checkpoint_orders?.includes(cp.order),
       ).length;
-      return { name: cp.name.slice(0, 14), reached, total: teamList.length, order: cp.order };
+      return { name: cp.name.slice(0, 14), reached: completed, total: teamList.length, order: cp.order };
     });
   }, [checkpointList, teamList]);
 
@@ -256,7 +261,7 @@ export default function OperationsDashboard() {
                 className="flex items-center gap-[13px] rounded-[12px] bg-muted/40 px-[14px] py-[11px]"
               >
                 <span className="rally-display w-6 text-center text-base font-bold tabular-nums text-muted-foreground">
-                  {index + 1}
+                  {displayRank(index)}
                 </span>
                 <span className="rally-bg-accent-soft grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full text-xs font-bold text-foreground">
                   {initialsOf(team.name)}

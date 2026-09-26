@@ -1,7 +1,10 @@
 """Route-planning helpers: readiness of a checkpoint.
 
 Pure function with no database access so it can be unit-tested directly and
-reused by the admin API without a service instance.
+reused by the admin API without a service instance. Lives in the domain layer
+because it is shared readiness logic consumed by both the configuration
+validator and the checkpoint service — domain code must not depend on
+services, so this cannot live under app.services.
 """
 
 # Field keys reported as "missing" on a checkpoint that is not ready to be

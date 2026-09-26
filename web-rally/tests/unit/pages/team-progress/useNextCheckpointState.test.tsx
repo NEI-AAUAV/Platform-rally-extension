@@ -37,6 +37,7 @@ const hintState = (overrides: Record<string, unknown> = {}) => ({
   nextCost: 0,
   totalSpentInEvent: 0,
   isLoading: false,
+  hasLoaded: true,
   reveal: { mutate: vi.fn(), isPending: false, isError: false, error: null },
   giveUp: { mutate: vi.fn(), isPending: false, isError: false, error: null },
   ...overrides,
@@ -161,6 +162,59 @@ describe("useNextCheckpointState", () => {
     const { result } = renderHook(() => useNextCheckpointState(checkpoint()), {
       wrapper: createWrapper(),
     });
+    expect(result.current.access.canGiveUp).toBe(false);
+  });
+
+  it("offers give-up immediately when hints are disabled for the event", () => {
+    mockUseRallySettings.mockReturnValue({
+      settings: { skip_enabled: true, hints_enabled: false },
+    });
+    // Query never resolved (hints are off, nothing to load), yet give-up must
+    // still be available — hintsOff short-circuits the loaded check.
+    mockUseCheckpointHints.mockReturnValue(hintState({ hasLoaded: false, isLoading: true }));
+    const { result } = renderHook(
+      () => useNextCheckpointState(checkpoint({ is_redacted: true })),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.access.canGiveUp).toBe(true);
+  });
+
+  it("offers give-up once loaded when the checkpoint has zero hints configured", () => {
+    // The exact bug this hook must not regress into: revealed=[] and
+    // remaining=0 loaded from the server (a real, distinct answer — not the
+    // hook's own "not loaded yet" default) must not be mistaken for "no
+    // ladder to check" and leave the team with neither a hint nor a give-up.
+    mockUseRallySettings.mockReturnValue({ settings: { skip_enabled: true } });
+    mockUseCheckpointHints.mockReturnValue(
+      hintState({ revealed: [], remaining: 0, hasLoaded: true }),
+    );
+    const { result } = renderHook(
+      () => useNextCheckpointState(checkpoint({ is_redacted: true })),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.access.canGiveUp).toBe(true);
+    expect(result.current.access.hasHintLadder).toBe(false);
+  });
+
+  it("does not offer give-up before hint state has loaded (no flash)", () => {
+    mockUseRallySettings.mockReturnValue({ settings: { skip_enabled: true } });
+    mockUseCheckpointHints.mockReturnValue(
+      hintState({ revealed: [], remaining: 0, hasLoaded: false, isLoading: true }),
+    );
+    const { result } = renderHook(
+      () => useNextCheckpointState(checkpoint({ is_redacted: true })),
+      { wrapper: createWrapper() },
+    );
+    expect(result.current.access.canGiveUp).toBe(false);
+  });
+
+  it("does not offer give-up when skip is disabled for the event", () => {
+    mockUseRallySettings.mockReturnValue({ settings: { skip_enabled: false } });
+    mockUseCheckpointHints.mockReturnValue(hintState({ remaining: 0, hasLoaded: true }));
+    const { result } = renderHook(
+      () => useNextCheckpointState(checkpoint({ is_redacted: true })),
+      { wrapper: createWrapper() },
+    );
     expect(result.current.access.canGiveUp).toBe(false);
   });
 

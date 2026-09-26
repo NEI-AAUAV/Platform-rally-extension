@@ -153,7 +153,16 @@ export default function Admin() {
             ))}
           {activeTab === "members" && <TeamMembers embedded />}
           {activeTab === "assignment" && <Assignment embedded />}
-          {activeTab === "guide-assignment" && <GuideAssignment embedded />}
+          {activeTab === "guide-assignment" &&
+            (guideModeEnabled ? (
+              <GuideAssignment embedded />
+            ) : (
+              <FeatureDisabledAlert
+                featureName="atribuição de guias"
+                settingsPath="/settings"
+                reason="O modo guiado está desativado nas definições da prova — ative-o para gerir atribuições."
+              />
+            ))}
           {activeTab === "versus" && <Versus embedded />}
           {activeTab === "evaluation" && <ManagerEvaluationPage embedded />}
           {activeTab === "judging" && <DeferredJudgingTab />}

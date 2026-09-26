@@ -343,6 +343,14 @@ export default function RouteCheckpointItem({
             onCheckin={arrival.handleCheckin}
             onClearError={arrival.clearError}
             onRetrySettings={() => void availability.refetchSettings()}
+            // This card renders one of potentially several simultaneously
+            // reachable checkpoints (a free-choice stage) — "aqui" points at
+            // this specific one instead of implying it's the only option.
+            // The accessible name goes further when it's safe to: a redacted
+            // checkpoint's name must never reach an aria-label, so that case
+            // falls back to the same generic "aqui" wording as the visible text.
+            idleLabel="Check-in GPS aqui"
+            ariaLabel={canReveal ? `Check-in GPS aqui, em ${checkpoint.name}` : undefined}
           />
         )}
       </div>
@@ -353,8 +361,13 @@ export default function RouteCheckpointItem({
         checkpointId={checkpoint.id}
         name={checkpoint.name}
         description={checkpoint.description}
-        latitude={checkpoint.latitude}
-        longitude={checkpoint.longitude}
+        // Defense in depth: the modal can in principle only ever open for a
+        // revealable post (the card itself is a non-interactive div while
+        // `!canReveal`), but coordinates still must not be handed to it for a
+        // redacted one — one UI gate should not be the only thing standing
+        // between a secret checkpoint and its location leaking.
+        latitude={canReveal ? checkpoint.latitude : null}
+        longitude={canReveal ? checkpoint.longitude : null}
         showMap={showMap}
         statusLabel={statusLabel}
       />

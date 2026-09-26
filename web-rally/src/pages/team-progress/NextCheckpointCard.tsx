@@ -90,24 +90,24 @@ export default function NextCheckpointCard({
         />
       )}
 
-      {showMap && hasCoords && (
+      {/* Defense in depth: the backend already strips coordinates from a
+          redacted checkpoint's payload, but this component must not render
+          them either if it ever receives some anyway — a post's secret must
+          not leak through two independent failures instead of one. */}
+      {showMap && hasCoords && !isRedacted && (
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4 shrink-0" />
           <span className="font-mono">
             {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
           </span>
-          {/* Only ever offered for a post that is no longer a secret: opening
-              a maps app for a redacted one would be handing over the answer. */}
-          {!isRedacted && (
-            <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
-              target="_blank"
-              rel="noreferrer"
-              className="rally-accent font-semibold underline"
-            >
-              Como chegar
-            </a>
-          )}
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
+            target="_blank"
+            rel="noreferrer"
+            className="rally-accent font-semibold underline"
+          >
+            Como chegar
+          </a>
         </div>
       )}
 

@@ -50,16 +50,22 @@ export function useNextCheckpointState(
 
   const arrivalAvailability = useCheckpointArrivalAvailability(checkpoint, checkpointProgress);
 
-  const hasHintLadder = hints.revealed.length > 0 || hints.remaining > 0;
+  const hasHintLadder = hints.hasLoaded && (hints.revealed.length > 0 || hints.remaining > 0);
   const totalSpent = hints.revealed.reduce((sum, item) => sum + item.cost, 0);
   const hintCostLabel = hints.nextCost === 0 ? "" : ` (${hints.nextCost} pts)`;
 
-  // "Spent" has to mean the team actually climbed the ladder, not that the
-  // mechanic is off (which also reports remaining: 0). See canGiveUp's own
-  // history in NextCheckpointCard before this extraction for why.
+  // "Spent" covers two distinct cases that must both allow giving up: the
+  // ladder existed and the team used every hint on it, and the checkpoint
+  // was configured with zero hints in the first place (no ladder to spend).
+  // Gating on `hints.hasLoaded` (not `hasHintLadder`) is what makes the
+  // zero-hints case work — `hasHintLadder` is false there too, but for the
+  // opposite reason ("nothing to show"), and conflating the two used to
+  // leave a zero-hint checkpoint with neither a hint nor a give-up option.
+  // Gating on load also prevents a flash: give-up must never appear before
+  // the server has actually answered "zero remaining".
   const skipCost = settings?.skip_penalty ?? 0;
   const hintsOff = settings?.hints_enabled === false;
-  const hintLadderSpent = hintsOff || (hasHintLadder && hints.remaining === 0);
+  const hintLadderSpent = hintsOff || (hints.hasLoaded && hints.remaining === 0);
   const canGiveUp =
     !arrivalAvailability.terminal &&
     settings?.skip_enabled !== false &&

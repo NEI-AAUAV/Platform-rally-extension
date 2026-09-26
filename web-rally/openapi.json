@@ -10549,6 +10549,14 @@
             "title": "Resolved Checkpoint Orders",
             "default": []
           },
+          "skipped_checkpoint_orders": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Skipped Checkpoint Orders",
+            "default": []
+          },
           "open_checkpoint_orders": {
             "items": {
               "type": "integer"
@@ -11531,6 +11539,14 @@
             "title": "Resolved Checkpoint Orders",
             "default": []
           },
+          "skipped_checkpoint_orders": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Skipped Checkpoint Orders",
+            "default": []
+          },
           "open_checkpoint_orders": {
             "items": {
               "type": "integer"
@@ -12031,6 +12047,14 @@
             },
             "type": "array",
             "title": "Resolved Checkpoint Orders",
+            "default": []
+          },
+          "skipped_checkpoint_orders": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Skipped Checkpoint Orders",
             "default": []
           },
           "open_checkpoint_orders": {

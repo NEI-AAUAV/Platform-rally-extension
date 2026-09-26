@@ -34,7 +34,7 @@ from app.schemas.checkpoint import (
     RouteStatus,
 )
 from app.schemas.team import ListingTeam
-from app.services.checkpoint_planning import missing_fields
+from app.domain.event_configuration.checkpoint_readiness import missing_fields
 from app.services.route_progress import TeamProgress
 from app.services.team_service import TeamService
 

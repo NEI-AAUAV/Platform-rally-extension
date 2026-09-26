@@ -2,7 +2,7 @@ import { Flag } from "lucide-react";
 import useEventTerms from "@/hooks/useEventTerms";
 
 type Props = Readonly<{
-  completedCount: number;
+  resolvedCount: number;
   totalCount: number;
   showScore: boolean;
   total: number;
@@ -14,7 +14,7 @@ type Props = Readonly<{
  * Without this the card that carried the whole game simply vanishes and the
  * team is left staring at a progress bar, with nothing saying they finished.
  */
-export default function RouteFinishedCard({ completedCount, totalCount, showScore, total }: Props) {
+export default function RouteFinishedCard({ resolvedCount, totalCount, showScore, total }: Props) {
   const terms = useEventTerms();
 
   return (
@@ -24,7 +24,7 @@ export default function RouteFinishedCard({ completedCount, totalCount, showScor
       </div>
       <h2 className="rally-display text-2xl font-bold text-foreground">Chegaram ao fim!</h2>
       <p className="text-sm text-muted-foreground">
-        {completedCount} de {totalCount} {terms.checkpoints} — está tudo feito.
+        {resolvedCount} de {totalCount} {terms.checkpoints} — está tudo feito.
       </p>
       {showScore && (
         <p className="rally-display text-4xl font-bold tabular-nums text-foreground">

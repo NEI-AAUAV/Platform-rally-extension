@@ -25,8 +25,10 @@ vi.mock("@/hooks/useFallbackNavigation", () => ({
   default: () => "/scoreboard",
 }));
 
+const { mockUseRallySettings } = vi.hoisted(() => ({ mockUseRallySettings: vi.fn() }));
+
 vi.mock("@/hooks/useRallySettings", () => ({
-  default: () => ({ settings: { guide_mode_enabled: true, badges_enabled: true } }),
+  default: () => mockUseRallySettings(),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -53,6 +55,9 @@ vi.mock("@/components/shared", () => ({
     </div>
   ),
   LoadingState: ({ message }: { message: string }) => <div>{message}</div>,
+  FeatureDisabledAlert: ({ featureName }: { featureName: string }) => (
+    <div data-testid="feature-disabled-alert">{featureName}</div>
+  ),
 }));
 
 vi.mock("@/pages/admin/components", () => ({
@@ -98,6 +103,9 @@ describe("Admin index page", () => {
     vi.clearAllMocks();
     mockGetCheckpoints.mockResolvedValue({ data: [] });
     mockUseSearch.mockReturnValue({ tab: "dashboard" });
+    mockUseRallySettings.mockReturnValue({
+      settings: { guide_mode_enabled: true, badges_enabled: true },
+    });
   });
 
   it("shows a loading state while user session loads", () => {
@@ -185,6 +193,28 @@ describe("Admin index page", () => {
     mockUseSearch.mockReturnValue({ tab });
     renderWithClient(<Admin />);
     expect(screen.getByTestId(testId)).toBeInTheDocument();
+  });
+
+  it("shows FeatureDisabledAlert instead of the guide management UI when guide mode is off", () => {
+    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
+    mockUseSearch.mockReturnValue({ tab: "guide-assignment" });
+    mockUseRallySettings.mockReturnValue({
+      settings: { guide_mode_enabled: false, badges_enabled: true },
+    });
+    renderWithClient(<Admin />);
+    expect(screen.getByTestId("feature-disabled-alert")).toBeInTheDocument();
+    expect(screen.queryByTestId("tab-guide-assignment")).not.toBeInTheDocument();
+  });
+
+  it("shows FeatureDisabledAlert instead of the badges UI when badges are off", () => {
+    mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
+    mockUseSearch.mockReturnValue({ tab: "badges" });
+    mockUseRallySettings.mockReturnValue({
+      settings: { guide_mode_enabled: true, badges_enabled: false },
+    });
+    renderWithClient(<Admin />);
+    expect(screen.getByTestId("feature-disabled-alert")).toBeInTheDocument();
+    expect(screen.queryByTestId("tab-badges")).not.toBeInTheDocument();
   });
 
   it("defaults to the dashboard tab when no tab is provided in search", () => {

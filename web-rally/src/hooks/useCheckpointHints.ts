@@ -23,7 +23,7 @@ export function useCheckpointHints(checkpointId: number, enabled = true) {
   const qc = useQueryClient();
   const queryKey = ["checkpoint-hints", checkpointId];
 
-  const { data, isLoading } = useQuery<TeamHints>({
+  const { data, isLoading, isFetched } = useQuery<TeamHints>({
     queryKey,
     queryFn: async () =>
       (await listCheckpointHints({ path: { checkpoint_id: checkpointId } })).data,
@@ -69,6 +69,11 @@ export function useCheckpointHints(checkpointId: number, enabled = true) {
     nextCost: data?.next_cost ?? 0,
     totalSpentInEvent: summary?.total_spent ?? 0,
     isLoading,
+    // Whether `data` (and so `remaining`) reflects a real server answer yet.
+    // `remaining` defaults to 0 before the first response, which is
+    // indistinguishable from "loaded, zero hints configured" unless callers
+    // also check this — see useNextCheckpointState's give-up gating.
+    hasLoaded: isFetched && data !== undefined,
     reveal,
     giveUp,
   };

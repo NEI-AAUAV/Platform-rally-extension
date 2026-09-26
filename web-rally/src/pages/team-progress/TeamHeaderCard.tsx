@@ -27,7 +27,7 @@ type TeamHeaderCardProps = Readonly<{
    * printed here, which is the number `lib/teamRanking` exists to stop the
    * various surfaces disagreeing on. */
   rank: number | null;
-  completedCount: number;
+  resolvedCount: number;
   totalCount: number;
   /** Event start time (ISO); combined with the team's offset to show its own
    * departure when the event staggers starts. */
@@ -48,7 +48,7 @@ export default function TeamHeaderCard({
   showScore,
   showRanking,
   rank,
-  completedCount,
+  resolvedCount,
   totalCount,
   rallyStartTime,
 }: TeamHeaderCardProps) {
@@ -103,7 +103,7 @@ export default function TeamHeaderCard({
           )}
           <div>
             <p className="rally-display text-3xl font-bold tabular-nums">
-              {completedCount}/{totalCount}
+              {resolvedCount}/{totalCount}
             </p>
             <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">
               {capitalize(terms.checkpoints)}

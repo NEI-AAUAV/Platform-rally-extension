@@ -17,7 +17,7 @@ from app.domain.event_configuration.resolver import (
     is_rotation_schedule_valid_structure,
     resolve_capabilities,
 )
-from app.services.checkpoint_planning import missing_fields
+from app.domain.event_configuration.checkpoint_readiness import missing_fields
 
 
 class ConfigurationIssueSeverity(str, Enum):

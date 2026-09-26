@@ -23,7 +23,7 @@ export default function TeamProgress() {
     teamError,
     expandedCheckpoints,
     toggleCheckpoint,
-    completedCheckpointsCount,
+    resolvedCheckpointsCount,
     resolvedOrders,
     isRouteFinished,
     openCheckpointOrders,
@@ -35,7 +35,7 @@ export default function TeamProgress() {
     totalCount,
   } = useTeamProgress();
 
-  useTeamNotifications(team);
+  useTeamNotifications(team, rank);
 
   if (isLoading) {
     return <TeamProgressSkeleton />;
@@ -103,7 +103,7 @@ export default function TeamProgress() {
   ) : (
     isFinished && (
       <RouteFinishedCard
-        completedCount={completedCheckpointsCount}
+        resolvedCount={resolvedCheckpointsCount}
         totalCount={totalCount}
         showScore={showScore}
         total={team.total}
@@ -125,7 +125,7 @@ export default function TeamProgress() {
   );
   const progressSummary = (
     <ProgressSummaryCard
-      completedCount={completedCheckpointsCount}
+      resolvedCount={resolvedCheckpointsCount}
       totalCount={totalCount}
       totalScore={team.total}
       showScore={showScore}
@@ -137,7 +137,7 @@ export default function TeamProgress() {
       showScore={showScore}
       showRanking={showRanking}
       rank={rank}
-      completedCount={completedCheckpointsCount}
+      resolvedCount={resolvedCheckpointsCount}
       totalCount={totalCount}
       rallyStartTime={settings?.rally_start_time}
     />

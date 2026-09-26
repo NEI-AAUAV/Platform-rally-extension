@@ -29,12 +29,18 @@ class RouteProgressFields(BaseModel):
     from ``resolved_checkpoint_orders`` and the finished state from
     ``is_route_finished`` rather than re-deriving either from a count — that
     arithmetic is what made the participant screen and the team page disagree.
+
+    ``resolved_checkpoint_orders`` is "done with" (completed or given up) and
+    must not be read as "succeeded at" — ``skipped_checkpoint_orders`` is the
+    subset the team gave up on. A UI that reports "completed" must exclude
+    it, e.g. ``resolved - skipped``.
     """
 
     # Activity-based completion counters (more reliable than len(times))
     last_checkpoint_number: int | None = None
     current_checkpoint_number: int | None = None
     resolved_checkpoint_orders: list[int] = []
+    skipped_checkpoint_orders: list[int] = []
     open_checkpoint_orders: list[int] = []
     is_route_finished: bool = False
     started_at: datetime | None = None
