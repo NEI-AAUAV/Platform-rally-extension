@@ -3,11 +3,11 @@ import { useCountdown } from "@/pages/home/useCountdown";
 import PreparationDashboard from "./PreparationDashboard";
 import OperationsDashboard from "./OperationsDashboard";
 import PostEventDashboard from "./PostEventDashboard";
-import type { AdminTabId } from "@/router/routes";
+import type { ReadinessNavigationIntent } from "../readiness/readinessNavigation";
 
 interface AdminDashboardProps {
   /** Navigate to another admin tab — used by PreparationDashboard's actionable issues. */
-  onNavigate: (tabId: AdminTabId) => void;
+  onNavigate: (intent: ReadinessNavigationIntent) => void;
 }
 
 /**

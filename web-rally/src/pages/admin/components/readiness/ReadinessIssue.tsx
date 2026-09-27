@@ -1,12 +1,12 @@
 import { AlertTriangle, Info, XCircle } from "lucide-react";
 import { type ConfigurationIssueResponse } from "@/client";
-import { targetForIssue } from "./readinessNavigation";
-import type { AdminTabId } from "@/router/routes";
+import { navigationIntentForIssue, type ReadinessNavigationIntent } from "./readinessNavigation";
 
 interface ReadinessIssueProps {
   issue: ConfigurationIssueResponse;
-  /** When provided, renders a "Corrigir →" link that navigates to the issue's admin destination. */
-  onNavigate?: (tabId: AdminTabId) => void;
+  /** When provided, renders a "Corrigir →" link that navigates to the issue's
+   * admin destination, carrying the affected entities/field along. */
+  onNavigate?: (intent: ReadinessNavigationIntent) => void;
 }
 
 /** A single readiness issue row, with an optional actionable "fix it" link. */
@@ -22,7 +22,8 @@ export default function ReadinessIssue({ issue, onNavigate }: Readonly<Readiness
     tone = "text-amber-600";
   }
 
-  const target = onNavigate ? targetForIssue(issue) : undefined;
+  const intent = onNavigate ? navigationIntentForIssue(issue) : undefined;
+  const affected = intent?.highlightIds?.length ?? 0;
 
   return (
     <li className="flex items-start gap-2 text-sm">
@@ -33,10 +34,15 @@ export default function ReadinessIssue({ issue, onNavigate }: Readonly<Readiness
           <span className="block text-xs text-muted-foreground">{issue.suggestion}</span>
         )}
       </span>
-      {target && onNavigate && (
+      {intent && onNavigate && (
         <button
           type="button"
-          onClick={() => onNavigate(target.tabId)}
+          onClick={() => onNavigate(intent)}
+          aria-label={
+            affected > 0
+              ? `Corrigir: mostrar ${affected} ${affected === 1 ? "item afetado" : "itens afetados"}`
+              : undefined
+          }
           className="shrink-0 whitespace-nowrap text-xs font-semibold text-primary hover:underline"
         >
           Corrigir →

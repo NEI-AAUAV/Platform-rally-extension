@@ -5,7 +5,7 @@ import { getTeams, getCheckpoints, type ListingTeam } from "@/client";
 import { useEventConfiguration } from "@/pages/settings/components/useEventConfiguration";
 import EventReadinessSummary from "../readiness/EventReadinessSummary";
 import EventReadinessChecklist from "../readiness/EventReadinessChecklist";
-import type { AdminTabId } from "@/router/routes";
+import type { ReadinessNavigationIntent } from "../readiness/readinessNavigation";
 
 function StatPill({
   icon: Icon,
@@ -32,7 +32,7 @@ function StatPill({
  */
 interface PreparationDashboardProps {
   /** Navigate to another admin tab — owned by the page, not this component. */
-  onNavigate: (tabId: AdminTabId) => void;
+  onNavigate: (intent: ReadinessNavigationIntent) => void;
 }
 
 export default function PreparationDashboard({ onNavigate }: Readonly<PreparationDashboardProps>) {

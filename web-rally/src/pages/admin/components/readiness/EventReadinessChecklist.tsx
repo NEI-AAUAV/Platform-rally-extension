@@ -1,11 +1,11 @@
 import { type ConfigurationIssueResponse } from "@/client";
 import ReadinessIssue from "./ReadinessIssue";
-import type { AdminTabId } from "@/router/routes";
+import type { ReadinessNavigationIntent } from "./readinessNavigation";
 
 interface EventReadinessChecklistProps {
   issues: readonly ConfigurationIssueResponse[];
   /** When provided, each issue gets a "Corrigir →" link that navigates to its admin destination. */
-  onNavigate?: (tabId: AdminTabId) => void;
+  onNavigate?: (intent: ReadinessNavigationIntent) => void;
 }
 
 /** The list of readiness issues, each optionally actionable. */

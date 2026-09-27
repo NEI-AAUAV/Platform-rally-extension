@@ -19,6 +19,8 @@ type CheckpointListItemProps = Readonly<{
   onDelete: (id: number) => void;
   /** To resolve the checkpoint's stage name; empty when the route has none. */
   stages?: ReadonlyArray<RouteStageResponse>;
+  /** Marked by a readiness "Corrigir →" jump (`?highlight=`). */
+  isHighlighted?: boolean;
 }>;
 
 function formatWindow(from: string | null | undefined, until: string | null | undefined): string {
@@ -40,6 +42,7 @@ export default function CheckpointListItem({
   onEdit,
   onDelete,
   stages,
+  isHighlighted = false,
 }: CheckpointListItemProps) {
   const stage = stages?.find((s) => s.id === checkpoint.stage_id);
   const hasWindow = Boolean(checkpoint.available_from || checkpoint.available_until);
@@ -53,11 +56,14 @@ export default function CheckpointListItem({
       onDrop={(e) => onDrop(e, checkpoint)}
       onDragEnd={onDragEnd}
       aria-label={`Checkpoint ${checkpoint.name}, ordem ${checkpoint.order}`}
+      data-checkpoint-id={checkpoint.id}
+      data-highlighted={isHighlighted || undefined}
     >
       <div
         className={cn(
           "cursor-move rounded-xl border border-border bg-card/60 p-4 transition-all hover:bg-accent sm:p-6",
           isDragging && "scale-95 opacity-50",
+          isHighlighted && "border-primary ring-2 ring-primary/60",
         )}
       >
         <div className="flex items-center justify-between">

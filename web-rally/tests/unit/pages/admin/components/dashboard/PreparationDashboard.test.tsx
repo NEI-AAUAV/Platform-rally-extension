@@ -58,6 +58,6 @@ describe("PreparationDashboard", () => {
     const onNavigate = vi.fn();
     render(<PreparationDashboard onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText("Corrigir →"));
-    expect(onNavigate).toHaveBeenCalledWith("checkpoints");
+    expect(onNavigate).toHaveBeenCalledWith({ tabId: "checkpoints" });
   });
 });

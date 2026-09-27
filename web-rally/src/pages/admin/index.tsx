@@ -1,6 +1,6 @@
 import { Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
@@ -34,6 +34,8 @@ import TeamMembers from "@/pages/team-members";
 import ManagerEvaluationPage from "@/pages/staff-evaluation/manager-only";
 import AdminDashboard from "./components/dashboard/AdminDashboard";
 import { adminRoute, type AdminTabId } from "@/router/routes";
+import { formatHighlightIds, parseHighlightIds } from "@/lib/highlightIds";
+import type { ReadinessNavigationIntent } from "./components/readiness/readinessNavigation";
 
 interface Checkpoint {
   id: number;
@@ -68,7 +70,7 @@ export default function Admin() {
     ...(guideModeEnabled ? [] : (["guide-assignment"] as const)),
   ]);
 
-  const { tab: rawTab } = adminRoute.useSearch();
+  const { tab: rawTab, highlight } = adminRoute.useSearch();
   const activeTab: AdminTabId =
     rawTab && ADMIN_ITEMS.some((t) => t.id === rawTab) ? rawTab : "dashboard";
   const navigate = adminRoute.useNavigate();
@@ -87,6 +89,23 @@ export default function Admin() {
   useScrollToSearchTarget(activeTab === "settings" ? null : pendingSearchKey, () =>
     setPendingSearchKey(null),
   );
+
+  // Readiness "Corrigir →": a field with an admin-search anchor reuses the
+  // search jump (tab/section switch + scroll + flash); otherwise go to the
+  // tab and carry the affected entity ids in the URL (`?highlight=4,7`) so
+  // the destination can mark them and the link stays shareable/reloadable.
+  const highlightIds = useMemo(() => parseHighlightIds(highlight), [highlight]);
+  const handleReadinessNavigate = (intent: ReadinessNavigationIntent) => {
+    if (intent.searchEntry) {
+      handleSearchSelect(intent.searchEntry);
+      return;
+    }
+    navigate({
+      search: { tab: intent.tabId, highlight: formatHighlightIds(intent.highlightIds ?? []) },
+      replace: true,
+    });
+  };
+  const clearHighlight = () => setActiveTab(activeTab);
 
   const { data: checkpoints } = useQuery<Checkpoint[]>({
     queryKey: ["checkpoints"],
@@ -135,9 +154,15 @@ export default function Admin() {
 
         {/* Tab content */}
         <div className="min-w-0">
-          {activeTab === "dashboard" && <AdminDashboard onNavigate={setActiveTab} />}
+          {activeTab === "dashboard" && <AdminDashboard onNavigate={handleReadinessNavigate} />}
           {activeTab === "teams" && <TeamManagement />}
-          {activeTab === "checkpoints" && <CheckpointManagement userStore={userStore} />}
+          {activeTab === "checkpoints" && (
+            <CheckpointManagement
+              userStore={userStore}
+              highlightIds={highlightIds}
+              onClearHighlight={clearHighlight}
+            />
+          )}
           {activeTab === "activities" && <ActivityManagement checkpoints={checkpoints || []} />}
           {activeTab === "branding" && <BrandingSettings />}
           {activeTab === "events" && <EventsManagement />}
