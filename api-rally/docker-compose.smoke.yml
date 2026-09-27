@@ -1,11 +1,10 @@
 services:
   postgres:
-    # Mirrored from Docker Hub via AWS's public ECR: anonymous Docker Hub
-    # pulls on shared GitHub runner IPs intermittently fail the smoke stack
-    # with "unauthorized: authentication required" once the shared rate
-    # limit is exhausted. public.ecr.aws serves the same official images
-    # with no auth and no pull limit.
-    image: public.ecr.aws/docker/library/postgres:15
+    # CI never pulls this name: scripts/smoke/pull_images.sh fetches the
+    # digest-pinned image from the org's GHCR mirror (falling back across
+    # independent registries) and tags it as postgres:15, then the workflow
+    # runs `up --pull never`. A plain local `docker compose up` still works.
+    image: postgres:15
     environment:
       POSTGRES_USER: ${SMOKE_POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${SMOKE_POSTGRES_PASSWORD:-postgres}
@@ -19,7 +18,8 @@ services:
       retries: 5
 
   redis:
-    image: public.ecr.aws/docker/library/redis:7-alpine
+    # Acquired by scripts/smoke/pull_images.sh in CI — see postgres above.
+    image: redis:7-alpine
     ports:
       - "6380:6379"
     healthcheck:

@@ -365,6 +365,9 @@ jobs:
   test-e2e-fullstack:
     name: E2E Tests (fullstack, real backend)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'e2e' || github.event.inputs.test_type == '' }}
 
     steps:
@@ -422,30 +425,30 @@ jobs:
         print("VAPID_SUBJECT=mailto:smoke-tests@example.invalid")
         PY
 
+    - name: Log in to GHCR (CI image mirror)
+      uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Pull smoke-stack images
+      working-directory: api-rally
+      # Every externally sourced image (postgres, redis, minio, minio-init and
+      # the python base of the api/fake-oidc builds) is acquired here, by
+      # digest, from the org's GHCR mirror first and then independent public
+      # registries — see the script header. Retrying one anonymous registry
+      # is not enough: public.ecr.aws alone failed a run with
+      # "toomanyrequests: Data limit exceeded" through every retry. Kept as
+      # its own step so a registry failure is never mistaken for a container
+      # startup failure.
+      run: ./scripts/smoke/pull_images.sh
+
     - name: Start api-rally smoke stack
       working-directory: api-rally
-      # Retried because image pulls are the flaky part: shared runner IPs
-      # periodically exhaust anonymous registry limits and the pull fails
-      # with "unauthorized: authentication required". Every externally
-      # pulled image of the stack is pulled here — including minio/minio-init,
-      # which `api` depends on — so none is left to an implicit, unretried
-      # pull inside `up`. Pull first so a retry costs a pull, not a container
-      # restart, and fail loudly once retries are exhausted instead of
-      # letting `up` hit the same registry error.
-      run: |
-        for attempt in 1 2 3; do
-          if docker compose -f docker-compose.smoke.yml pull --quiet \
-              postgres redis minio minio-init; then
-            break
-          fi
-          if [ "$attempt" = 3 ]; then
-            echo "image pull failed after $attempt attempts"
-            exit 1
-          fi
-          echo "image pull attempt $attempt failed; retrying in 15s"
-          sleep 15
-        done
-        docker compose -f docker-compose.smoke.yml up -d postgres redis fake-oidc api
+      # --pull never: images come only from the step above, so `up` can never
+      # introduce an implicit, unretried registry pull.
+      run: docker compose -f docker-compose.smoke.yml up -d --pull never postgres redis fake-oidc api
 
     - name: Wait for api-rally to become healthy
       working-directory: api-rally
