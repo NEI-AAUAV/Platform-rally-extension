@@ -140,7 +140,7 @@ export default function CheckpointManagement({
           </div>
         )}
         {hasCheckpoints ? (
-          <ul role="list" className="list-none space-y-3">
+          <ul className="list-none space-y-3">
             {sortedCheckpoints.map((checkpoint) => (
               <CheckpointListItem
                 key={checkpoint.id}

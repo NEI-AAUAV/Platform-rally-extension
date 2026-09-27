@@ -451,6 +451,68 @@ class ConfigurationValidator:
             )
 
     @classmethod
+    def _validate_staff_scoring(
+        cls,
+        caps: dict[Capability, EffectiveCapability],
+        checkpoints: Sequence[object],
+        activities: Sequence[object] | None,
+        staff_assignments: Sequence[object] | None,
+        issues: list[ConfigurationIssue],
+    ) -> None:
+        if not caps[Capability.STAFF_SCORING].effective:
+            return
+        if not activities:
+            issues.append(
+                ConfigurationIssue(
+                    "NO_ACTIVITIES",
+                    ConfigurationIssueSeverity.ERROR,
+                    "A avaliação por staff requer pelo menos uma atividade.",
+                    entity_type="activity",
+                )
+            )
+        else:
+            cls._validate_activity_coverage(
+                checkpoints, activities, issues, ConfigurationIssueSeverity.ERROR
+            )
+        if not staff_assignments:
+            issues.append(
+                ConfigurationIssue(
+                    "NO_STAFF_ASSIGNMENTS",
+                    ConfigurationIssueSeverity.ERROR,
+                    "A avaliação por staff requer pelo menos uma atribuição de staff.",
+                    entity_type="staff_assignment",
+                )
+            )
+        else:
+            cls._validate_staff_coverage(
+                checkpoints, staff_assignments, issues, ConfigurationIssueSeverity.ERROR
+            )
+
+    @classmethod
+    def _validate_guide_mode(
+        cls,
+        caps: dict[Capability, EffectiveCapability],
+        teams: Sequence[object] | None,
+        guide_assignments: Sequence[object] | None,
+        issues: list[ConfigurationIssue],
+    ) -> None:
+        if not caps[Capability.GUIDE_MODE].effective:
+            return
+        if not guide_assignments:
+            issues.append(
+                ConfigurationIssue(
+                    "NO_GUIDE_ASSIGNMENTS",
+                    ConfigurationIssueSeverity.ERROR,
+                    "O perfil guiado requer pelo menos uma atribuição de guia.",
+                    entity_type="guide_assignment",
+                )
+            )
+        else:
+            cls._validate_guide_coverage(
+                teams, guide_assignments, issues, ConfigurationIssueSeverity.ERROR
+            )
+
+    @classmethod
     def validate(
         cls,
         *,
@@ -499,47 +561,8 @@ class ConfigurationValidator:
         )
         if event_type == "olympic" and profile == EventProfile.ROTATION.value:
             cls._validate_rotation(event, teams, checkpoints, issues)
-        if caps[Capability.STAFF_SCORING].effective:
-            if not activities:
-                issues.append(
-                    ConfigurationIssue(
-                        "NO_ACTIVITIES",
-                        ConfigurationIssueSeverity.ERROR,
-                        "A avaliação por staff requer pelo menos uma atividade.",
-                        entity_type="activity",
-                    )
-                )
-            else:
-                cls._validate_activity_coverage(
-                    checkpoints, activities, issues, ConfigurationIssueSeverity.ERROR
-                )
-            if not staff_assignments:
-                issues.append(
-                    ConfigurationIssue(
-                        "NO_STAFF_ASSIGNMENTS",
-                        ConfigurationIssueSeverity.ERROR,
-                        "A avaliação por staff requer pelo menos uma atribuição de staff.",
-                        entity_type="staff_assignment",
-                    )
-                )
-            else:
-                cls._validate_staff_coverage(
-                    checkpoints, staff_assignments, issues, ConfigurationIssueSeverity.ERROR
-                )
-        if caps[Capability.GUIDE_MODE].effective:
-            if not guide_assignments:
-                issues.append(
-                    ConfigurationIssue(
-                        "NO_GUIDE_ASSIGNMENTS",
-                        ConfigurationIssueSeverity.ERROR,
-                        "O perfil guiado requer pelo menos uma atribuição de guia.",
-                        entity_type="guide_assignment",
-                    )
-                )
-            else:
-                cls._validate_guide_coverage(
-                    teams, guide_assignments, issues, ConfigurationIssueSeverity.ERROR
-                )
+        cls._validate_staff_scoring(caps, checkpoints, activities, staff_assignments, issues)
+        cls._validate_guide_mode(caps, teams, guide_assignments, issues)
         if (
             event_type == "peddy_paper"
             and not caps[Capability.HINTS].effective

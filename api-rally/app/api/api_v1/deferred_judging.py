@@ -48,6 +48,7 @@ def _require_own_checkpoint(
 
 
 ACTIVITY_NOT_FOUND_MSG = "Activity not found"
+RESULT_NOT_FOUND_MSG = "Result not found"
 
 
 class JudgeRequest(BaseModel):
@@ -119,7 +120,7 @@ class DeferredJudgingController:
             name="judge_deferred_result",
             dependencies=[Depends(deps.get_admin)],
             responses={
-                404: {"description": "Result not found"},
+                404: {"description": RESULT_NOT_FOUND_MSG},
                 400: {"description": "Result is not pending judgment"},
             },
         )
@@ -130,7 +131,7 @@ class DeferredJudgingController:
             name="set_team_photo_from_result",
             responses={
                 403: {"description": "Setting a team photo from an activity photo is disabled"},
-                404: {"description": "Result not found"},
+                404: {"description": RESULT_NOT_FOUND_MSG},
                 400: {"description": "Photo does not belong to this result"},
             },
         )
@@ -231,7 +232,7 @@ class DeferredJudgingController:
         """
         result = await db.get(ActivityResult, result_id)
         if result is None:
-            raise HTTPException(status_code=404, detail="Result not found")
+            raise HTTPException(status_code=404, detail=RESULT_NOT_FOUND_MSG)
         result_activity = await crud_activity.get(db, result.activity_id)
         _require_own_checkpoint(
             curr_user, auth, result_activity.checkpoint_id if result_activity else None

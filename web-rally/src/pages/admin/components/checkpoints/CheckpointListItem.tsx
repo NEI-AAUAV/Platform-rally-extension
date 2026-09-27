@@ -49,7 +49,6 @@ export default function CheckpointListItem({
 
   return (
     <li
-      role="listitem"
       draggable
       onDragStart={(e) => onDragStart(e, checkpoint)}
       onDragOver={onDragOver}
