@@ -15,6 +15,7 @@ import { useEventConfiguration } from "@/pages/settings/components/useEventConfi
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import { useCountdown } from "@/pages/home/useCountdown";
 import { sortTeamsByRank, displayRank } from "@/lib/teamRanking";
+import { displayMetric, statusOf, type MetricStatus } from "./metricStatus";
 
 const PointsDistributionChart = lazy(
   () => import("@/components/scoreboard/PointsDistributionChart"),
@@ -73,11 +74,6 @@ function CheckpointBarShape({
   );
 }
 
-/** Where a secondary metric's number came from. A failed or pending fetch
- * must never render as a genuine zero — during a live rally "0 avaliações"
- * reads as "staff aren't scoring", not "the request failed". */
-type MetricStatus = "ready" | "loading" | "error";
-
 function StatCard({
   icon: Icon,
   value,
@@ -91,9 +87,7 @@ function StatCard({
   accent?: boolean;
   status?: MetricStatus;
 }>) {
-  let shown: number | string = value;
-  if (status === "loading") shown = "…";
-  if (status === "error") shown = "—";
+  const shown = displayMetric(value, status);
   return (
     <div
       className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]"
@@ -121,12 +115,6 @@ function StatCard({
       </div>
     </div>
   );
-}
-
-function statusOf(query: { isLoading: boolean; isError: boolean }): MetricStatus {
-  if (query.isError) return "error";
-  if (query.isLoading) return "loading";
-  return "ready";
 }
 
 export default function OperationsDashboard() {

@@ -6,19 +6,29 @@ import { useEventConfiguration } from "@/pages/settings/components/useEventConfi
 import EventReadinessSummary from "../readiness/EventReadinessSummary";
 import EventReadinessChecklist from "../readiness/EventReadinessChecklist";
 import type { ReadinessNavigationIntent } from "../readiness/readinessNavigation";
+import { displayMetric, statusOf, type MetricStatus } from "./metricStatus";
 
 function StatPill({
   icon: Icon,
   value,
   label,
-}: Readonly<{ icon: typeof Users; value: number; label: string }>) {
+  status,
+}: Readonly<{ icon: typeof Users; value: number; label: string; status: MetricStatus }>) {
   return (
-    <div className="rally-surface flex items-center gap-3 rounded-xl border border-border p-3.5">
+    <div
+      className="rally-surface flex items-center gap-3 rounded-xl border border-border p-3.5"
+      data-status={status}
+    >
       <div className="rounded-lg bg-secondary p-2 text-muted-foreground">
         <Icon className="h-4 w-4" />
       </div>
       <div>
-        <p className="rally-display text-xl font-bold tabular-nums text-foreground">{value}</p>
+        <p
+          className="rally-display text-xl font-bold tabular-nums text-foreground"
+          aria-label={status === "error" ? `${label}: indisponível` : undefined}
+        >
+          {displayMetric(value, status)}
+        </p>
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
       </div>
     </div>
@@ -38,20 +48,34 @@ interface PreparationDashboardProps {
 export default function PreparationDashboard({ onNavigate }: Readonly<PreparationDashboardProps>) {
   const configQuery = useEventConfiguration();
 
-  const { data: teams } = useQuery({
+  const teamsQuery = useQuery({
     queryKey: ["teams"],
     queryFn: async () => (await getTeams()).data,
   });
-  const { data: checkpoints } = useQuery({
+  const checkpointsQuery = useQuery({
     queryKey: ["checkpoints"],
     queryFn: async () => (await getCheckpoints()).data,
   });
+  const teams = teamsQuery.data;
+  const checkpoints = checkpointsQuery.data;
 
   const teamList = useMemo(() => (Array.isArray(teams) ? (teams as ListingTeam[]) : []), [teams]);
   const checkpointList = useMemo(
     () => (Array.isArray(checkpoints) ? checkpoints : []),
     [checkpoints],
   );
+  const teamsStatus = statusOf(teamsQuery);
+  const checkpointsStatus = statusOf(checkpointsQuery);
+  // Keyed on data rather than isLoading so the preflight's disabled/idle
+  // state also stays "…": an unknown issue count is not "0 pontos a verificar".
+  const configStatus = statusOf({
+    isError: configQuery.isError,
+    isLoading: !configQuery.data,
+  });
+  const unavailable = [
+    teamsStatus === "error" && "as equipas",
+    checkpointsStatus === "error" && "os postos",
+  ].filter(Boolean);
 
   return (
     <div className="space-y-6">
@@ -63,14 +87,26 @@ export default function PreparationDashboard({ onNavigate }: Readonly<Preparatio
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatPill icon={Users} value={teamList.length} label="Equipas" />
-        <StatPill icon={MapPin} value={checkpointList.length} label="Postos" />
+        <StatPill icon={Users} value={teamList.length} label="Equipas" status={teamsStatus} />
+        <StatPill
+          icon={MapPin}
+          value={checkpointList.length}
+          label="Postos"
+          status={checkpointsStatus}
+        />
         <StatPill
           icon={ClipboardList}
           value={configQuery.data?.issues.length ?? 0}
           label="Pontos a verificar"
+          status={configStatus}
         />
       </div>
+
+      {unavailable.length > 0 && (
+        <p role="alert" className="text-sm text-destructive">
+          Não foi possível carregar {unavailable.join(" nem ")}. Tente novamente em instantes.
+        </p>
+      )}
 
       <div className="rally-surface rounded-xl border border-border p-4">
         {configQuery.isLoading && (
