@@ -2,9 +2,14 @@ import { lazy, Suspense, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, Rectangle, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { BarShapeProps } from "recharts/types/cartesian/Bar";
-import { Activity, CheckCircle, Clock, Flag, Users } from "lucide-react";
-import { getTeams, getCheckpoints, getAllEvaluations, type ListingTeam } from "@/client";
-import { ProvisionalBadge, FreshnessIndicator, LoadingState, ErrorState } from "@/components/shared";
+import { Activity, AlertTriangle, CheckCircle, Clock, Flag, Users } from "lucide-react";
+import { getTeams, getCheckpoints, getEvaluationsSummary, type ListingTeam } from "@/client";
+import {
+  ProvisionalBadge,
+  FreshnessIndicator,
+  LoadingState,
+  ErrorState,
+} from "@/components/shared";
 import useRallySettings from "@/hooks/useRallySettings";
 import { useEventConfiguration } from "@/pages/settings/components/useEventConfiguration";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
@@ -68,30 +73,60 @@ function CheckpointBarShape({
   );
 }
 
+/** Where a secondary metric's number came from. A failed or pending fetch
+ * must never render as a genuine zero — during a live rally "0 avaliações"
+ * reads as "staff aren't scoring", not "the request failed". */
+type MetricStatus = "ready" | "loading" | "error";
+
 function StatCard({
   icon: Icon,
   value,
   label,
   accent,
+  status = "ready",
 }: Readonly<{
   icon: typeof Users;
   value: number | string;
   label: string;
   accent?: boolean;
+  status?: MetricStatus;
 }>) {
+  let shown: number | string = value;
+  if (status === "loading") shown = "…";
+  if (status === "error") shown = "—";
   return (
-    <div className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]">
+    <div
+      className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]"
+      data-status={status}
+    >
       <div
         className={`rounded-lg p-2 ${accent ? "rally-bg-accent text-white" : "bg-secondary text-muted-foreground"}`}
       >
         <Icon className="h-5 w-5" />
       </div>
       <div>
-        <p className="rally-display text-2xl font-bold tabular-nums text-foreground">{value}</p>
+        <p
+          className="rally-display text-2xl font-bold tabular-nums text-foreground"
+          aria-label={status === "error" ? `${label}: indisponível` : undefined}
+        >
+          {shown}
+        </p>
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        {status === "error" && (
+          <p className="flex items-center gap-1 text-[11px] font-medium text-red-700 dark:text-red-300">
+            <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+            Indisponível
+          </p>
+        )}
       </div>
     </div>
   );
+}
+
+function statusOf(query: { isLoading: boolean; isError: boolean }): MetricStatus {
+  if (query.isError) return "error";
+  if (query.isLoading) return "loading";
+  return "ready";
 }
 
 export default function OperationsDashboard() {
@@ -115,19 +150,24 @@ export default function OperationsDashboard() {
     refetchInterval: 15_000,
   });
 
-  const { data: checkpoints } = useQuery({
+  const checkpointsQuery = useQuery({
     queryKey: ["checkpoints"],
     queryFn: async () => {
       const { data } = await getCheckpoints();
       return data;
     },
   });
+  const checkpoints = checkpointsQuery.data;
 
-  const { data: allEvals } = useQuery<{ evaluations?: unknown[] }>({
-    queryKey: ["allEvaluations"],
+  // Count only: the full evaluation listing is never rendered here, so
+  // polling it every 15s would ship every serialized result for one number.
+  // Keyed under "allEvaluations" so existing prefix invalidations (evaluation
+  // submit, offline sync) refresh the count too.
+  const evaluationsQuery = useQuery({
+    queryKey: ["allEvaluations", "summary"],
     queryFn: async () => {
-      const { data } = await getAllEvaluations();
-      return data as unknown as { evaluations?: unknown[] };
+      const { data } = await getEvaluationsSummary();
+      return data;
     },
     refetchInterval: 15_000,
   });
@@ -137,7 +177,9 @@ export default function OperationsDashboard() {
     () => (Array.isArray(checkpoints) ? checkpoints : []),
     [checkpoints],
   );
-  const totalEvals = allEvals?.evaluations?.length ?? 0;
+  const totalEvals = evaluationsQuery.data?.total ?? 0;
+  const checkpointsStatus = statusOf(checkpointsQuery);
+  const evaluationsStatus = statusOf(evaluationsQuery);
   const configurationErrors =
     configuration.data?.issues.filter((issue) => issue.severity === "error") ?? [];
 
@@ -157,7 +199,12 @@ export default function OperationsDashboard() {
           t.resolved_checkpoint_orders?.includes(cp.order) &&
           !t.skipped_checkpoint_orders?.includes(cp.order),
       ).length;
-      return { name: cp.name.slice(0, 14), reached: completed, total: teamList.length, order: cp.order };
+      return {
+        name: cp.name.slice(0, 14),
+        reached: completed,
+        total: teamList.length,
+        order: cp.order,
+      };
     });
   }, [checkpointList, teamList]);
 
@@ -192,9 +239,19 @@ export default function OperationsDashboard() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard icon={Users} value={teamList.length} label="Equipas" accent />
-        <StatCard icon={Flag} value={checkpointList.length} label="Postos" />
+        <StatCard
+          icon={Flag}
+          value={checkpointList.length}
+          label="Postos"
+          status={checkpointsStatus}
+        />
         <StatCard icon={CheckCircle} value={teamsStarted} label="Iniciaram" />
-        <StatCard icon={Activity} value={totalEvals} label="Avaliações" />
+        <StatCard
+          icon={Activity}
+          value={totalEvals}
+          label="Avaliações"
+          status={evaluationsStatus}
+        />
       </div>
 
       {/* Teams not started alert */}
@@ -208,6 +265,15 @@ export default function OperationsDashboard() {
       )}
 
       {/* Teams per checkpoint chart */}
+      {checkpointsStatus === "error" && (
+        <div
+          role="alert"
+          className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          Não foi possível carregar os postos — o progresso por posto está indisponível.
+        </div>
+      )}
       {perCheckpointData.length > 0 && (
         <div className="rally-surface rounded-xl border border-border p-5 shadow-[var(--rally-shadow-sm)]">
           <h3 className="rally-display mb-4 text-base font-bold text-foreground">

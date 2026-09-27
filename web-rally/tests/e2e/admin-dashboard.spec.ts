@@ -28,13 +28,13 @@ async function mockCheckpoints(page: Page, checkpoints: unknown[]) {
 }
 
 async function mockEvaluations(page: Page, count: number) {
-  await page.route("**/api/rally/v1/staff/all-evaluations", (route) =>
+  // The dashboard reads the count-only endpoint; it must not need the full
+  // evaluation listing just to show a number.
+  await page.route("**/api/rally/v1/staff/evaluations/summary**", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        evaluations: Array.from({ length: count }, (_, i) => ({ id: i + 1 })),
-      }),
+      body: JSON.stringify({ total: count }),
     }),
   );
 }

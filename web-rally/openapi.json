@@ -3320,6 +3320,77 @@
         }
       }
     },
+    "/api/rally/v1/staff/evaluations/summary": {
+      "get": {
+        "tags": [
+          "Staff Evaluation"
+        ],
+        "summary": "Get Evaluations Summary",
+        "description": "Count of the evaluations ``get_all_evaluations`` would return.\n\nPolled by the live operations dashboard, which only shows the number:\ncounting in SQL avoids shipping every serialized result each refresh.",
+        "operationId": "get_evaluations_summary",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkpoint_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Checkpoint Id"
+            }
+          },
+          {
+            "name": "team_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationsSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/rally/duration": {
       "get": {
         "tags": [
@@ -11083,6 +11154,20 @@
         ],
         "title": "EvaluationHistoryEntry",
         "description": "One audit-trail row: who changed what (or contested), and when."
+      },
+      "EvaluationsSummary": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "EvaluationsSummary",
+        "description": "Count-only view of ``GET /staff/all-evaluations``.\n\nSame scoping (current event, staff clamped to their checkpoint, optional\n``team_id``/``checkpoint_id`` filters) without transferring every row \u2014\nfor dashboards that only display the number."
       },
       "EventProfile": {
         "type": "string",

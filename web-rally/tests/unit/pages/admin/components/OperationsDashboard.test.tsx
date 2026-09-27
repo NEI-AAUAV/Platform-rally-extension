@@ -6,14 +6,14 @@ import OperationsDashboard from "@/pages/admin/components/dashboard/OperationsDa
 const {
   mockGetTeams,
   mockGetCheckpoints,
-  mockGetAllEvaluations,
+  mockGetEvaluationsSummary,
   mockUseScoreboardStream,
   mockUseRallySettings,
   mockUseCountdown,
 } = vi.hoisted(() => ({
   mockGetTeams: vi.fn(),
   mockGetCheckpoints: vi.fn(),
-  mockGetAllEvaluations: vi.fn(),
+  mockGetEvaluationsSummary: vi.fn(),
   mockUseScoreboardStream: vi.fn(),
   mockUseRallySettings: vi.fn(),
   mockUseCountdown: vi.fn(),
@@ -22,7 +22,7 @@ const {
 vi.mock("@/client", () => ({
   getTeams: (...args: unknown[]) => mockGetTeams(...args),
   getCheckpoints: (...args: unknown[]) => mockGetCheckpoints(...args),
-  getAllEvaluations: (...args: unknown[]) => mockGetAllEvaluations(...args),
+  getEvaluationsSummary: (...args: unknown[]) => mockGetEvaluationsSummary(...args),
 }));
 
 vi.mock("@/hooks/useScoreboardStream", () => ({
@@ -98,7 +98,7 @@ describe("OperationsDashboard", () => {
     mockUseCountdown.mockReturnValue({ phase: "live", days: 0, hours: 1, minutes: 2, seconds: 3 });
     mockGetTeams.mockResolvedValue({ data: [] });
     mockGetCheckpoints.mockResolvedValue({ data: [] });
-    mockGetAllEvaluations.mockResolvedValue({ data: { evaluations: [] } });
+    mockGetEvaluationsSummary.mockResolvedValue({ data: { total: 0 } });
   });
 
   it("renders the phase chip and stat cards with empty data", async () => {
@@ -230,5 +230,76 @@ describe("OperationsDashboard", () => {
     renderWithClient(<OperationsDashboard />);
     expect(await screen.findByTestId("error-state")).toBeInTheDocument();
     expect(screen.queryByText("Estado do evento")).not.toBeInTheDocument();
+  });
+
+  describe("partial degradation: a failed fetch is never a genuine zero", () => {
+    const statCard = (label: string) => screen.getByText(label).closest("[data-status]");
+
+    it("renders real zeros as zeros when every source succeeds empty", async () => {
+      renderWithClient(<OperationsDashboard />);
+      await screen.findByText("Estado do evento");
+      await vi.waitFor(() =>
+        expect(statCard("Avaliações")).toHaveAttribute("data-status", "ready"),
+      );
+      expect(statCard("Postos")).toHaveAttribute("data-status", "ready");
+      expect(statCard("Postos")).toHaveTextContent("0");
+      expect(statCard("Avaliações")).toHaveTextContent("0");
+      expect(screen.queryByText("Indisponível")).not.toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("shows the evaluation count from the summary endpoint, not a full listing", async () => {
+      mockGetEvaluationsSummary.mockResolvedValue({ data: { total: 42 } });
+      renderWithClient(<OperationsDashboard />);
+      await vi.waitFor(() => expect(statCard("Avaliações")).toHaveTextContent("42"));
+      expect(mockGetEvaluationsSummary).toHaveBeenCalled();
+    });
+
+    it("marks the evaluations metric unavailable but keeps teams and checkpoints", async () => {
+      mockGetTeams.mockResolvedValue({ data: [team()] });
+      mockGetCheckpoints.mockResolvedValue({ data: [checkpoint()] });
+      mockGetEvaluationsSummary.mockRejectedValue(new Error("500"));
+      renderWithClient(<OperationsDashboard />);
+      await vi.waitFor(() =>
+        expect(statCard("Avaliações")).toHaveAttribute("data-status", "error"),
+      );
+      expect(statCard("Avaliações")).toHaveTextContent("—");
+      expect(statCard("Avaliações")).not.toHaveTextContent(/\b0\b/);
+      expect(screen.getByLabelText("Avaliações: indisponível")).toBeInTheDocument();
+      expect(statCard("Postos")).toHaveTextContent("1");
+      expect(screen.getByText("Equipas que concluíram por posto")).toBeInTheDocument();
+      expect(screen.getByText("Equipas ao vivo")).toBeInTheDocument();
+    });
+
+    it("marks the checkpoints metric unavailable and explains the missing chart", async () => {
+      mockGetTeams.mockResolvedValue({ data: [team({ resolved_checkpoint_orders: [1] })] });
+      mockGetCheckpoints.mockRejectedValue(new Error("500"));
+      mockGetEvaluationsSummary.mockResolvedValue({ data: { total: 3 } });
+      renderWithClient(<OperationsDashboard />);
+      await vi.waitFor(() => expect(statCard("Postos")).toHaveAttribute("data-status", "error"));
+      expect(statCard("Postos")).toHaveTextContent("—");
+      expect(screen.getByRole("alert")).toHaveTextContent(/Não foi possível carregar os postos/);
+      expect(screen.queryByText("Equipas que concluíram por posto")).not.toBeInTheDocument();
+      // No "1/0 postos": without a checkpoint total the table shows the raw count.
+      expect(screen.getByText("1 postos")).toBeInTheDocument();
+      expect(statCard("Avaliações")).toHaveTextContent("3");
+      expect(screen.getByText("Equipas ao vivo")).toBeInTheDocument();
+    });
+
+    it("blocks the dashboard when the foundational teams fetch fails", async () => {
+      mockGetTeams.mockRejectedValue(new Error("network down"));
+      mockGetEvaluationsSummary.mockResolvedValue({ data: { total: 5 } });
+      renderWithClient(<OperationsDashboard />);
+      expect(await screen.findByTestId("error-state")).toBeInTheDocument();
+      expect(screen.queryByText("Avaliações")).not.toBeInTheDocument();
+    });
+
+    it("shows a pending marker, not zero, while a secondary source loads", async () => {
+      mockGetEvaluationsSummary.mockReturnValue(new Promise(() => {}));
+      renderWithClient(<OperationsDashboard />);
+      await screen.findByText("Estado do evento");
+      expect(statCard("Avaliações")).toHaveAttribute("data-status", "loading");
+      expect(statCard("Avaliações")).toHaveTextContent("…");
+    });
   });
 });

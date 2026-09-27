@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -57,7 +57,7 @@ from app.schemas.activity import (
     ActivityResultStaffUpdate,
 )
 from app.schemas.checkpoint import DetailedCheckPoint
-from app.schemas.evaluation_history import EvaluationHistoryEntry
+from app.schemas.evaluation_history import EvaluationHistoryEntry, EvaluationsSummary
 from app.schemas.user import DetailedUser
 from app.services.deps import get_scoring_service
 from app.services.route_progress import load_route_snapshot, progress_for_team
@@ -154,6 +154,12 @@ class StaffEvaluationController:
             self.get_all_evaluations,
             methods=["GET"],
             name="get_all_evaluations",
+        )
+        self.router.add_api_route(
+            "/evaluations/summary",
+            self.get_evaluations_summary,
+            methods=["GET"],
+            name="get_evaluations_summary",
         )
 
     async def get_my_checkpoint(
@@ -638,58 +644,25 @@ class StaffEvaluationController:
         Accessible by staff (filtered to their checkpoint) and by managers
         (all data).
         """
-        # Check if user has rally permissions
-        # NOTE: `get_staff_with_checkpoint_access` (this endpoint's `current_user`
-        # dependency) already enforces `is_admin_or_staff`, the same check
-        # `validate_rally_permissions` performs, so this branch is unreachable in
-        # practice; kept as a defensive guard/explicit precondition.
-        if not validate_rally_permissions(auth):
-            raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
-
-        # Staff members can only view evaluations from their assigned checkpoint
-        is_manager = is_admin_or_manager(auth)
-
-        if not is_manager:
-            # NOTE: only a non-manager (staff) reaches this branch, and
-            # `get_staff_with_checkpoint_access` already 403s a staff user with no
-            # assigned checkpoint — so this is unreachable in practice; kept as a
-            # defensive guard.
-            if not current_user.staff_checkpoint_id:
-                raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
-            # Override checkpoint_id filter with staff's assigned checkpoint
-            checkpoint_id = current_user.staff_checkpoint_id
-            logger.debug(f"Staff user {current_user.id} restricted to checkpoint {checkpoint_id}")
-
-        # Get all activity results. Eager-load activity and team (+ team.members for
-        # serialize_team) to avoid lazy loads on the async session.
-
-        stmt = select(ActivityResult).options(
-            joinedload(ActivityResult.activity),
-            joinedload(ActivityResult.team).selectinload(Team.members),
+        filters = await self._evaluation_scope(
+            db=db,
+            checkpoint_id=checkpoint_id,
+            team_id=team_id,
+            current_user=current_user,
+            auth=auth,
+            team_crud=team_crud,
         )
 
-        # scope to the current event by default, same as every other
-        # results listing (get_all_activity_results, reprice_all_results).
-        # Without this a past edition's completed results kept showing up
-        # here forever.
-        # A subquery (not a join on ActivityResult.team) so it doesn't
-        # collide with the joinedload(ActivityResult.team) above.
-        event_id = await current_event_id(db)
-        current_event_team_ids = select(Team.id).where(Team.event_id == event_id)
-        stmt = stmt.where(ActivityResult.team_id.in_(current_event_team_ids))
-
-        # Filters are conjunctive: a staff caller's checkpoint clamp must survive
-        # even when team_id is also supplied.
-        if team_id:
-            stmt = stmt.where(ActivityResult.team_id == team_id)
-        if checkpoint_id:
-            # Get teams at specific checkpoint
-            teams = await team_crud.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
-            team_ids = [t.id for t in teams]
-
-            # Get results for these teams
-            stmt = stmt.where(ActivityResult.team_id.in_(team_ids))
-
+        # Eager-load activity and team (+ team.members for serialize_team) to
+        # avoid lazy loads on the async session.
+        stmt = (
+            select(ActivityResult)
+            .options(
+                joinedload(ActivityResult.activity),
+                joinedload(ActivityResult.team).selectinload(Team.members),
+            )
+            .where(*filters)
+        )
         stmt = stmt.order_by(ActivityResult.completed_at.desc())
         results = list((await db.scalars(stmt)).unique().all())
 
@@ -718,6 +691,82 @@ class StaffEvaluationController:
             evaluations.append(evaluation_data)
 
         return {"evaluations": evaluations, "total": len(evaluations)}
+
+    async def get_evaluations_summary(
+        self,
+        *,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        checkpoint_id: Annotated[int | None, Query()] = None,
+        team_id: Annotated[int | None, Query()] = None,
+        current_user: Annotated[DetailedUser, Depends(get_staff_with_checkpoint_access)],
+        auth: Annotated[AuthData, Depends(api_nei_auth)],
+        team_crud: Annotated[CRUDTeam, Depends(get_team_crud)],
+    ) -> EvaluationsSummary:
+        """Count of the evaluations ``get_all_evaluations`` would return.
+
+        Polled by the live operations dashboard, which only shows the number:
+        counting in SQL avoids shipping every serialized result each refresh.
+        """
+        filters = await self._evaluation_scope(
+            db=db,
+            checkpoint_id=checkpoint_id,
+            team_id=team_id,
+            current_user=current_user,
+            auth=auth,
+            team_crud=team_crud,
+        )
+        total = await db.scalar(select(func.count(ActivityResult.id)).where(*filters))
+        return EvaluationsSummary(total=total or 0)
+
+    async def _evaluation_scope(
+        self,
+        *,
+        db: AsyncSession,
+        checkpoint_id: int | None,
+        team_id: int | None,
+        current_user: DetailedUser,
+        auth: AuthData,
+        team_crud: CRUDTeam,
+    ) -> list[ColumnElement[bool]]:
+        """Authorize the caller and build the WHERE clauses shared by the
+        evaluation listing and its count, so the two can never disagree.
+        """
+        # NOTE: `get_staff_with_checkpoint_access` (the endpoints' `current_user`
+        # dependency) already enforces `is_admin_or_staff`, the same check
+        # `validate_rally_permissions` performs, so this branch is unreachable in
+        # practice; kept as a defensive guard/explicit precondition.
+        if not validate_rally_permissions(auth):
+            raise RallyForbiddenError(NO_RALLY_PERMISSIONS)
+
+        # Staff members can only view evaluations from their assigned checkpoint
+        if not is_admin_or_manager(auth):
+            # NOTE: only a non-manager (staff) reaches this branch, and
+            # `get_staff_with_checkpoint_access` already 403s a staff user with no
+            # assigned checkpoint — so this is unreachable in practice; kept as a
+            # defensive guard.
+            if not current_user.staff_checkpoint_id:
+                raise RallyNotFoundError(NO_CHECKPOINT_ASSIGNED)
+            # Override checkpoint_id filter with staff's assigned checkpoint
+            checkpoint_id = current_user.staff_checkpoint_id
+            logger.debug(f"Staff user {current_user.id} restricted to checkpoint {checkpoint_id}")
+
+        # Scope to the current event by default, same as every other results
+        # listing (get_all_activity_results, reprice_all_results). Without this
+        # a past edition's completed results kept showing up forever. A
+        # subquery (not a join on ActivityResult.team) so it doesn't collide
+        # with the listing's joinedload(ActivityResult.team).
+        event_id = await current_event_id(db)
+        current_event_team_ids = select(Team.id).where(Team.event_id == event_id)
+        filters: list[ColumnElement[bool]] = [ActivityResult.team_id.in_(current_event_team_ids)]
+
+        # Filters are conjunctive: a staff caller's checkpoint clamp must survive
+        # even when team_id is also supplied.
+        if team_id:
+            filters.append(ActivityResult.team_id == team_id)
+        if checkpoint_id:
+            teams = await team_crud.get_by_checkpoint(db, checkpoint_id=checkpoint_id)
+            filters.append(ActivityResult.team_id.in_([t.id for t in teams]))
+        return filters
 
 
 router = StaffEvaluationController().router
