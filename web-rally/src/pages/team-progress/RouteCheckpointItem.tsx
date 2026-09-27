@@ -30,6 +30,12 @@ type RouteCheckpointItemProps = Readonly<{
   notYetDeparted?: string | null;
 }>;
 
+function timelineDotContent(isCompleted: boolean, isSkipped: boolean, order: number) {
+  if (isCompleted) return <Check className="h-4 w-4" />;
+  if (isSkipped) return <SkipForward className="h-4 w-4" />;
+  return order;
+}
+
 interface CheckpointTimelineDotProps {
   readonly order: number;
   readonly isCompleted: boolean;
@@ -58,13 +64,7 @@ function CheckpointTimelineDot({
           isFuture && "bg-secondary text-muted-foreground",
         )}
       >
-        {isCompleted ? (
-          <Check className="h-4 w-4" />
-        ) : isSkipped ? (
-          <SkipForward className="h-4 w-4" />
-        ) : (
-          order
-        )}
+        {timelineDotContent(isCompleted, isSkipped, order)}
       </div>
       {!isLast && (
         <div

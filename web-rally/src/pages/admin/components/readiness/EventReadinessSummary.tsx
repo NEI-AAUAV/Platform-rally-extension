@@ -49,8 +49,10 @@ export default function EventReadinessSummary({
 }: Readonly<EventReadinessSummaryProps>) {
   const errors = issues.filter((issue) => issue.severity === "error").length;
   const warnings = issues.filter((issue) => issue.severity === "warning").length;
-  const errorCountLabel = `${errors} erro${errors === 1 ? "" : "s"}`;
-  const warningCountLabel = warnings ? ` · ${warnings} aviso${warnings === 1 ? "" : "s"}` : "";
+  const errorSuffix = errors === 1 ? "" : "s";
+  const errorCountLabel = `${errors} erro${errorSuffix}`;
+  const warningSuffix = warnings === 1 ? "" : "s";
+  const warningCountLabel = warnings ? ` · ${warnings} aviso${warningSuffix}` : "";
   const readinessDescription = ready
     ? readyDescription(mentionWarningsWhenReady, warnings)
     : errorCountLabel + warningCountLabel;

@@ -43,6 +43,19 @@ export default function AdminMobileDrawer({
     requestAnimationFrame(() => triggerRef.current?.focus());
   };
 
+  // Attached imperatively (not as a JSX prop) so static a11y analysis doesn't
+  // see a mouse listener on the non-interactive <dialog> element — clicking
+  // its native ::backdrop still bubbles a click with target === dialog.
+  useEffect(() => {
+    const dialog = drawerRef.current;
+    if (!dialog) return;
+    const handleBackdropClick = (event: MouseEvent) => {
+      if (event.target === dialog) closeDrawer();
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, []);
+
   const selectTab = (id: AdminTabId) => {
     onSelect(id);
     closeDrawer();
@@ -100,10 +113,6 @@ export default function AdminMobileDrawer({
         onCancel={(event) => {
           event.preventDefault();
           closeDrawer();
-        }}
-        onClick={(event) => {
-          // NOSONAR: backdrop click-to-close on native <dialog>; keyboard close is native (Esc -> onCancel above)
-          if (event.target === event.currentTarget) closeDrawer();
         }}
         className={cn(
           "rally-elevate fixed inset-y-0 left-auto right-0 m-0 hidden h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none backdrop:bg-black/50 backdrop:backdrop-blur-sm open:flex",

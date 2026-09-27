@@ -94,7 +94,7 @@ test.describe("Admin Panel", () => {
     page,
     isMobile,
   }) => {
-    test.skip(!isMobile, "grouped-drawer regression only applies below the lg breakpoint");
+    test.skip(!isMobile, "grouped-drawer regression only applies below the lg breakpoint"); // NOSONAR: conditional device-matrix skip, not a disabled test
 
     // Deep-linked into "checkpoints" (Preparação group) — that group's
     // <details> must start open without any click, per PARTE 3's
