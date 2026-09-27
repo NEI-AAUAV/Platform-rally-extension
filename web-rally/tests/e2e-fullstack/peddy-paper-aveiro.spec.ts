@@ -265,7 +265,13 @@ async function teamLoginThroughForm(page: Page, accessCode: string): Promise<voi
  * stale handle.
  */
 async function checkInWithGpsButton(page: Page): Promise<void> {
-  const registered = page.getByText(/Posto concluído|Check-in registado|Já registado/);
+  // "Chegada registada — a aguardar…" is the card's arrived state: once the
+  // press lands, the refetched progress replaces the transient
+  // "Check-in registado!" message with it, so it is success too — without it
+  // a landed check-in looks like a missing button and the retry never ends.
+  const registered = page.getByText(
+    /Posto concluído|Check-in registado|Já registado|Chegada registada — a aguardar/,
+  );
   const button = page.getByRole("button", { name: /^(Check-in GPS|Tentar novamente)$/ });
   let attempt = 0;
   await expect(async () => {

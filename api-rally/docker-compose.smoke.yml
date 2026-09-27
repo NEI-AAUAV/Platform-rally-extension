@@ -28,8 +28,19 @@ services:
       timeout: 5s
       retries: 5
 
+  # MinIO no longer publishes community images: quay.io/minio/{minio,mc} now
+  # answer anonymous pulls with "unauthorized" and Docker Hub's minio/* repos
+  # deny access, so the previously pinned RELEASE.2025-* tags are simply
+  # unpullable (retrying cannot help). Chainguard rebuilds MinIO and mc from
+  # upstream source and serves them from cgr.dev with no auth and no pull
+  # limit. Their free tier only tags :latest / :latest-dev, so both are pinned
+  # by digest to keep CI reproducible — bump the digest deliberately.
+  # The image runs as a non-root user and ships bash but not curl/grep, hence the
+  # /dev/tcp healthcheck; it runs as root so it can write the fresh /data
+  # volume (throwaway CI container).
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z
+    image: cgr.dev/chainguard/minio@sha256:bd014394a80898e68c149f2311fdf8d5a2c2f3bb2c33b9327ae6d02b4b065ae1
+    user: "0:0"
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${SMOKE_MINIO_USER:-minioadmin}
@@ -38,16 +49,25 @@ services:
       - "9000:9000"
       - "9001:9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /minio/health/live HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && read -r status <&3 && [[ $$status == *' 200 '* ]]",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
 
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    # :latest-dev is the variant with a shell, needed to chain the mc calls.
+    image: cgr.dev/chainguard/minio-client@sha256:f0dd93b48af1f8a641edcd3c64661c8dbe05189bd2ef2f8cea216eb18af10bf8
     depends_on:
       minio:
         condition: service_healthy
+    environment:
+      MC_CONFIG_DIR: /tmp/.mc
     entrypoint:
       [
         "/bin/sh",

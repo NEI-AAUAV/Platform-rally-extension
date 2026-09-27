@@ -118,8 +118,15 @@ test.describe("Fase 5: Separadores de Administração e Identidade Visual", () =
       // not the live operations view this test checks. Make the phase
       // explicit and deterministic — start in the past, end in the future —
       // instead of relying on whatever the event's dates happen to default to.
+      // The phase follows the *current* edition's dates (settings mirror
+      // them). The list is newest-first and 5.0 created a new, non-current
+      // edition, so `.first()` would edit the wrong one — target the card
+      // badged "Atual".
       await adminPage.goto("/rally/admin?tab=events");
-      await adminPage.getByRole("button", { name: "Editar edição" }).first().click();
+      const currentEventCard = adminPage
+        .locator(".rally-surface")
+        .filter({ has: adminPage.getByText("Atual", { exact: true }) });
+      await currentEventCard.getByRole("button", { name: "Editar edição" }).click();
       // datetime-local wants the browser's local wall-clock time, not UTC —
       // build it from local date parts rather than slicing an ISO string.
       const toLocalDatetimeInput = (date: Date) => {
@@ -130,7 +137,11 @@ test.describe("Fase 5: Separadores de Administração e Identidade Visual", () =
       const future = toLocalDatetimeInput(new Date(Date.now() + 60 * 60 * 1000));
       await adminPage.locator("#ev-start").fill(past);
       await adminPage.locator("#ev-end").fill(future);
+      const saved = adminPage.waitForResponse(
+        (res) => res.request().method() === "PUT" && /\/events\/\d+$/.test(res.url()),
+      );
       await adminPage.getByRole("button", { name: "Guardar" }).click();
+      expect((await saved).ok()).toBe(true);
 
       await adminPage.goto("/rally/admin?tab=dashboard");
 
