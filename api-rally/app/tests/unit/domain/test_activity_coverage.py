@@ -28,16 +28,24 @@ def test_multiple_local_activities_cover_their_own_checkpoints():
     assert covered == {1, 2}
 
 
-def test_one_global_activity_covers_all_checkpoints():
+def test_global_activity_alone_does_not_cover_any_checkpoint():
+    """Checkpoint staff can only evaluate activities of their own checkpoint,
+    so an event-wide activity must not satisfy per-checkpoint coverage."""
     activities = [_activity(checkpoint_id=None, is_global=True)]
     covered = checkpoint_ids_covered_by_activities(activities, [1, 2, 3])
-    assert covered == {1, 2, 3}
+    assert covered == set()
 
 
-def test_global_and_local_activities_together_cover_all_checkpoints():
+def test_global_and_local_activities_cover_only_local_checkpoints():
     activities = [_activity(checkpoint_id=1), _activity(checkpoint_id=None, is_global=True)]
     covered = checkpoint_ids_covered_by_activities(activities, [1, 2, 3])
-    assert covered == {1, 2, 3}
+    assert covered == {1}
+
+
+def test_generator_input_is_consumed_once_without_losing_activities():
+    activities = (a for a in [_activity(checkpoint_id=1), _activity(checkpoint_id=2)])
+    covered = checkpoint_ids_covered_by_activities(activities, [1, 2, 3])
+    assert covered == {1, 2}
 
 
 def test_no_activities_covers_nothing():

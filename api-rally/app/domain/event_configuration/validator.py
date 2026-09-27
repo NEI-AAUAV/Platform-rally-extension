@@ -329,7 +329,11 @@ class ConfigurationValidator:
                     f"{len(missing)} posto(s) publicado(s) sem atividade associada.",
                     entity_type="checkpoint",
                     entity_ids=missing,
-                    suggestion="Associe uma atividade a cada posto em Atividades.",
+                    suggestion=(
+                        "Associe uma atividade a cada posto em Atividades. "
+                        "Atividades globais não contam: o staff de um posto só "
+                        "avalia atividades desse posto."
+                    ),
                 )
             )
 
@@ -349,7 +353,10 @@ class ConfigurationValidator:
         """
         if not checkpoints:
             return
-        activity_ids = {getattr(a, "checkpoint_id", None) for a in (activities or [])}
+        activity_ids = checkpoint_ids_covered_by_activities(
+            activities or [],
+            [c_id for c in checkpoints if isinstance((c_id := getattr(c, "id", None)), int)],
+        )
         staffed_ids = {getattr(a, "checkpoint_id", None) for a in (staff_assignments or [])}
         requirements = cls.checkpoint_requirements(caps)
         incomplete_ids = [

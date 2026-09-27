@@ -540,10 +540,11 @@ def test_checkpoints_without_activities_not_emitted_with_full_coverage():
     assert not any(issue.code == "CHECKPOINTS_WITHOUT_ACTIVITIES" for issue in report.issues)
 
 
-def test_global_activity_covers_every_checkpoint():
-    """A global activity (is_global=True, checkpoint_id=None) applies across
-    every checkpoint by definition, so it must not trigger
-    CHECKPOINTS_WITHOUT_ACTIVITIES for any of them."""
+def test_global_activity_does_not_satisfy_checkpoint_scoring_coverage():
+    """A global activity (is_global=True, checkpoint_id=None) is event-wide:
+    staff at a checkpoint cannot evaluate it, so it must not make any
+    checkpoint count as covered. It still counts as "an activity exists", so
+    NO_ACTIVITIES is not emitted — the per-checkpoint issue is."""
     report = ConfigurationValidator.validate(
         event=event(event_type="rally_tascas", event_profile="staffed"),
         settings=settings(enable_staff_scoring=True),
@@ -556,7 +557,10 @@ def test_global_activity_covers_every_checkpoint():
 
     codes = {issue.code for issue in report.issues}
     assert "NO_ACTIVITIES" not in codes
-    assert "CHECKPOINTS_WITHOUT_ACTIVITIES" not in codes
+    issue = next(i for i in report.issues if i.code == "CHECKPOINTS_WITHOUT_ACTIVITIES")
+    assert issue.entity_ids == [1, 2]
+    assert issue.severity is ConfigurationIssueSeverity.ERROR
+    assert not report.ready
 
 
 def test_checkpoints_without_activities_emitted_for_partial_coverage():

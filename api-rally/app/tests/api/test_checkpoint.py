@@ -728,13 +728,13 @@ class TestCheckpointCRUDApi:
 
         assert response.status_code == 404
 
-    async def test_route_status_global_activity_satisfies_every_checkpoint_activity_requirement(
+    async def test_route_status_global_activity_does_not_satisfy_checkpoint_activity_requirement(
         self, pg_session, pg_client, as_admin
     ):
-        """A global activity applies across every checkpoint by definition —
-        see checkpoint_ids_covered_by_activities — so it must satisfy each
-        post's activity requirement, not just the one it happens to be
-        attached to (it isn't attached to any)."""
+        """A global activity is event-wide: checkpoint staff cannot evaluate
+        it (see checkpoint_ids_covered_by_activities), so the planning view
+        must still flag every post as missing its activity — the same verdict
+        readiness reports via CHECKPOINTS_WITHOUT_ACTIVITIES."""
         from app.crud.crud_activity import activity as crud_activity
         from app.schemas.activity import ActivityCreate, ActivityType
 
@@ -754,10 +754,9 @@ class TestCheckpointCRUDApi:
         response = pg_client.get("/api/rally/v1/checkpoint/admin/route")
 
         assert response.status_code == 200, response.text
-        assert all(
-            "activity" not in checkpoint["missing"]
-            for checkpoint in response.json()["checkpoints"]
-        )
+        checkpoints = response.json()["checkpoints"]
+        assert len(checkpoints) == 2
+        assert all("activity" in checkpoint["missing"] for checkpoint in checkpoints)
 
     async def test_route_status_scoped_activity_only_covers_its_checkpoint(
         self, pg_session, pg_client, as_admin
