@@ -81,23 +81,17 @@ async def test_global_activity_update_rejects_checkpoint_id(pg_session) -> None:
         pg_session, obj_in=CheckPointCreate(name="Checkpoint", order=1)
     )
 
+    update = ActivityUpdate(checkpoint_id=checkpoint.id)
     with pytest.raises(RallyValidationError, match="Global activities cannot have a checkpoint_id"):
-        await crud_activity.update(
-            pg_session,
-            db_obj=activity,
-            obj_in=ActivityUpdate(checkpoint_id=checkpoint.id),
-        )
+        await crud_activity.update(pg_session, db_obj=activity, obj_in=update)
 
 
 async def test_global_activity_update_rejects_scoped_without_checkpoint(pg_session) -> None:
     activity = await _make_activity(pg_session)
 
+    update = ActivityUpdate(is_global=False)
     with pytest.raises(RallyValidationError, match="Checkpoint activities require a checkpoint_id"):
-        await crud_activity.update(
-            pg_session,
-            db_obj=activity,
-            obj_in=ActivityUpdate(is_global=False),
-        )
+        await crud_activity.update(pg_session, db_obj=activity, obj_in=update)
 
 
 async def test_global_activity_update_converts_to_scoped_with_checkpoint(pg_session) -> None:

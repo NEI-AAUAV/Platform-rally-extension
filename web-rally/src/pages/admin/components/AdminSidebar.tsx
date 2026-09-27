@@ -2,10 +2,10 @@ import type { AdminNavGroup } from "../adminNavigation";
 import type { AdminTabId } from "@/router/routes";
 
 interface AdminSidebarProps {
-  groups: readonly AdminNavGroup[];
-  activeTab: AdminTabId;
-  disabledTabIds: ReadonlySet<AdminTabId>;
-  onSelect: (id: AdminTabId) => void;
+  readonly groups: readonly AdminNavGroup[];
+  readonly activeTab: AdminTabId;
+  readonly disabledTabIds: ReadonlySet<AdminTabId>;
+  readonly onSelect: (id: AdminTabId) => void;
 }
 
 /** Desktop sticky sidebar: admin nav grouped under secondary-styled headings. */

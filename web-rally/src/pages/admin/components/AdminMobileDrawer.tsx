@@ -5,12 +5,12 @@ import type { AdminNavGroup } from "../adminNavigation";
 import type { AdminTabId } from "@/router/routes";
 
 interface AdminMobileDrawerProps {
-  groups: readonly AdminNavGroup[];
-  activeTab: AdminTabId;
-  activeTabLabel: string;
-  activeTabIcon: LucideIcon;
-  disabledTabIds: ReadonlySet<AdminTabId>;
-  onSelect: (id: AdminTabId) => void;
+  readonly groups: readonly AdminNavGroup[];
+  readonly activeTab: AdminTabId;
+  readonly activeTabLabel: string;
+  readonly activeTabIcon: LucideIcon;
+  readonly disabledTabIds: ReadonlySet<AdminTabId>;
+  readonly onSelect: (id: AdminTabId) => void;
 }
 
 /**
@@ -102,15 +102,8 @@ export default function AdminMobileDrawer({
           closeDrawer();
         }}
         onClick={(event) => {
+          // NOSONAR: backdrop click-to-close on native <dialog>; keyboard close is native (Esc -> onCancel above)
           if (event.target === event.currentTarget) closeDrawer();
-        }}
-        // Sonar/jsx-a11y flag a click handler on a non-interactive element
-        // without a matching keyboard listener (S1082). The dialog already
-        // closes on Escape via `onCancel` — this makes that explicit on the
-        // same element instead of relying on the browser's native `<dialog>`
-        // behavior being obvious to static analysis.
-        onKeyDown={(event) => {
-          if (event.key === "Escape") closeDrawer();
         }}
         className={cn(
           "rally-elevate fixed inset-y-0 left-auto right-0 m-0 hidden h-full max-h-none w-72 max-w-[85vw] flex-col border-y-0 border-l border-r-0 border-border bg-popover outline-none backdrop:bg-black/50 backdrop:backdrop-blur-sm open:flex",

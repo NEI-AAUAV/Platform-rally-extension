@@ -30,27 +30,14 @@ describe("AdminDashboard", () => {
     vi.clearAllMocks();
   });
 
-  it("shows PreparationDashboard for phase 'pre'", () => {
-    mockPhase("pre");
+  it.each([
+    ["pre", "preparation-dashboard"],
+    ["none", "preparation-dashboard"],
+    ["live", "operations-dashboard"],
+    ["post", "post-event-dashboard"],
+  ])("shows %s dashboard for phase '%s'", (phase, testId) => {
+    mockPhase(phase);
     render(<AdminDashboard onNavigate={vi.fn()} />);
-    expect(screen.getByTestId("preparation-dashboard")).toBeInTheDocument();
-  });
-
-  it("shows PreparationDashboard for phase 'none' (no dates configured)", () => {
-    mockPhase("none");
-    render(<AdminDashboard onNavigate={vi.fn()} />);
-    expect(screen.getByTestId("preparation-dashboard")).toBeInTheDocument();
-  });
-
-  it("shows OperationsDashboard for phase 'live'", () => {
-    mockPhase("live");
-    render(<AdminDashboard onNavigate={vi.fn()} />);
-    expect(screen.getByTestId("operations-dashboard")).toBeInTheDocument();
-  });
-
-  it("shows PostEventDashboard for phase 'post'", () => {
-    mockPhase("post");
-    render(<AdminDashboard onNavigate={vi.fn()} />);
-    expect(screen.getByTestId("post-event-dashboard")).toBeInTheDocument();
+    expect(screen.getByTestId(testId)).toBeInTheDocument();
   });
 });

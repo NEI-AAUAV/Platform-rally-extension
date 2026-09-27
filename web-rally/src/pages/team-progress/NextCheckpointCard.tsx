@@ -19,6 +19,13 @@ type NextCheckpointCardProps = Readonly<{
   checkpointProgress?: CheckpointProgress;
 }>;
 
+function persistentStatusNotice(status: string): string | null {
+  if (status === "arrived") return "Chegada registada — a aguardar atividade/avaliação.";
+  if (status === "completed") return "Posto concluído.";
+  if (status === "skipped") return "Desistência registada neste posto.";
+  return null;
+}
+
 /**
  * Composes the next-checkpoint experience from useNextCheckpointState's view
  * model and a handful of focused subcomponents. This component itself should
@@ -39,14 +46,7 @@ export default function NextCheckpointCard({
   const openingNotice = notYetDeparted ?? access.openingNotice;
   const canCheckin = access.canCheckin && openingNotice === null;
   const isTerminal = persistent.isCompleted || persistent.isSkipped;
-  const persistentNotice =
-    persistent.status === "arrived"
-      ? "Chegada registada — a aguardar atividade/avaliação."
-      : persistent.status === "completed"
-        ? "Posto concluído."
-        : persistent.status === "skipped"
-          ? "Desistência registada neste posto."
-          : null;
+  const persistentNotice = persistentStatusNotice(persistent.status);
 
   return (
     <div className="rally-surface rally-elevate space-y-4 rounded-2xl p-6">

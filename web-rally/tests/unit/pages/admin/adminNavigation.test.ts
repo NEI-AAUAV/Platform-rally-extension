@@ -31,7 +31,7 @@ const EXPECTED_TAB_IDS = [
 describe("adminNavigation", () => {
   it("contains every admin tab id exactly once", () => {
     const ids = ADMIN_ITEMS.map((item) => item.id);
-    expect(ids.length).toBe(EXPECTED_TAB_IDS.length);
+    expect(ids).toHaveLength(EXPECTED_TAB_IDS.length);
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(ids)).toEqual(new Set(EXPECTED_TAB_IDS));
   });

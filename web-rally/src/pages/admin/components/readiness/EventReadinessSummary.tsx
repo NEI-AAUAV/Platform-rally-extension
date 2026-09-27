@@ -32,6 +32,13 @@ interface EventReadinessSummaryProps {
   mentionWarningsWhenReady?: boolean;
 }
 
+function readyDescription(mentionWarningsWhenReady: boolean, warnings: number): string {
+  if (mentionWarningsWhenReady && warnings > 0) {
+    return `Pronto para começar · ${warnings} aviso${warnings === 1 ? "" : "s"}`;
+  }
+  return "O formato e os dados necessários para o percurso estão coerentes.";
+}
+
 /** Ready/not-ready header, error+warning counts, and (optionally) capability badges. */
 export default function EventReadinessSummary({
   ready,
@@ -45,9 +52,7 @@ export default function EventReadinessSummary({
   const errorCountLabel = `${errors} erro${errors === 1 ? "" : "s"}`;
   const warningCountLabel = warnings ? ` · ${warnings} aviso${warnings === 1 ? "" : "s"}` : "";
   const readinessDescription = ready
-    ? mentionWarningsWhenReady && warnings > 0
-      ? `Pronto para começar · ${warnings} aviso${warnings === 1 ? "" : "s"}`
-      : "O formato e os dados necessários para o percurso estão coerentes."
+    ? readyDescription(mentionWarningsWhenReady, warnings)
     : errorCountLabel + warningCountLabel;
   const important = Object.entries(capabilities).filter(
     ([, capability]) => capability.policy !== "optional",

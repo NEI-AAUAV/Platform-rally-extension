@@ -216,6 +216,14 @@ function CheckpointCardBody({
   );
 }
 
+function checkpointStatusLabel(status: string, isCurrent: boolean): string {
+  if (status === "skipped") return "Desistiu";
+  if (status === "completed") return "Concluído";
+  if (status === "arrived") return "Chegada registada";
+  if (isCurrent) return "Em curso";
+  return "Pendente";
+}
+
 export default function RouteCheckpointItem({
   checkpoint,
   team,
@@ -260,16 +268,7 @@ export default function RouteCheckpointItem({
   const hasDiscovery =
     canReveal && (photos.length > 0 || funFacts.length > 0 || !!checkpoint.description);
 
-  const statusLabel =
-    status === "skipped"
-      ? "Desistiu"
-      : status === "completed"
-        ? "Concluído"
-        : status === "arrived"
-          ? "Chegada registada"
-          : isCurrent
-            ? "Em curso"
-            : "Pendente";
+  const statusLabel = checkpointStatusLabel(status, isCurrent);
 
   const CardElement = (canReveal ? "button" : "div") as React.ElementType;
   const cardProps = canReveal
@@ -301,7 +300,7 @@ export default function RouteCheckpointItem({
           )}
           {...cardProps}
         >
-          {canReveal && cover && cover.image_url && (
+          {canReveal && cover?.image_url && (
             <CheckpointCardHeader
               checkpointName={checkpoint.name}
               coverUrl={cover.image_url}

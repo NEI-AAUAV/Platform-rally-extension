@@ -24,6 +24,8 @@ export default function ReadinessIssue({ issue, onNavigate }: Readonly<Readiness
 
   const intent = onNavigate ? navigationIntentForIssue(issue) : undefined;
   const affected = intent?.highlightIds?.length ?? 0;
+  const affectedNoun = affected === 1 ? "item afetado" : "itens afetados";
+  const fixAriaLabel = affected > 0 ? `Corrigir: mostrar ${affected} ${affectedNoun}` : undefined;
 
   return (
     <li className="flex items-start gap-2 text-sm">
@@ -38,11 +40,7 @@ export default function ReadinessIssue({ issue, onNavigate }: Readonly<Readiness
         <button
           type="button"
           onClick={() => onNavigate(intent)}
-          aria-label={
-            affected > 0
-              ? `Corrigir: mostrar ${affected} ${affected === 1 ? "item afetado" : "itens afetados"}`
-              : undefined
-          }
+          aria-label={fixAriaLabel}
           className="shrink-0 whitespace-nowrap text-xs font-semibold text-primary hover:underline"
         >
           Corrigir →

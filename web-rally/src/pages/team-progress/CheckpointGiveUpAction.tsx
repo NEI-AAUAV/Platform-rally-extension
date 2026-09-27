@@ -21,11 +21,8 @@ export default function CheckpointGiveUpAction({
 }: Readonly<CheckpointGiveUpActionProps>) {
   if (!canGiveUp) return null;
 
-  const buttonText = giveUp.isPending
-    ? "A desistir…"
-    : skipCost === 0
-      ? "Desistir deste posto"
-      : `Desistir deste posto (${skipCost} pts)`;
+  const skipCostLabel = skipCost === 0 ? "Desistir deste posto" : `Desistir deste posto (${skipCost} pts)`;
+  const buttonText = giveUp.isPending ? "A desistir…" : skipCostLabel;
 
   return (
     <div className="space-y-2 border-t border-border pt-4">
