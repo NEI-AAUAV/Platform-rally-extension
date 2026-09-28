@@ -117,9 +117,7 @@ export default function CheckpointManagement({
           </p>
         )}
         {highlightIds.length > 0 && (
-          <output
-            className="mb-4 flex items-center gap-3 rounded-xl border border-primary/40 bg-primary/5 px-4 py-2 text-sm"
-          >
+          <output className="mb-4 flex items-center gap-3 rounded-xl border border-primary/40 bg-primary/5 px-4 py-2 text-sm">
             <Crosshair className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
             <span className="flex-1">
               {highlightedCount > 0
