@@ -70,7 +70,7 @@ def require(action: Action, resource: Resource) -> Callable[..., None]:
     return dependency
 
 
-async def get_staff_with_checkpoint_access(
+def get_staff_with_checkpoint_access(
     auth: AuthData = Depends(api_nei_auth),
     curr_user: DetailedUser = Depends(deps.get_current_user),
 ) -> DetailedUser:

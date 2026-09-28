@@ -4,7 +4,6 @@ import { RallyBadge } from "./badge";
 import { RallyButton } from "./button";
 import type { ListingTeam } from "@/client";
 import { Link } from "@tanstack/react-router";
-import { formatTime } from "@/utils/timeFormat";
 
 type ScoreProps = { team: ListingTeam; isProvisional?: boolean } & ComponentProps<"div">;
 
@@ -36,9 +35,7 @@ const variantClassification = (classification: number) => {
 
 /** Team score card on the design tokens; the leader is highlighted with the accent. */
 export function RallyScore({ className, team, isProvisional = false, ...props }: ScoreProps) {
-  const lastCheckpointTime = team.last_checkpoint_time && new Date(team.last_checkpoint_time);
-
-  const checkpointNumber = team.last_checkpoint_number || 0;
+  const resolvedCount = team.resolved_checkpoint_orders?.length ?? 0;
   const isLeader = team.classification === 1;
 
   return (
@@ -68,19 +65,9 @@ export function RallyScore({ className, team, isProvisional = false, ...props }:
 
       <span className="grow text-center text-2xl font-bold text-foreground">{team.name}</span>
       <span className="grow text-center">
-        {checkpointNumber > 0 ? (
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">
-              {team.last_checkpoint_name || `Checkpoint #${checkpointNumber}`}
-            </div>
-            <div
-              className={cn("text-sm font-medium text-foreground/80", isProvisional && "italic")}
-            >
-              {team.last_checkpoint_score || 0}pts
-            </div>
-            {lastCheckpointTime && (
-              <div className="text-xs text-muted-foreground">{formatTime(lastCheckpointTime)}</div>
-            )}
+        {resolvedCount > 0 ? (
+          <div className="text-sm text-muted-foreground">
+            {resolvedCount} {resolvedCount === 1 ? "posto resolvido" : "postos resolvidos"}
           </div>
         ) : (
           <div className="text-sm text-muted-foreground">Sem postos ainda</div>

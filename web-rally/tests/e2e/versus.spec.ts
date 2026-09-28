@@ -100,6 +100,7 @@ test.describe("Versus", () => {
     await page.goto("/rally/versus");
 
     await expect(page.getByText("Pares Versus Ativos")).toBeVisible();
+    await expect(page.getByText(/nenhum par versus/i)).toBeVisible();
   });
 
   test("lists an active versus pair with its two teams", async ({ page, context }) => {

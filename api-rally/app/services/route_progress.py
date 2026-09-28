@@ -73,15 +73,26 @@ class TeamProgress:
     ``current_order`` is the lowest open post, the single pointer the
     participant screen builds its "próximo posto" card from. ``None`` means
     there is nothing left to send the team to.
+
+    ``skipped_orders`` is the subset of ``resolved_orders`` the team gave up
+    on rather than completed — kept separate because "resolved" and
+    "completed" answer different questions (route progression vs. genuine
+    success), and callers that need one must not silently get the other.
     """
 
     resolved_orders: frozenset[int]
+    skipped_orders: frozenset[int]
     open_orders: frozenset[int]
     current_order: int | None
     last_completed_order: int
     last_completed_name: str | None
     is_finished: bool
     total_published: int
+
+    @property
+    def completed_orders(self) -> frozenset[int]:
+        """Resolved posts the team actually finished, excluding gives-up."""
+        return self.resolved_orders - self.skipped_orders
 
     def is_resolved(self, order: int) -> bool:
         return order in self.resolved_orders
@@ -280,6 +291,7 @@ async def progress_for_team(
     if not checkpoints:
         return TeamProgress(
             resolved_orders=frozenset(),
+            skipped_orders=frozenset(),
             open_orders=frozenset(),
             current_order=None,
             last_completed_order=0,
@@ -312,6 +324,7 @@ async def progress_for_team(
     # score. See ActivityResult.is_scored.
     scored_activity_ids = frozenset(r.activity_id for r in results if r.is_scored)
 
+    skipped_orders = frozenset(cp.order for cp in checkpoints if cp.id in skipped_ids)
     resolved = frozenset(
         cp.order
         for cp in checkpoints
@@ -335,6 +348,7 @@ async def progress_for_team(
 
     return TeamProgress(
         resolved_orders=resolved,
+        skipped_orders=skipped_orders,
         open_orders=open_orders,
         current_order=min(open_orders) if open_orders else None,
         last_completed_order=last_completed_order,

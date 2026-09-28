@@ -15,6 +15,10 @@ Start the smoke stack from `api-rally/`:
 docker compose -f api-rally/docker-compose.smoke.yml up -d postgres redis fake-oidc api
 ```
 
+CI runs `api-rally/scripts/smoke/pull_images.sh` first (digest-pinned images
+from the org's GHCR mirror, falling back across public registries) and then
+`up --pull never`; run the script locally too to get the exact CI images.
+
 This exposes:
 - the API at `http://localhost:8003` (override with `FULLSTACK_API_BASE_URL`)
 - the fake OIDC provider's token-minting endpoint at `http://localhost:9009/mint`

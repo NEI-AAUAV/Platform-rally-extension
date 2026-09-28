@@ -99,7 +99,7 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
   return (
     <div className="space-y-4 border-t border-border pt-4">
       <div className="flex items-center gap-2 text-sm font-semibold">
-        Media do posto
+        <span>Media do posto</span>
         <span className="text-xs font-normal text-muted-foreground">({media.length})</span>
       </div>
 

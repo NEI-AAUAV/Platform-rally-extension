@@ -30,6 +30,9 @@ export const MOCK_TEAM: ListingTeam = {
   last_checkpoint_number: null,
   last_checkpoint_name: null,
   current_checkpoint_number: 1,
+  started_at: null,
+  resolved_checkpoint_orders: [],
+  open_checkpoint_orders: [],
 };
 
 // Mock activity data

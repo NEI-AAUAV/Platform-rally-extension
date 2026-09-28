@@ -216,7 +216,9 @@ test.describe("peddy paper", () => {
     // that post's own "Check-in GPS" button while the team is still standing
     // at the first post's coordinates — and get rejected as too far away,
     // exactly the failure this loop exists to paper over.
-    const registered = page.getByText(/Posto concluído|Check-in registado|Já registado/);
+    const registered = page.getByText(
+      /Posto concluído|Check-in registado|Já registado|Chegada registada — a aguardar/,
+    );
     // A second, independent success signal: with reveal_next_checkpoint off,
     // an unreached post is always shown as the placeholder "Posto 2" (see
     // the server-side assertion on `next.name` below) — so once checkpoint 0

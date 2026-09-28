@@ -34,6 +34,13 @@ async function mockCommonAdminApis(page: Page) {
       body: JSON.stringify({ evaluations: [] }),
     }),
   );
+  await page.route("**/api/rally/v1/staff/evaluations/summary**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ total: 0 }),
+    }),
+  );
 }
 
 test.describe("Admin tab deep-linking", () => {

@@ -144,6 +144,12 @@ ignore_imports = [
     "app.utils.rally_duration -> app.models.rally_settings",
 ]
 
+[[tool.importlinter.contracts]]
+name = "domain is dependency-free of services"
+type = "forbidden"
+source_modules = ["app.domain"]
+forbidden_modules = ["app.services", "app.api", "app.crud"]
+
 [tool.mypy]
 exclude = ["app/tests"]
 strict = true

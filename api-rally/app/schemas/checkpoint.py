@@ -160,7 +160,7 @@ class AdminCheckPoint(DetailedCheckPoint, CheckPointPlanningFields):
     model_config = ConfigDict(from_attributes=True)
 
     # Field keys still to fill in before this post can run (see
-    # app.services.checkpoint_planning.missing_fields). Empty means ready.
+    # app.domain.event_configuration.checkpoint_readiness.missing_fields). Empty means ready.
     missing: list[str] = []
 
     @property
