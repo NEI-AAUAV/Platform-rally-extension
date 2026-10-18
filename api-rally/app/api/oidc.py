@@ -98,8 +98,9 @@ class OIDCJWTValidator:
 
             try:
                 claims = _jwt.decode(token, jwks)
-            except JoseError:
-                # Possible key rotation: refresh JWKS once and retry.
+            except (JoseError, ValueError):
+                # authlib raises ValueError ("Invalid JSON Web Key Set") when no
+                # key matches the kid. Possible key rotation: refresh JWKS once and retry.
                 jwks = await self._get_jwks(oidc_config["jwks_uri"], settings, force_refresh=True)
                 claims = _jwt.decode(token, jwks)
             claims.validate()

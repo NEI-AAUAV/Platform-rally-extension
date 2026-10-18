@@ -998,7 +998,7 @@ class ScoringService:
 
         instance = ActivityFactory.create_activity(activity.activity_type, activity.config)
         if not await instance.validate_result(obj_in.result_data, obj_in.team_id, self.db):
-            raise ValueError("Invalid result data for activity type")
+            raise RallyValidationError("Invalid result data for activity type")
 
         penalty_counts = obj_in.penalty_counts or {}
         penalties = (
@@ -1152,6 +1152,9 @@ class ScoringService:
             if synced is not None:
                 return synced
 
+        if "result_data" in pending_update:
+            await self._validate_result_data_for_update(db_obj, pending_update["result_data"])
+
         before = _snapshot_result(db_obj) if editor is not None else None
         update_data = activity_result_crud.apply_update(db_obj, obj_in)
 
@@ -1204,6 +1207,17 @@ class ScoringService:
             activity_id=db_obj.activity_id,
         )
         return db_obj
+
+    async def _validate_result_data_for_update(
+        self, db_obj: ActivityResult, result_data: dict[str, Any]
+    ) -> None:
+        """Apply the same activity-type validation as create_result to an edit."""
+        activity = await self.db.get(Activity, db_obj.activity_id)
+        if activity is None:
+            return
+        instance = ActivityFactory.create_activity(activity.activity_type, activity.config)
+        if not await instance.validate_result(result_data, db_obj.team_id, self.db):
+            raise RallyValidationError("Invalid result data for activity type")
 
     async def _reprice_changed_counts(
         self, db_obj: ActivityResult, update_data: dict[str, Any]
