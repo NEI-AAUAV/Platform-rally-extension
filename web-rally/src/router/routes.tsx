@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 import MainLayout from "@/pages/layout";
 import { getTeamToken, getTeamData } from "@/lib/auth/tokenStore";
+import { formatHighlightIds, parseHighlightIds } from "@/lib/highlightIds";
 
 const rootRoute = createRootRoute();
 
@@ -109,9 +110,11 @@ export const adminRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "/admin",
   component: lazyRouteComponent(() => import("@/pages/admin")),
-  validateSearch: (search: Record<string, unknown>): { tab?: AdminTabId } => {
+  validateSearch: (search: Record<string, unknown>): { tab?: AdminTabId; highlight?: string } => {
     const tab = search.tab;
-    return ADMIN_TAB_IDS.includes(tab as AdminTabId) ? { tab: tab as AdminTabId } : {};
+    if (!ADMIN_TAB_IDS.includes(tab as AdminTabId)) return {};
+    const highlight = formatHighlightIds(parseHighlightIds(search.highlight));
+    return highlight ? { tab: tab as AdminTabId, highlight } : { tab: tab as AdminTabId };
   },
 });
 

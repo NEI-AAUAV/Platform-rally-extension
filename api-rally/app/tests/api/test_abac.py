@@ -313,8 +313,7 @@ class TestABACDependencies:
                     resource=Resource.TEAM,
                 )
 
-    @pytest.mark.asyncio
-    async def test_get_staff_with_checkpoint_access_staff_user(
+    def test_get_staff_with_checkpoint_access_staff_user(
         self, mock_staff_user, mock_staff_auth_data
     ):
         """Test staff user with checkpoint access.
@@ -322,17 +321,16 @@ class TestABACDependencies:
         The assignment is resolved once, by ``deps.get_current_user``, and
         arrives already on the user — this dependency only checks it is there.
         """
-        result = await get_staff_with_checkpoint_access(
+        result = get_staff_with_checkpoint_access(
             auth=mock_staff_auth_data, curr_user=mock_staff_user
         )
 
         assert result == mock_staff_user
 
-    @pytest.mark.asyncio
-    async def test_get_staff_with_checkpoint_access_non_staff(self, mock_user, mock_auth_data):
+    def test_get_staff_with_checkpoint_access_non_staff(self, mock_user, mock_auth_data):
         """Test non-staff user accessing checkpoint"""
         with pytest.raises(HTTPException):
-            await get_staff_with_checkpoint_access(auth=mock_auth_data, curr_user=mock_user)
+            get_staff_with_checkpoint_access(auth=mock_auth_data, curr_user=mock_user)
 
 
 class TestActionResourceEnums:

@@ -21,8 +21,8 @@ vi.mock("@/pages/admin/components/checkpoints/CheckpointForm", () => ({
 }));
 
 vi.mock("@/pages/admin/components/checkpoints/CheckpointListItem", () => ({
-  default: ({ checkpoint, onEdit, onDelete }: any) => (
-    <li>
+  default: ({ checkpoint, onEdit, onDelete, isHighlighted }: any) => (
+    <li data-testid={`cp-${checkpoint.id}`} data-highlighted={isHighlighted ? "yes" : "no"}>
       <span>{checkpoint.name}</span>
       <button onClick={() => onEdit(checkpoint)}>edit-{checkpoint.id}</button>
       <button onClick={() => onDelete(checkpoint.id)}>delete-{checkpoint.id}</button>
@@ -234,5 +234,54 @@ describe("CheckpointManagement", () => {
     });
     render(<CheckpointManagement userStore={{} as any} />);
     expect(screen.getByText(/2 publicado\(s\) por completar/)).toBeInTheDocument();
+  });
+
+  describe("readiness highlight (?highlight=)", () => {
+    const withCheckpoints = () =>
+      mockUseCheckpointManagement.mockReturnValue({
+        ...baseHookReturn,
+        hasCheckpoints: true,
+        sortedCheckpoints: [
+          { id: 4, name: "Posto A", order: 1 },
+          { id: 7, name: "Posto B", order: 2 },
+          { id: 9, name: "Posto C", order: 3 },
+        ],
+      });
+
+    it("marks only the checkpoints the readiness issue pointed at", () => {
+      withCheckpoints();
+      render(<CheckpointManagement userStore={{} as any} highlightIds={[4, 9]} />);
+      expect(screen.getByTestId("cp-4")).toHaveAttribute("data-highlighted", "yes");
+      expect(screen.getByTestId("cp-7")).toHaveAttribute("data-highlighted", "no");
+      expect(screen.getByTestId("cp-9")).toHaveAttribute("data-highlighted", "yes");
+      expect(screen.getByRole("status")).toHaveTextContent("2 posto(s) assinalado(s)");
+    });
+
+    it("clears the highlight on request", () => {
+      withCheckpoints();
+      const onClear = vi.fn();
+      render(
+        <CheckpointManagement
+          userStore={{} as any}
+          highlightIds={[7]}
+          onClearHighlight={onClear}
+        />,
+      );
+      fireEvent.click(screen.getByText("Limpar destaque"));
+      expect(onClear).toHaveBeenCalledTimes(1);
+    });
+
+    it("says so when the highlighted checkpoints no longer exist", () => {
+      withCheckpoints();
+      render(<CheckpointManagement userStore={{} as any} highlightIds={[99]} />);
+      expect(screen.getByRole("status")).toHaveTextContent(/já não existem/);
+    });
+
+    it("shows no banner and no highlight without highlight ids", () => {
+      withCheckpoints();
+      render(<CheckpointManagement userStore={{} as any} />);
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(screen.getByTestId("cp-4")).toHaveAttribute("data-highlighted", "no");
+    });
   });
 });

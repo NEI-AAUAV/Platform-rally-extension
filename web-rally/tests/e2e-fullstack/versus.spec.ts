@@ -114,7 +114,14 @@ async function pairThroughUi(page: Page, teamAName: string, teamBName: string): 
   await page.getByRole("option", { name: new RegExp(escapeForRegExp(teamAName)) }).click();
   await page.locator("#team-b-select").click();
   await page.getByRole("option", { name: new RegExp(escapeForRegExp(teamBName)) }).click();
+  // Wait for the pairing to be committed: both names are already visible in
+  // the select triggers, so asserting on them alone lets the API reads below
+  // race the POST and see the teams still unpaired.
+  const paired = page.waitForResponse(
+    (response) => response.url().includes("/versus/pair") && response.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Criar Par Versus" }).click();
+  expect((await paired).ok()).toBe(true);
 }
 
 /** Team names carry a run id with regex-significant characters. */
@@ -399,9 +406,9 @@ test.describe("Versus — equipa contra equipa, contra o backend real", () => {
     const evaluations = await apiCall<{
       evaluations: { activity_id: number }[];
     }>("GET", "/staff/all-evaluations", { token: other.adminToken });
-    expect(
-      evaluations.evaluations.filter((e) => e.activity_id === other.activityId),
-    ).toHaveLength(0);
+    expect(evaluations.evaluations.filter((e) => e.activity_id === other.activityId)).toHaveLength(
+      0,
+    );
   });
 
   test("staff scores the match on the real form, and the opponent gets the mirror image", async ({

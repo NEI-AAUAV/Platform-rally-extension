@@ -140,4 +140,24 @@ describe("TeamProgress page", () => {
     expect(screen.queryByText("Percurso")).not.toBeInTheDocument();
     expect(screen.queryByTestId("next-checkpoint")).not.toBeInTheDocument();
   });
+
+  it("does not show a free-choice notice for a single open checkpoint", () => {
+    mockUseTeamProgress.mockReturnValue({
+      ...baseHookReturn,
+      openCheckpointOrders: [2],
+      hasFreeChoice: false,
+    });
+    render(<TeamProgress />);
+    expect(screen.queryByText(/postos disponíveis/)).not.toBeInTheDocument();
+  });
+
+  it("shows a free-choice notice when several checkpoints are open at once", () => {
+    mockUseTeamProgress.mockReturnValue({
+      ...baseHookReturn,
+      openCheckpointOrders: [2, 3, 4],
+      hasFreeChoice: true,
+    });
+    render(<TeamProgress />);
+    expect(screen.getByText(/3 .* disponíveis/)).toBeInTheDocument();
+  });
 });

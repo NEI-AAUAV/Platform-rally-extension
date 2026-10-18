@@ -1,7 +1,10 @@
 """Route-planning helpers: readiness of a checkpoint.
 
 Pure function with no database access so it can be unit-tested directly and
-reused by the admin API without a service instance.
+reused by the admin API without a service instance. Lives in the domain layer
+because it is shared readiness logic consumed by both the configuration
+validator and the checkpoint service — domain code must not depend on
+services, so this cannot live under app.services.
 """
 
 # Field keys reported as "missing" on a checkpoint that is not ready to be
@@ -23,6 +26,8 @@ def missing_fields(
     requires_coordinates: bool,
     requires_clue: bool,
     requires_stage: bool = False,
+    requires_activity: bool = True,
+    requires_staff: bool = True,
 ) -> list[str]:
     """What a checkpoint still lacks before it can be published.
 
@@ -47,9 +52,9 @@ def missing_fields(
         or getattr(checkpoint, "longitude", None) is None
     ):
         missing.append(MISSING_COORDINATES)
-    if not has_activity:
+    if requires_activity and not has_activity:
         missing.append(MISSING_ACTIVITY)
-    if not has_staff:
+    if requires_staff and not has_staff:
         missing.append(MISSING_STAFF)
     if requires_stage and getattr(checkpoint, "stage_id", None) is None:
         missing.append(MISSING_STAGE)

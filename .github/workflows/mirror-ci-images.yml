@@ -1,0 +1,59 @@
+name: Mirror CI base images to GHCR
+
+# Copies the digest-pinned base images of the api-rally smoke stack into the
+# org's own registry, so the fullstack e2e job pulls them with GITHUB_TOKEN
+# instead of spending anonymous public-registry quota on every run.
+# The digests live in api-rally/scripts/smoke/pull_images.sh; this reads them
+# from there, so bumping an image is a one-file change followed by this run.
+# `imagetools create` copies the manifest list unchanged, so the mirrored
+# digest is identical to the upstream one the script pins.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'api-rally/scripts/smoke/pull_images.sh'
+      - '.github/workflows/mirror-ci-images.yml'
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    name: Mirror smoke-stack images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Copy pinned images into ghcr.io/nei-aauav/rally-ci
+        run: |
+          set -euo pipefail
+          entries="$(grep -oE '"[a-z0-9.:-]+\|sha256:[0-9a-f]{64}\|[a-z0-9-]+"' api-rally/scripts/smoke/pull_images.sh | tr -d '"')"
+          test -n "$entries"
+          for entry in $entries; do
+            IFS='|' read -r local_tag digest name <<<"$entry"
+            tag="${local_tag#*:}"
+            dst="ghcr.io/nei-aauav/rally-ci/$name"
+            copied=0
+            for src in "mirror.gcr.io/library/$name" "docker.io/library/$name"; do
+              if docker buildx imagetools create --tag "$dst:$tag" "$src@$digest"; then
+                copied=1
+                break
+              fi
+            done
+            test "$copied" = 1
+            # Fail if the mirror does not serve the exact pinned digest.
+            docker buildx imagetools inspect "$dst@$digest" >/dev/null
+            echo "mirrored $src@$digest -> $dst:$tag"
+          done

@@ -58,8 +58,11 @@ export function counterKeyFromLabel(label: string): string {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "") // strip diacritics (á -> a)
       .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+/, "")
-      .replace(/_+$/, "") || "counter"
+      // The previous expressions used repetition at both string boundaries.
+      // The replacement above collapses every run to one underscore, so a
+      // single-character boundary check is sufficient and cannot backtrack.
+      .replace(/^_/, "")
+      .replace(/_$/, "") || "counter"
   );
 }
 

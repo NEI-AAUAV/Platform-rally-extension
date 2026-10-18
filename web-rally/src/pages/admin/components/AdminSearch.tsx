@@ -9,28 +9,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { searchAdmin, type AdminSearchEntry } from "@/lib/adminSearchIndex";
 import { SETTINGS_SECTIONS } from "@/pages/settings/sections";
+import { ADMIN_TAB_LABELS } from "../adminNavigation";
 import type { AdminTabId } from "@/router/routes";
-
-const TAB_LABELS: Readonly<Record<string, string>> = {
-  dashboard: "Dashboard",
-  teams: "Equipas",
-  checkpoints: "Postos",
-  activities: "Atividades",
-  members: "Membros",
-  assignment: "Atribuições",
-  "guide-assignment": "Guias",
-  evaluation: "Avaliação",
-  versus: "Versus",
-  judging: "Julgamento",
-  badges: "Crachás",
-  scoring: "Pontuação",
-  branding: "Identidade",
-  events: "Edições",
-  notifications: "Anúncios",
-  settings: "Configurações",
-  audit: "Auditoria",
-  metrics: "Métricas",
-};
 
 type AdminSearchProps = Readonly<{
   onSelect: (entry: AdminSearchEntry) => void;
@@ -43,7 +23,7 @@ function resultSubtitle(entry: AdminSearchEntry): string {
   if (entry.settingsSectionId) {
     return SETTINGS_SECTIONS.find((s) => s.id === entry.settingsSectionId)?.label ?? entry.tabId;
   }
-  return TAB_LABELS[entry.tabId] ?? entry.tabId;
+  return ADMIN_TAB_LABELS[entry.tabId] ?? entry.tabId;
 }
 
 export default function AdminSearch({ onSelect, filterTabId, placeholder }: AdminSearchProps) {
