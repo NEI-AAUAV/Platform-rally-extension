@@ -50,3 +50,6 @@ __pycache__/
 dev-keys/jwt.key
 coverage.xml
 test-results.xml
+
+# k6 load-test output
+loadtest/results/
