@@ -74,8 +74,10 @@ const linkClass = (isActive: boolean, isSidebar = false) =>
           : "text-foreground/80 hover:bg-accent hover:text-foreground",
       )
     : cn(
-        "block rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-colors",
-        isActive ? "rally-accent" : "text-muted-foreground hover:text-foreground hover:bg-accent",
+        "block rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        isActive
+          ? "bg-foreground text-background"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground",
       );
 
 function NavGroup({
@@ -109,8 +111,10 @@ function NavGroup({
         aria-expanded={open}
         aria-haspopup="menu"
         className={cn(
-          "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-colors",
-          hasActive ? "rally-accent" : "text-muted-foreground hover:text-foreground",
+          "flex items-center gap-1 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          hasActive
+            ? "bg-foreground text-background"
+            : "text-muted-foreground hover:bg-accent hover:text-foreground",
         )}
       >
         {label}
@@ -163,7 +167,7 @@ function ViewToggle({
           "rally-press flex w-full items-center border border-border bg-secondary text-secondary-foreground transition-colors hover:bg-accent",
           isSidebar
             ? "min-h-[44px] gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold"
-            : "gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider sm:w-auto",
+            : "gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold sm:w-auto",
         )}
       >
         <Icon className={cn("shrink-0", isSidebar ? "h-4 w-4" : "h-3.5 w-3.5")} />

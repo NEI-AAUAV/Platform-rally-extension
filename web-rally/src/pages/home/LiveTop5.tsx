@@ -7,6 +7,7 @@ import useRallySettings from "@/hooks/useRallySettings";
 import { useCountdown } from "@/pages/home/useCountdown";
 import { FreshnessIndicator } from "@/components/shared";
 import { sortTeamsByRank } from "@/lib/teamRanking";
+import SectionHeader from "./SectionHeader";
 
 function initialsOf(name: string): string {
   return name
@@ -19,7 +20,7 @@ function initialsOf(name: string): string {
 }
 
 /**
- * Compact live top-5 leaderboard card for the homepage.
+ * Live top-5 leaderboard for the homepage; the leader gets a highlighted row.
  * Shares the ["teams"] query cache with the scoreboard page.
  */
 export function LiveTop5() {
@@ -37,27 +38,29 @@ export function LiveTop5() {
   if (!top || top.length === 0) return null;
 
   return (
-    <section
-      aria-labelledby="top5-heading"
-      className="rounded-[20px] border border-border bg-card p-[22px]"
-    >
-      <div className="mb-4 flex items-center justify-between">
-        <h2 id="top5-heading" className="rally-display text-xl font-bold text-foreground">
-          Classificação ao vivo
-        </h2>
-        <div className="flex items-center gap-3">
-          <FreshnessIndicator updatedAt={dataUpdatedAt} />
-          <Link
-            to="/scoreboard"
-            className="rally-accent inline-flex items-center gap-1.5 text-xs font-bold"
-          >
-            <span className="h-[7px] w-[7px] animate-pulse rounded-full bg-current" />
-            <span>LIVE</span>
-          </Link>
-        </div>
-      </div>
+    <section aria-labelledby="top5-heading">
+      <SectionHeader
+        id="top5-heading"
+        eyebrow="Ao vivo"
+        title="Classificação"
+        action={
+          <>
+            <FreshnessIndicator updatedAt={dataUpdatedAt} />
+            <Link
+              to="/scoreboard"
+              className="rally-accent inline-flex items-center gap-1.5 rounded-md text-xs font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="h-[7px] w-[7px] animate-pulse rounded-full bg-current" />
+              <span>LIVE</span>
+            </Link>
+          </>
+        }
+      />
 
-      <motion.ol layout className="flex flex-col gap-2">
+      <motion.ol
+        layout
+        className="overflow-hidden rounded-[22px] border border-border bg-card"
+      >
         <AnimatePresence initial={false}>
           {top.map((team, index) => (
             <motion.li
@@ -71,20 +74,41 @@ export function LiveTop5() {
               <Link
                 to="/teams/$id"
                 params={{ id: String(team.id) }}
-                className="flex cursor-pointer items-center gap-3.5 rounded-[13px] border border-transparent bg-muted/30 px-[13px] py-[11px] transition-colors hover:border-border"
+                className={[
+                  "flex items-center gap-4 border-b border-border px-5 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
+                  index === 0 ? "rally-bg-accent-soft py-5" : "py-3.5",
+                ].join(" ")}
               >
-                <span className="rally-display w-[22px] text-center text-[18px] font-bold tabular-nums text-muted-foreground">
+                <span
+                  className={[
+                    "rally-display w-7 text-center font-bold tabular-nums",
+                    index === 0 ? "rally-accent text-[28px]" : "text-[18px] text-muted-foreground",
+                  ].join(" ")}
+                >
                   {index + 1}
                 </span>
-                <span className="rally-bg-accent-soft grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full text-[13px] font-bold text-foreground">
+                <span
+                  className={[
+                    "grid shrink-0 place-items-center rounded-full font-bold",
+                    index === 0
+                      ? "rally-bg-accent h-11 w-11 text-sm text-white"
+                      : "h-9 w-9 bg-muted text-xs text-foreground",
+                  ].join(" ")}
+                >
                   {initialsOf(team.name)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                <span
+                  className={[
+                    "min-w-0 flex-1 truncate font-semibold text-foreground",
+                    index === 0 ? "text-base" : "text-sm",
+                  ].join(" ")}
+                >
                   {team.name}
                 </span>
                 <span
                   className={[
-                    "rally-display text-[17px] font-bold tabular-nums text-foreground",
+                    "rally-display font-bold tabular-nums text-foreground",
+                    index === 0 ? "text-[24px]" : "text-[17px]",
                     isProvisional ? "italic" : "",
                   ].join(" ")}
                 >

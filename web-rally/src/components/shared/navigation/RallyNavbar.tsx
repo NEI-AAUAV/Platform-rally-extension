@@ -47,7 +47,7 @@ function EventSwitcher({ eventName }: { readonly eventName: string }) {
         aria-label={`Edição atual: ${eventName}`}
         className="rally-press flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent"
       >
-        <span className="rally-display hidden max-w-[16ch] truncate text-xs font-black uppercase tracking-tight text-foreground sm:inline sm:text-sm">
+        <span className="rally-display hidden max-w-[16ch] truncate text-base font-bold tracking-tight text-foreground sm:inline">
           {eventName}
         </span>
         <ChevronDown
@@ -84,7 +84,7 @@ function EventSwitcher({ eventName }: { readonly eventName: string }) {
 }
 
 /**
- * The app's primary navigation bar: a sticky, soft-depth strip carrying the
+ * The app's primary navigation bar: a sticky, solid strip carrying the
  * compact event brand, the nav links (NavTabs, which also owns the view toggle
  * and the mobile overflow menu), the color-mode toggle and the user menu.
  */
@@ -100,14 +100,18 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
     // but the top edge still swallows touches. It used to be an inline
     // max(20px, …), which put that iOS workaround on every platform — a
     // permanent 20px band above the navbar on desktop and Android.
-    <header className="rally-glass rally-topbar-inset sticky top-0 z-40 border-b border-border shadow-[var(--rally-shadow-sm)]">
+    <header className="rally-topbar-inset sticky top-0 z-40 border-b border-border bg-background/95 supports-[backdrop-filter]:bg-background/90">
       <nav
         aria-label="Navegação principal"
-        className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2.5 sm:px-5"
+        className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-3 sm:h-16 sm:px-5"
       >
         {/* Brand */}
         <div className="flex shrink-0 items-center gap-2.5">
-          <Link to="/" className="rally-press flex shrink-0 items-center gap-2">
+          <Link
+            to="/"
+            aria-label="Início"
+            className="flex shrink-0 items-center gap-2 rounded-lg transition-transform hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
             {logoSrc ? (
               <img
                 src={logoSrc}
@@ -115,7 +119,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
                 className="h-8 w-8 rounded-lg object-contain sm:h-9 sm:w-9"
               />
             ) : (
-              <span className="rally-bg-accent grid h-8 w-8 place-items-center rounded-lg text-xs font-bold text-white shadow-[var(--rally-shadow-sm)] sm:h-9 sm:w-9 sm:text-sm">
+              <span className="rally-bg-accent rally-display grid h-8 w-8 place-items-center rounded-[10px] text-xs font-bold text-white sm:h-9 sm:w-9 sm:text-sm">
                 {initialsOf(eventName)}
               </span>
             )}
@@ -123,7 +127,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
           {isAdminOrManager ? (
             <EventSwitcher eventName={eventName} />
           ) : (
-            <span className="rally-display hidden max-w-[16ch] truncate text-xs font-black uppercase tracking-tight text-foreground sm:inline sm:text-sm">
+            <span className="rally-display hidden max-w-[16ch] truncate text-base font-bold tracking-tight text-foreground sm:inline">
               {eventName}
             </span>
           )}

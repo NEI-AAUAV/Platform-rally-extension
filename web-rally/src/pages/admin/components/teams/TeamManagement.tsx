@@ -317,7 +317,7 @@ export default function TeamManagement() {
         >
           {/* my-auto centres it while the overlay still scrolls when the modal
               is taller than the viewport (small phones in portrait). */}
-          <div className="rally-surface rally-glass-solid my-auto w-full max-w-md rounded-2xl">
+          <div className="rally-surface my-auto w-full max-w-md rounded-2xl">
             <div className="space-y-5 p-5 sm:space-y-6 sm:p-8">
               <div className="flex items-center justify-between">
                 <div>

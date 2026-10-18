@@ -1,51 +1,55 @@
 import useEventTerms from "@/hooks/useEventTerms";
+import SectionHeader from "./SectionHeader";
 
 function buildSteps(terms: ReturnType<typeof useEventTerms>) {
   return [
     {
-      n: "1",
+      n: "01",
       title: "Entra com a equipa",
       body: "Usa o código da tua equipa para aceder ao percurso e ao progresso ao vivo.",
     },
     {
-      n: "2",
+      n: "02",
       title: `Percorre os ${terms.checkpoints}`,
       body: `Vai a cada ${terms.checkpoint}, completa o ${terms.activity} e faz check-in com o QR code.`,
     },
     {
-      n: "3",
+      n: "03",
       title: "Sobe na classificação",
       body: `Cada ${terms.checkpoint} soma pontos. Acompanha a pontuação e luta pelo pódio.`,
     },
   ];
 }
 
-/** Three-step explainer matching the prototype composition. */
+/** Three-step explainer laid out as a numbered route: stacked on mobile, a row on desktop. */
 export function HowItWorks() {
   const terms = useEventTerms();
   const steps = buildSteps(terms);
 
   return (
     <section aria-labelledby="how-heading">
-      <h2 id="how-heading" className="rally-display mb-4 text-xl font-bold text-foreground">
-        Como funciona
-      </h2>
-      <div className="flex flex-col gap-3">
+      <SectionHeader id="how-heading" eyebrow="Percurso" title="Como funciona" />
+      <ol className="grid gap-3 md:grid-cols-3">
         {steps.map((step) => (
-          <div
+          <li
             key={step.n}
-            className="flex gap-3.5 rounded-[16px] border border-border bg-card p-[18px]"
+            className="group relative overflow-hidden rounded-[20px] border border-border bg-card p-6 transition-colors hover:border-foreground/20"
           >
-            <span className="rally-bg-accent-soft rally-display grid h-[42px] w-[42px] flex-shrink-0 place-items-center rounded-[12px] text-lg font-bold text-foreground">
+            <span
+              aria-hidden
+              className="rally-display block text-[56px] font-bold leading-none text-foreground/10 transition-colors group-hover:text-foreground/20"
+            >
               {step.n}
             </span>
-            <div>
-              <div className="text-[15px] font-bold text-foreground">{step.title}</div>
-              <div className="mt-0.5 text-sm leading-[1.45] text-muted-foreground">{step.body}</div>
-            </div>
-          </div>
+            <h3 className="mt-4 text-base font-bold text-foreground">{step.title}</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+            <span
+              aria-hidden
+              className="rally-bg-accent absolute inset-x-0 bottom-0 h-[3px] origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100"
+            />
+          </li>
         ))}
-      </div>
+      </ol>
     </section>
   );
 }

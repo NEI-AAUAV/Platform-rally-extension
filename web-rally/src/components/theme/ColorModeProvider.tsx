@@ -3,17 +3,9 @@ import {
   ColorModeContext,
   DARK_MEDIA_QUERY,
   applyColorMode,
-  applyGlass,
-  applyReduceTransparency,
-  readStoredGlass,
   readStoredPreference,
-  readStoredReduceTransparency,
   resolveColorMode,
-  resolveGlass,
   COLOR_MODE_STORAGE_KEY,
-  GLASS_STORAGE_KEY,
-  REDUCE_TRANSPARENCY_STORAGE_KEY,
-  type GlassPreference,
   type ColorMode,
   type ColorModePreference,
 } from "./colorModeContext";
@@ -44,25 +36,11 @@ export function ColorModeProvider({ children }: ColorModeProviderProps) {
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  const [reduceTransparency, setReduceTransparency] = useState<boolean>(
-    readStoredReduceTransparency,
-  );
-
+  // Clear preferences left behind by the removed glass material.
   useEffect(() => {
-    applyReduceTransparency(reduceTransparency);
-    globalThis.localStorage.setItem(
-      REDUCE_TRANSPARENCY_STORAGE_KEY,
-      reduceTransparency ? "true" : "false",
-    );
-  }, [reduceTransparency]);
-
-  const [glass, setGlass] = useState<GlassPreference>(readStoredGlass);
-  const glassActive = resolveGlass(glass);
-
-  useEffect(() => {
-    applyGlass(glassActive);
-    globalThis.localStorage.setItem(GLASS_STORAGE_KEY, glass);
-  }, [glass, glassActive]);
+    globalThis.localStorage.removeItem("rally_glass");
+    globalThis.localStorage.removeItem("rally_reduce_transparency");
+  }, []);
 
   const setMode = useCallback((next: ColorModePreference) => setPreference(next), []);
 
@@ -89,13 +67,8 @@ export function ColorModeProvider({ children }: ColorModeProviderProps) {
       preference,
       setMode,
       toggle,
-      reduceTransparency,
-      setReduceTransparency,
-      glass,
-      glassActive,
-      setGlass,
     }),
-    [mode, preference, setMode, toggle, reduceTransparency, glass, glassActive, setGlass],
+    [mode, preference, setMode, toggle],
   );
 
   return <ColorModeContext.Provider value={value}>{children}</ColorModeContext.Provider>;

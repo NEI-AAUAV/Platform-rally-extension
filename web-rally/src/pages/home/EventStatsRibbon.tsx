@@ -23,9 +23,8 @@ const PHASE_LABEL: Record<string, string> = {
 
 /**
  * Compact event-wide stat strip for the homepage: number of teams, total points
- * in play, checkpoint count (when public) and the live phase. Soft-depth card
- * split into divided cells — mirrors the gamification stats ribbon, adapted to
- * event-level data since the public viewer has no personal profile.
+ * in play, checkpoint count (when public) and the live phase, as one card split
+ * by hairlines into scoreboard-style cells.
  */
 export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibbonProps) {
   const phase = useCountdown(settings?.rally_start_time, settings?.rally_end_time).phase;
@@ -61,13 +60,23 @@ export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibb
   ];
 
   return (
-    <dl className="grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-      {cells.map(({ value, label }) => (
-        <div key={label} className="rounded-[18px] border border-border bg-card p-5">
-          <dd className="rally-display text-[34px] font-bold tabular-nums leading-none text-foreground">
+    <dl className="grid grid-cols-2 overflow-hidden rounded-[22px] border border-border bg-card sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+      {cells.map(({ value, label }, i) => (
+        <div
+          key={label}
+          className={[
+            "flex flex-col-reverse gap-2 border-border p-5 sm:p-6",
+            // Hairline grid: right border between columns, bottom border between rows.
+            i % 2 === 0 ? "border-r" : "",
+            i < cells.length - 2 ? "border-b sm:border-b-0" : "",
+            "sm:border-r sm:last:border-r-0",
+          ].join(" ")}
+        >
+          <dd className="rally-display text-[34px] font-bold tabular-nums leading-none text-foreground sm:text-[42px]">
             {value}
           </dd>
-          <dt className="mt-1 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          <dt className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {i === 0 && <span aria-hidden className="rally-bg-accent h-1.5 w-1.5 rounded-full" />}
             {label}
           </dt>
         </div>

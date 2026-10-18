@@ -28,7 +28,7 @@ export default function PWAUpdatePrompt() {
 
   return (
     <output
-      className="rally-surface rally-glass fixed left-4 right-4 z-[70] flex items-center gap-3 p-4 shadow-lg"
+      className="rally-surface fixed left-4 right-4 z-[70] flex items-center gap-3 p-4 shadow-lg"
       style={{ bottom: "calc(1rem + var(--safe-bottom))" }}
     >
       <div className="rally-bg-accent grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white">

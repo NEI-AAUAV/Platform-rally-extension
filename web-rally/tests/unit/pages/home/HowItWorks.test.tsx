@@ -42,11 +42,11 @@ describe("HowItWorks", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders step numbers 1, 2 and 3", () => {
+  it("renders step numbers 01, 02 and 03", () => {
     render(<HowItWorks />);
-    expect(screen.getByText("1")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText("01")).toBeInTheDocument();
+    expect(screen.getByText("02")).toBeInTheDocument();
+    expect(screen.getByText("03")).toBeInTheDocument();
   });
 
   it("exposes both a named and default export referring to the same component", () => {

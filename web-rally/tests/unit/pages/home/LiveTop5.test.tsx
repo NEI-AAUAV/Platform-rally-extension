@@ -80,6 +80,6 @@ describe("LiveTop5", () => {
     renderWithClient(<LiveTop5 />);
     expect(await screen.findByText("Team Alpha")).toBeInTheDocument();
     expect(screen.getByText("Team Beta")).toBeInTheDocument();
-    expect(screen.getByText("Classificação ao vivo")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Classificação" })).toBeInTheDocument();
   });
 });

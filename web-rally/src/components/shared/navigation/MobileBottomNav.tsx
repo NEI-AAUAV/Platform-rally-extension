@@ -188,7 +188,7 @@ export function MobileBottomNav() {
 
       <nav
         aria-label="Navegação rápida"
-        className="rally-glass rally-glass-solid rally-glass-on-background rally-tabbar rally-elevate fixed inset-x-0 bottom-0 z-40 border-t border-border sm:hidden"
+        className="bg-background rally-tabbar rally-elevate fixed inset-x-0 bottom-0 z-40 border-t border-border sm:hidden"
       >
         <ul
           ref={listRef}

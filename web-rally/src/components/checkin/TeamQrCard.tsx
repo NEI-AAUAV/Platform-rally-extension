@@ -13,7 +13,7 @@ interface TeamQrCardProps {
  */
 export function TeamQrCard({ accessCode }: TeamQrCardProps) {
   return (
-    <div className="rally-surface rally-glass-solid rounded-[18px] p-[20px_24px]">
+    <div className="rally-surface rounded-[18px] p-[20px_24px]">
       <div className="mb-1 flex items-center gap-2">
         <QrCode className="rally-accent h-4 w-4" />
         <h3 className="rally-display text-[16px] font-bold text-foreground">O teu QR de equipa</h3>

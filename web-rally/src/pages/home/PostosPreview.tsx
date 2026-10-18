@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, MapPin } from "lucide-react";
 import { getCheckpoints, type DetailedCheckPoint } from "@/client";
+import SectionHeader from "./SectionHeader";
 
 const PREVIEW_LIMIT = 6;
 
@@ -32,26 +33,28 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
 
   return (
     <section aria-labelledby="postos-heading">
-      <div className="flex items-center justify-between">
-        <h2
-          id="postos-heading"
-          className="rally-display text-2xl font-bold text-foreground sm:text-3xl"
-        >
-          Postos
-        </h2>
-        <Link
-          to="/checkpoints"
-          className="rally-accent inline-flex items-center gap-1 text-sm font-semibold hover:underline"
-        >
-          Ver mapa
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
+      <SectionHeader
+        id="postos-heading"
+        eyebrow="Mapa"
+        title="Postos"
+        action={
+          <Link
+            to="/checkpoints"
+            className="rally-accent inline-flex items-center gap-1 rounded-md text-sm font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Ver mapa
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        }
+      />
 
-      <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {ordered.map((cp) => (
-          <li key={cp.id} className="rally-surface flex items-start gap-3 p-4">
-            <span className="rally-bg-accent-soft grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-bold text-foreground">
+          <li
+            key={cp.id}
+            className="flex items-start gap-3.5 rounded-[18px] border border-border bg-card p-4"
+          >
+            <span className="rally-display grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-foreground/80 text-sm font-bold tabular-nums text-foreground">
               {cp.order}
             </span>
             <div className="min-w-0">
@@ -65,7 +68,7 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
           </li>
         ))}
         {remaining > 0 && (
-          <li className="flex items-center justify-center rounded-lg border border-dashed border-border p-4 text-sm font-medium text-muted-foreground">
+          <li className="flex items-center justify-center rounded-[18px] border border-dashed border-border p-4 text-sm font-medium text-muted-foreground">
             <MapPin className="mr-2 h-4 w-4" />+{remaining} postos
           </li>
         )}

@@ -7,7 +7,7 @@ interface RallyMarqueeProps {
 }
 
 /**
- * Contained accent ticker strip with rounded corners.
+ * Contained high-contrast ticker strip with accent separators.
  * CSS-driven, edge-masked, paused under reduced-motion.
  */
 export function RallyMarquee({ items }: RallyMarqueeProps) {
@@ -20,17 +20,17 @@ export function RallyMarquee({ items }: RallyMarqueeProps) {
   const doubled = [...half, ...half];
 
   return (
-    <div className="rally-bg-accent overflow-hidden rounded-[16px] border border-border py-[11px]">
+    <div className="overflow-hidden rounded-[16px] bg-foreground py-3">
       <div className="rally-marquee">
         <div className="rally-marquee-track flex items-center whitespace-nowrap">
           {doubled.map((item, i) => (
             <Fragment key={`${item}-${i}`}>
-              <span className="rally-display text-sm font-bold uppercase tracking-[0.04em] text-white">
+              <span className="rally-display text-sm font-bold uppercase tracking-[0.06em] text-background">
                 {item}
               </span>
               {/* Separator is its own flex sibling with symmetric margin, so it
                   sits exactly midway between the two adjacent labels. */}
-              <span className="mx-[56px] text-white/50" aria-hidden="true">
+              <span className="rally-accent mx-[56px]" aria-hidden="true">
                 <Sparkle className="h-3 w-3" fill="currentColor" />
               </span>
             </Fragment>

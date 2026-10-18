@@ -80,9 +80,7 @@ export default function PWAInstallPrompt() {
   return (
     <div
       className={[
-        // Solid, opaque glass: the translucent variant put muted text over the
-        // page content behind it, which on iOS renders as unreadable.
-        "rally-surface rally-glass rally-glass-solid rally-glass-on-background",
+        "rally-surface bg-background",
         "fixed left-4 right-4 z-50 p-4 shadow-lg",
         // Must clear the fixed tab bar on phones; from `sm` up the tab bar is
         // hidden, so only the gesture inset remains.

@@ -564,7 +564,7 @@ export default function RallySettings({
           </div>
 
           {hasChanges && (
-            <div className="rally-glass rally-sticky-actions z-10 mt-6 flex items-center justify-center gap-4 rounded-2xl border border-border p-3">
+            <div className="bg-card rally-sticky-actions z-10 mt-6 flex items-center justify-center gap-4 rounded-2xl border border-border p-3">
               <span className="hidden text-sm text-muted-foreground sm:inline">
                 Alterações por guardar
               </span>
