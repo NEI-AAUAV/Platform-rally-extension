@@ -4,6 +4,7 @@ Race time runs from a team's first checkpoint arrival to its last progress
 event, so waiting around before post 1 costs nothing.
 """
 
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -11,6 +12,8 @@ from typing import Any
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings as app_settings
+from app.crud._event_scope import current_event_id
 from app.crud.crud_team import team as team_crud
 from app.models.activity import ActivityResult
 from app.models.checkpoint_arrival import CheckpointArrival
@@ -107,7 +110,38 @@ async def _timestamp_maps(
     )
 
 
+# event id -> (monotonic deadline, ranked paces). Per worker process, so a write
+# handled by another worker shows up here at most PACE_CACHE_TTL_SECONDS late.
+_pace_cache: dict[int | None, tuple[float, list[TeamPace]]] = {}
+
+
 async def compute_paces(db: AsyncSession, settings: Any) -> list[TeamPace]:
+    """Derived pace for all teams, reused for a couple of seconds.
+
+    The first caller after the deadline claims the refresh by pushing the
+    deadline out before it recomputes, so concurrent callers keep being served
+    the previous ranking instead of all recomputing it at once.
+    """
+    ttl = app_settings.PACE_CACHE_TTL_SECONDS
+    if ttl <= 0:
+        return await _load_paces(db, settings)
+    key = await current_event_id(db)
+    now = time.monotonic()
+    cached = _pace_cache.get(key)
+    if cached is not None and now < cached[0]:
+        return list(cached[1])
+    if cached is not None:
+        _pace_cache[key] = (now + ttl, cached[1])
+    try:
+        paces = await _load_paces(db, settings)
+    except Exception:
+        _pace_cache.pop(key, None)
+        raise
+    _pace_cache[key] = (time.monotonic() + ttl, paces)
+    return list(paces)
+
+
+async def _load_paces(db: AsyncSession, settings: Any) -> list[TeamPace]:
     """Load all teams' derived pace with batched timestamp queries."""
     teams = list(await team_crud.get_multi(db))
     ids = [team.id for team in teams]

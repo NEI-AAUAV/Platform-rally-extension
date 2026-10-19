@@ -133,6 +133,12 @@ class Settings(BaseSettings):
     # when EVENTS_ENABLED is also set (otherwise no worker would ever catch up).
     RECOMPUTE_OFF_PATH: bool = os.getenv("RECOMPUTE_OFF_PATH", "false").lower() == "true"
 
+    # How long (seconds) the derived pace ranking is reused across requests in
+    # one worker process. Every team phone and the scoreboard read it, and each
+    # miss re-reads every team's results, so a couple of seconds of staleness buys
+    # most of the read-side CPU. 0 disables the cache (the test suite does).
+    PACE_CACHE_TTL_SECONDS: float = float(os.getenv("PACE_CACHE_TTL_SECONDS", "2"))
+
     # Team QR self-check-in. A checkpoint shows a short-lived HMAC-signed QR;
     # a team scans it to check itself into that checkpoint (replacing staff
     # gating). Off by default — a rally opts in. The signing secret falls back

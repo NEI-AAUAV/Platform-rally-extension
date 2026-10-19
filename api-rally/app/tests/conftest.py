@@ -2,6 +2,7 @@ import os as _os
 import tempfile as _tempfile
 
 _os.environ.setdefault("TEAM_JWT_SECRET_KEY", "test-secret-key-for-testing-only")
+_os.environ.setdefault("PACE_CACHE_TTL_SECONDS", "0")
 from collections.abc import AsyncIterator
 from unittest.mock import patch
 

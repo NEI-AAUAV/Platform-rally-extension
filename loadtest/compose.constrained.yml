@@ -1,0 +1,18 @@
+# Overlay: squeeze the stack into a 3-core / 6 GB box. API, Postgres, Redis and
+# the fake IdP share cores 0-2 (like one production server); k6 runs elsewhere.
+#   docker compose -f compose.yml -f compose.constrained.yml ...
+services:
+  postgres:
+    cpuset: "0-2"
+    mem_limit: 2g
+  redis:
+    cpuset: "0-2"
+    mem_limit: 256m
+  fake-oidc:
+    cpuset: "0-2"
+    mem_limit: 256m
+  api:
+    cpuset: "0-2"
+    mem_limit: 3g
+  k6:
+    cpuset: "4-9"
