@@ -39,33 +39,6 @@
       })();
     </script>
 
-    <!-- Opt in to the translucent surfaces only on Apple platforms running
-         Safari 26+, where they read as native. navigator.vendor is WebKit-only
-         and survives a standalone launch, unlike the UA "Safari/Version"
-         tokens; scroll-driven animations shipped in Safari 26.0, so the pair
-         approximates "Apple, 26 or newer". Everywhere else the attribute is
-         absent and the design is unchanged. -->
-    <script>
-      (function () {
-        try {
-          var pref = localStorage.getItem("rally_glass");
-          if (pref !== "on" && pref !== "off") pref = "auto";
-          var supported =
-            window.CSS &&
-            (CSS.supports("backdrop-filter", "blur(1px)") ||
-              CSS.supports("-webkit-backdrop-filter", "blur(1px)"));
-          var isApple26 =
-            navigator.vendor === "Apple Computer, Inc." &&
-            window.CSS &&
-            CSS.supports("animation-timeline", "scroll()");
-          var on = supported && (pref === "on" || (pref === "auto" && isApple26));
-          if (on) document.documentElement.dataset.glass = "on";
-        } catch (e) {
-          console.warn("Failed to check glass styling preference", e);
-        }
-      })();
-    </script>
-
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

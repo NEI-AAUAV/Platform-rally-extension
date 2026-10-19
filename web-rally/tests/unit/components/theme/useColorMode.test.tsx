@@ -5,11 +5,8 @@ import { ColorModeProvider } from "@/components/theme/ColorModeProvider";
 import { useColorMode } from "@/components/theme/useColorMode";
 import {
   COLOR_MODE_STORAGE_KEY,
-  REDUCE_TRANSPARENCY_STORAGE_KEY,
   readStoredPreference,
-  readStoredReduceTransparency,
   applyColorMode,
-  applyReduceTransparency,
   resolveColorMode,
 } from "@/components/theme/colorModeContext";
 
@@ -50,16 +47,6 @@ describe("colorModeContext helpers", () => {
     expect(document.documentElement.classList.contains("light")).toBe(false);
   });
 
-  it("reduce-transparency preference round-trips through storage and the html attribute", () => {
-    expect(readStoredReduceTransparency()).toBe(false);
-    localStorage.setItem(REDUCE_TRANSPARENCY_STORAGE_KEY, "true");
-    expect(readStoredReduceTransparency()).toBe(true);
-
-    applyReduceTransparency(true);
-    expect(document.documentElement.dataset.reduceTransparency).toBe("true");
-    applyReduceTransparency(false);
-    expect(document.documentElement.dataset.reduceTransparency).toBe("false");
-  });
 });
 
 describe("useColorMode", () => {
@@ -107,28 +94,6 @@ describe("useColorMode", () => {
     expect(screen.getByTestId("preference")).toHaveTextContent("light");
   });
 
-  it("persists the reduce-transparency preference", () => {
-    localStorage.clear();
-    function Consumer() {
-      const { reduceTransparency, setReduceTransparency } = useColorMode();
-      return (
-        <button onClick={() => setReduceTransparency(!reduceTransparency)}>
-          {String(reduceTransparency)}
-        </button>
-      );
-    }
-
-    render(
-      <ColorModeProvider>
-        <Consumer />
-      </ColorModeProvider>,
-    );
-
-    expect(screen.getByText("false")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("false"));
-    expect(screen.getByText("true")).toBeInTheDocument();
-    expect(localStorage.getItem(REDUCE_TRANSPARENCY_STORAGE_KEY)).toBe("true");
-  });
 
   it("uses startViewTransition when available and a coordinate is provided", () => {
     localStorage.clear();
