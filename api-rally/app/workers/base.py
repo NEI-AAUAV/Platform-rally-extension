@@ -36,6 +36,11 @@ RETRY_BACKOFF_MAX_SECONDS = 30.0
 # this leaves generous slack before a healthy worker looks stale.
 LIVENESS_WINDOW_SECONDS = 30.0
 
+# Every uvicorn process starts its own copy of each worker and Redis pub/sub
+# fans a message out to all of them. The first process to claim an event id
+# handles it; the claim only has to outlive the fan-out, not the event.
+EVENT_CLAIM_TTL_SECONDS = 60
+
 
 class BaseWorker(ABC):
     """Base class for Redis Pub/Sub workers."""
@@ -82,6 +87,27 @@ class BaseWorker(ABC):
     async def handle_event(self, channel: str, data: dict[str, Any]) -> None:
         """Process a single received event."""
 
+    def _claim_event(self, data: dict[str, Any]) -> bool:
+        """True when this process should handle the event.
+
+        Events without an ``event_id`` and Redis failures fall through to
+        handling: a duplicate rebuild is harmless, a dropped one is not.
+        """
+        event_id = data.get("event_id")
+        if not event_id:
+            return True
+        try:
+            claimed = get_redis_client().set(
+                f"rally:event-claim:{self.name}:{event_id}",
+                "1",
+                nx=True,
+                ex=EVENT_CLAIM_TTL_SECONDS,
+            )
+        except redis.RedisError:
+            logger.warning("[%s] Event claim failed, handling anyway", self.name)
+            return True
+        return bool(claimed)
+
     def _dispatch(self, message: dict[str, Any]) -> None:
         if message["type"] not in ("message", "pmessage"):
             return
@@ -91,6 +117,8 @@ class BaseWorker(ABC):
             data = json.loads(raw) if isinstance(raw, str) else raw
             if not isinstance(data, dict):
                 logger.warning("[%s] Non-dict payload on %s, skipping", self.name, channel)
+                return
+            if not self._claim_event(data):
                 return
             asyncio.run(self.handle_event(channel, data))
         except json.JSONDecodeError:
