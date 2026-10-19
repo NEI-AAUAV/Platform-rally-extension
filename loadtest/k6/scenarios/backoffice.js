@@ -12,7 +12,11 @@ export function guideShift(data) {
   const here = team && cps.find((c) => c.order === team.current_checkpoint_number);
   if (here) call("GET", `/guide/checkpoints/${here.id}/teams`, { ...G, name: "GET /guide/checkpoints/{id}/teams" });
   if (cps.length && chance(0.1)) {
-    const other = pick(cps.filter((c) => c !== here));
+    // A guide may also still see the post their team just resolved, and the
+    // team can move between the reads above and this call, so only posts well
+    // clear of the current one count as "someone else's".
+    const current = team ? team.current_checkpoint_number : null;
+    const other = pick(cps.filter((c) => current !== null && (c.order >= current + 2 || c.order <= current - 3)));
     if (other) call("GET", `/guide/checkpoints/${other.id}/teams`, { ...G, name: "GET /guide/checkpoints/{id}/teams (other)", expect: [403], check: "guide cannot list another post's teams" });
   }
   if (team && team.current_checkpoint_number && chance(0.15)) {
