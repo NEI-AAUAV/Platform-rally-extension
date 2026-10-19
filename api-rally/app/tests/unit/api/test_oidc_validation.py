@@ -96,6 +96,27 @@ async def test_jwks_cached_across_validations():
 
 
 @pytest.mark.asyncio
+async def test_invalid_tokens_do_not_refetch_jwks_every_time():
+    """Forged tokens must not turn into one outbound JWKS request each.
+
+    A bad signature triggers a single refresh (key rotation), but a flood of
+    them within the refresh cooldown must reuse the cached key set.
+    """
+    calls: list[int] = []
+    forged = JsonWebToken(["RS256"]).encode(
+        {"alg": "RS256", "kid": "k1"},
+        {"iss": _ISSUER, "aud": _CLIENT_ID, "exp": 9999999999, "sub": "attacker"},
+        JsonWebKey.generate_key("RSA", 2048, is_private=True),
+    )
+    forged_token = forged.decode() if isinstance(forged, bytes) else forged
+    with _wired_validator(jwks_calls=calls) as v:
+        for _ in range(5):
+            with pytest.raises(HTTPException):
+                await v.validate_token(forged_token, settings)
+    assert len(calls) <= 2
+
+
+@pytest.mark.asyncio
 async def test_wrong_issuer_rejected():
     token = _sign("RS256", sub="u1")
     with _wired_validator() as v:
