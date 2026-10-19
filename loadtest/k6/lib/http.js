@@ -1,10 +1,15 @@
 import http from "k6/http";
 import { check, sleep } from "k6";
+import { Trend } from "k6/metrics";
 import { API_V1, OIDC_URL, THINK_SCALE } from "./config.js";
 
 // Statuses that are a legitimate business answer under concurrency (a second
 // staff member evaluating the same team, a stale QR token, a route that moved
 // on). They are asserted with checks, so they must not count as failures.
+// Latency of ordinary JSON calls only. The SSE listeners hold a stream open for
+// their whole 15s timeout on purpose, so they would swamp http_req_duration.
+export const apiDuration = new Trend("rally_api_duration", true);
+
 const BUSINESS = http.expectedStatuses({ min: 200, max: 399 }, 400, 404, 409);
 const OK_ONLY = http.expectedStatuses({ min: 200, max: 399 });
 
@@ -36,7 +41,9 @@ export function api(method, path, opts = {}) {
     responseCallback: opts.expect ? http.expectedStatuses(...opts.expect) : opts.business ? BUSINESS : OK_ONLY,
   };
   const body = opts.body === undefined ? null : JSON.stringify(opts.body);
-  return http.request(method, `${API_V1}${path}`, body, params);
+  const res = http.request(method, `${API_V1}${path}`, body, params);
+  apiDuration.add(res.timings.duration);
+  return res;
 }
 
 export function json(res) {

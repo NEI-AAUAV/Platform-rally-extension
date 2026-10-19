@@ -136,7 +136,7 @@ export const options = {
   thresholds: {
     http_req_failed: ["rate<0.01"],
     checks: ["rate>0.99"],
-    "http_req_duration{expected_response:true}": ["p(95)<800", "p(99)<2000"],
+    rally_api_duration: ["p(95)<800", "p(99)<2000"],
     "http_req_duration{scenario:participants}": ["p(95)<600"],
     "http_req_duration{scenario:staff}": ["p(95)<1000"],
     "http_req_duration{scenario:team_route}": ["p(95)<800"],
