@@ -47,7 +47,12 @@ export default function useTeamNotifications(
     // and free-choice routes — where resolution isn't strictly sequential —
     // still surface a notification.
     if (prevResolved.current) {
-      const newlyResolved = resolved.filter((order) => !prevResolved.current!.has(order));
+      // Skipped posts are resolved too, but giving up is not worth a success
+      // toast — only announce the ones the team actually completed.
+      const skipped = new Set(team.skipped_checkpoint_orders ?? []);
+      const newlyResolved = resolved.filter(
+        (order) => !prevResolved.current!.has(order) && !skipped.has(order),
+      );
       // A reconnect/refresh can reveal many at once; announce a summary
       // instead of one toast per order to avoid a notification avalanche.
       if (newlyResolved.length === 1) {

@@ -69,6 +69,29 @@ describe("useTeamNotifications", () => {
     expect(h.success).toHaveBeenCalledWith("posto 4 resolvido!");
   });
 
+  it("does not celebrate a checkpoint the team gave up on", () => {
+    const { rerender } = renderHook(({ team, rank }) => useTeamNotifications(team, rank), {
+      initialProps: { team: makeTeam({ resolved_checkpoint_orders: [1] }), rank: 3 },
+    });
+    rerender({
+      team: makeTeam({ resolved_checkpoint_orders: [1, 2], skipped_checkpoint_orders: [2] }),
+      rank: 3,
+    });
+    expect(h.success).not.toHaveBeenCalled();
+  });
+
+  it("only counts completed checkpoints when some of the newly resolved were skipped", () => {
+    const { rerender } = renderHook(({ team, rank }) => useTeamNotifications(team, rank), {
+      initialProps: { team: makeTeam({ resolved_checkpoint_orders: [] }), rank: 3 },
+    });
+    rerender({
+      team: makeTeam({ resolved_checkpoint_orders: [1, 2, 3], skipped_checkpoint_orders: [2] }),
+      rank: 3,
+    });
+    expect(h.success).toHaveBeenCalledTimes(1);
+    expect(h.success).toHaveBeenCalledWith("2 postos resolvidos!");
+  });
+
   it("summarizes multiple simultaneously-resolved checkpoints instead of an avalanche of toasts", () => {
     const { rerender } = renderHook(({ team, rank }) => useTeamNotifications(team, rank), {
       initialProps: { team: makeTeam({ resolved_checkpoint_orders: [] }), rank: 3 },
