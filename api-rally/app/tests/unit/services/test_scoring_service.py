@@ -707,6 +707,45 @@ async def test_create_result_invalid_data_raises(pg_session):
         await svc.create_result(obj_in)
 
 
+async def test_create_result_invalid_data_is_a_400_not_a_500(pg_session):
+    from app.core.exceptions import RallyValidationError
+
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    svc = ScoringService(pg_session)
+    obj_in = ActivityResultCreate(
+        activity_id=activity.id,
+        team_id=team.id,
+        result_data={"wrong": 1},
+        is_completed=True,
+    )
+    with pytest.raises(RallyValidationError) as exc_info:
+        await svc.create_result(obj_in)
+    assert exc_info.value.status_code == 400
+
+
+async def test_update_result_rejects_invalid_data_and_keeps_score(pg_session):
+    from app.core.exceptions import RallyValidationError
+
+    team = await _make_team(pg_session)
+    activity = await _make_activity(pg_session)
+    result = await _make_result(
+        pg_session,
+        team=team,
+        activity=activity,
+        result_data={"assigned_points": 40},
+        final_score=40,
+    )
+
+    svc = ScoringService(pg_session)
+    with pytest.raises(RallyValidationError):
+        await svc.update_result(result, ActivityResultUpdate(result_data={"wrong": 1}))
+
+    await pg_session.refresh(result)
+    assert result.result_data == {"assigned_points": 40}
+    assert result.final_score == pytest.approx(40)
+
+
 async def test_update_result_rescores_on_data_change(pg_session):
     team = await _make_team(pg_session)
     activity = await _make_activity(pg_session)

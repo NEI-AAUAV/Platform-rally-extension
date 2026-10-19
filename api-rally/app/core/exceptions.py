@@ -37,6 +37,14 @@ class RallyValidationError(RallyError):
     status_code = 400
 
 
+class InvalidResultDataError(RallyValidationError, ValueError):
+    """``result_data`` does not fit the activity type (HTTP 400).
+
+    Also a ``ValueError`` so callers that already guard result writes with
+    ``except ValueError`` keep working.
+    """
+
+
 class RallyConfigurationError(RallyError):
     """A persisted settings combination violates a hard domain invariant."""
 
