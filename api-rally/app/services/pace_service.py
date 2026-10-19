@@ -15,7 +15,7 @@ from app.crud.crud_team import team as team_crud
 from app.models.activity import ActivityResult
 from app.models.checkpoint_arrival import CheckpointArrival
 from app.models.checkpoint_skip import CheckpointSkip
-from app.services.route_progress import load_route_snapshot, progress_for_team
+from app.services.route_progress import load_route_snapshot, progress_for_teams
 
 
 @dataclass(frozen=True)
@@ -113,9 +113,10 @@ async def compute_paces(db: AsyncSession, settings: Any) -> list[TeamPace]:
     ids = [team.id for team in teams]
     first_arrivals, last_arrivals, completions, skips = await _timestamp_maps(db, ids)
     route = await load_route_snapshot(db, settings)
+    progresses = await progress_for_teams(db, teams, settings, route=route)
     candidates: list[TeamPace] = []
     for team in teams:
-        progress = await progress_for_team(db, team, settings, route=route)
+        progress = progresses[team.id]
         started_at = team_start_time(first_arrivals.get(team.id))
         stamps = (last_arrivals.get(team.id), completions.get(team.id), skips.get(team.id))
         last_progress_at = max((stamp for stamp in stamps if stamp is not None), default=None)
