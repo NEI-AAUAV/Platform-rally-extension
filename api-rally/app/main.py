@@ -89,6 +89,10 @@ async def rally_error_handler(request: Request, exc: RallyError) -> JSONResponse
     where = f"{request.method} {request.url.path}"
     if exc.status_code >= 500:
         logger.exception(f"Rally error on {where}: {exc.message}")
+    elif exc.status_code == status.HTTP_404_NOT_FOUND:
+        # Routine (e.g. a team with no checkpoint yet); the access log already
+        # records the request, so a WARNING per hit only floods logs under load.
+        logger.debug(f"Rally error on {where}: {exc.message}")
     else:
         logger.warning(f"Rally error on {where}: {exc.message}")
     content: dict[str, Any] = {"detail": exc.message}
