@@ -198,7 +198,7 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
                   {settings?.show_score_mode !== "hidden" && (
                     <p>Classificação: {team.classification > 0 ? team.classification : "N/D"}</p>
                   )}
-                  <p>Último posto: {team.last_checkpoint_number || "Nenhum"}</p>
+                  <p>Postos resolvidos: {team.resolved_checkpoint_orders?.length ?? 0}</p>
                 </div>
               </div>
             ))}

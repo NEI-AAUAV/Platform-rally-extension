@@ -12,7 +12,7 @@ from typing import Any
 
 from openpyxl import Workbook
 
-from app.services.checkpoint_planning import missing_fields
+from app.domain.event_configuration.checkpoint_readiness import missing_fields
 from app.services.event_report_context import EventReportContext
 from app.services.export import formulas as f
 from app.services.export.sheets_results import ResultsIndex

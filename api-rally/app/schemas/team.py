@@ -25,16 +25,30 @@ class RouteProgressFields(BaseModel):
 
     The sets exist because ``current_checkpoint_number`` alone cannot describe
     a free-order or staged route: several posts are open at once, and resolved
-    posts need not form a prefix. Clients must render "concluído"/"pendente"
-    from ``resolved_checkpoint_orders`` and the finished state from
-    ``is_route_finished`` rather than re-deriving either from a count — that
-    arithmetic is what made the participant screen and the team page disagree.
+    posts need not form a prefix. Clients must read route progression from
+    these sets and the finished state from ``is_route_finished`` rather than
+    re-deriving either from a count — that arithmetic is what made the
+    participant screen and the team page disagree.
+
+    Contract:
+
+    - ``resolved_checkpoint_orders`` is route progression: the posts the team
+      is "done with" — completed **or** skipped. Use it for "N of M posts",
+      progress bars and deciding what is still open. It must not be read as
+      "succeeded at".
+    - ``skipped_checkpoint_orders`` is the subset of the resolved set the team
+      gave up on. A count of *completed* posts is ``resolved - skipped``.
+    - ``CheckpointProgress.status`` (``DetailedTeam.checkpoints``)
+      is the authoritative per-post UI state — ``pending`` / ``arrived`` /
+      ``completed`` / ``skipped``. Labels such as "concluído" or "saltado" must
+      come from it, not from membership in ``resolved_checkpoint_orders``.
     """
 
     # Activity-based completion counters (more reliable than len(times))
     last_checkpoint_number: int | None = None
     current_checkpoint_number: int | None = None
     resolved_checkpoint_orders: list[int] = []
+    skipped_checkpoint_orders: list[int] = []
     open_checkpoint_orders: list[int] = []
     is_route_finished: bool = False
     started_at: datetime | None = None

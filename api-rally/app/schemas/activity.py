@@ -5,7 +5,7 @@ Pydantic schemas for activities
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.domain.event_configuration.policies import EventProfile
 from app.models.activity import EventType
@@ -49,6 +49,14 @@ class ActivityBase(BaseModel):
 class ActivityCreate(ActivityBase):
     """Schema for creating an activity"""
 
+    @model_validator(mode="after")
+    def validate_scope(self) -> "ActivityCreate":
+        if self.is_global and self.checkpoint_id is not None:
+            raise ValueError("Global activities cannot have a checkpoint_id")
+        if not self.is_global and self.checkpoint_id is None:
+            raise ValueError("Checkpoint activities require a checkpoint_id")
+        return self
+
 
 class ActivityUpdate(BaseModel):
     """Schema for updating an activity"""
@@ -62,6 +70,22 @@ class ActivityUpdate(BaseModel):
     is_global: bool | None = None
     available_from: datetime | None = None
     available_until: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_scope(self) -> "ActivityUpdate":
+        if (
+            self.is_global is True
+            and "checkpoint_id" in self.model_fields_set
+            and self.checkpoint_id is not None
+        ):
+            raise ValueError("Global activities cannot have a checkpoint_id")
+        if (
+            self.is_global is False
+            and "checkpoint_id" in self.model_fields_set
+            and self.checkpoint_id is None
+        ):
+            raise ValueError("Checkpoint activities require a checkpoint_id")
+        return self
 
     @field_validator("activity_type")
     @classmethod

@@ -68,7 +68,6 @@ export default function CheckpointAnnouncement() {
         placeholder="Ex: Fila grande, contem 15 min de espera."
         onChange={(e) => setBody(e.target.value)}
         rows={3}
-        autoFocus
         className="w-full rounded-lg border border-border bg-muted p-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
       />
 

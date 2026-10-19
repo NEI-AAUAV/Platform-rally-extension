@@ -118,6 +118,20 @@ describe("team-progress NextCheckpointCard", () => {
     expect(screen.queryByRole("button", { name: /Check-in GPS/ })).not.toBeInTheDocument();
   });
 
+  it("never renders coordinates or a maps link for a redacted checkpoint, even if the payload carries them", () => {
+    // Defense in depth: the backend is expected to strip coordinates from a
+    // redacted checkpoint, but this component must not trust that alone —
+    // if a redacted post's data somehow still carries lat/long (a stale
+    // cache entry, a backend bug), rendering them would hand over the
+    // riddle's answer.
+    const redactedWithCoords = { ...checkpoint, is_redacted: true } as DetailedCheckPoint;
+    render(<NextCheckpointCard checkpoint={redactedWithCoords} showMap />, {
+      wrapper: createWrapper(),
+    });
+    expect(screen.queryByText(/41\.100000/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Como chegar")).not.toBeInTheDocument();
+  });
+
   it("explains itself and offers a retry when the event settings could not be loaded", async () => {
     // Every condition behind the check-in button reads the settings, so a
     // failed settings fetch removes the button. The hook gives up after two

@@ -109,13 +109,30 @@ describe("Podium", () => {
   });
 
   it("shows reachedLabel using checkpointsCount when provided and reached > 0", () => {
-    const teams = [makeTeam({ id: 1, name: "Solo", total: 10, last_checkpoint_number: 3 })];
+    const teams = [makeTeam({ id: 1, name: "Solo", total: 10, resolved_checkpoint_orders: [1, 2, 3] })];
     render(<Podium teams={teams} checkpointsCount={8} />);
     expect(screen.getByText("3/8 postos")).toBeInTheDocument();
   });
 
+  it("uses resolved_checkpoint_orders length, not last_checkpoint_number, for free-order/free-choice progress", () => {
+    const teams = [
+      makeTeam({
+        id: 1,
+        name: "Free Choice Team",
+        total: 10,
+        last_checkpoint_number: 0,
+        current_checkpoint_number: 1,
+        resolved_checkpoint_orders: [3, 4],
+      }),
+    ];
+    render(<Podium teams={teams} checkpointsCount={8} />);
+    expect(screen.getByText("2/8 postos")).toBeInTheDocument();
+  });
+
   it("shows reachedLabel with checkpoint singular fallback when checkpointsCount is absent", () => {
-    const teams = [makeTeam({ id: 1, name: "Solo", total: 10, current_checkpoint_number: 2 })];
+    const teams = [
+      makeTeam({ id: 1, name: "Solo", total: 10, resolved_checkpoint_orders: [1, 2] }),
+    ];
     render(<Podium teams={teams} />);
     expect(screen.getByText("Posto 2")).toBeInTheDocument();
   });
@@ -176,7 +193,7 @@ describe("ScoreRows", () => {
   });
 
   it("shows reached label when reached > 0", () => {
-    const teams = [makeTeam({ id: 1, name: "Row D", total: 30, last_checkpoint_number: 5 })];
+    const teams = [makeTeam({ id: 1, name: "Row D", total: 30, resolved_checkpoint_orders: [1, 2, 3, 4, 5] })];
     render(<ScoreRows teams={teams} checkpointsCount={10} />);
     expect(screen.getByText("5/10 postos")).toBeInTheDocument();
   });

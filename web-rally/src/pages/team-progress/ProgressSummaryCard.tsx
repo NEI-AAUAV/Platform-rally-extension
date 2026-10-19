@@ -1,20 +1,20 @@
 import useEventTerms from "@/hooks/useEventTerms";
 
 type ProgressSummaryCardProps = Readonly<{
-  completedCount: number;
+  resolvedCount: number;
   totalCount: number;
   totalScore: number;
   showScore: boolean;
 }>;
 
 export default function ProgressSummaryCard({
-  completedCount,
+  resolvedCount,
   totalCount,
   totalScore,
   showScore,
 }: ProgressSummaryCardProps) {
   const terms = useEventTerms();
-  const pct = Math.round((completedCount / (totalCount || 1)) * 100);
+  const pct = Math.round((resolvedCount / (totalCount || 1)) * 100);
 
   return (
     <div className="rally-surface rounded-xl border border-border p-5">
@@ -30,7 +30,7 @@ export default function ProgressSummaryCard({
       </div>
       {showScore && (
         <p className="mt-3 text-xs text-muted-foreground">
-          {completedCount} de {totalCount} {terms.checkpoints} · {totalScore} pontos
+          {resolvedCount} de {totalCount} {terms.checkpoints} · {totalScore} pontos
         </p>
       )}
     </div>
