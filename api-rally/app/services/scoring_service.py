@@ -16,7 +16,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.config import get_settings
 from app.core.config import settings as app_settings
-from app.core.exceptions import RallyError, RallyValidationError
+from app.core.exceptions import InvalidResultDataError, RallyError, RallyValidationError
 from app.core.metrics import observe_scoring_recompute
 from app.core.observability import traced
 from app.crud._event_scope import current_event_id
@@ -998,7 +998,7 @@ class ScoringService:
 
         instance = ActivityFactory.create_activity(activity.activity_type, activity.config)
         if not await instance.validate_result(obj_in.result_data, obj_in.team_id, self.db):
-            raise ValueError("Invalid result data for activity type")
+            raise InvalidResultDataError("Invalid result data for activity type")
 
         penalty_counts = obj_in.penalty_counts or {}
         penalties = (
@@ -1145,6 +1145,8 @@ class ScoringService:
         await self._lock_activity_scoring(db_obj.activity_id)
 
         pending_update = obj_in.model_dump(exclude_unset=True)
+        if "result_data" in pending_update:
+            await self._require_valid_result_data(db_obj, pending_update["result_data"])
         if sync_team_vs and "result_data" in pending_update:
             synced = await self._sync_team_vs_update(
                 db_obj, pending_update, editor=editor, commit=commit
@@ -1204,6 +1206,23 @@ class ScoringService:
             activity_id=db_obj.activity_id,
         )
         return db_obj
+
+    async def _require_valid_result_data(
+        self, db_obj: ActivityResult, result_data: dict[str, Any]
+    ) -> None:
+        """Hold an edit to the same shape rule a first evaluation has to meet.
+
+        Without this, re-submitting an evaluation skipped validation entirely:
+        the create path rejected malformed ``result_data`` but the update path
+        stored it and rescored the team from it. Versus results carry their own
+        match payload, parsed by the pair primitive, so they are left to it.
+        """
+        activity = await self.db.get(Activity, db_obj.activity_id)
+        if activity is None or activity.activity_type == ActivityType.TEAM_VS.value:
+            return
+        instance = ActivityFactory.create_activity(activity.activity_type, activity.config)
+        if not await instance.validate_result(result_data, db_obj.team_id, self.db):
+            raise InvalidResultDataError("Invalid result data for activity type")
 
     async def _reprice_changed_counts(
         self, db_obj: ActivityResult, update_data: dict[str, Any]

@@ -24,8 +24,12 @@ from pydantic import BaseModel
 # Internal-only issuer: this fake provider is reached over the smoke stack's
 # private docker network by hostname, where TLS adds nothing. Not internet
 # facing and never used outside the smoke suite.
-ISSUER = "http://fake-oidc:9009"  # NOSONAR - internal docker-network issuer
-CLIENT_ID = "rally-smoke-client"
+# FAKE_OIDC_ISSUER / FAKE_OIDC_CLIENT_ID let the load-test stack (loadtest/)
+# reuse this provider under a different hostname or outside docker.
+ISSUER = os.getenv("FAKE_OIDC_ISSUER", "http://fake-oidc:9009")  # NOSONAR - internal issuer
+CLIENT_ID = os.getenv("FAKE_OIDC_CLIENT_ID", "rally-smoke-client")
+# Token lifetime; load tests that run longer than an hour raise it.
+TOKEN_TTL_SECONDS = int(os.getenv("FAKE_OIDC_TOKEN_TTL_SECONDS", "3600"))
 APPLICATION_SLUG = "rally"
 
 _key = JsonWebKey.generate_key("RSA", 2048, is_private=True)
@@ -55,7 +59,15 @@ def jwks() -> dict[str, Any]:
     return {"keys": [_public_jwk]}
 
 
-def mint_token(*, sub: str, name: str, groups: list[str], email: str | None = None) -> str:
+def mint_token(
+    *,
+    sub: str,
+    name: str,
+    groups: list[str],
+    email: str | None = None,
+    audience: str | None = None,
+    expires_in: int | None = None,
+) -> str:
     """Mint an RS256 access token this provider's JWKS can validate.
 
     Only valid for tokens minted by *this process's* keypair — calling this
@@ -68,13 +80,13 @@ def mint_token(*, sub: str, name: str, groups: list[str], email: str | None = No
     now = int(time.time())
     claims = {
         "iss": ISSUER,
-        "aud": CLIENT_ID,
+        "aud": audience or CLIENT_ID,
         "sub": sub,
         "name": name,
         "email": email,
         "groups": groups,
         "iat": now,
-        "exp": now + 3600,
+        "exp": now + (TOKEN_TTL_SECONDS if expires_in is None else expires_in),
     }
     header = {"alg": "RS256", "kid": _kid}
     token = jwt.encode(header, claims, _private_jwk)
@@ -86,13 +98,24 @@ class MintRequest(BaseModel):
     name: str
     groups: list[str]
     email: str | None = None
+    # Negative-path overrides (load tests): a foreign audience or an already
+    # expired token (negative expires_in) must be rejected by api-rally.
+    audience: str | None = None
+    expires_in: int | None = None
 
 
 @app.post("/mint")
 def mint(body: MintRequest) -> dict[str, str]:
     """HTTP mint endpoint — the only safe way for another process/container
     to get a token signed by *this* provider's keypair (see mint_token)."""
-    token = mint_token(sub=body.sub, name=body.name, groups=body.groups, email=body.email)
+    token = mint_token(
+        sub=body.sub,
+        name=body.name,
+        groups=body.groups,
+        email=body.email,
+        audience=body.audience,
+        expires_in=body.expires_in,
+    )
     return {"access_token": token}
 
 

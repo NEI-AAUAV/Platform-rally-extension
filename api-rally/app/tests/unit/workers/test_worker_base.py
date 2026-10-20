@@ -172,3 +172,57 @@ class TestConsume:
         fake_pubsub.psubscribe.assert_called_once_with("test.*")
         fake_pubsub.close.assert_called_once()
         assert worker.events == [("test.chan", {"n": 1})]
+
+
+class _SharedRedis:
+    """Stand-in for Redis ``SET NX`` shared by several worker processes."""
+
+    def __init__(self) -> None:
+        self.keys: set[str] = set()
+
+    def set(self, key: str, value: str, nx: bool = False, ex: int | None = None) -> bool | None:
+        if nx and key in self.keys:
+            return None
+        self.keys.add(key)
+        return True
+
+
+class TestEventClaim:
+    """Every uvicorn process subscribes; only one may handle each event."""
+
+    def _message(self, event_id: str) -> dict[str, Any]:
+        return {
+            "type": "message",
+            "channel": "test.chan",
+            "data": json.dumps({"event_id": event_id, "payload": {}}),
+        }
+
+    def test_only_one_process_handles_a_given_event(self) -> None:
+        shared = _SharedRedis()
+        first, second = _RecordingWorker(), _RecordingWorker()
+
+        with patch.object(base, "get_redis_client", return_value=shared):
+            first._dispatch(self._message("evt-1"))
+            second._dispatch(self._message("evt-1"))
+
+        assert len(first.events) + len(second.events) == 1
+
+    def test_distinct_events_are_each_handled(self) -> None:
+        shared = _SharedRedis()
+        worker = _RecordingWorker()
+
+        with patch.object(base, "get_redis_client", return_value=shared):
+            worker._dispatch(self._message("evt-1"))
+            worker._dispatch(self._message("evt-2"))
+
+        assert len(worker.events) == 2
+
+    def test_handles_event_when_claim_fails(self) -> None:
+        broken = MagicMock()
+        broken.set.side_effect = base.redis.RedisError("down")
+        worker = _RecordingWorker()
+
+        with patch.object(base, "get_redis_client", return_value=broken):
+            worker._dispatch(self._message("evt-1"))
+
+        assert len(worker.events) == 1
