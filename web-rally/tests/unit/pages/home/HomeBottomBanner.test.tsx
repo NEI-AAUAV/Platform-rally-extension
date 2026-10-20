@@ -16,7 +16,7 @@ describe("HomeBottomBanner", () => {
   it("renders the CTA with event term and link to team-login", () => {
     render(<HomeBottomBanner />);
     expect(screen.getByText("Pronto para o rally?")).toBeInTheDocument();
-    const link = screen.getByText("Entrar agora →");
+    const link = screen.getByText("Entrar com a Equipa →");
     expect(link.closest("a")).toHaveAttribute("href", "/team-login");
   });
 });

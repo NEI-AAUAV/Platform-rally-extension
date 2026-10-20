@@ -39,39 +39,12 @@
       })();
     </script>
 
-    <!-- Opt in to the translucent surfaces only on Apple platforms running
-         Safari 26+, where they read as native. navigator.vendor is WebKit-only
-         and survives a standalone launch, unlike the UA "Safari/Version"
-         tokens; scroll-driven animations shipped in Safari 26.0, so the pair
-         approximates "Apple, 26 or newer". Everywhere else the attribute is
-         absent and the design is unchanged. -->
-    <script>
-      (function () {
-        try {
-          var pref = localStorage.getItem("rally_glass");
-          if (pref !== "on" && pref !== "off") pref = "auto";
-          var supported =
-            window.CSS &&
-            (CSS.supports("backdrop-filter", "blur(1px)") ||
-              CSS.supports("-webkit-backdrop-filter", "blur(1px)"));
-          var isApple26 =
-            navigator.vendor === "Apple Computer, Inc." &&
-            window.CSS &&
-            CSS.supports("animation-timeline", "scroll()");
-          var on = supported && (pref === "on" || (pref === "auto" && isApple26));
-          if (on) document.documentElement.dataset.glass = "on";
-        } catch (e) {
-          console.warn("Failed to check glass styling preference", e);
-        }
-      })();
-    </script>
-
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
     />
 
     <!-- PWA Meta Tags -->
@@ -84,8 +57,8 @@
          src/lib/themeColor.ts overrides these at runtime when the user picks a
          mode manually, since `media` only follows the OS. -->
     <meta name="theme-color" content="#dc2626" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfaf8" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0d14" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f2ec" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0a" />
     <meta name="description" content="Rally Tascas - Competição de equipas do NEI" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

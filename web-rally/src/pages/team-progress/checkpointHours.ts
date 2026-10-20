@@ -67,3 +67,21 @@ export function departureNotice(
   if (now >= departure) return null;
   return `A vossa partida é às ${formatTime(departure)}. Até lá não há check-in.`;
 }
+
+const departureFormat = new Intl.DateTimeFormat("pt-PT", { hour: "2-digit", minute: "2-digit" });
+
+/**
+ * The team's own departure time, for events that stagger the start.
+ *
+ * Returns null when the team leaves with everyone else (offset 0) or the event
+ * has no start time configured — in both cases there is nothing extra to say.
+ */
+export function departureTime(
+  startTime: string | null | undefined,
+  offsetMinutes: number,
+): string | null {
+  if (!startTime || offsetMinutes <= 0) return null;
+  const start = new Date(startTime);
+  if (Number.isNaN(start.getTime())) return null;
+  return departureFormat.format(new Date(start.getTime() + offsetMinutes * 60_000));
+}

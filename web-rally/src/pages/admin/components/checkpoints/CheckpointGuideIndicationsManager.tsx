@@ -17,7 +17,7 @@ type Props = Readonly<{
   checkpointId: number;
 }>;
 
-const fieldClassName = "bg-muted border-border";
+const fieldClassName = "border-border";
 
 export default function CheckpointGuideIndicationsManager({ checkpointId }: Props) {
   const toast = useAppToast();

@@ -26,16 +26,16 @@ export default function CheckpointGiveUpAction({
   const buttonText = giveUp.isPending ? "A desistir…" : skipCostLabel;
 
   return (
-    <div className="space-y-2 border-t border-border pt-4">
+    <div className="space-y-1.5 border-t border-border pt-4 text-center">
       <button
         type="button"
         disabled={giveUp.isPending}
         onClick={onRequestGiveUp}
-        className="rally-press w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-semibold text-muted-foreground transition-all hover:bg-accent/30 disabled:opacity-60"
+        className="rally-press rounded-lg px-3 py-1.5 text-sm font-semibold text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline disabled:opacity-60"
       >
         {buttonText}
       </button>
-      <p className="text-center text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Sem pistas por revelar. Se não conseguem mesmo, desistam e sigam para o próximo — mais vale
         isso do que ficarem aqui presos o resto do evento.
       </p>

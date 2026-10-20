@@ -32,16 +32,13 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
 
   return (
     <section aria-labelledby="postos-heading">
-      <div className="flex items-center justify-between">
-        <h2
-          id="postos-heading"
-          className="rally-display text-2xl font-bold text-foreground sm:text-3xl"
-        >
+      <div className="flex items-end justify-between">
+        <h2 id="postos-heading" className="rally-display text-5xl text-foreground sm:text-6xl">
           Postos
         </h2>
         <Link
           to="/checkpoints"
-          className="rally-accent inline-flex items-center gap-1 text-sm font-semibold hover:underline"
+          className="inline-flex items-center gap-1.5 text-sm font-bold text-foreground hover:underline"
         >
           Ver mapa
           <ArrowRight className="h-4 w-4" />
@@ -49,13 +46,17 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
       </div>
 
       <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {ordered.map((cp) => (
-          <li key={cp.id} className="rally-surface flex items-start gap-3 p-4">
-            <span className="rally-bg-accent-soft grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm font-bold text-foreground">
+        {ordered.map((cp, i) => (
+          <li
+            key={cp.id}
+            // Three are enough to show what a post is; the rest is one tap away.
+            className={`rally-surface flex items-start gap-4 p-5 ${i >= 3 ? "hidden sm:flex" : ""}`}
+          >
+            <span className="rally-display rally-accent w-10 shrink-0 text-4xl leading-none">
               {cp.order}
             </span>
             <div className="min-w-0">
-              <p className="truncate font-semibold text-foreground">{cp.name}</p>
+              <p className="truncate text-base font-bold text-foreground">{cp.name}</p>
               {cp.description && (
                 <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
                   {cp.description}
@@ -65,7 +66,7 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
           </li>
         ))}
         {remaining > 0 && (
-          <li className="flex items-center justify-center rounded-lg border border-dashed border-border p-4 text-sm font-medium text-muted-foreground">
+          <li className="flex items-center justify-center rounded-3xl border border-dashed border-border p-5 text-sm font-semibold text-muted-foreground">
             <MapPin className="mr-2 h-4 w-4" />+{remaining} postos
           </li>
         )}

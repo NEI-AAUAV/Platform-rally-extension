@@ -98,7 +98,7 @@ export default function TeamLogin() {
   return (
     <div className="flex min-h-[70vh] items-center justify-center">
       <div className="w-full max-w-[440px] duration-500 animate-in fade-in zoom-in-95">
-        <div className="rally-surface rally-elevate rounded-[22px] p-[30px]">
+        <div className="rally-surface p-[30px]">
           <div className="space-y-6 text-center">
             {/* Header Section */}
             <div className="flex flex-col items-center space-y-4">
@@ -133,7 +133,7 @@ export default function TeamLogin() {
                   placeholder="XXXX-XXXX"
                   value={accessCode}
                   onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                  className="font-mono h-20 rounded-2xl border-2 border-[var(--rally-accent,#008542)] bg-secondary text-center text-4xl font-bold tracking-[0.24em] focus-visible:ring-2 focus-visible:ring-[var(--rally-accent,#008542)] focus-visible:ring-offset-0"
+                  className="h-20 rounded-2xl border-2 border-[var(--rally-accent,#008542)] bg-secondary text-center font-mono text-4xl font-bold tracking-[0.24em] focus-visible:ring-2 focus-visible:ring-[var(--rally-accent,#008542)] focus-visible:ring-offset-0"
                   maxLength={9}
                   autoComplete="off"
                   autoFocus

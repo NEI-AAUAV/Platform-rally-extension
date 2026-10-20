@@ -27,21 +27,23 @@ export function HowItWorks() {
 
   return (
     <section aria-labelledby="how-heading">
-      <h2 id="how-heading" className="rally-display mb-4 text-xl font-bold text-foreground">
+      <h2 id="how-heading" className="rally-display mb-5 text-5xl text-foreground sm:text-6xl">
         Como funciona
       </h2>
-      <div className="flex flex-col gap-3">
+      <div className="grid gap-4 md:grid-cols-3">
         {steps.map((step) => (
           <div
             key={step.n}
-            className="flex gap-3.5 rounded-[16px] border border-border bg-card p-[18px]"
+            className="rally-surface flex items-start gap-4 p-5 md:flex-col md:gap-6 md:p-6"
           >
-            <span className="rally-bg-accent-soft rally-display grid h-[42px] w-[42px] flex-shrink-0 place-items-center rounded-[12px] text-lg font-bold text-foreground">
+            <span className="rally-display rally-accent w-8 shrink-0 text-5xl leading-none md:w-auto md:text-7xl">
               {step.n}
             </span>
             <div>
-              <div className="text-[15px] font-bold text-foreground">{step.title}</div>
-              <div className="mt-0.5 text-sm leading-[1.45] text-muted-foreground">{step.body}</div>
+              <div className="rally-display text-2xl text-foreground md:text-3xl">{step.title}</div>
+              <div className="mt-1 text-sm leading-relaxed text-muted-foreground md:mt-2">
+                {step.body}
+              </div>
             </div>
           </div>
         ))}

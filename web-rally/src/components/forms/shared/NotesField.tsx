@@ -15,7 +15,7 @@ export default function NotesField({ idPrefix, notes, onChange }: Readonly<Notes
         id={inputId}
         value={notes}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+        className="w-full rounded border border-border bg-background p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
         placeholder="Adiciona notas adicionais..."
         rows={3}
       />

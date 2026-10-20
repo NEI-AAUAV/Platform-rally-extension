@@ -306,7 +306,9 @@ describe("RouteCheckpointItem", () => {
     it("includes the checkpoint name in the accessible name when not redacted", () => {
       renderWithQueryClient(
         <RouteCheckpointItem
-          checkpoint={{ ...checkpoint, name: "Miradouro", is_reachable: true } as DetailedCheckPoint}
+          checkpoint={
+            { ...checkpoint, name: "Miradouro", is_reachable: true } as DetailedCheckPoint
+          }
           index={0}
           team={{ ...team, checkpoints: [] } as DetailedTeam}
           resolvedOrders={new Set()}

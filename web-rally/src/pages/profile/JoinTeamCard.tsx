@@ -42,10 +42,10 @@ export default function JoinTeamCard() {
   const trimmed = code.trim();
 
   return (
-    <div className="rally-surface rounded-2xl p-6">
+    <div className="rally-surface p-6">
       <div className="flex items-center gap-2">
         <Users className="rally-accent h-5 w-5" />
-        <h2 className="text-lg font-semibold text-foreground">Associa-te à tua equipa</h2>
+        <h2 className="rally-display text-2xl text-foreground">Associa-te à tua equipa</h2>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Introduz o código da tua equipa e escolhe o teu nome para ligares a tua conta NEI.
@@ -63,10 +63,16 @@ export default function JoinTeamCard() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="XXXX-XXXX"
-          className="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-[color:var(--rally-accent,theme(colors.primary.DEFAULT))]"
+          className="min-w-0 flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-[color:var(--rally-accent,theme(colors.primary.DEFAULT))]"
           aria-label="Código da equipa"
         />
-        <RallyButton type="submit" variant="primary" size="md" disabled={trimmed.length === 0}>
+        <RallyButton
+          type="submit"
+          variant="primary"
+          size="md"
+          className="shrink-0"
+          disabled={trimmed.length === 0}
+        >
           <Search className="h-4 w-4" />
           Procurar
         </RallyButton>
@@ -92,7 +98,7 @@ export default function JoinTeamCard() {
                 type="button"
                 disabled={claim.isPending}
                 onClick={() => claim.mutate(member.id)}
-                className="rally-surface flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition hover:brightness-105 disabled:opacity-50"
+                className="rally-surface flex w-full items-center justify-between px-4 py-3 text-left transition hover:brightness-105 disabled:opacity-50"
               >
                 <span className="flex items-center gap-2 font-medium text-foreground">
                   {member.name}

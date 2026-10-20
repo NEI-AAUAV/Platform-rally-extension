@@ -83,8 +83,11 @@ describe("team-progress NextCheckpointCard", () => {
 
   it("renders checkpoint name and coordinates when showMap is true", () => {
     render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
-    expect(screen.getByText(/Próximo Posto — Posto 1/)).toBeInTheDocument();
-    expect(screen.getByText(/41\.100000/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Próximo Posto — Posto 1/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Como chegar/ })).toHaveAttribute(
+      "href",
+      expect.stringContaining("destination=41.1,"),
+    );
   });
 
   it("agrees with the event terminology's gender in the heading", () => {
@@ -97,14 +100,14 @@ describe("team-progress NextCheckpointCard", () => {
       checkpointGender: "f",
     });
     render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
-    expect(screen.getByText(/Próxima Tasca — Posto 1/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Próxima Tasca — Posto 1/ })).toBeInTheDocument();
   });
 
   it("hides coordinates when showMap is false", () => {
     render(<NextCheckpointCard checkpoint={checkpoint} showMap={false} />, {
       wrapper: createWrapper(),
     });
-    expect(screen.queryByText(/41\.100000/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Como chegar/ })).not.toBeInTheDocument();
   });
 
   it("shows discovery section when description is present", () => {
@@ -128,7 +131,7 @@ describe("team-progress NextCheckpointCard", () => {
     render(<NextCheckpointCard checkpoint={redactedWithCoords} showMap />, {
       wrapper: createWrapper(),
     });
-    expect(screen.queryByText(/41\.100000/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Como chegar/ })).not.toBeInTheDocument();
     expect(screen.queryByText("Como chegar")).not.toBeInTheDocument();
   });
 

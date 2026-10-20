@@ -1,20 +1,16 @@
 import { Skeleton } from "@/components/shared";
 
-/** Layout-stable placeholder mirroring the team-progress two-column layout. */
+/** Layout-stable placeholder mirroring the status bar + panels layout. */
 export default function TeamProgressSkeleton() {
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
-      <div className="space-y-6 lg:sticky lg:top-24">
-        <Skeleton className="h-40 rounded-2xl" />
-        <Skeleton className="h-32 rounded-2xl" />
-        <Skeleton className="h-28 rounded-2xl" />
-        <Skeleton className="h-56 rounded-2xl" />
-      </div>
-      <div className="space-y-4">
-        <Skeleton className="h-7 w-40 rounded-md" />
-        <div className="space-y-3">
+    <div className="space-y-4 lg:space-y-6">
+      <Skeleton className="h-[88px] rounded-2xl" />
+      <Skeleton className="h-11 rounded-2xl lg:hidden" />
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Skeleton className="h-80 rounded-2xl" />
+        <div className="hidden space-y-2 lg:block">
           {["c1", "c2", "c3", "c4", "c5"].map((key) => (
-            <Skeleton key={key} className="h-20 rounded-2xl" />
+            <Skeleton key={key} className="h-14 rounded-xl" />
           ))}
         </div>
       </div>

@@ -54,10 +54,8 @@ export default function TeamMembersCard({ team }: TeamMembersCardProps) {
   });
 
   return (
-    <div className="rally-surface rounded-xl border border-border p-5">
-      <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
-        Membros
-      </p>
+    <div className="rally-surface p-5">
+      <h2 className="rally-eyebrow mb-3">Membros</h2>
       {canClaim && (
         <p className="mb-3 text-xs text-muted-foreground">
           És um destes membros? Toca no teu nome para ligares a tua conta NEI.

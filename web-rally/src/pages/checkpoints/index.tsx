@@ -77,7 +77,7 @@ export default function Postos() {
           showMap={settings?.show_checkpoint_map !== false}
         />
 
-        <div className="lg:sticky lg:top-24">
+        <div className="order-first lg:sticky lg:top-24 lg:order-none">
           <MapSection
             checkpoints={sortedCheckpoints}
             selectedCheckpoint={selectedCheckpoint}

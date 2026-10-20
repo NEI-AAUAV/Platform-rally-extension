@@ -123,9 +123,8 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
       clearDraft(selectedTeam);
       toast.success("Membro adicionado com sucesso!");
     },
-    onError: (error) => {
-      toast.error(getErrorMessage(error, "Erro ao adicionar membro"));
-    },
+    // The error is shown inline above the form (addError), next to what the
+    // user has to fix; a toast on top of it would say the same thing twice.
   });
 
   const handleAddMember = (data: AddMemberForm) => {
@@ -148,7 +147,7 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {addError instanceof Error ? addError.message : "Erro desconhecido"}
+                {getErrorMessage(addError, "Erro ao adicionar membro")}
               </AlertDescription>
             </Alert>
           )}
@@ -158,7 +157,9 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
               <Label htmlFor="name">Nome</Label>
               <Input id="name" {...form.register("name")} placeholder="Nome do membro" />
               {form.formState.errors.name && (
-                <p className="text-sm text-red-400">{form.formState.errors.name.message}</p>
+                <p className="text-sm text-red-700 dark:text-red-400">
+                  {form.formState.errors.name.message}
+                </p>
               )}
             </div>
 
@@ -171,7 +172,9 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
                 placeholder="email@exemplo.com"
               />
               {form.formState.errors.email && (
-                <p className="text-sm text-red-400">{form.formState.errors.email.message}</p>
+                <p className="text-sm text-red-700 dark:text-red-400">
+                  {form.formState.errors.email.message}
+                </p>
               )}
             </div>
           </div>

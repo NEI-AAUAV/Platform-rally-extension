@@ -24,7 +24,7 @@ export default function AssignmentForm({
     <div className={`rally-surface rounded-2xl p-6 ${className}`}>
       <div className="mb-4 flex items-center gap-2">
         <Users className="h-5 w-5" />
-        <h3 className="text-lg font-semibold">{title}</h3>
+        <h3 className="rally-display text-2xl">{title}</h3>
       </div>
 
       {assignmentsError ? (
@@ -40,7 +40,12 @@ export default function AssignmentForm({
       )}
 
       {isSuccessUpdate && (
-        <div className="mt-4 text-center text-green-500">Atribuição atualizada com sucesso!</div>
+        <div
+          role="status"
+          className="mt-4 text-center font-semibold text-green-700 dark:text-green-400"
+        >
+          Atribuição atualizada com sucesso!
+        </div>
       )}
       {isErrorUpdate && (
         <div className="mt-4 text-center text-red-500">

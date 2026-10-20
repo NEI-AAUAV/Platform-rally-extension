@@ -32,7 +32,7 @@ function ParticipationCard({ entry }: Readonly<{ entry: ParticipationEntry }>) {
     month: "short",
   });
   return (
-    <div className="rally-surface rounded-2xl p-6">
+    <div className="rally-surface p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -60,7 +60,7 @@ function ParticipationCard({ entry }: Readonly<{ entry: ParticipationEntry }>) {
         entry.team_total != null) && (
         <div className="mt-4 flex gap-3">
           {entry.team_classification != null && entry.team_classification > 0 && (
-            <div className="rally-surface flex-1 rounded-xl px-4 py-3 text-center">
+            <div className="rally-surface flex-1 px-4 py-3 text-center">
               <div className="rally-accent text-2xl font-bold">
                 {ordinal(entry.team_classification)}
               </div>
@@ -68,7 +68,7 @@ function ParticipationCard({ entry }: Readonly<{ entry: ParticipationEntry }>) {
             </div>
           )}
           {entry.team_total != null && (
-            <div className="rally-surface flex-1 rounded-xl px-4 py-3 text-center">
+            <div className="rally-surface flex-1 px-4 py-3 text-center">
               <div className="text-2xl font-bold text-foreground">{entry.team_total}</div>
               <div className="text-xs text-muted-foreground">Pontos</div>
             </div>
@@ -95,7 +95,7 @@ export default function Profile() {
   if (!isAuthenticated) {
     return (
       <div className="mx-auto max-w-md">
-        <div className="rally-surface rounded-2xl p-6 text-center">
+        <div className="rally-surface p-6 text-center">
           <ShieldCheck className="rally-accent mx-auto h-10 w-10" />
           <h2 className="rally-display mt-3 text-xl font-bold">Inicia sessão</h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -126,13 +126,13 @@ export default function Profile() {
     historyContent = <LoadingState message="A carregar histórico..." />;
   } else if (isError) {
     historyContent = (
-      <div className="rally-surface rounded-2xl p-6 text-center">
+      <div className="rally-surface p-6 text-center">
         <p className="text-sm text-muted-foreground">Não foi possível carregar o histórico.</p>
       </div>
     );
   } else if (participations.length === 0) {
     historyContent = (
-      <div className="rally-surface rounded-2xl p-6 text-center">
+      <div className="rally-surface p-6 text-center">
         <p className="text-sm text-muted-foreground">
           Ainda não há participações registadas. Junta-te a uma equipa para começar.
         </p>
@@ -152,7 +152,7 @@ export default function Profile() {
       />
 
       {/* Identity */}
-      <div className="rally-surface rounded-2xl p-6">
+      <div className="rally-surface p-6">
         <div className="flex items-center gap-4">
           {image ? (
             <img src={image} alt={displayName} className="h-16 w-16 rounded-2xl object-cover" />
@@ -189,7 +189,7 @@ export default function Profile() {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Trophy className="rally-accent h-5 w-5" />
-          <h2 className="text-lg font-semibold text-foreground">Participações</h2>
+          <h2 className="rally-display text-2xl text-foreground">Participações</h2>
         </div>
 
         {historyContent}

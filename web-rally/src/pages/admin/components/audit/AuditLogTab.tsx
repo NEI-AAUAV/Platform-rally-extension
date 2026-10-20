@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { History, ChevronLeft, ChevronRight, Filter } from "lucide-react";
-import { Spinner } from "@/components/shared";
+import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { LoadingState, Spinner } from "@/components/shared";
 import { listAuditLog, type AuditLogEntry } from "@/client";
 import { Input } from "@/components/ui/input";
 import {
@@ -71,9 +71,11 @@ function ChangesSummary({ changes }: Readonly<{ changes: Record<string, unknown>
         return (
           <div key={field} className="flex flex-wrap items-center gap-1 text-xs">
             <span className="font-medium text-muted-foreground">{field}:</span>
-            <span className="text-red-400 line-through">{formatValue(before)}</span>
+            <span className="text-red-700 line-through dark:text-red-400">
+              {formatValue(before)}
+            </span>
             <span className="text-muted-foreground">→</span>
-            <span className="text-green-400">{formatValue(after)}</span>
+            <span className="text-green-700 dark:text-green-400">{formatValue(after)}</span>
           </div>
         );
       })}
@@ -138,14 +140,14 @@ export default function AuditLogTab() {
 
   const renderContent = () => {
     if (isLoading) {
-      return (
-        <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-          <Spinner size="sm" label="" />A carregar…
-        </div>
-      );
+      return <LoadingState variant="list" message="A carregar…" />;
     }
     if (isError) {
-      return <p className="py-6 text-sm text-red-400">Não foi possível carregar a auditoria.</p>;
+      return (
+        <p className="py-6 text-sm text-red-700 dark:text-red-400">
+          Não foi possível carregar a auditoria.
+        </p>
+      );
     }
     if (entries.length === 0) {
       return (
@@ -163,19 +165,19 @@ export default function AuditLogTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <History className="h-5 w-5 text-muted-foreground" />
-        <h2 className="rally-display text-lg font-bold text-foreground">Auditoria</h2>
-        {isFetching && <Spinner size="sm" className="text-muted-foreground" label="" />}
-      </div>
+      {/* The admin shell already titles this section; keep the name for assistive tech only. */}
+      <h2 className="sr-only">Auditoria</h2>
+      {isFetching && <Spinner size="sm" className="text-muted-foreground" label="" />}
 
       {/* Filters */}
-      <div className="rally-surface flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      <div className="rally-surface grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="col-span-full flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Filter className="h-3.5 w-3.5" />
           Filtros
         </div>
-        <div className="w-full sm:w-auto sm:min-w-[180px]">
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">Ação</span>
+
           <Select
             value={action}
             onValueChange={(v) => {
@@ -195,7 +197,9 @@ export default function AuditLogTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-full sm:w-auto sm:min-w-[180px]">
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">Alvo</span>
+
           <Select
             value={targetType}
             onValueChange={(v) => {
@@ -215,7 +219,7 @@ export default function AuditLogTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex w-full flex-col gap-1 sm:w-auto">
+        <div className="flex flex-col gap-1">
           <label htmlFor="audit-since" className="text-[11px] text-muted-foreground">
             Desde
           </label>
@@ -230,7 +234,7 @@ export default function AuditLogTab() {
             }}
           />
         </div>
-        <div className="flex w-full flex-col gap-1 sm:w-auto">
+        <div className="flex flex-col gap-1">
           <label htmlFor="audit-until" className="text-[11px] text-muted-foreground">
             Até
           </label>

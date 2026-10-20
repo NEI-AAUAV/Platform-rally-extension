@@ -30,7 +30,7 @@ function StatCard({
     toneClass = "bg-yellow-500/10 text-yellow-800 dark:text-yellow-400";
   }
   return (
-    <div className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]">
+    <div className="rally-surface flex items-center gap-4 p-4">
       <div className={`rounded-lg p-2 ${toneClass}`}>
         <Icon className="h-5 w-5" />
       </div>
@@ -105,10 +105,8 @@ export default function MetricsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Gauge className="h-5 w-5 text-muted-foreground" />
-        <h2 className="rally-display text-lg font-bold text-foreground">Métricas</h2>
-      </div>
+      {/* The admin shell already titles this section; keep the name for assistive tech only. */}
+      <h2 className="sr-only">Métricas</h2>
 
       {(metricsError || readinessError) && (
         <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
@@ -164,7 +162,7 @@ export default function MetricsTab() {
       </div>
 
       {/* Latency over time (session-local, not historical) */}
-      <div className="rally-surface rounded-xl border border-border p-5 shadow-[var(--rally-shadow-sm)]">
+      <div className="rally-surface p-5">
         <h3 className="rally-display mb-1 text-base font-bold text-foreground">
           Latência ao longo do tempo
         </h3>
@@ -214,7 +212,7 @@ export default function MetricsTab() {
 
       {/* Worker detail */}
       {readiness?.workers && readiness.workers.length > 0 && (
-        <div className="rally-surface rounded-xl border border-border p-5 shadow-[var(--rally-shadow-sm)]">
+        <div className="rally-surface p-5">
           <h3 className="rally-display mb-4 text-base font-bold text-foreground">Workers</h3>
           <div className="flex flex-col gap-2">
             {readiness.workers.map((w) => (

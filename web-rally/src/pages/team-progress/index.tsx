@@ -1,12 +1,13 @@
-import { MapPin, Route } from "lucide-react";
+import { Route } from "lucide-react";
 import { useTeamProgress } from "./useTeamProgress";
 import useTeamNotifications from "@/hooks/useTeamNotifications";
 import { getEventTerms } from "@/lib/eventTerms";
 import StatusScreen from "./StatusScreen";
 import TeamProgressSkeleton from "./TeamProgressSkeleton";
-import TeamHeaderCard from "./TeamHeaderCard";
+import TeamStatusBar from "./TeamStatusBar";
+import TeamDetailsCard from "./TeamDetailsCard";
+import { useIsDesktop } from "./useIsDesktop";
 import TeamMembersCard from "./TeamMembersCard";
-import ProgressSummaryCard from "./ProgressSummaryCard";
 import NextCheckpointCard from "./NextCheckpointCard";
 import RouteFinishedCard from "./RouteFinishedCard";
 import RouteCheckpointItem from "./RouteCheckpointItem";
@@ -36,6 +37,7 @@ export default function TeamProgress() {
   } = useTeamProgress();
 
   useTeamNotifications(team, rank);
+  const isDesktop = useIsDesktop();
 
   if (isLoading) {
     return <TeamProgressSkeleton />;
@@ -65,10 +67,8 @@ export default function TeamProgress() {
   // home): the map is opt-in, so an unloaded or absent setting means hidden
   // rather than briefly flashing the route.
   const showMap = settings?.show_checkpoint_map === true;
-  // Peddy paper's whole screen is "read the clue, check in" — that card
-  // belongs above the fold, not after a scroll past team roster and a map.
-  // Team roster/access code already live at /team-info (in the bottom nav),
-  // so they aren't duplicated here for this event type.
+  // Team roster/access code already live at /team-info (in the bottom nav)
+  // for peddy paper, so they aren't duplicated here for that event type.
   const isPeddyPaper = settings?.event_type === "peddy_paper";
   const terms = getEventTerms(settings?.event_type);
   const notYetDeparted = departureNotice(
@@ -85,9 +85,10 @@ export default function TeamProgress() {
   // instead of presenting one of them as if it were the only option, which
   // would read as the app arbitrarily picking for the team.
   const freeChoiceNotice = hasFreeChoice && (
-    <p className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+    <p className="rally-bg-accent-soft flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-foreground">
       <Route className="h-4 w-4 shrink-0" />
-      {openCheckpointOrders.length} {terms.checkpoints} disponíveis — escolham por onde continuar.
+      {openCheckpointOrders.length} {terms.checkpoints} disponíveis — escolham por onde continuar
+      (os outros estão no percurso abaixo).
     </p>
   );
   const nextCheckpointCard = nextCheckpoint ? (
@@ -123,80 +124,84 @@ export default function TeamProgress() {
       }
     />
   );
-  const progressSummary = (
-    <ProgressSummaryCard
-      resolvedCount={resolvedCheckpointsCount}
-      totalCount={totalCount}
-      totalScore={team.total}
-      showScore={showScore}
-    />
-  );
   const header = (
-    <TeamHeaderCard
+    <TeamStatusBar
       team={team}
       showScore={showScore}
       showRanking={showRanking}
       rank={rank}
       resolvedCount={resolvedCheckpointsCount}
       totalCount={totalCount}
-      rallyStartTime={settings?.rally_start_time}
     />
   );
 
+  const hasRoute = !!checkpoints && checkpoints.length > 0;
+  const route = hasRoute && (
+    <section aria-labelledby="route-heading" className="rally-surface p-2 sm:p-3">
+      <div className="flex items-baseline justify-between gap-3 px-3 pb-1 pt-2">
+        <h2 id="route-heading" className="rally-eyebrow">
+          Percurso
+        </h2>
+        <span className="rally-num text-xs font-bold text-muted-foreground">
+          {resolvedCheckpointsCount}/{totalCount}
+        </span>
+      </div>
+      <ol className="space-y-0.5">
+        {checkpoints.map((checkpoint, index) => (
+          <RouteCheckpointItem
+            key={checkpoint.id}
+            checkpoint={checkpoint}
+            index={index}
+            team={team}
+            resolvedOrders={resolvedOrders}
+            showScore={showScore}
+            showMap={showMap}
+            isExpanded={expandedCheckpoints.has(index)}
+            onToggle={toggleCheckpoint}
+            // The main card already offers the post it renders; this is
+            // for the *other* posts a free-choice stage leaves open, so
+            // the team is not funnelled into whichever one the app
+            // happened to pick.
+            offerCheckIn={checkpoint.is_reachable === true && checkpoint.id !== nextCheckpoint?.id}
+            notYetDeparted={notYetDeparted}
+          />
+        ))}
+      </ol>
+    </section>
+  );
+
+  const nowPanel = nextCheckpointCard ? (
+    <div className="space-y-3">{nextCheckpointCard}</div>
+  ) : (
+    <p className="rally-surface p-6 text-center text-sm text-muted-foreground">
+      Sem {terms.checkpoint} ativo de momento.
+    </p>
+  );
+
+  // Phones: one scroll — what to do now, then where you've been. The map and
+  // the team already have their own tabs in the bottom nav (Postos, Equipa),
+  // so repeating them here only stacked a second navigation on top of it.
+  // Desktop has the room to keep the current task pinned beside the rest.
   return (
-    <div className="duration-500 animate-in fade-in">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
+    <div className="min-w-0 space-y-4 duration-500 animate-in fade-in lg:space-y-6">
+      {header}
+      {/* Explicit minmax(0,1fr) on phones too: an implicit grid track sizes
+          to its widest content, which pushed the page past the viewport and
+          made mobile browsers zoom out. */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
         <div className="space-y-6 lg:sticky lg:top-24">
-          {isPeddyPaper ? (
+          {nowPanel}
+          {isDesktop && (
             <>
-              {header}
-              {nextCheckpointCard}
-              {progressSummary}
-              {mapSection}
-            </>
-          ) : (
-            <>
-              {header}
-              <TeamMembersCard team={team} />
-              {progressSummary}
-              {mapSection}
-              {nextCheckpointCard}
+              <TeamDetailsCard team={team} rallyStartTime={settings?.rally_start_time} />
+              {!isPeddyPaper && <TeamMembersCard team={team} />}
             </>
           )}
         </div>
-
-        {checkpoints && checkpoints.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="rally-display flex items-center gap-2 px-2 text-xl font-bold text-foreground">
-              <MapPin className="rally-accent h-5 w-5" />
-              Percurso
-            </h2>
-            <div className="space-y-3">
-              {checkpoints.map((checkpoint, index) => (
-                <RouteCheckpointItem
-                  key={checkpoint.id}
-                  checkpoint={checkpoint}
-                  index={index}
-                  team={team}
-                  resolvedOrders={resolvedOrders}
-                  showScore={showScore}
-                  showMap={showMap}
-                  isExpanded={expandedCheckpoints.has(index)}
-                  onToggle={toggleCheckpoint}
-                  isLast={index === checkpoints.length - 1}
-                  // The main card already offers the post it renders; this is
-                  // for the *other* posts a free-choice stage leaves open, so
-                  // the team is not funnelled into whichever one the app
-                  // happened to pick.
-                  offerCheckIn={
-                    checkpoint.is_reachable === true && checkpoint.id !== nextCheckpoint?.id
-                  }
-                  notYetDeparted={notYetDeparted}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        <div className="space-y-6">
+          {isDesktop && mapSection}
+          {route}
+        </div>
       </div>
     </div>
   );

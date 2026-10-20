@@ -449,7 +449,7 @@ export default function EventsManagement() {
   let eventsContent;
   if (isError) {
     eventsContent = (
-      <div className="rally-surface rounded-2xl p-6 text-center">
+      <div className="rally-surface p-6 text-center">
         <p className="text-sm text-muted-foreground">Não foi possível carregar as edições.</p>
       </div>
     );
@@ -560,7 +560,7 @@ export default function EventsManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="rally-display text-xl font-bold">Edições</h2>
+          <h2 className="sr-only">Edições</h2>
           <p className="text-sm text-muted-foreground">
             Cria, edita e troca a edição atual sem apagar dados.
           </p>
@@ -580,7 +580,7 @@ export default function EventsManagement() {
       </div>
 
       {showForm && (
-        <div className="rally-surface rounded-2xl p-6">
+        <div className="rally-surface p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div data-admin-search-key="ev-name" className="space-y-1.5">

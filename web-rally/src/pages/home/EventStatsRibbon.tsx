@@ -13,6 +13,8 @@ interface EventStatsRibbonProps {
   readonly settings?: RallySettingsResponse | null;
   /** Public visibility of the checkpoint list (settings.show_checkpoint_map). */
   readonly checkpointsPublic: boolean;
+  /** Show the phase cell. Off when the hero is on the page, which already says it. */
+  readonly showPhase?: boolean;
 }
 
 const PHASE_LABEL: Record<string, string> = {
@@ -23,11 +25,14 @@ const PHASE_LABEL: Record<string, string> = {
 
 /**
  * Compact event-wide stat strip for the homepage: number of teams, total points
- * in play, checkpoint count (when public) and the live phase. Soft-depth card
- * split into divided cells — mirrors the gamification stats ribbon, adapted to
- * event-level data since the public viewer has no personal profile.
+ * in play, checkpoint count (when public) and the live phase, as one hairline-
+ * divided grid of big poster numbers.
  */
-export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibbonProps) {
+export function EventStatsRibbon({
+  settings,
+  checkpointsPublic,
+  showPhase = true,
+}: EventStatsRibbonProps) {
   const phase = useCountdown(settings?.rally_start_time, settings?.rally_end_time).phase;
 
   const { data: teams } = useQuery({
@@ -57,19 +62,17 @@ export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibb
     ...(postosCount !== undefined
       ? [{ value: postosCount, label: capitalize(getEventTerms(settings?.event_type).checkpoints) }]
       : []),
-    { value: PHASE_LABEL[phase] ?? "—", label: "Estado" },
+    ...(showPhase ? [{ value: PHASE_LABEL[phase] ?? "—", label: "Estado" }] : []),
   ];
 
   return (
-    <dl className="grid grid-cols-2 gap-3.5 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl bg-border sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
       {cells.map(({ value, label }) => (
-        <div key={label} className="rounded-[18px] border border-border bg-card p-5">
-          <dd className="rally-display text-[34px] font-bold tabular-nums leading-none text-foreground">
+        <div key={label} className="flex flex-col-reverse justify-end bg-background p-5 sm:p-6">
+          <dd className="rally-display mt-1 text-5xl tabular-nums text-foreground sm:text-6xl">
             {value}
           </dd>
-          <dt className="mt-1 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            {label}
-          </dt>
+          <dt className="rally-eyebrow">{label}</dt>
         </div>
       ))}
     </dl>

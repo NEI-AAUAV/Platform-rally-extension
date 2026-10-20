@@ -25,7 +25,7 @@ export default function TeamSelector({
   return (
     <div className={cn("rally-surface rounded-2xl p-6", className)}>
       <div className="mb-4">
-        <h2 className="mb-1 text-xl font-bold text-foreground">Selecionar Equipa</h2>
+        <h2 className="rally-display mb-1 text-3xl text-foreground">Selecionar Equipa</h2>
         <p className="text-sm text-muted-foreground">
           Escolha uma equipa para gerir os seus membros
         </p>
@@ -33,7 +33,7 @@ export default function TeamSelector({
       <div className="space-y-3">
         <Label htmlFor="team-select">Equipa</Label>
         <Select value={selectedTeam} onValueChange={onTeamChange}>
-          <SelectTrigger id="team-select" className="border-border bg-muted">
+          <SelectTrigger id="team-select" className="border-border">
             <SelectValue placeholder="Selecionar equipa" />
           </SelectTrigger>
           <SelectContent>

@@ -91,9 +91,7 @@ describe("useNextCheckpointState", () => {
     mockUseRallySettings.mockReturnValue({ settings: { gps_checkin_enabled: true } });
     const { result } = renderHook(
       () =>
-        useNextCheckpointState(
-          checkpoint({ latitude: null, longitude: null, is_redacted: true }),
-        ),
+        useNextCheckpointState(checkpoint({ latitude: null, longitude: null, is_redacted: true })),
       { wrapper: createWrapper() },
     );
     expect(result.current.access.canCheckin).toBe(true);
@@ -139,21 +137,21 @@ describe("useNextCheckpointState", () => {
 
   it("offers give-up only once the hint ladder is spent, on a redacted post", () => {
     mockUseRallySettings.mockReturnValue({ settings: { skip_enabled: true } });
-    mockUseCheckpointHints.mockReturnValue(hintState({ revealed: [{ indication_id: 1, hint: "x", cost: 0 }], remaining: 0 }));
-    const { result } = renderHook(
-      () => useNextCheckpointState(checkpoint({ is_redacted: true })),
-      { wrapper: createWrapper() },
+    mockUseCheckpointHints.mockReturnValue(
+      hintState({ revealed: [{ indication_id: 1, hint: "x", cost: 0 }], remaining: 0 }),
     );
+    const { result } = renderHook(() => useNextCheckpointState(checkpoint({ is_redacted: true })), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.access.canGiveUp).toBe(true);
   });
 
   it("does not offer give-up while hints remain", () => {
     mockUseRallySettings.mockReturnValue({ settings: { skip_enabled: true } });
     mockUseCheckpointHints.mockReturnValue(hintState({ remaining: 3 }));
-    const { result } = renderHook(
-      () => useNextCheckpointState(checkpoint({ is_redacted: true })),
-      { wrapper: createWrapper() },
-    );
+    const { result } = renderHook(() => useNextCheckpointState(checkpoint({ is_redacted: true })), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.access.canGiveUp).toBe(false);
   });
 
@@ -172,10 +170,9 @@ describe("useNextCheckpointState", () => {
     // Query never resolved (hints are off, nothing to load), yet give-up must
     // still be available — hintsOff short-circuits the loaded check.
     mockUseCheckpointHints.mockReturnValue(hintState({ hasLoaded: false, isLoading: true }));
-    const { result } = renderHook(
-      () => useNextCheckpointState(checkpoint({ is_redacted: true })),
-      { wrapper: createWrapper() },
-    );
+    const { result } = renderHook(() => useNextCheckpointState(checkpoint({ is_redacted: true })), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.access.canGiveUp).toBe(true);
   });
 
@@ -188,10 +185,9 @@ describe("useNextCheckpointState", () => {
     mockUseCheckpointHints.mockReturnValue(
       hintState({ revealed: [], remaining: 0, hasLoaded: true }),
     );
-    const { result } = renderHook(
-      () => useNextCheckpointState(checkpoint({ is_redacted: true })),
-      { wrapper: createWrapper() },
-    );
+    const { result } = renderHook(() => useNextCheckpointState(checkpoint({ is_redacted: true })), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.access.canGiveUp).toBe(true);
     expect(result.current.access.hasHintLadder).toBe(false);
   });
@@ -201,20 +197,18 @@ describe("useNextCheckpointState", () => {
     mockUseCheckpointHints.mockReturnValue(
       hintState({ revealed: [], remaining: 0, hasLoaded: false, isLoading: true }),
     );
-    const { result } = renderHook(
-      () => useNextCheckpointState(checkpoint({ is_redacted: true })),
-      { wrapper: createWrapper() },
-    );
+    const { result } = renderHook(() => useNextCheckpointState(checkpoint({ is_redacted: true })), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.access.canGiveUp).toBe(false);
   });
 
   it("does not offer give-up when skip is disabled for the event", () => {
     mockUseRallySettings.mockReturnValue({ settings: { skip_enabled: false } });
     mockUseCheckpointHints.mockReturnValue(hintState({ remaining: 0, hasLoaded: true }));
-    const { result } = renderHook(
-      () => useNextCheckpointState(checkpoint({ is_redacted: true })),
-      { wrapper: createWrapper() },
-    );
+    const { result } = renderHook(() => useNextCheckpointState(checkpoint({ is_redacted: true })), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.access.canGiveUp).toBe(false);
   });
 

@@ -18,7 +18,7 @@ export default function EmptyState({
   return (
     <div className={`py-8 text-center ${className}`}>
       {icon && <div className="mb-4 flex justify-center">{icon}</div>}
-      <h3 className="mb-2 text-lg font-semibold">{title}</h3>
+      <h3 className="rally-display mb-2 text-2xl">{title}</h3>
       {description && <p className="mb-4 text-muted-foreground">{description}</p>}
       {action}
     </div>

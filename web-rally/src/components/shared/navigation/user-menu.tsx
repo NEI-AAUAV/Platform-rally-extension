@@ -84,10 +84,13 @@ export function UserMenu() {
       // Login buttons render inline on desktop; on mobile they live in the
       // hamburger sidebar (see nav-tabs.tsx), so hide this block there.
       <div className="hidden items-center gap-2 sm:flex">
+        {/* Participants are most of the audience, so entering with a team code
+            is the filled action; account sign-in/up are for staff and sit
+            behind it. */}
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="ghost"
           onClick={() => onStaffLogin({ mode: "registration" })}
           className="h-8 gap-1.5"
         >
@@ -97,20 +100,20 @@ export function UserMenu() {
         <Button
           type="button"
           size="sm"
+          variant="outline"
           onClick={() => onStaffLogin({ mode: "login" })}
-          className="rally-bg-accent h-8 gap-1.5 text-white hover:opacity-90"
+          className="h-8 gap-1.5"
         >
           <LogIn className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Iniciar sessão</span>
           <span className="sm:hidden">Entrar</span>
         </Button>
-        <Link to="/team-login">
-          <Button variant="outline" size="sm" className="h-8 gap-1.5">
+        <Button asChild size="sm" className="h-8 gap-1.5">
+          <Link to="/team-login">
             <Users className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Código de Equipa</span>
-            <span className="sm:hidden">Equipa</span>
-          </Button>
-        </Link>
+            Entrar com a Equipa
+          </Link>
+        </Button>
       </div>
     );
   }

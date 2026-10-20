@@ -3,9 +3,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import TeamProgress from "@/pages/team-progress/index";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 
-const { mockUseTeamProgress, mockUseTeamNotifications } = vi.hoisted(() => ({
+const { mockUseTeamProgress, mockUseTeamNotifications, mockIsDesktop } = vi.hoisted(() => ({
   mockUseTeamProgress: vi.fn(),
   mockUseTeamNotifications: vi.fn(),
+  mockIsDesktop: vi.fn(() => true),
+}));
+
+vi.mock("@/pages/team-progress/useIsDesktop", () => ({
+  useIsDesktop: () => mockIsDesktop(),
 }));
 
 vi.mock("@/pages/team-progress/useTeamProgress", () => ({
@@ -24,16 +29,16 @@ vi.mock("@/pages/team-progress/TeamProgressSkeleton", () => ({
   default: () => <div data-testid="skeleton" />,
 }));
 
-vi.mock("@/pages/team-progress/TeamHeaderCard", () => ({
+vi.mock("@/pages/team-progress/TeamStatusBar", () => ({
   default: () => <div data-testid="header-card" />,
+}));
+
+vi.mock("@/pages/team-progress/TeamDetailsCard", () => ({
+  default: () => <div data-testid="details-card" />,
 }));
 
 vi.mock("@/pages/team-progress/TeamMembersCard", () => ({
   default: () => <div data-testid="members-card" />,
-}));
-
-vi.mock("@/pages/team-progress/ProgressSummaryCard", () => ({
-  default: () => <div data-testid="summary-card" />,
 }));
 
 vi.mock("@/pages/team-progress/NextCheckpointCard", () => ({
@@ -76,6 +81,7 @@ const baseHookReturn = {
 describe("TeamProgress page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsDesktop.mockReturnValue(true);
     mockUseTeamProgress.mockReturnValue(baseHookReturn);
   });
 
@@ -113,7 +119,6 @@ describe("TeamProgress page", () => {
     render(<TeamProgress />);
     expect(screen.getByTestId("header-card")).toBeInTheDocument();
     expect(screen.getByTestId("members-card")).toBeInTheDocument();
-    expect(screen.getByTestId("summary-card")).toBeInTheDocument();
     expect(screen.getByTestId("map-section")).toBeInTheDocument();
     expect(screen.getByTestId("next-checkpoint")).toBeInTheDocument();
     expect(screen.getByTestId("route-item-0")).toBeInTheDocument();
@@ -159,5 +164,23 @@ describe("TeamProgress page", () => {
     });
     render(<TeamProgress />);
     expect(screen.getByText(/3 .* disponíveis/)).toBeInTheDocument();
+  });
+
+  describe("on a phone", () => {
+    beforeEach(() => mockIsDesktop.mockReturnValue(false));
+
+    it("shows the current post and the route in one scroll, without tabs", () => {
+      render(<TeamProgress />);
+      expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+      expect(screen.getByTestId("next-checkpoint")).toBeInTheDocument();
+      expect(screen.getByTestId("route-item-0")).toBeInTheDocument();
+    });
+
+    it("leaves the map and team to their bottom-nav pages", () => {
+      render(<TeamProgress />);
+      expect(screen.queryByTestId("map-section")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("members-card")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("details-card")).not.toBeInTheDocument();
+    });
   });
 });

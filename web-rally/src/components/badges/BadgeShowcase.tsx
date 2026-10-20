@@ -48,7 +48,7 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
             Badges
           </h2>
         </div>
-        <div className="rally-surface shrink-0 rounded-[14px] px-[18px] py-[12px] text-center">
+        <div className="rally-surface shrink-0 px-[18px] py-[12px] text-center">
           <div className="rally-display text-[26px] font-bold leading-none text-foreground">
             {earnedCount}
             <span className="ml-1 text-[16px] text-muted-foreground">/{total}</span>

@@ -46,7 +46,7 @@ function CounterRow({ idPrefix, counter, bonuses, onChange }: Readonly<CounterRo
         max={maxCount}
         value={displayCount(value)}
         onChange={(e) => handleChange(e.target.value)}
-        className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+        className="w-20 rounded-xl border border-border bg-card p-2 text-foreground focus:border-ring focus:ring-1 focus:ring-ring"
         placeholder="0"
         aria-label={
           maxCount === undefined

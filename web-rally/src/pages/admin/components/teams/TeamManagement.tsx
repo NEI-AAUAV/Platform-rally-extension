@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/themes/bloody";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { EmptyState } from "@/components/shared";
+import { EmptyState, LoadingState } from "@/components/shared";
 import {
   getTeams,
   getTeamById,
@@ -168,10 +168,10 @@ export default function TeamManagement() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Create/Edit Team Form */}
-      <div className="rally-surface rounded-2xl p-6">
-        <h3 className="mb-4 text-lg font-semibold">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+      {/* Create/Edit Team Form — a side column on wide screens, list first */}
+      <div className="rally-surface p-6 xl:sticky xl:top-24 xl:order-last">
+        <h3 className="rally-display mb-4 text-2xl">
           {editingTeam ? "Editar Equipa" : "Criar Nova Equipa"}
         </h3>
         <Form {...teamForm}>
@@ -189,11 +189,7 @@ export default function TeamManagement() {
                 <FormItem data-admin-search-key="team_name">
                   <FormLabel>Nome da Equipa</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Ex: Equipa Alpha"
-                      {...field}
-                      className="border-border bg-muted"
-                    />
+                    <Input placeholder="Ex: Equipa Alpha" {...field} className="border-border" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -213,7 +209,7 @@ export default function TeamManagement() {
                         placeholder="Ex: 20"
                         {...field}
                         onChange={(e) => field.onChange(Number.parseInt(e.target.value) || 0)}
-                        className="border-border bg-muted"
+                        className="border-border"
                       />
                     </FormControl>
                     <p className="text-xs text-muted-foreground">
@@ -241,8 +237,8 @@ export default function TeamManagement() {
       </div>
 
       {/* Teams List */}
-      <div className="rally-surface rounded-2xl p-6">
-        <h3 className="mb-4 text-lg font-semibold">Equipas Existentes</h3>
+      <div className="rally-surface p-6">
+        <h3 className="rally-display mb-4 text-2xl">Equipas Existentes</h3>
         {!Array.isArray(teams) || teams.length === 0 ? (
           <EmptyState
             icon={<Users className="h-8 w-8 text-muted-foreground" />}
@@ -317,11 +313,11 @@ export default function TeamManagement() {
         >
           {/* my-auto centres it while the overlay still scrolls when the modal
               is taller than the viewport (small phones in portrait). */}
-          <div className="rally-surface rally-glass-solid my-auto w-full max-w-md rounded-2xl">
+          <div className="rally-surface rally-glass-solid my-auto w-full max-w-md">
             <div className="space-y-5 p-5 sm:space-y-6 sm:p-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground">
+                  <h2 className="rally-display text-2xl text-foreground">
                     {newlyCreatedTeam ? "Equipa Criada!" : "Código QR da Equipa"}
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -343,9 +339,7 @@ export default function TeamManagement() {
               </div>
 
               {selectedTeamForQR && isLoadingQRDetails && (
-                <div className="flex justify-center p-8">
-                  <p className="text-muted-foreground">A carregar QR code...</p>
-                </div>
+                <LoadingState variant="block" message="A carregar QR code..." />
               )}
 
               {(newlyCreatedTeam || teamDetailsForQR) && (
@@ -359,7 +353,7 @@ export default function TeamManagement() {
                       size={250}
                     />
                   </div>
-                  <div className="space-y-3 rounded-lg border border-border bg-muted p-4">
+                  <div className="space-y-3 rounded-2xl bg-secondary/60 p-4">
                     <p className="text-xs text-muted-foreground">
                       Partilhe este código QR ou código de acesso com a equipa para que possam fazer
                       login e acompanhar o progresso.

@@ -331,7 +331,7 @@ export default function BrandingSettings() {
   if (isLoading) return <LoadingState message="A carregar identidade visual..." />;
 
   return (
-    <div className="rally-surface mt-4 rounded-2xl">
+    <div className="rally-surface mt-4">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Palette className="h-5 w-5" />
@@ -359,7 +359,7 @@ export default function BrandingSettings() {
               maxLength={120}
               value={eventName}
               onChange={(e) => setEventName(e.target.value)}
-              className="border-border bg-muted"
+              className="border-border"
             />
           </div>
           <div data-admin-search-key="event_subtitle" className="space-y-2">
@@ -370,7 +370,7 @@ export default function BrandingSettings() {
               maxLength={200}
               value={eventSubtitle}
               onChange={(e) => setEventSubtitle(e.target.value)}
-              className="border-border bg-muted"
+              className="border-border"
             />
           </div>
         </div>
@@ -385,7 +385,7 @@ export default function BrandingSettings() {
               placeholder="#c81d25"
               value={accentColor}
               onChange={(e) => setAccentColor(e.target.value)}
-              className="max-w-[200px] border-border bg-muted"
+              className="max-w-[200px] border-border"
             />
             <input
               type="color"

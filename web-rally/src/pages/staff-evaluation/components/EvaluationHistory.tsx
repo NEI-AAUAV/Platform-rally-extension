@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { History, Flag, Pencil } from "lucide-react";
-import { Spinner } from "@/components/shared";
+import { LoadingState } from "@/components/shared";
 import { getEvaluationHistory, type EvaluationHistoryEntry } from "@/client";
 
 type EvaluationHistoryProps = Readonly<{
@@ -35,9 +35,9 @@ function ChangeRow({ field, diff }: Readonly<{ field: string; diff: unknown }>) 
   return (
     <div className="flex flex-wrap items-center gap-1 text-xs">
       <span className="font-medium text-muted-foreground">{FIELD_LABELS[field] ?? field}:</span>
-      <span className="text-red-400 line-through">{formatValue(before)}</span>
+      <span className="text-red-700 line-through dark:text-red-400">{formatValue(before)}</span>
       <span className="text-muted-foreground">→</span>
-      <span className="text-green-400">{formatValue(after)}</span>
+      <span className="text-green-700 dark:text-green-400">{formatValue(after)}</span>
     </div>
   );
 }
@@ -54,9 +54,9 @@ function HistoryEntryCard({ entry }: Readonly<{ entry: EvaluationHistoryEntry }>
     <div className="rounded-lg border border-border bg-background/50 p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         {isContest ? (
-          <Flag className="h-4 w-4 text-amber-400" />
+          <Flag className="h-4 w-4 text-amber-700 dark:text-amber-400" />
         ) : (
-          <Pencil className="h-4 w-4 text-blue-400" />
+          <Pencil className="h-4 w-4 text-blue-700 dark:text-blue-400" />
         )}
         <span className="text-sm font-medium text-foreground">
           {isContest ? "Contestação" : "Edição"}
@@ -92,15 +92,15 @@ export default function EvaluationHistory({ resultId }: EvaluationHistoryProps) 
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
-        <Spinner size="sm" label="" />A carregar histórico…
-      </div>
-    );
+    return <LoadingState variant="block" message="A carregar histórico…" />;
   }
 
   if (isError) {
-    return <p className="py-3 text-xs text-red-400">Não foi possível carregar o histórico.</p>;
+    return (
+      <p className="py-3 text-xs text-red-700 dark:text-red-400">
+        Não foi possível carregar o histórico.
+      </p>
+    );
   }
 
   const entries = data ?? [];

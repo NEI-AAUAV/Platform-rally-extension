@@ -202,7 +202,7 @@ export default function ActivityForm({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="mb-2 text-xl font-semibold">
+        <h3 className="rally-display mb-2 text-3xl">
           {initialData ? "Editar Atividade" : "Criar Nova Atividade"}
         </h3>
         <p className="text-muted-foreground">
@@ -231,7 +231,7 @@ export default function ActivityForm({
                   <Input
                     placeholder="Ex: Cabo de Guerra"
                     {...field}
-                    className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
                 </FormControl>
                 <FormMessage />
@@ -249,7 +249,7 @@ export default function ActivityForm({
                   <Input
                     placeholder="Descreva a atividade..."
                     {...field}
-                    className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
                 </FormControl>
                 <FormMessage />
@@ -268,10 +268,14 @@ export default function ActivityForm({
                     <select
                       {...field}
                       onChange={(e) => field.onChange(Number(e.target.value))}
-                      className="w-full rounded border border-border bg-muted p-2 text-foreground"
+                      className="w-full rounded-xl border border-border bg-card p-2 text-foreground"
                     >
                       {checkpoints.map((checkpoint) => (
-                        <option key={checkpoint.id} value={checkpoint.id} className="bg-gray-800">
+                        <option
+                          key={checkpoint.id}
+                          value={checkpoint.id}
+                          className="bg-popover text-popover-foreground"
+                        >
                           {checkpoint.name} - {checkpoint.description}
                         </option>
                       ))}
@@ -295,10 +299,14 @@ export default function ActivityForm({
                 <FormControl>
                   <select
                     {...field}
-                    className="w-full rounded border border-border bg-muted p-2 text-foreground"
+                    className="w-full rounded-xl border border-border bg-card p-2 text-foreground"
                   >
                     {Object.entries(activityTypeLabels).map(([value, label]) => (
-                      <option key={value} value={value} className="bg-gray-800">
+                      <option
+                        key={value}
+                        value={value}
+                        className="bg-popover text-popover-foreground"
+                      >
                         {label}
                       </option>
                     ))}

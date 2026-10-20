@@ -1,6 +1,7 @@
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft, MapPin, Lock } from "lucide-react";
-import { Spinner } from "@/components/shared";
+import { LoadingState } from "@/components/shared";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import useRallySettings from "@/hooks/useRallySettings";
@@ -68,7 +69,7 @@ export default function CheckpointTeamEvaluation() {
 
   if (isForeignPost) {
     return (
-      <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-8 text-center">
+      <div className="rally-surface mx-auto max-w-lg p-8 text-center">
         <Lock className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
         <h2 className="rally-display text-xl font-bold text-foreground">Este não é o teu posto</h2>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -95,7 +96,7 @@ export default function CheckpointTeamEvaluation() {
 
   if (!checkpoint) {
     return (
-      <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-8 text-center">
+      <div className="rally-surface mx-auto max-w-lg p-8 text-center">
         <MapPin className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
         <h2 className="rally-display text-xl font-bold text-foreground">Posto não encontrado</h2>
         <p className="mt-2 text-sm text-muted-foreground">O posto solicitado não foi encontrado.</p>
@@ -133,130 +134,145 @@ export default function CheckpointTeamEvaluation() {
     (team) => resolvedHere(team) || !!teamEvaluationStatus?.[team.id],
   );
 
+  const evaluatedPct = Math.round((teamsAlreadyEvaluated.length / (teams.length || 1)) * 100);
+
   return (
     <div className="space-y-6">
       <OfflineQueueBanner />
       {/* Checkpoint banner */}
-      <div className="rally-bg-accent relative overflow-hidden rounded-2xl p-5 text-white">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)] [background-size:24px_24px]"
-        />
-        <div className="relative z-10 flex items-center gap-4">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/20">
-            <MapPin className="h-5 w-5" />
+      <div className="rally-bg-accent overflow-hidden rounded-[28px] p-6 text-white sm:p-8">
+        <div className="flex items-center gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20">
+            <MapPin className="h-6 w-6" />
           </span>
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] opacity-80">
+            <p className="text-xs font-bold uppercase tracking-[0.12em]">
               Posto #{checkpoint.order}
             </p>
-            <p className="rally-display truncate text-xl font-bold leading-tight">
-              {checkpoint.name}
-            </p>
+            <p className="rally-display truncate text-4xl sm:text-5xl">{checkpoint.name}</p>
           </div>
           <div className="ml-auto shrink-0 text-right">
-            <p className="rally-display text-3xl font-bold tabular-nums">
+            <p className="rally-display text-5xl tabular-nums sm:text-6xl">
               {teamsAlreadyEvaluated.length}/{teams.length}
             </p>
-            <p className="text-xs opacity-80">Avaliadas</p>
+            <p className="mt-1.5 text-xs font-semibold">Avaliadas</p>
           </div>
+        </div>
+        <div
+          className="mt-6 h-2 w-full overflow-hidden rounded-full bg-white/25"
+          role="progressbar"
+          aria-label="Equipas avaliadas"
+          aria-valuemin={0}
+          aria-valuemax={teams.length}
+          aria-valuenow={teamsAlreadyEvaluated.length}
+        >
+          <div
+            className="h-full rounded-full bg-white transition-[width] duration-700 ease-out"
+            style={{ width: `${evaluatedPct}%` }}
+          />
         </div>
       </div>
 
-      <CheckpointAnnouncement />
-
-      {staffScoringOff && (
-        <div className="rally-surface flex items-start gap-3 rounded-2xl border border-border p-4">
-          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/60" />
-          <div>
-            <p className="font-semibold text-foreground">Pontuação pelo staff desativada</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Um administrador desligou a pontuação manual para este evento. Podes identificar as
-              equipas, mas as avaliações têm de ser registadas por um administrador.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Staff scans the arriving team's QR to identify + open its evaluation */}
-      <StaffCheckinScanner
-        checkpointId={Number(checkpointId)}
-        onTeamIdentified={(teamId) => {
-          const found = (checkpointTeams ?? []).find((t) => t.id === teamId);
-          if (found) selectTeam(found);
-        }}
-      />
-
-      {/* Team activities detail */}
-      {selectedTeam && !showTeamList && (
-        <div className="space-y-4">
-          <Button onClick={backToTeams} variant="outline" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar às equipas
-          </Button>
-
-          {teamActivitiesLoading ? (
-            <div className="rally-surface rally-elevate flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
-              <Spinner size="md" className="rally-accent" label="" />
-              <p className="text-sm text-muted-foreground">A carregar atividades...</p>
-            </div>
-          ) : (
-            <TeamActivitiesList
-              team={selectedTeam}
-              activities={teamActivities || []}
-              onEvaluate={staffScoringOff ? undefined : handleEvaluateActivity}
-              isEvaluating={isEvaluating}
-            />
+      {/* Work area on the left, the post's own tools in a sticky rail on the
+          right. On a phone the rail comes first: scanning the arriving team
+          is the staff member's main action. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <aside
+          className={cn(
+            "space-y-4 lg:sticky lg:top-24 lg:order-last",
+            // While a team is open on a phone the rail would push its
+            // activities below the fold; the team list is one tap back.
+            selectedTeam && !showTeamList && "hidden lg:block",
           )}
-        </div>
-      )}
+        >
+          {/* Staff scans the arriving team's QR to identify + open its evaluation */}
+          <StaffCheckinScanner
+            checkpointId={Number(checkpointId)}
+            onTeamIdentified={(teamId) => {
+              const found = (checkpointTeams ?? []).find((t) => t.id === teamId);
+              if (found) selectTeam(found);
+            }}
+          />
 
-      {/* Teams list */}
-      {showTeamList && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="rally-display text-xl font-bold text-foreground">
-              Equipas para avaliar
-            </h2>
-            {checkpointTeams && checkpointTeams.length > 0 && (
-              <span className="rally-bg-accent-soft rounded-full px-3 py-1 text-sm font-bold text-foreground">
-                {checkpointTeams.length}
-              </span>
-            )}
-          </div>
+          <CheckpointAnnouncement />
 
-          {teams.length === 0 ? (
-            <div className="rally-surface flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
-              <Users className="h-10 w-10 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">Nenhuma equipa disponível</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <TeamSection
-                title={`Em ${checkpoint.name}`}
-                variant="current"
-                teams={teamsToEvaluate}
-                showScore={showScore}
-                onSelect={selectTeam}
-              />
-              <TeamSection
-                title="Postos anteriores"
-                variant="previous"
-                teams={teamsAtPreviousCheckpoints}
-                showScore={showScore}
-                onSelect={selectTeam}
-              />
-              <TeamSection
-                title="Já avaliadas"
-                variant="evaluated"
-                teams={teamsAlreadyEvaluated}
-                showScore={showScore}
-                onSelect={selectTeam}
-              />
+          {staffScoringOff && (
+            <div className="rally-surface flex items-start gap-3 p-5">
+              <Lock className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/60" />
+              <div>
+                <p className="font-semibold text-foreground">Pontuação pelo staff desativada</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Um administrador desligou a pontuação manual para este evento. Podes identificar
+                  as equipas, mas as avaliações têm de ser registadas por um administrador.
+                </p>
+              </div>
             </div>
           )}
+        </aside>
+
+        <div className="min-w-0 space-y-6">
+          {/* Team activities detail */}
+          {selectedTeam && !showTeamList && (
+            <div className="space-y-4">
+              <Button onClick={backToTeams} variant="outline" size="sm">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar às equipas
+              </Button>
+
+              {teamActivitiesLoading ? (
+                <LoadingState variant="list" message="A carregar atividades..." />
+              ) : (
+                <TeamActivitiesList
+                  team={selectedTeam}
+                  activities={teamActivities || []}
+                  onEvaluate={staffScoringOff ? undefined : handleEvaluateActivity}
+                  isEvaluating={isEvaluating}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Teams list */}
+          {showTeamList && (
+            <div className="space-y-8">
+              <h2 className="rally-display text-4xl text-foreground sm:text-5xl">
+                Equipas para avaliar
+              </h2>
+
+              {teams.length === 0 ? (
+                <div className="rally-surface flex flex-col items-center gap-3 p-10 text-center">
+                  <Users className="h-10 w-10 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">Nenhuma equipa disponível</p>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  <TeamSection
+                    title={`Em ${checkpoint.name}`}
+                    variant="current"
+                    teams={teamsToEvaluate}
+                    showScore={showScore}
+                    onSelect={selectTeam}
+                  />
+                  <TeamSection
+                    title="Postos anteriores"
+                    variant="previous"
+                    teams={teamsAtPreviousCheckpoints}
+                    showScore={showScore}
+                    onSelect={selectTeam}
+                  />
+                  <TeamSection
+                    title="Já avaliadas"
+                    variant="evaluated"
+                    teams={teamsAlreadyEvaluated}
+                    showScore={showScore}
+                    onSelect={selectTeam}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {showWarningDialog && (
         <IncompleteEvaluationDialog summary={evaluationSummary} onClose={dismissWarning} />

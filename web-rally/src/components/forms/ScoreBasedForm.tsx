@@ -143,7 +143,7 @@ export default function ScoreBasedForm({
                     max={answersPerQuestion}
                     value={displayCount(correct[question.key])}
                     onChange={(e) => setQuestionCorrect(question.key, parseCount(e.target.value))}
-                    className="h-8 w-16 rounded border border-border bg-muted p-1 text-center text-foreground"
+                    className="h-8 w-16 rounded-xl border border-border bg-card p-1 text-center text-foreground"
                   />
                 ) : (
                   <input
@@ -176,7 +176,7 @@ export default function ScoreBasedForm({
             min="0"
             value={displayCount(achievedPoints)}
             onChange={(e) => setAchievedPoints(parseCount(e.target.value))}
-            className="w-full rounded border border-border bg-muted p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+            className="w-full rounded border border-border bg-background p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
             placeholder="Introduz os pontos alcançados"
             required
           />

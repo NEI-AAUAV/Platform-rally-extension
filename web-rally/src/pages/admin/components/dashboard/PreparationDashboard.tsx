@@ -15,16 +15,13 @@ function StatPill({
   status,
 }: Readonly<{ icon: typeof Users; value: number; label: string; status: MetricStatus }>) {
   return (
-    <div
-      className="rally-surface flex items-center gap-3 rounded-xl border border-border p-3.5"
-      data-status={status}
-    >
+    <div className="rally-surface flex items-center gap-3 p-3.5" data-status={status}>
       <div className="rounded-lg bg-secondary p-2 text-muted-foreground">
         <Icon className="h-4 w-4" />
       </div>
       <div>
         <p
-          className="rally-display text-xl font-bold tabular-nums text-foreground"
+          className="rally-display text-4xl tabular-nums text-foreground"
           aria-label={status === "error" ? `${label}: indisponível` : undefined}
         >
           {displayMetric(value, status)}
@@ -80,7 +77,7 @@ export default function PreparationDashboard({ onNavigate }: Readonly<Preparatio
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="rally-display text-lg font-bold text-foreground">Preparação da prova</h2>
+        <h2 className="rally-display text-3xl text-foreground">Preparação da prova</h2>
         <p className="text-sm text-muted-foreground">
           O evento ainda não começou — confirme que está tudo pronto antes da partida.
         </p>
@@ -108,7 +105,7 @@ export default function PreparationDashboard({ onNavigate }: Readonly<Preparatio
         </p>
       )}
 
-      <div className="rally-surface rounded-xl border border-border p-4">
+      <div className="rally-surface p-4">
         {configQuery.isLoading && (
           <p className="text-sm text-muted-foreground">A verificar configuração do evento…</p>
         )}

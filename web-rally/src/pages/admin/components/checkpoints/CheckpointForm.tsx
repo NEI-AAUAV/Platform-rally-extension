@@ -1,5 +1,5 @@
 import type { UseFormReturn } from "react-hook-form";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import { Spinner } from "@/components/shared";
 import { cn } from "@/lib/utils";
 import {
@@ -19,12 +19,15 @@ import type { Checkpoint, CheckpointForm as CheckpointFormValues } from "./useCh
 import CheckpointLocationPicker from "./CheckpointLocationPicker";
 import ClueImageField from "./ClueImageField";
 
-const fieldClassName = "bg-muted border-border";
+const fieldClassName = "border-border";
 
 type SectionProps = Readonly<{
   title: string;
   hint?: string;
   children: React.ReactNode;
+  /** Render as a disclosure, closed unless `defaultOpen`. For optional passes. */
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 }>;
 
 /**
@@ -32,7 +35,31 @@ type SectionProps = Readonly<{
  * so the form is grouped by which pass a field belongs to rather than listing
  * thirteen inputs in one column.
  */
-function Section({ title, hint, children }: SectionProps) {
+function Section({
+  title,
+  hint,
+  children,
+  collapsible = false,
+  defaultOpen = false,
+}: SectionProps) {
+  if (collapsible) {
+    // Optional passes stay folded so creating a post is name + place + save;
+    // the fields are one tap away, and open by default when editing.
+    return (
+      <details open={defaultOpen} className="group rounded-xl border border-border">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+          <span>
+            {title} <span className="font-normal text-muted-foreground">(opcional)</span>
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-4 px-4 pb-4">
+          {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+          {children}
+        </div>
+      </details>
+    );
+  }
   return (
     <fieldset className="space-y-4 rounded-xl border border-border p-4">
       <legend className="px-2 text-sm font-semibold">{title}</legend>
@@ -82,12 +109,12 @@ export default function CheckpointForm({
   const canStartDraft = !isEditing && !hasPendingDraft && !!name?.trim();
   return (
     <div className={cn("rally-surface rounded-2xl p-6", hasAttachedPanel && "rounded-b-none")}>
-      <h3 className="mb-1 text-lg font-semibold">
+      <h3 className="rally-display mb-1 text-2xl">
         {isEditing ? "Editar Checkpoint" : "Criar Novo Checkpoint"}
       </h3>
       <p className="mb-4 text-sm text-muted-foreground">
         Só o nome é obrigatório. Um posto com nome e mais nada é um rascunho legítimo — a lista
-        abaixo mostra o que ainda falta.
+        acima mostra o que ainda falta.
       </p>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -268,6 +295,8 @@ export default function CheckpointForm({
 
           <Section
             title="O que o staff usa"
+            collapsible
+            defaultOpen={isEditing}
             hint="Nunca chega a uma equipa: estes campos não existem no schema que serve os participantes."
           >
             <FormField
@@ -318,6 +347,8 @@ export default function CheckpointForm({
 
           <Section
             title="Quando entra na rota"
+            collapsible
+            defaultOpen={isEditing}
             hint="A posição na rota define-se arrastando os postos na lista abaixo."
           >
             <FormField
@@ -347,8 +378,9 @@ export default function CheckpointForm({
                     </>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Ainda não criaste nenhuma etapa — cria uma em "Etapas da rota" acima para
-                      poderes atribuir postos a ela. Sem etapas, a rota corre como um bloco só.
+                      Ainda não criaste nenhuma etapa — cria uma em "Etapas da rota" no fim da
+                      página para poderes atribuir postos a ela. Sem etapas, a rota corre como um
+                      bloco só.
                     </p>
                   )}
                   <FormMessage />
@@ -389,7 +421,7 @@ export default function CheckpointForm({
             </p>
           </Section>
 
-          <Section title="Estado">
+          <Section title="Estado" collapsible defaultOpen={isEditing}>
             <FormField
               control={form.control}
               name="is_draft"

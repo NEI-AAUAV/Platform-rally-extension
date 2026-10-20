@@ -61,7 +61,7 @@ export default function CounterConfigFields({ counters, onChange, copy, children
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-muted p-4">
+    <div className="space-y-3 rounded-2xl bg-secondary/60 p-4">
       <div>
         <h4 className="font-medium text-foreground">{copy.title}</h4>
         <p className="mt-1 text-xs text-muted-foreground">{copy.description}</p>

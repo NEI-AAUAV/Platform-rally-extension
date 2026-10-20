@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Lock, Camera, Sparkles, Check, SkipForward } from "lucide-react";
+import { Lock, Sparkles, Check, SkipForward } from "lucide-react";
 import { formatTime } from "@/utils/timeFormat";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 import { cn } from "@/lib/utils";
@@ -24,195 +24,40 @@ type RouteCheckpointItemProps = Readonly<{
   showMap: boolean;
   isExpanded: boolean;
   onToggle: (index: number) => void;
-  isLast?: boolean;
   /** Render a check-in button on this row (see the component's note). */
   offerCheckIn?: boolean;
   notYetDeparted?: string | null;
 }>;
 
-function timelineDotContent(isCompleted: boolean, isSkipped: boolean, order: number) {
+function statusDotContent(isCompleted: boolean, isSkipped: boolean, order: number) {
   if (isCompleted) return <Check className="h-4 w-4" />;
   if (isSkipped) return <SkipForward className="h-4 w-4" />;
   return order;
 }
 
-interface CheckpointTimelineDotProps {
+interface StatusDotProps {
   readonly order: number;
   readonly isCompleted: boolean;
   readonly isSkipped: boolean;
   readonly isCurrent: boolean;
   readonly isFuture: boolean;
-  readonly isLast: boolean;
 }
 
-function CheckpointTimelineDot({
-  order,
-  isCompleted,
-  isSkipped,
-  isCurrent,
-  isFuture,
-  isLast,
-}: CheckpointTimelineDotProps) {
+function StatusDot({ order, isCompleted, isSkipped, isCurrent, isFuture }: StatusDotProps) {
   return (
-    <div className="flex flex-col items-center">
-      <div
-        className={cn(
-          "rally-display relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-          isCompleted && "rally-bg-accent text-white",
-          isSkipped && "bg-amber-500/15 text-amber-700",
-          isCurrent && "rally-bg-accent text-white",
-          isFuture && "bg-secondary text-muted-foreground",
-        )}
-      >
-        {timelineDotContent(isCompleted, isSkipped, order)}
-      </div>
-      {!isLast && (
-        <div
-          className={cn(
-            "mt-1 w-0.5 flex-1",
-            isCompleted || isSkipped ? "rally-bg-accent" : "bg-border",
-          )}
-          style={{ minHeight: "28px" }}
-        />
+    <span
+      aria-hidden
+      className={cn(
+        "rally-num grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold",
+        isCompleted && "rally-bg-accent text-white",
+        isSkipped && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+        isCurrent &&
+          "rally-bg-accent text-white ring-4 ring-[var(--rally-accent-soft,var(--rally-accent-soft-fallback))]",
+        isFuture && "border border-dashed border-border text-muted-foreground",
       )}
-    </div>
-  );
-}
-
-interface CheckpointCardHeaderProps {
-  readonly checkpointName: string;
-  readonly coverUrl: string;
-  readonly coverCaption?: string | null;
-  readonly totalPhotos: number;
-}
-
-function CheckpointCardHeader({
-  checkpointName,
-  coverUrl,
-  coverCaption,
-  totalPhotos,
-}: CheckpointCardHeaderProps) {
-  return (
-    <div className="relative h-36 w-full overflow-hidden sm:h-44">
-      <img
-        src={coverUrl}
-        alt={coverCaption ?? checkpointName}
-        className="h-full w-full object-cover transition duration-500 hover:scale-105"
-        loading="lazy"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
-        <span className="rally-display text-lg font-bold text-white drop-shadow">
-          {checkpointName}
-        </span>
-        {totalPhotos > 1 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-[11px] font-bold text-white backdrop-blur">
-            <Camera className="h-3 w-3" />
-            {totalPhotos}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-interface CheckpointCardBodyProps {
-  readonly checkpointName: string;
-  readonly hasCover: boolean;
-  readonly isCompleted: boolean;
-  readonly isSkipped: boolean;
-  readonly isCurrent: boolean;
-  readonly isFuture: boolean;
-  readonly canReveal: boolean;
-  readonly statusLabel: string;
-  readonly description?: string | null;
-  readonly hasDiscovery: boolean;
-  readonly showScore: boolean;
-  readonly checkpointScore: number;
-  readonly teamTime?: string | null;
-}
-
-function CheckpointCardBody({
-  checkpointName,
-  hasCover,
-  isCompleted,
-  isSkipped,
-  isCurrent,
-  isFuture,
-  canReveal,
-  statusLabel,
-  description,
-  hasDiscovery,
-  showScore,
-  checkpointScore,
-  teamTime,
-}: CheckpointCardBodyProps) {
-  return (
-    <div className="p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Name only shown once revealable — the lock message below
-                already covers unreached posts, and printing the name over
-                its own lock is confusing even though the value itself is
-                server-redacted. */}
-            {!hasCover && canReveal && (
-              <span
-                className={cn(
-                  "text-base font-bold",
-                  isFuture ? "text-muted-foreground" : "text-foreground",
-                )}
-              >
-                {checkpointName}
-              </span>
-            )}
-            <span
-              className={cn(
-                "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                isCompleted && "rally-bg-accent-soft text-foreground",
-                isSkipped && "bg-amber-500/15 text-amber-800",
-                isCurrent && "rally-bg-accent text-white",
-                isFuture && "bg-secondary text-muted-foreground",
-              )}
-            >
-              {statusLabel}
-            </span>
-          </div>
-
-          {isFuture ? (
-            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Lock className="h-3.5 w-3.5" />
-              Descobre este local quando lá chegares
-            </p>
-          ) : (
-            <>
-              {description && (
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{description}</p>
-              )}
-              {hasDiscovery && (
-                <p className="rally-accent mt-2 inline-flex items-center gap-1.5 text-xs font-semibold">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Toca para descobrir
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          {showScore && isCompleted && (
-            <span className="rally-display rally-accent text-sm font-bold tabular-nums">
-              +{checkpointScore} pts
-            </span>
-          )}
-          {isCompleted && teamTime && (
-            <span className="font-mono text-[11px] text-muted-foreground">
-              {formatTime(teamTime)}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
+    >
+      {statusDotContent(isCompleted, isSkipped, order)}
+    </span>
   );
 }
 
@@ -230,7 +75,6 @@ export default function RouteCheckpointItem({
   resolvedOrders,
   showScore,
   showMap,
-  isLast = false,
   offerCheckIn = false,
   notYetDeparted = null,
 }: RouteCheckpointItemProps) {
@@ -278,59 +122,88 @@ export default function RouteCheckpointItem({
       }
     : {};
 
+  const teamTime = checkpointArrivedAt(team, checkpoint.id);
+  const thumb = canReveal ? cover?.image_url : null;
+
   return (
-    <div className="flex gap-4">
-      <CheckpointTimelineDot
-        order={order}
-        isCompleted={isCompleted}
-        isSkipped={isSkipped}
-        isCurrent={isCurrent}
-        isFuture={isFuture}
-        isLast={isLast}
-      />
+    <li className="list-none">
+      <CardElement
+        className={cn(
+          "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left font-normal transition-colors",
+          canReveal && "cursor-pointer hover:bg-accent/40",
+          isCurrent && "rally-bg-accent-soft",
+        )}
+        {...cardProps}
+      >
+        <StatusDot
+          order={order}
+          isCompleted={isCompleted}
+          isSkipped={isSkipped}
+          isCurrent={isCurrent}
+          isFuture={isFuture}
+        />
 
-      <div className="flex-1 pb-5">
-        <CardElement
-          className={cn(
-            "block w-full overflow-hidden rounded-2xl border text-left font-normal transition-all",
-            isCompleted &&
-              "cursor-pointer border-border bg-card hover:border-muted-foreground/30 hover:shadow-md",
-            isCurrent && "rally-border-accent rally-bg-accent-soft cursor-pointer hover:shadow-md",
-            isFuture && "border-border bg-card opacity-70",
+        <span className="min-w-0 flex-1">
+          {/* Name only shown once revealable — the value itself is
+              server-redacted, but printing a name over its own lock reads
+              as a contradiction. */}
+          {canReveal ? (
+            <span
+              className={cn(
+                "block truncate text-sm font-semibold",
+                isFuture ? "text-muted-foreground" : "text-foreground",
+              )}
+            >
+              {checkpoint.name}
+            </span>
+          ) : (
+            <span className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+              <Lock className="h-3.5 w-3.5 shrink-0" />
+              <span className="min-w-0 truncate">Descobre este local quando lá chegares</span>
+            </span>
           )}
-          {...cardProps}
-        >
-          {canReveal && cover?.image_url && (
-            <CheckpointCardHeader
-              checkpointName={checkpoint.name}
-              coverUrl={cover.image_url}
-              coverCaption={cover.caption}
-              totalPhotos={photos.length}
-            />
-          )}
+          <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            <span className={cn(isCurrent && "rally-accent font-semibold")}>{statusLabel}</span>
+            {hasDiscovery && (
+              <span className="rally-accent inline-flex items-center gap-1 font-semibold">
+                <Sparkles className="h-3 w-3" aria-hidden />
+                <span className="sr-only">Toca para descobrir</span>
+              </span>
+            )}
+          </span>
+        </span>
 
-          <CheckpointCardBody
-            checkpointName={checkpoint.name}
-            hasCover={!!(canReveal && cover?.image_url)}
-            isCompleted={isCompleted}
-            isSkipped={isSkipped}
-            isCurrent={isCurrent}
-            isFuture={isFuture}
-            canReveal={canReveal}
-            statusLabel={statusLabel}
-            description={checkpoint.description}
-            hasDiscovery={hasDiscovery}
-            showScore={showScore}
-            checkpointScore={checkpointScore}
-            teamTime={checkpointArrivedAt(team, checkpoint.id)}
+        {thumb && (
+          <img
+            src={thumb}
+            alt={cover?.caption ?? checkpoint.name}
+            loading="lazy"
+            className="h-10 w-10 shrink-0 rounded-lg object-cover"
           />
-        </CardElement>
+        )}
 
-        {/* A second way in, for the posts the main card cannot offer. That card
-            renders one post; a free-choice stage opens several, so without a
-            button here the rest of the stage is unreachable for the team even
-            though the server would take them. */}
-        {offerCheckIn && (
+        {(showScore && isCompleted) || (isCompleted && teamTime) ? (
+          <span className="flex shrink-0 flex-col items-end gap-0.5">
+            {showScore && isCompleted && (
+              <span className="rally-num rally-accent text-sm font-bold">
+                +{checkpointScore} pts
+              </span>
+            )}
+            {isCompleted && teamTime && (
+              <span className="rally-num text-[11px] text-muted-foreground">
+                {formatTime(teamTime)}
+              </span>
+            )}
+          </span>
+        ) : null}
+      </CardElement>
+
+      {/* A second way in, for the posts the main card cannot offer. That card
+          renders one post; a free-choice stage opens several, so without a
+          button here the rest of the stage is unreachable for the team even
+          though the server would take them. */}
+      {offerCheckIn && (
+        <div className="space-y-2 px-3 pb-2 pl-[3.75rem]">
           <CheckpointArrivalAction
             openingNotice={availability.openingNotice}
             settingsUnavailable={availability.settingsUnavailable}
@@ -342,17 +215,15 @@ export default function RouteCheckpointItem({
             onCheckin={arrival.handleCheckin}
             onClearError={arrival.clearError}
             onRetrySettings={() => void availability.refetchSettings()}
-            // This card renders one of potentially several simultaneously
-            // reachable checkpoints (a free-choice stage) — "aqui" points at
-            // this specific one instead of implying it's the only option.
-            // The accessible name goes further when it's safe to: a redacted
-            // checkpoint's name must never reach an aria-label, so that case
-            // falls back to the same generic "aqui" wording as the visible text.
+            // "aqui" points at this specific post instead of implying it's
+            // the only option. A redacted checkpoint's name must never reach
+            // an aria-label, so that case falls back to the generic wording.
             idleLabel="Check-in GPS aqui"
             ariaLabel={canReveal ? `Check-in GPS aqui, em ${checkpoint.name}` : undefined}
+            bare
           />
-        )}
-      </div>
+        </div>
+      )}
 
       <CheckpointDiscoveryModal
         open={modalOpen}
@@ -370,6 +241,6 @@ export default function RouteCheckpointItem({
         showMap={showMap}
         statusLabel={statusLabel}
       />
-    </div>
+    </li>
   );
 }

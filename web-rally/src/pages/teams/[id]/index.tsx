@@ -1,3 +1,4 @@
+import { LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Link, Navigate, useParams } from "@tanstack/react-router";
@@ -46,16 +47,12 @@ export default function TeamsById() {
 
   const renderTeamContent = () => {
     if (isLoading) {
-      return (
-        <div className="rally-surface mt-16 rounded-2xl p-6 text-center">
-          <div className="text-lg font-semibold">A carregar...</div>
-        </div>
-      );
+      return <LoadingState variant="block" className="mt-16" message="A carregar..." />;
     }
 
     if (isSuccess) {
       return (
-        <div className="rally-surface mt-16 rounded-2xl p-6 text-center">
+        <div className="rally-surface mt-16 p-6 text-center">
           <div className="text-lg font-semibold">Detalhes da equipa ocultos</div>
           <div className="mt-2 text-sm text-muted-foreground">
             O organizador desativou a visualização de detalhes das equipas.
@@ -93,7 +90,7 @@ export default function TeamsById() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start">
           {/* Left column — identity, badges, members */}
           <div className="space-y-6 lg:sticky lg:top-24">
-            <div className="rally-surface rally-elevate overflow-hidden">
+            <div className="rally-surface overflow-hidden">
               {/* accent identity banner */}
               <div className="rally-bg-accent-soft flex items-center gap-4 px-5 py-5">
                 <span className="rally-bg-accent grid h-16 w-16 shrink-0 place-items-center rounded-2xl text-xl font-bold text-white shadow-[var(--rally-shadow-md)]">
@@ -133,14 +130,14 @@ export default function TeamsById() {
             {settings?.badges_enabled !== false && <BadgeShowcase teamId={Number(id)} />}
 
             <div>
-              <h2 className="mb-3 text-lg font-semibold">Membros</h2>
+              <h2 className="rally-display mb-3 text-2xl">Membros</h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 {team?.members.map((member) => {
                   const names = member.name.split(" ");
                   const firstName = names[0];
                   const lastName = names.slice(1).join(" ");
                   return (
-                    <div key={member.id} className="rally-surface rounded-xl p-4 sm:p-6">
+                    <div key={member.id} className="rally-surface p-4 sm:p-6">
                       <span className="font-medium">{firstName}</span>{" "}
                       <span className="font-light text-muted-foreground">{lastName}</span>
                     </div>
@@ -158,7 +155,7 @@ export default function TeamsById() {
               settings={settings}
             />
 
-            <div className="rally-surface rounded-2xl p-4 sm:p-6">
+            <div className="rally-surface p-4 sm:p-6">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
                   Progresso: {resolvedOrders.size} de {totalCount} postos
@@ -203,7 +200,7 @@ export default function TeamsById() {
                   />
                 ))
               ) : (
-                <div className="rally-surface rounded-2xl p-6 text-center">
+                <div className="rally-surface p-6 text-center">
                   <p className="text-muted-foreground">Ainda sem postos visitados</p>
                 </div>
               )}

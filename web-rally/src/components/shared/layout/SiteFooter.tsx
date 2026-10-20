@@ -37,7 +37,7 @@ export function SiteFooter({ branding }: SiteFooterProps) {
 
   return (
     <footer
-      className="relative mt-16 overflow-hidden border-t border-border bg-card/40"
+      className="relative mt-12 overflow-hidden border-t border-border/60 sm:mt-24"
       style={{
         // Keeps the last row clear of the iOS home-indicator gesture zone,
         // which stays reserved even after the indicator itself fades.
@@ -49,21 +49,25 @@ export function SiteFooter({ branding }: SiteFooterProps) {
         src={mapWhite}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.45] dark:hidden"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.12] dark:hidden"
       />
       <img
         src={mapBlack}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.45] dark:block"
+        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.12] dark:block"
       />
 
-      <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="relative mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:grid-cols-2 sm:gap-10 sm:py-12 lg:grid-cols-3">
         {/* Brand + social */}
         <div className="space-y-4 lg:col-span-1">
-          <img src={neiLogoBlack} alt="NEI" className="h-20 object-contain dark:hidden" />
-          <img src={neiLogoWhite} alt="NEI" className="hidden h-20 object-contain dark:block" />
-          <p className="max-w-xs text-sm text-muted-foreground">
+          <img src={neiLogoBlack} alt="NEI" className="h-12 object-contain dark:hidden sm:h-20" />
+          <img
+            src={neiLogoWhite}
+            alt="NEI"
+            className="hidden h-12 object-contain dark:block sm:h-20"
+          />
+          <p className="hidden max-w-xs text-sm text-muted-foreground sm:block">
             Núcleo de Estudantes de Informática da AAUAv. A apoiar os estudantes desde 2013.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -82,8 +86,8 @@ export function SiteFooter({ branding }: SiteFooterProps) {
           </div>
         </div>
 
-        {/* Quick links */}
-        <nav aria-label="Ligações rápidas" className="space-y-3">
+        {/* Quick links — on a phone the bottom tab bar already offers these. */}
+        <nav aria-label="Ligações rápidas" className="hidden space-y-3 sm:block">
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             {branding.eventName}
           </h2>

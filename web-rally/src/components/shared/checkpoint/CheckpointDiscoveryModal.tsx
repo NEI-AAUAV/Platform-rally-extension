@@ -97,7 +97,7 @@ export default function CheckpointDiscoveryModal({
               href={directionsUrl({ latitude, longitude })}
               target="_blank"
               rel="noopener noreferrer"
-              className="rally-bg-accent mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
+              className="rally-bg-accent mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
             >
               <Navigation className="h-4 w-4" />
               Como chegar
