@@ -125,7 +125,7 @@
        comfortable margin above the tallest the navbar gets (mobile: ~56px
        logo+padding; desktop: a bit more with the inline nav), not tied to
        an exact measurement since being a bit generous here is free. */
-    scroll-padding-top: 80px;
+    scroll-padding-top: 96px;
   }
   body {
     @apply bg-background font-inter text-foreground antialiased;

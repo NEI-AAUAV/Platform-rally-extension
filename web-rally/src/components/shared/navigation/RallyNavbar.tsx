@@ -84,7 +84,7 @@ function EventSwitcher({ eventName }: { readonly eventName: string }) {
 }
 
 /**
- * The app's primary navigation bar: a sticky, soft-depth strip carrying the
+ * The app's primary navigation bar: a floating, centred, fully-rounded pill carrying the
  * compact event brand, the nav links (NavTabs, which also owns the view toggle
  * and the mobile overflow menu), the color-mode toggle and the user menu.
  */
@@ -100,10 +100,10 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
     // but the top edge still swallows touches. It used to be an inline
     // max(20px, …), which put that iOS workaround on every platform — a
     // permanent 20px band above the navbar on desktop and Android.
-    <header className="rally-glass rally-glass-on-background rally-topbar-inset sticky top-0 z-40 border-b border-border/60">
+    <header className="rally-topbar-inset pointer-events-none sticky top-0 z-40 px-3 sm:px-5">
       <nav
         aria-label="Navegação principal"
-        className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2.5 sm:px-5"
+        className="rally-glass rally-glass-on-background rally-elevate pointer-events-auto mx-auto mt-3 flex max-w-5xl items-center gap-3 rounded-full border border-border/60 px-3 py-2 sm:px-5"
       >
         {/* Brand */}
         <div className="flex shrink-0 items-center gap-2.5">
