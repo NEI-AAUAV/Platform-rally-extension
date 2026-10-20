@@ -13,6 +13,8 @@ interface EventStatsRibbonProps {
   readonly settings?: RallySettingsResponse | null;
   /** Public visibility of the checkpoint list (settings.show_checkpoint_map). */
   readonly checkpointsPublic: boolean;
+  /** Show the phase cell. Off when the hero is on the page, which already says it. */
+  readonly showPhase?: boolean;
 }
 
 const PHASE_LABEL: Record<string, string> = {
@@ -26,7 +28,11 @@ const PHASE_LABEL: Record<string, string> = {
  * in play, checkpoint count (when public) and the live phase, as one hairline-
  * divided grid of big poster numbers.
  */
-export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibbonProps) {
+export function EventStatsRibbon({
+  settings,
+  checkpointsPublic,
+  showPhase = true,
+}: EventStatsRibbonProps) {
   const phase = useCountdown(settings?.rally_start_time, settings?.rally_end_time).phase;
 
   const { data: teams } = useQuery({
@@ -56,7 +62,7 @@ export function EventStatsRibbon({ settings, checkpointsPublic }: EventStatsRibb
     ...(postosCount !== undefined
       ? [{ value: postosCount, label: capitalize(getEventTerms(settings?.event_type).checkpoints) }]
       : []),
-    { value: PHASE_LABEL[phase] ?? "—", label: "Estado" },
+    ...(showPhase ? [{ value: PHASE_LABEL[phase] ?? "—", label: "Estado" }] : []),
   ];
 
   return (

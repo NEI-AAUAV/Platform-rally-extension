@@ -32,11 +32,18 @@ export function HowItWorks() {
       </h2>
       <div className="grid gap-4 md:grid-cols-3">
         {steps.map((step) => (
-          <div key={step.n} className="rally-surface flex flex-col gap-6 p-6">
-            <span className="rally-display rally-accent text-7xl leading-none">{step.n}</span>
+          <div
+            key={step.n}
+            className="rally-surface flex items-start gap-4 p-5 md:flex-col md:gap-6 md:p-6"
+          >
+            <span className="rally-display rally-accent w-8 shrink-0 text-5xl leading-none md:w-auto md:text-7xl">
+              {step.n}
+            </span>
             <div>
-              <div className="rally-display text-3xl text-foreground">{step.title}</div>
-              <div className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</div>
+              <div className="rally-display text-2xl text-foreground md:text-3xl">{step.title}</div>
+              <div className="mt-1 text-sm leading-relaxed text-muted-foreground md:mt-2">
+                {step.body}
+              </div>
             </div>
           </div>
         ))}

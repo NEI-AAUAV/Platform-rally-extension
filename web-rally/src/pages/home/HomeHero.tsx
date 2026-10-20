@@ -108,7 +108,7 @@ export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHer
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: EASE, delay: 0.05 }}
           className="rally-display text-foreground"
-          style={{ fontSize: "clamp(72px, 15vw, 176px)", lineHeight: 0.84 }}
+          style={{ fontSize: "clamp(64px, 15vw, 176px)", lineHeight: 0.84 }}
         >
           {lead && <>{lead} </>}
           <span className="rally-accent block">{last}</span>

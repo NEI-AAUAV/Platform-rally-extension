@@ -46,8 +46,12 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
       </div>
 
       <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {ordered.map((cp) => (
-          <li key={cp.id} className="rally-surface flex items-start gap-4 p-5">
+        {ordered.map((cp, i) => (
+          <li
+            key={cp.id}
+            // Three are enough to show what a post is; the rest is one tap away.
+            className={`rally-surface flex items-start gap-4 p-5 ${i >= 3 ? "hidden sm:flex" : ""}`}
+          >
             <span className="rally-display rally-accent w-10 shrink-0 text-4xl leading-none">
               {cp.order}
             </span>

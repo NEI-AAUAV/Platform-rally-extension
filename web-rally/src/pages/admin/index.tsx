@@ -131,8 +131,10 @@ export default function Admin() {
   // past a page banner to reach the tool it picked.
   return (
     <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
-      <aside className="space-y-5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-6">
-        <h1 className="rally-display flex items-center gap-2 text-4xl text-foreground">
+      <aside className="space-y-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:space-y-5 lg:overflow-y-auto lg:pb-6">
+        {/* On a phone the menu button below already names the section, so the
+            page title is kept for assistive tech only. */}
+        <h1 className="rally-display sr-only items-center gap-2 text-4xl text-foreground lg:not-sr-only lg:flex">
           <Settings2 className="rally-accent h-6 w-6 shrink-0" />
           Administração
         </h1>
@@ -161,7 +163,7 @@ export default function Admin() {
           {activeGroup && <p className="rally-eyebrow">{activeGroup.label}</p>}
           <h2
             id="admin-section-heading"
-            className="rally-display mt-1 text-5xl text-foreground sm:text-6xl"
+            className="rally-display mt-1 text-4xl text-foreground sm:text-6xl"
           >
             {activeTabMeta.label}
           </h2>

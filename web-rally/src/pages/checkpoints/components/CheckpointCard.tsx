@@ -59,10 +59,13 @@ export default function CheckpointCard({
           </span>
           <div className="min-w-0 flex-1">
             <p className="rally-display truncate text-2xl text-foreground">{checkpoint.name}</p>
-            <p className="mt-[3px] flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground/80">
-              <Compass className="h-3.5 w-3.5" />
-              {isRedacted ? "Ainda por descobrir" : "Descobre este local"}
-            </p>
+            {/* Only the exception earns a label: a revealed post speaks for itself. */}
+            {isRedacted && (
+              <p className="mt-[3px] flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+                <Compass className="h-3.5 w-3.5" />
+                Ainda por descobrir
+              </p>
+            )}
           </div>
         </button>
         {showMap && hasCoords && (
@@ -82,7 +85,7 @@ export default function CheckpointCard({
       </div>
 
       {hasDiscovery && (
-        <div className="border-t border-border/70 px-[18px] pb-4 pt-3">
+        <div className="-mt-2 px-[18px] pb-4 pl-[82px]">
           <CheckpointDiscovery checkpointId={checkpoint.id} description={checkpoint.description} />
         </div>
       )}

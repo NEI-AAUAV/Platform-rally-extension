@@ -49,7 +49,9 @@ test.describe("Home", () => {
     await page.goto("/rally/");
 
     await expect(page.locator("#home-hero-heading")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Entrar com a Equipa" })).toBeVisible();
+    await expect(
+      page.getByRole("main").getByRole("link", { name: "Entrar com a Equipa", exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole("link", { name: "Ver Pontuação" })).toBeVisible();
   });
 
