@@ -133,7 +133,7 @@ export default function TeamsById() {
             {settings?.badges_enabled !== false && <BadgeShowcase teamId={Number(id)} />}
 
             <div>
-              <h2 className="mb-3 text-lg font-semibold">Membros</h2>
+              <h2 className="rally-display mb-3 text-2xl">Membros</h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 {team?.members.map((member) => {
                   const names = member.name.split(" ");

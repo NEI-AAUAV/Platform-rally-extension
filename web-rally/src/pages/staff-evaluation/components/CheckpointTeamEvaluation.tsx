@@ -137,28 +137,22 @@ export default function CheckpointTeamEvaluation() {
     <div className="space-y-6">
       <OfflineQueueBanner />
       {/* Checkpoint banner */}
-      <div className="rally-bg-accent relative overflow-hidden rounded-2xl p-5 text-white">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)] [background-size:24px_24px]"
-        />
+      <div className="rally-bg-accent relative overflow-hidden rounded-[28px] p-5 text-white sm:p-6">
         <div className="relative z-10 flex items-center gap-4">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/20">
             <MapPin className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] opacity-80">
+            <p className="text-xs font-bold uppercase tracking-[0.12em]">
               Posto #{checkpoint.order}
             </p>
-            <p className="rally-display truncate text-xl font-bold leading-tight">
-              {checkpoint.name}
-            </p>
+            <p className="rally-display truncate text-4xl">{checkpoint.name}</p>
           </div>
           <div className="ml-auto shrink-0 text-right">
-            <p className="rally-display text-3xl font-bold tabular-nums">
+            <p className="rally-display text-5xl tabular-nums">
               {teamsAlreadyEvaluated.length}/{teams.length}
             </p>
-            <p className="text-xs opacity-80">Avaliadas</p>
+            <p className="text-xs font-semibold">Avaliadas</p>
           </div>
         </div>
       </div>

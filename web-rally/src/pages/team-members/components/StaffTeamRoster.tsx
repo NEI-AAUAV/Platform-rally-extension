@@ -14,7 +14,7 @@ export default function StaffTeamRoster({ teamName, teamMembers, teamData }: Sta
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       <div className="rally-surface rounded-2xl p-6">
-        <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+        <h3 className="rally-display mb-4 flex items-center gap-2 text-2xl">
           <Users className="h-5 w-5" />
           Membros da Equipa
         </h3>
@@ -51,7 +51,7 @@ export default function StaffTeamRoster({ teamName, teamMembers, teamData }: Sta
 
       {teamData && (
         <div className="rally-surface flex flex-col items-center justify-center rounded-2xl p-6">
-          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+          <h3 className="rally-display mb-4 flex items-center gap-2 text-2xl">
             <QrCode className="h-5 w-5" />
             Código QR
           </h3>

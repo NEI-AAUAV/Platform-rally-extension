@@ -68,77 +68,69 @@ export default function TeamHeaderCard({
   }, [now, team.elapsed_seconds, team.finished_at, team.started_at]);
 
   return (
-    <div className="rally-bg-accent relative overflow-hidden rounded-2xl p-6 text-white">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.13] [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)] [background-size:28px_28px]"
-      />
+    <div className="rally-bg-accent relative overflow-hidden rounded-[28px] p-6 text-white sm:p-8">
       <div className="relative z-10">
         <div className="flex items-center gap-4">
-          <span className="rally-display grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20 text-xl font-bold">
+          <span className="rally-display grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20 text-3xl">
             {initials}
           </span>
           <div className="min-w-0">
-            <p className="rally-display truncate text-xl font-bold leading-tight">{team.name}</p>
-            {team.access_code && (
-              <p className="mt-0.5 text-sm opacity-80">Código: {team.access_code}</p>
-            )}
-            {departure && <p className="mt-0.5 text-sm opacity-80">A vossa partida: {departure}</p>}
+            <p className="rally-display truncate text-5xl sm:text-6xl">{team.name}</p>
+            {team.access_code && <p className="mt-0.5 text-sm">Código: {team.access_code}</p>}
+            {departure && <p className="mt-0.5 text-sm">A vossa partida: {departure}</p>}
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap gap-x-6 gap-y-4">
+        <div className="mt-6 flex flex-wrap gap-x-8 gap-y-5 border-t border-white/25 pt-5">
           {showRanking && (
             <div>
-              <p className="rally-display text-3xl font-bold tabular-nums">
+              <p className="rally-display text-5xl tabular-nums">
                 {rank != null ? `#${rank}` : "—"}
               </p>
-              <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Posição</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.06em]">Posição</p>
             </div>
           )}
           {showScore && (
             <div>
-              <p className="rally-display text-3xl font-bold tabular-nums">{team.total}</p>
-              <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Pontos</p>
+              <p className="rally-display text-5xl tabular-nums">{team.total}</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.06em]">Pontos</p>
             </div>
           )}
           <div>
-            <p className="rally-display text-3xl font-bold tabular-nums">
+            <p className="rally-display text-5xl tabular-nums">
               {resolvedCount}/{totalCount}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">
+            <p className="mt-1 text-xs uppercase tracking-[0.06em]">
               {capitalize(terms.checkpoints)}
             </p>
           </div>
           {team.started_at && (
             <div>
-              <p className="rally-display text-3xl font-bold tabular-nums">
+              <p className="rally-display text-5xl tabular-nums">
                 {new Intl.DateTimeFormat("pt-PT", {
                   hour: "2-digit",
                   minute: "2-digit",
                 }).format(new Date(team.started_at))}
               </p>
-              <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Início</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.06em]">Início</p>
             </div>
           )}
           {elapsed != null && (
             <div>
-              <p className="rally-display text-3xl font-bold tabular-nums">
-                {formatElapsed(elapsed)}
-              </p>
-              <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">
+              <p className="rally-display text-5xl tabular-nums">{formatElapsed(elapsed)}</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.06em]">
                 {team.finished_at ? "Tempo final" : "Tempo a decorrer"}
               </p>
             </div>
           )}
           {team.finished_at && (
             <div>
-              <p className="rally-display text-3xl font-bold tabular-nums">
+              <p className="rally-display text-5xl tabular-nums">
                 {new Intl.DateTimeFormat("pt-PT", {
                   hour: "2-digit",
                   minute: "2-digit",
                 }).format(new Date(team.finished_at))}
               </p>
-              <p className="mt-1 text-xs uppercase tracking-[0.06em] opacity-80">Terminou</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.06em]">Terminou</p>
             </div>
           )}
         </div>

@@ -87,7 +87,7 @@ export default function BooleanForm({
           />
           <label
             htmlFor="success-checkbox"
-            className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded border-2 transition-all duration-200 hover:border-red-500 hover:bg-muted peer-focus-visible:ring-2 peer-focus-visible:ring-red-500 peer-focus-visible:ring-offset-2 ${
+            className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded border-2 transition-all duration-200 hover:border-red-500 hover:bg-muted peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 ${
               isSuccessChecked ? "border-red-500 bg-muted" : "border-border bg-muted"
             }`}
           >

@@ -204,15 +204,15 @@ export default function TeamVsForm({
           data-testid="select-result"
           value={result}
           onChange={(e) => setResult(e.target.value)}
-          className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+          className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
         >
-          <option value="win" className="bg-gray-800">
+          <option value="win" className="bg-popover text-popover-foreground">
             Vitória
           </option>
-          <option value="lose" className="bg-gray-800">
+          <option value="lose" className="bg-popover text-popover-foreground">
             Derrota
           </option>
-          <option value="draw" className="bg-gray-800">
+          <option value="draw" className="bg-popover text-popover-foreground">
             Empate
           </option>
         </select>
@@ -233,8 +233,8 @@ export default function TeamVsForm({
               type="button"
               data-testid="toggle-completed"
               onClick={() => setCompleted(!completed)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 ${
-                completed ? "bg-green-500" : "bg-muted"
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 ${
+                completed ? "rally-bg-accent" : "bg-input"
               }`}
             >
               <span
@@ -307,14 +307,18 @@ export default function TeamVsForm({
               setIsOpponentPreselected(false); // Mark as manually selected
             }}
             disabled={isLoadingTeams || isSubmitting}
-            className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             required
           >
-            <option value="" className="bg-gray-800">
+            <option value="" className="bg-popover text-popover-foreground">
               {isLoadingTeams ? "A carregar equipas..." : "Seleciona a equipa adversária"}
             </option>
             {teams.map((teamOption) => (
-              <option key={teamOption.id} value={teamOption.id} className="bg-gray-800">
+              <option
+                key={teamOption.id}
+                value={teamOption.id}
+                className="bg-popover text-popover-foreground"
+              >
                 {teamOption.name}
               </option>
             ))}

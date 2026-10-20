@@ -44,7 +44,7 @@ export default function BroadcastTab() {
     <div className="mx-auto max-w-xl space-y-4">
       <div className="flex items-center gap-2">
         <BellRing className="h-5 w-5 text-amber-500" />
-        <h2 className="text-lg font-semibold">Anúncio a todas as equipas</h2>
+        <h2 className="rally-display text-2xl">Anúncio a todas as equipas</h2>
       </div>
       <p className="text-sm text-muted-foreground">
         Envia uma notificação push a todos os dispositivos subscritos — ex. "Chuva a chegar,

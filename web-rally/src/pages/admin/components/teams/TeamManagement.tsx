@@ -171,7 +171,7 @@ export default function TeamManagement() {
     <div className="space-y-6">
       {/* Create/Edit Team Form */}
       <div className="rally-surface rounded-2xl p-6">
-        <h3 className="mb-4 text-lg font-semibold">
+        <h3 className="rally-display mb-4 text-2xl">
           {editingTeam ? "Editar Equipa" : "Criar Nova Equipa"}
         </h3>
         <Form {...teamForm}>
@@ -242,7 +242,7 @@ export default function TeamManagement() {
 
       {/* Teams List */}
       <div className="rally-surface rounded-2xl p-6">
-        <h3 className="mb-4 text-lg font-semibold">Equipas Existentes</h3>
+        <h3 className="rally-display mb-4 text-2xl">Equipas Existentes</h3>
         {!Array.isArray(teams) || teams.length === 0 ? (
           <EmptyState
             icon={<Users className="h-8 w-8 text-muted-foreground" />}
@@ -321,7 +321,7 @@ export default function TeamManagement() {
             <div className="space-y-5 p-5 sm:space-y-6 sm:p-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground">
+                  <h2 className="rally-display text-2xl text-foreground">
                     {newlyCreatedTeam ? "Equipa Criada!" : "Código QR da Equipa"}
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">

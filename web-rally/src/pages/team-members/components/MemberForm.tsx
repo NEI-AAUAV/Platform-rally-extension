@@ -158,7 +158,9 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
               <Label htmlFor="name">Nome</Label>
               <Input id="name" {...form.register("name")} placeholder="Nome do membro" />
               {form.formState.errors.name && (
-                <p className="text-sm text-red-400">{form.formState.errors.name.message}</p>
+                <p className="text-sm text-red-700 dark:text-red-400">
+                  {form.formState.errors.name.message}
+                </p>
               )}
             </div>
 
@@ -171,7 +173,9 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
                 placeholder="email@exemplo.com"
               />
               {form.formState.errors.email && (
-                <p className="text-sm text-red-400">{form.formState.errors.email.message}</p>
+                <p className="text-sm text-red-700 dark:text-red-400">
+                  {form.formState.errors.email.message}
+                </p>
               )}
             </div>
           </div>

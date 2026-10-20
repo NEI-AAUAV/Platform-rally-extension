@@ -100,7 +100,7 @@ export default function CheckpointManagement({
 
       <div className="rally-surface rounded-2xl p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Checkpoints Existentes</h3>
+          <h3 className="rally-display text-2xl">Checkpoints Existentes</h3>
           <p className="text-sm text-muted-foreground">
             Arraste pelos ícones <GripVertical className="mx-1 inline h-3 w-3" /> para reordenar
           </p>

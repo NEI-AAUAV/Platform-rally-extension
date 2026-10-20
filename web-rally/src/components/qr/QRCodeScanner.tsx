@@ -280,7 +280,7 @@ export default function QRCodeScanner({
             Alinhe o código QR com o quadrado para escanear
           </p>
           {cameraError && !permissionDenied && (
-            <p className="mt-2 text-center text-xs text-red-400">{cameraError}</p>
+            <p className="mt-2 text-center text-xs text-red-700 dark:text-red-400">{cameraError}</p>
           )}
         </div>
 

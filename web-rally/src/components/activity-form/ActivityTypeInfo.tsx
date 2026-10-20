@@ -20,7 +20,7 @@ export default function ActivityTypeInfo() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="text-blue-400 transition-colors hover:text-blue-300"
+        className="rally-accent transition-opacity hover:opacity-80"
       >
         <Info className="h-4 w-4" />
       </button>
@@ -32,7 +32,7 @@ export default function ActivityTypeInfo() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="text-blue-400 transition-colors hover:text-blue-300"
+        className="rally-accent transition-opacity hover:opacity-80"
       >
         <Info className="h-4 w-4" />
       </button>
@@ -44,9 +44,9 @@ export default function ActivityTypeInfo() {
           className="fixed inset-0 cursor-default bg-black/70"
           onClick={() => setIsOpen(false)}
         />
-        <div className="relative z-10 max-h-[80vh] max-w-2xl overflow-y-auto rounded-2xl border border-border bg-gray-900 p-6 text-foreground">
+        <div className="relative z-10 max-h-[80vh] max-w-2xl overflow-y-auto rounded-2xl border border-border bg-popover p-6 text-popover-foreground">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-xl font-semibold">Tipos de Atividades - Sistema de Pontuação</h3>
+            <h3 className="rally-display text-3xl">Tipos de Atividades - Sistema de Pontuação</h3>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
@@ -174,7 +174,7 @@ export default function ActivityTypeInfo() {
               );
             })}
 
-            <div className="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3 text-xs text-yellow-200">
+            <div className="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3 text-xs text-yellow-800 dark:text-yellow-200">
               <strong>Todos os tipos podem receber:</strong> Bonus por shots extra e penalizações
               que afetam a pontuação final.
             </div>

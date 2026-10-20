@@ -84,12 +84,13 @@ const activityTypeIcons = {
 };
 
 const TEAM_VS_CLASSES: Record<string, string> = {
-  win: "border-green-500/50 text-green-400",
-  lose: "border-red-500/50 text-red-400",
+  win: "border-green-500/50 text-green-700 dark:text-green-400",
+  lose: "border-red-500/50 text-red-700 dark:text-red-400",
 };
 
 function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId: number | null }) {
-  const badgeClass = TEAM_VS_CLASSES[result] ?? "border-yellow-500/50 text-yellow-400";
+  const badgeClass =
+    TEAM_VS_CLASSES[result] ?? "border-yellow-500/50 text-yellow-700 dark:text-yellow-400";
   return (
     <>
       <Badge variant="outline" className={`flex items-center gap-1 text-xs ${badgeClass}`}>
@@ -202,7 +203,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                 id="filter-team"
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value)}
-                className="w-full rounded border border-border bg-muted p-2 text-sm text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                className="w-full rounded border border-border bg-muted p-2 text-sm text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
               >
                 <option value="all" className="bg-background">
                   Todas as equipas
@@ -227,7 +228,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                 id="filter-checkpoint"
                 value={selectedCheckpoint}
                 onChange={(e) => setSelectedCheckpoint(e.target.value)}
-                className="w-full rounded border border-border bg-muted p-2 text-sm text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                className="w-full rounded border border-border bg-muted p-2 text-sm text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
               >
                 <option value="all" className="bg-background">
                   Todos os postos
@@ -322,7 +323,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <Badge
                         variant="default"
-                        className="w-fit bg-green-500/20 text-xs text-green-400 sm:text-sm"
+                        className="w-fit bg-green-500/20 text-xs text-green-700 dark:text-green-400 sm:text-sm"
                       >
                         Pontuação: {evaluation.final_score?.toFixed(1) || "0"}
                       </Badge>
@@ -366,8 +367,8 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                                 variant="outline"
                                 className={`flex items-center gap-1 text-xs ${
                                   evaluation.final_score > 0
-                                    ? "border-green-500/50 bg-green-500/10 text-green-400"
-                                    : "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
+                                    ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400"
+                                    : "border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
                                 }`}
                               >
                                 {evaluation.final_score > 0 ? (
@@ -395,8 +396,8 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                                   variant="outline"
                                   className={`flex items-center gap-1 text-xs ${
                                     evaluation.boolean_score
-                                      ? "border-green-500/50 text-green-400"
-                                      : "border-red-500/50 text-red-400"
+                                      ? "border-green-500/50 text-green-700 dark:text-green-400"
+                                      : "border-red-500/50 text-red-700 dark:text-red-400"
                                   }`}
                                 >
                                   {evaluation.boolean_score ? (
@@ -425,18 +426,20 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
                       {(evaluation.extra_shots ?? 0) > 0 && (
                         <div>
-                          <p className="mb-1 text-xs font-semibold text-blue-400">Modificadores:</p>
+                          <p className="mb-1 text-xs font-semibold text-blue-700 dark:text-blue-400">
+                            Modificadores:
+                          </p>
                           <div className="flex flex-wrap gap-1">
                             <Badge
                               variant="outline"
-                              className="border-blue-500/30 text-xs text-blue-400"
+                              className="border-blue-500/30 text-xs text-blue-700 dark:text-blue-400"
                             >
                               Shots extra: +{evaluation.extra_shots}
                             </Badge>
                             {(evaluation.team.num_members ?? 0) > 0 && (
                               <Badge
                                 variant="outline"
-                                className="border-blue-500/30 text-xs text-blue-400"
+                                className="border-blue-500/30 text-xs text-blue-700 dark:text-blue-400"
                               >
                                 Membros da equipa: {evaluation.team.num_members}
                               </Badge>
@@ -447,13 +450,15 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
                       {evaluation.penalties && Object.keys(evaluation.penalties).length > 0 && (
                         <div>
-                          <p className="mb-1 text-xs font-semibold text-red-400">Penalizações:</p>
+                          <p className="mb-1 text-xs font-semibold text-red-700 dark:text-red-400">
+                            Penalizações:
+                          </p>
                           <div className="flex flex-wrap gap-1">
                             {Object.entries(evaluation.penalties).map(([key, value]) => (
                               <Badge
                                 key={key}
                                 variant="outline"
-                                className="border-red-500/30 text-xs text-red-400"
+                                className="border-red-500/30 text-xs text-red-700 dark:text-red-400"
                               >
                                 {key}: {value}
                               </Badge>

@@ -229,7 +229,7 @@ export default function DeferredJudgingTab() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Gavel className="h-5 w-5 text-amber-500" />
-        <h2 className="text-lg font-semibold">Julgamentos Pendentes</h2>
+        <h2 className="rally-display text-2xl">Julgamentos Pendentes</h2>
         <span className="ml-auto rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-semibold text-amber-600">
           {pending.length}
         </span>

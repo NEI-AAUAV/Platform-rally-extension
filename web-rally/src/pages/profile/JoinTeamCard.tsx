@@ -45,7 +45,7 @@ export default function JoinTeamCard() {
     <div className="rally-surface rounded-2xl p-6">
       <div className="flex items-center gap-2">
         <Users className="rally-accent h-5 w-5" />
-        <h2 className="text-lg font-semibold text-foreground">Associa-te à tua equipa</h2>
+        <h2 className="rally-display text-2xl text-foreground">Associa-te à tua equipa</h2>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Introduz o código da tua equipa e escolhe o teu nome para ligares a tua conta NEI.

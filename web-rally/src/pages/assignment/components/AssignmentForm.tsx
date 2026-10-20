@@ -24,7 +24,7 @@ export default function AssignmentForm({
     <div className={`rally-surface rounded-2xl p-6 ${className}`}>
       <div className="mb-4 flex items-center gap-2">
         <Users className="h-5 w-5" />
-        <h3 className="text-lg font-semibold">{title}</h3>
+        <h3 className="rally-display text-2xl">{title}</h3>
       </div>
 
       {assignmentsError ? (

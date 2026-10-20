@@ -189,7 +189,7 @@ export default function Profile() {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Trophy className="rally-accent h-5 w-5" />
-          <h2 className="text-lg font-semibold text-foreground">Participações</h2>
+          <h2 className="rally-display text-2xl text-foreground">Participações</h2>
         </div>
 
         {historyContent}

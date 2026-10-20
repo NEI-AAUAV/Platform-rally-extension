@@ -90,7 +90,7 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
 
   return (
     <section className="rally-surface rounded-2xl p-6">
-      <h3 className="mb-1 flex items-center gap-2 text-lg font-semibold">
+      <h3 className="rally-display mb-1 flex items-center gap-2 text-2xl">
         <Layers className="h-4 w-4" />
         Etapas da rota
       </h3>
@@ -131,7 +131,7 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold">
-                    <span className="font-mono mr-2 text-xs text-muted-foreground">
+                    <span className="mr-2 font-mono text-xs text-muted-foreground">
                       {stage.order}
                     </span>
                     {stage.name}

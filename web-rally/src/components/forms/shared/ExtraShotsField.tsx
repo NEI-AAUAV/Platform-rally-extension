@@ -34,7 +34,7 @@ export default function ExtraShotsField({
         max={maxExtraShots}
         value={displayCount(extraShots)}
         onChange={handleChange}
-        className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-red-500"
+        className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
         placeholder="Shots extra tomados"
       />
       <p className="mt-1 text-sm text-muted-foreground">
@@ -42,7 +42,7 @@ export default function ExtraShotsField({
         {maxExtraShotsPerMember} por membro da equipa)
       </p>
       {extraShots > maxExtraShots && (
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-red-400">
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-red-700 dark:text-red-400">
           <AlertTriangle className="h-4 w-4" />
           Excede o máximo permitido de shots extra ({maxExtraShots})
         </p>

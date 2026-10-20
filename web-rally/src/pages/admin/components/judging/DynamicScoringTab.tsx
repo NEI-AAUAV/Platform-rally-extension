@@ -534,7 +534,7 @@ export default function DynamicScoringTab() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Zap className="h-5 w-5 text-amber-500" />
-        <h2 className="text-lg font-semibold">Pontuação Dinâmica</h2>
+        <h2 className="rally-display text-2xl">Pontuação Dinâmica</h2>
       </div>
       <BonusCeilingCard />
       <div className="border-t border-border" />

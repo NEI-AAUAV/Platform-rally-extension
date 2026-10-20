@@ -61,7 +61,7 @@ export default function AssignedCheckpoints({
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-lg font-semibold text-foreground sm:text-base">
+                    <h3 className="rally-display truncate text-2xl text-foreground sm:text-base">
                       {checkpoint.name}
                     </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
