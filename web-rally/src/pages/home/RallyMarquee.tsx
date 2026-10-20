@@ -20,19 +20,24 @@ export function RallyMarquee({ items }: RallyMarqueeProps) {
   const doubled = [...half, ...half];
 
   return (
-    <div className="rally-bg-accent -mx-3 my-4 -rotate-[1.2deg] overflow-hidden py-3 sm:-mx-6 sm:py-4">
-      <div className="rally-marquee">
-        <div className="rally-marquee-track flex items-center whitespace-nowrap">
-          {doubled.map((item, i) => (
-            <Fragment key={`${item}-${i}`}>
-              <span className="rally-display text-2xl text-white sm:text-3xl">{item}</span>
-              {/* Separator is its own flex sibling with symmetric margin, so it
+    // Full-bleed: breaks out of the page container to span the viewport edge to
+    // edge. The band is wider than the viewport so the tilt leaves no gaps at
+    // the corners; the outer clip stops it causing horizontal scroll.
+    <div className="relative left-1/2 my-8 w-screen -translate-x-1/2 overflow-x-clip py-4">
+      <div className="rally-bg-accent -mx-[5vw] w-[110vw] -rotate-[1.2deg] overflow-hidden py-3 sm:py-4">
+        <div className="rally-marquee">
+          <div className="rally-marquee-track flex items-center whitespace-nowrap">
+            {doubled.map((item, i) => (
+              <Fragment key={`${item}-${i}`}>
+                <span className="rally-display text-2xl text-white sm:text-3xl">{item}</span>
+                {/* Separator is its own flex sibling with symmetric margin, so it
                   sits exactly midway between the two adjacent labels. */}
-              <span className="mx-8 text-white/70" aria-hidden="true">
-                <Sparkle className="h-5 w-5" fill="currentColor" />
-              </span>
-            </Fragment>
-          ))}
+                <span className="mx-8 text-white/70" aria-hidden="true">
+                  <Sparkle className="h-5 w-5" fill="currentColor" />
+                </span>
+              </Fragment>
+            ))}
+          </div>
         </div>
       </div>
     </div>
