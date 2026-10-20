@@ -1,3 +1,4 @@
+import { LoadingState } from "@/components/shared";
 import ErrorBanner from "./ErrorBanner";
 import NoTeamsMessage from "./NoTeamsMessage";
 
@@ -20,20 +21,12 @@ export function TeamMembersErrorBanners({
 
 export function TeamsLoadingBanner({ teamsLoading }: { readonly teamsLoading?: boolean }) {
   if (!teamsLoading) return null;
-  return (
-    <div className="rounded-2xl bg-secondary/60 p-4 sm:p-6">
-      <p className="text-muted-foreground">A carregar equipas...</p>
-    </div>
-  );
+  return <LoadingState variant="block" message="A carregar equipas..." />;
 }
 
 export function MembersLoadingBanner({ membersLoading }: { readonly membersLoading?: boolean }) {
   if (!membersLoading) return null;
-  return (
-    <div className="rounded-2xl bg-secondary/60 p-4 sm:p-6">
-      <p className="text-muted-foreground">A carregar membros da equipa...</p>
-    </div>
-  );
+  return <LoadingState variant="list" message="A carregar membros da equipa..." />;
 }
 
 export function NoTeamsBanner({

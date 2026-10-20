@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Users, Activity, CheckCircle, ChevronDown } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
-import { PageHeader } from "@/components/shared";
+import { LoadingState, PageHeader } from "@/components/shared";
 import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
 import { AllEvaluations, type Evaluation } from "./components/AllEvaluations";
 import { useNavigate } from "@tanstack/react-router";
@@ -181,9 +181,7 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
 
         {showAllEvaluations &&
           (evaluationsLoading ? (
-            <div className="rally-surface p-6">
-              <p className="text-center text-muted-foreground">A carregar avaliações...</p>
-            </div>
+            <LoadingState variant="list" message="A carregar avaliações..." />
           ) : (
             <AllEvaluations evaluations={(allEvaluations as Evaluation[]) || []} />
           ))}

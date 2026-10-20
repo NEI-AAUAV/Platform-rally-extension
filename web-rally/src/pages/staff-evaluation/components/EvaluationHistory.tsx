@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { History, Flag, Pencil } from "lucide-react";
-import { Spinner } from "@/components/shared";
+import { LoadingState } from "@/components/shared";
 import { getEvaluationHistory, type EvaluationHistoryEntry } from "@/client";
 
 type EvaluationHistoryProps = Readonly<{
@@ -92,11 +92,7 @@ export default function EvaluationHistory({ resultId }: EvaluationHistoryProps) 
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
-        <Spinner size="sm" label="" />A carregar histórico…
-      </div>
-    );
+    return <LoadingState variant="block" message="A carregar histórico…" />;
   }
 
   if (isError) {

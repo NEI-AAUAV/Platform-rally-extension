@@ -1,3 +1,4 @@
+import { LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Link, Navigate, useParams } from "@tanstack/react-router";
@@ -46,11 +47,7 @@ export default function TeamsById() {
 
   const renderTeamContent = () => {
     if (isLoading) {
-      return (
-        <div className="rally-surface mt-16 p-6 text-center">
-          <div className="text-lg font-semibold">A carregar...</div>
-        </div>
-      );
+      return <LoadingState variant="block" className="mt-16" message="A carregar..." />;
     }
 
     if (isSuccess) {

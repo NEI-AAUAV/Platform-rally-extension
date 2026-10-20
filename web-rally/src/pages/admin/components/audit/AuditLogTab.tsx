@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
-import { Spinner } from "@/components/shared";
+import { LoadingState, Spinner } from "@/components/shared";
 import { listAuditLog, type AuditLogEntry } from "@/client";
 import { Input } from "@/components/ui/input";
 import {
@@ -140,11 +140,7 @@ export default function AuditLogTab() {
 
   const renderContent = () => {
     if (isLoading) {
-      return (
-        <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-          <Spinner size="sm" label="" />A carregar…
-        </div>
-      );
+      return <LoadingState variant="list" message="A carregar…" />;
     }
     if (isError) {
       return (

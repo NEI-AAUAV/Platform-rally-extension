@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { BloodyButton } from "@/components/themes/bloody";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { EmptyState } from "@/components/shared";
+import { EmptyState, LoadingState } from "@/components/shared";
 import {
   getTeams,
   getTeamById,
@@ -339,9 +339,7 @@ export default function TeamManagement() {
               </div>
 
               {selectedTeamForQR && isLoadingQRDetails && (
-                <div className="flex justify-center p-8">
-                  <p className="text-muted-foreground">A carregar QR code...</p>
-                </div>
+                <LoadingState variant="block" message="A carregar QR code..." />
               )}
 
               {(newlyCreatedTeam || teamDetailsForQR) && (

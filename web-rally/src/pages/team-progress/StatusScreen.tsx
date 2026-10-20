@@ -1,4 +1,4 @@
-import { Spinner } from "@/components/shared";
+import { LoadingState } from "@/components/shared";
 
 type StatusScreenProps = Readonly<{
   variant: "loading" | "error";
@@ -12,8 +12,7 @@ export default function StatusScreen({ variant, title, description }: StatusScre
       <div className="rally-surface rally-elevate-lg w-full max-w-md p-8 text-center">
         {variant === "loading" ? (
           <>
-            <Spinner size="lg" className="rally-accent mx-auto mb-4 h-12 w-12" label="" />
-            <p className="text-lg font-semibold text-foreground">{title}</p>
+            <LoadingState variant="block" message={title} />
           </>
         ) : (
           <>
