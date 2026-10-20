@@ -157,9 +157,9 @@ export default function RouteCheckpointItem({
               {checkpoint.name}
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <span className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
               <Lock className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Descobre este local quando lá chegares</span>
+              <span className="min-w-0 truncate">Descobre este local quando lá chegares</span>
             </span>
           )}
           <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">

@@ -82,9 +82,9 @@ export default function TeamStatusBar({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-3">
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <div
-          className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
+          className="h-1.5 min-w-[6rem] flex-1 basis-24 overflow-hidden rounded-full bg-muted"
           role="progressbar"
           aria-label="Progresso do percurso"
           aria-valuemin={0}

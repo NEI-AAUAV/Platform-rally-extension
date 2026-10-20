@@ -183,9 +183,12 @@ export default function TeamProgress() {
   // so repeating them here only stacked a second navigation on top of it.
   // Desktop has the room to keep the current task pinned beside the rest.
   return (
-    <div className="space-y-4 duration-500 animate-in fade-in lg:space-y-6">
+    <div className="min-w-0 space-y-4 duration-500 animate-in fade-in lg:space-y-6">
       {header}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
+      {/* Explicit minmax(0,1fr) on phones too: an implicit grid track sizes
+          to its widest content, which pushed the page past the viewport and
+          made mobile browsers zoom out. */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
         <div className="space-y-6 lg:sticky lg:top-24">
           {nowPanel}
           {isDesktop && (
