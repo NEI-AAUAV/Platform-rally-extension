@@ -32,10 +32,6 @@ vi.mock("@/pages/team-progress/TeamMembersCard", () => ({
   default: () => <div data-testid="members-card" />,
 }));
 
-vi.mock("@/pages/team-progress/ProgressSummaryCard", () => ({
-  default: () => <div data-testid="summary-card" />,
-}));
-
 vi.mock("@/pages/team-progress/NextCheckpointCard", () => ({
   default: () => <div data-testid="next-checkpoint" />,
 }));
@@ -113,7 +109,6 @@ describe("TeamProgress page", () => {
     render(<TeamProgress />);
     expect(screen.getByTestId("header-card")).toBeInTheDocument();
     expect(screen.getByTestId("members-card")).toBeInTheDocument();
-    expect(screen.getByTestId("summary-card")).toBeInTheDocument();
     expect(screen.getByTestId("map-section")).toBeInTheDocument();
     expect(screen.getByTestId("next-checkpoint")).toBeInTheDocument();
     expect(screen.getByTestId("route-item-0")).toBeInTheDocument();

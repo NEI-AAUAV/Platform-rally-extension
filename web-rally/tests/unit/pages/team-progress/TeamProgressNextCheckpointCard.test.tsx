@@ -83,7 +83,7 @@ describe("team-progress NextCheckpointCard", () => {
 
   it("renders checkpoint name and coordinates when showMap is true", () => {
     render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
-    expect(screen.getByText(/Próximo Posto — Posto 1/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Próximo Posto — Posto 1/ })).toBeInTheDocument();
     expect(screen.getByText(/41\.100000/)).toBeInTheDocument();
   });
 
@@ -97,7 +97,7 @@ describe("team-progress NextCheckpointCard", () => {
       checkpointGender: "f",
     });
     render(<NextCheckpointCard checkpoint={checkpoint} showMap />, { wrapper: createWrapper() });
-    expect(screen.getByText(/Próxima Tasca — Posto 1/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Próxima Tasca — Posto 1/ })).toBeInTheDocument();
   });
 
   it("hides coordinates when showMap is false", () => {

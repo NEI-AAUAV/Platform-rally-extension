@@ -49,7 +49,7 @@ export default function NextCheckpointCard({
   const persistentNotice = persistentStatusNotice(persistent.status);
 
   return (
-    <div className="rally-surface rally-elevate space-y-4 rounded-2xl p-6">
+    <div className="rally-border-accent space-y-5 rounded-[28px] border-2 bg-card p-6 sm:p-8">
       <CheckpointHeader
         name={checkpoint.name}
         isRedacted={isRedacted}

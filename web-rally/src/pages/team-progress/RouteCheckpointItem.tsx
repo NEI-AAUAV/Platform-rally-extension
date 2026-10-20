@@ -57,11 +57,12 @@ function CheckpointTimelineDot({
     <div className="flex flex-col items-center">
       <div
         className={cn(
-          "rally-display relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+          "rally-display relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl",
           isCompleted && "rally-bg-accent text-white",
-          isSkipped && "bg-amber-500/15 text-amber-700",
-          isCurrent && "rally-bg-accent text-white",
-          isFuture && "bg-secondary text-muted-foreground",
+          isSkipped && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+          isCurrent &&
+            "rally-bg-accent text-white ring-4 ring-[var(--rally-accent-soft,var(--rally-accent-soft-fallback))]",
+          isFuture && "border border-dashed border-border text-muted-foreground",
         )}
       >
         {timelineDotContent(isCompleted, isSkipped, order)}
@@ -102,9 +103,7 @@ function CheckpointCardHeader({
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
-        <span className="rally-display text-lg font-bold text-white drop-shadow">
-          {checkpointName}
-        </span>
+        <span className="rally-display text-3xl text-white drop-shadow">{checkpointName}</span>
         {totalPhotos > 1 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-[11px] font-bold text-white backdrop-blur">
             <Camera className="h-3 w-3" />
@@ -159,7 +158,7 @@ function CheckpointCardBody({
             {!hasCover && canReveal && (
               <span
                 className={cn(
-                  "text-base font-bold",
+                  "rally-display text-2xl",
                   isFuture ? "text-muted-foreground" : "text-foreground",
                 )}
               >
@@ -201,7 +200,7 @@ function CheckpointCardBody({
 
         <div className="flex shrink-0 flex-col items-end gap-1">
           {showScore && isCompleted && (
-            <span className="rally-display rally-accent text-sm font-bold tabular-nums">
+            <span className="rally-num rally-accent text-sm font-bold tabular-nums">
               +{checkpointScore} pts
             </span>
           )}
@@ -292,11 +291,11 @@ export default function RouteCheckpointItem({
       <div className="flex-1 pb-5">
         <CardElement
           className={cn(
-            "block w-full overflow-hidden rounded-2xl border text-left font-normal transition-all",
-            isCompleted &&
-              "cursor-pointer border-border bg-card hover:border-muted-foreground/30 hover:shadow-md",
-            isCurrent && "rally-border-accent rally-bg-accent-soft cursor-pointer hover:shadow-md",
-            isFuture && "border-border bg-card opacity-70",
+            "block w-full overflow-hidden rounded-3xl border text-left font-normal transition-colors",
+            (isCompleted || isSkipped) &&
+              "cursor-pointer border-border/70 bg-card hover:bg-accent dark:border-transparent",
+            isCurrent && "rally-border-accent rally-bg-accent-soft cursor-pointer border-2",
+            isFuture && "border-dashed border-border bg-transparent",
           )}
           {...cardProps}
         >

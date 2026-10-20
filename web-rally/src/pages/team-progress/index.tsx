@@ -1,4 +1,4 @@
-import { MapPin, Route } from "lucide-react";
+import { Route } from "lucide-react";
 import { useTeamProgress } from "./useTeamProgress";
 import useTeamNotifications from "@/hooks/useTeamNotifications";
 import { getEventTerms } from "@/lib/eventTerms";
@@ -6,7 +6,6 @@ import StatusScreen from "./StatusScreen";
 import TeamProgressSkeleton from "./TeamProgressSkeleton";
 import TeamHeaderCard from "./TeamHeaderCard";
 import TeamMembersCard from "./TeamMembersCard";
-import ProgressSummaryCard from "./ProgressSummaryCard";
 import NextCheckpointCard from "./NextCheckpointCard";
 import RouteFinishedCard from "./RouteFinishedCard";
 import RouteCheckpointItem from "./RouteCheckpointItem";
@@ -65,10 +64,8 @@ export default function TeamProgress() {
   // home): the map is opt-in, so an unloaded or absent setting means hidden
   // rather than briefly flashing the route.
   const showMap = settings?.show_checkpoint_map === true;
-  // Peddy paper's whole screen is "read the clue, check in" — that card
-  // belongs above the fold, not after a scroll past team roster and a map.
-  // Team roster/access code already live at /team-info (in the bottom nav),
-  // so they aren't duplicated here for this event type.
+  // Team roster/access code already live at /team-info (in the bottom nav)
+  // for peddy paper, so they aren't duplicated here for that event type.
   const isPeddyPaper = settings?.event_type === "peddy_paper";
   const terms = getEventTerms(settings?.event_type);
   const notYetDeparted = departureNotice(
@@ -123,14 +120,6 @@ export default function TeamProgress() {
       }
     />
   );
-  const progressSummary = (
-    <ProgressSummaryCard
-      resolvedCount={resolvedCheckpointsCount}
-      totalCount={totalCount}
-      totalScore={team.total}
-      showScore={showScore}
-    />
-  );
   const header = (
     <TeamHeaderCard
       team={team}
@@ -143,60 +132,56 @@ export default function TeamProgress() {
     />
   );
 
-  return (
-    <div className="duration-500 animate-in fade-in">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
-        <div className="space-y-6 lg:sticky lg:top-24">
-          {isPeddyPaper ? (
-            <>
-              {header}
-              {nextCheckpointCard}
-              {progressSummary}
-              {mapSection}
-            </>
-          ) : (
-            <>
-              {header}
-              <TeamMembersCard team={team} />
-              {progressSummary}
-              {mapSection}
-              {nextCheckpointCard}
-            </>
-          )}
-        </div>
+  const route = checkpoints && checkpoints.length > 0 && (
+    <section aria-labelledby="route-heading">
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <h2 id="route-heading" className="rally-display text-4xl text-foreground sm:text-5xl">
+          Percurso
+        </h2>
+        <span className="rally-num text-sm font-bold text-muted-foreground">
+          {resolvedCheckpointsCount}/{totalCount}
+        </span>
+      </div>
+      <div>
+        {checkpoints.map((checkpoint, index) => (
+          <RouteCheckpointItem
+            key={checkpoint.id}
+            checkpoint={checkpoint}
+            index={index}
+            team={team}
+            resolvedOrders={resolvedOrders}
+            showScore={showScore}
+            showMap={showMap}
+            isExpanded={expandedCheckpoints.has(index)}
+            onToggle={toggleCheckpoint}
+            isLast={index === checkpoints.length - 1}
+            // The main card already offers the post it renders; this is
+            // for the *other* posts a free-choice stage leaves open, so
+            // the team is not funnelled into whichever one the app
+            // happened to pick.
+            offerCheckIn={checkpoint.is_reachable === true && checkpoint.id !== nextCheckpoint?.id}
+            notYetDeparted={notYetDeparted}
+          />
+        ))}
+      </div>
+    </section>
+  );
 
-        {checkpoints && checkpoints.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="rally-display flex items-center gap-2 px-2 text-xl font-bold text-foreground">
-              <MapPin className="rally-accent h-5 w-5" />
-              Percurso
-            </h2>
-            <div className="space-y-3">
-              {checkpoints.map((checkpoint, index) => (
-                <RouteCheckpointItem
-                  key={checkpoint.id}
-                  checkpoint={checkpoint}
-                  index={index}
-                  team={team}
-                  resolvedOrders={resolvedOrders}
-                  showScore={showScore}
-                  showMap={showMap}
-                  isExpanded={expandedCheckpoints.has(index)}
-                  onToggle={toggleCheckpoint}
-                  isLast={index === checkpoints.length - 1}
-                  // The main card already offers the post it renders; this is
-                  // for the *other* posts a free-choice stage leaves open, so
-                  // the team is not funnelled into whichever one the app
-                  // happened to pick.
-                  offerCheckIn={
-                    checkpoint.is_reachable === true && checkpoint.id !== nextCheckpoint?.id
-                  }
-                  notYetDeparted={notYetDeparted}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+  // One reading order for every event type: who you are, what to do now,
+  // where you have been. The map and roster are reference material, so they
+  // sit in a side column on desktop and after the route on a phone.
+  return (
+    <div className="space-y-8 duration-500 animate-in fade-in">
+      {header}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] lg:items-start">
+        <div className="space-y-8">
+          {nextCheckpointCard && <div className="space-y-4">{nextCheckpointCard}</div>}
+          {route}
+        </div>
+        <aside className="space-y-6 lg:sticky lg:top-24">
+          {mapSection}
+          {!isPeddyPaper && <TeamMembersCard team={team} />}
+        </aside>
       </div>
     </div>
   );

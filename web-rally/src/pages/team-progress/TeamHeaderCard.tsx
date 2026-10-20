@@ -134,6 +134,19 @@ export default function TeamHeaderCard({
             </div>
           )}
         </div>
+        <div
+          className="mt-6 h-2 w-full overflow-hidden rounded-full bg-white/25"
+          role="progressbar"
+          aria-label="Progresso do percurso"
+          aria-valuemin={0}
+          aria-valuemax={totalCount}
+          aria-valuenow={resolvedCount}
+        >
+          <div
+            className="h-full rounded-full bg-white transition-[width] duration-1000 ease-out"
+            style={{ width: `${Math.round((resolvedCount / (totalCount || 1)) * 100)}%` }}
+          />
+        </div>
       </div>
     </div>
   );

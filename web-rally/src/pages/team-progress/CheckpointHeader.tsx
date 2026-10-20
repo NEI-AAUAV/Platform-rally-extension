@@ -16,15 +16,21 @@ export default function CheckpointHeader({
   checkpointTerm,
 }: Readonly<CheckpointHeaderProps>) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="rally-bg-accent flex h-12 w-12 items-center justify-center rounded-xl shadow-[var(--rally-shadow-sm)]">
-        <MapPin className="h-6 w-6 text-white" />
+    <div className="flex items-start gap-4">
+      <div className="rally-bg-accent flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl">
+        <MapPin className="h-7 w-7 text-white" />
       </div>
-      <div>
-        <h2 className="rally-display text-xl font-bold text-foreground">
-          {feminino ? "Próxima" : "Próximo"} {capitalize(checkpointTerm)} — {name}
+      <div className="min-w-0">
+        <p className="rally-eyebrow">
+          {feminino ? "Próxima" : "Próximo"} {capitalize(checkpointTerm)}
+        </p>
+        <h2 className="rally-display mt-1 text-4xl text-foreground sm:text-5xl">
+          <span className="sr-only">
+            {feminino ? "Próxima" : "Próximo"} {capitalize(checkpointTerm)} —
+          </span>{" "}
+          {name}
         </h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           {isRedacted ? "Descobre onde é" : "Dirija-se a este local"}
         </p>
       </div>
