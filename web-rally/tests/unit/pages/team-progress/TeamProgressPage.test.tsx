@@ -1,11 +1,17 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import TeamProgress from "@/pages/team-progress/index";
 import type { DetailedTeam, DetailedCheckPoint } from "@/client";
 
-const { mockUseTeamProgress, mockUseTeamNotifications } = vi.hoisted(() => ({
+const { mockUseTeamProgress, mockUseTeamNotifications, mockIsDesktop } = vi.hoisted(() => ({
   mockUseTeamProgress: vi.fn(),
   mockUseTeamNotifications: vi.fn(),
+  mockIsDesktop: vi.fn(() => true),
+}));
+
+vi.mock("@/pages/team-progress/useIsDesktop", () => ({
+  useIsDesktop: () => mockIsDesktop(),
 }));
 
 vi.mock("@/pages/team-progress/useTeamProgress", () => ({
@@ -24,8 +30,12 @@ vi.mock("@/pages/team-progress/TeamProgressSkeleton", () => ({
   default: () => <div data-testid="skeleton" />,
 }));
 
-vi.mock("@/pages/team-progress/TeamHeaderCard", () => ({
+vi.mock("@/pages/team-progress/TeamStatusBar", () => ({
   default: () => <div data-testid="header-card" />,
+}));
+
+vi.mock("@/pages/team-progress/TeamDetailsCard", () => ({
+  default: () => <div data-testid="details-card" />,
 }));
 
 vi.mock("@/pages/team-progress/TeamMembersCard", () => ({
@@ -72,6 +82,8 @@ const baseHookReturn = {
 describe("TeamProgress page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockIsDesktop.mockReturnValue(true);
+    window.history.replaceState(null, "", "/");
     mockUseTeamProgress.mockReturnValue(baseHookReturn);
   });
 
@@ -154,5 +166,53 @@ describe("TeamProgress page", () => {
     });
     render(<TeamProgress />);
     expect(screen.getByText(/3 .* disponíveis/)).toBeInTheDocument();
+  });
+
+  describe("on a phone", () => {
+    beforeEach(() => mockIsDesktop.mockReturnValue(false));
+
+    it("shows one tab at a time, starting on Agora", () => {
+      render(<TeamProgress />);
+      expect(screen.getByRole("tab", { name: "Agora" })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByTestId("next-checkpoint")).toBeInTheDocument();
+      expect(screen.queryByTestId("route-item-0")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("map-section")).not.toBeInTheDocument();
+    });
+
+    it("switches panels and records the tab in the URL", async () => {
+      const user = userEvent.setup();
+      render(<TeamProgress />);
+      await user.click(screen.getByRole("tab", { name: /Percurso/ }));
+      expect(screen.getByTestId("route-item-0")).toBeInTheDocument();
+      expect(screen.queryByTestId("next-checkpoint")).not.toBeInTheDocument();
+      expect(window.location.search).toBe("?tab=percurso");
+    });
+
+    it("opens on the tab named in the URL", () => {
+      window.history.replaceState(null, "", "/?tab=equipa");
+      render(<TeamProgress />);
+      expect(screen.getByTestId("members-card")).toBeInTheDocument();
+    });
+
+    it("omits the map tab when the map is off", () => {
+      mockUseTeamProgress.mockReturnValue({
+        ...baseHookReturn,
+        settings: { participant_view_enabled: true, show_checkpoint_map: false },
+      });
+      render(<TeamProgress />);
+      expect(screen.queryByRole("tab", { name: "Mapa" })).not.toBeInTheDocument();
+    });
+
+    it("moves between tabs with the arrow keys", async () => {
+      const user = userEvent.setup();
+      render(<TeamProgress />);
+      screen.getByRole("tab", { name: "Agora" }).focus();
+      await user.keyboard("{ArrowRight}");
+      expect(screen.getByRole("tab", { name: /Percurso/ })).toHaveFocus();
+      expect(screen.getByRole("tab", { name: /Percurso/ })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+    });
   });
 });

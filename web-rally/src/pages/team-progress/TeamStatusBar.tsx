@@ -16,7 +16,7 @@ type TeamStatusBarProps = Readonly<{
   totalCount: number;
 }>;
 
-export function initialsOf(name: string): string {
+function initialsOf(name: string): string {
   return name
     .trim()
     .split(/\s+/)
@@ -105,7 +105,9 @@ export default function TeamStatusBar({
             title={team.finished_at ? "Tempo final" : "Tempo a decorrer"}
           >
             <Timer className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-            <span className="sr-only">{team.finished_at ? "Tempo final" : "Tempo a decorrer"}:</span>
+            <span className="sr-only">
+              {team.finished_at ? "Tempo final" : "Tempo a decorrer"}:
+            </span>
             {formatElapsed(elapsed)}
           </span>
         )}

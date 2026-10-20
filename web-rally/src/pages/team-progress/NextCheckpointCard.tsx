@@ -117,7 +117,7 @@ export default function NextCheckpointCard({
           that sits on it) so the one thing the team came here to do is
           always within thumb reach; from lg up it is inline in the panel. */}
       {showArrival && (
-        <div className="rally-glass rally-glass-solid rally-elevate-lg fixed inset-x-3 bottom-[calc(var(--safe-bottom)+8.75rem)] z-40 space-y-2 rounded-2xl border border-border/60 p-3 sm:bottom-6 lg:static lg:inset-auto lg:z-auto lg:space-y-3 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:bg-transparent lg:p-0 lg:border-t lg:pt-4 lg:shadow-none lg:backdrop-blur-none">
+        <div className="rally-glass rally-glass-solid rally-elevate-lg fixed inset-x-3 bottom-[calc(var(--safe-bottom)+8.75rem)] z-40 space-y-2 rounded-2xl border border-border/60 p-3 sm:bottom-6 lg:static lg:inset-auto lg:z-auto lg:space-y-3 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:border-t lg:bg-transparent lg:p-0 lg:pt-4 lg:shadow-none lg:backdrop-blur-none">
           <CheckpointArrivalAction
             openingNotice={openingNotice}
             settingsUnavailable={access.settingsUnavailable}

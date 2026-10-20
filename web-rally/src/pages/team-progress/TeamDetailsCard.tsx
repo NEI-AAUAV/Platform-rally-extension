@@ -1,4 +1,5 @@
 import type { PrivilegedDetailedTeam } from "@/client";
+import { departureTime } from "./checkpointHours";
 
 type TeamDetailsCardProps = Readonly<{
   team: PrivilegedDetailedTeam;
@@ -8,22 +9,6 @@ type TeamDetailsCardProps = Readonly<{
 }>;
 
 const timeFormat = new Intl.DateTimeFormat("pt-PT", { hour: "2-digit", minute: "2-digit" });
-
-/**
- * The team's own departure time, for events that stagger the start.
- *
- * Returns null when the team leaves with everyone else (offset 0) or the event
- * has no start time configured — in both cases there is nothing extra to say.
- */
-export function departureTime(
-  startTime: string | null | undefined,
-  offsetMinutes: number,
-): string | null {
-  if (!startTime || offsetMinutes <= 0) return null;
-  const start = new Date(startTime);
-  if (Number.isNaN(start.getTime())) return null;
-  return timeFormat.format(new Date(start.getTime() + offsetMinutes * 60_000));
-}
 
 /** Reference facts about the team: what you look up, not what you act on. */
 export default function TeamDetailsCard({ team, rallyStartTime }: TeamDetailsCardProps) {

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
 
 export type ProgressTabId = "agora" | "percurso" | "mapa" | "equipa";
@@ -61,9 +68,10 @@ export default function ProgressTabs({ tabs }: Readonly<{ tabs: readonly Progres
       Home: 0,
       End: tabs.length - 1,
     };
-    if (!(event.key in moves)) return;
+    const target = moves[event.key];
+    if (target === undefined) return;
     event.preventDefault();
-    const next = tabs[(moves[event.key] + tabs.length) % tabs.length];
+    const next = tabs[(target + tabs.length) % tabs.length];
     if (next) select(next.id, true);
   };
 

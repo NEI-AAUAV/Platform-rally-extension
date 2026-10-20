@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import TeamHeaderCard from "@/pages/team-progress/TeamHeaderCard";
+import TeamStatusBar from "@/pages/team-progress/TeamStatusBar";
 import type { PrivilegedDetailedTeam } from "@/client";
 
 // useEventTerms pulls from useRallySettings (React Query), which needs a
@@ -19,14 +19,13 @@ vi.mock("@/hooks/useEventTerms", () => ({
 const baseTeam = {
   name: "Team Alpha",
   access_code: "ABC123",
-  classification: 2,
   total: 150,
 } as PrivilegedDetailedTeam;
 
-describe("TeamHeaderCard", () => {
-  it("renders team name, initials, and access code", () => {
+describe("TeamStatusBar", () => {
+  it("renders name, initials and progress", () => {
     render(
-      <TeamHeaderCard
+      <TeamStatusBar
         team={baseTeam}
         showScore
         showRanking
@@ -35,15 +34,29 @@ describe("TeamHeaderCard", () => {
         totalCount={5}
       />,
     );
-    expect(screen.getByText("Team Alpha")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Team Alpha" })).toBeInTheDocument();
     expect(screen.getByText("TA")).toBeInTheDocument();
-    expect(screen.getByText("Código: ABC123")).toBeInTheDocument();
-    expect(screen.getByText("3/5")).toBeInTheDocument();
+    expect(screen.getByText("3/5 postos")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "3");
+  });
+
+  it("does not print the access code (it lives in the Equipa view)", () => {
+    render(
+      <TeamStatusBar
+        team={baseTeam}
+        showScore
+        showRanking
+        rank={2}
+        resolvedCount={0}
+        totalCount={5}
+      />,
+    );
+    expect(screen.queryByText(/ABC123/)).not.toBeInTheDocument();
   });
 
   it("shows ranking and score when enabled", () => {
     render(
-      <TeamHeaderCard
+      <TeamStatusBar
         team={baseTeam}
         showScore
         showRanking
@@ -56,9 +69,23 @@ describe("TeamHeaderCard", () => {
     expect(screen.getByText("150")).toBeInTheDocument();
   });
 
+  it("shows a dash while the rank is unknown", () => {
+    render(
+      <TeamStatusBar
+        team={baseTeam}
+        showScore={false}
+        showRanking
+        rank={null}
+        resolvedCount={0}
+        totalCount={5}
+      />,
+    );
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
   it("hides ranking and score when disabled", () => {
     render(
-      <TeamHeaderCard
+      <TeamStatusBar
         team={baseTeam}
         showScore={false}
         showRanking={false}
@@ -68,21 +95,27 @@ describe("TeamHeaderCard", () => {
       />,
     );
     expect(screen.queryByText("#2")).not.toBeInTheDocument();
-    expect(screen.queryByText("Pontos")).not.toBeInTheDocument();
+    expect(screen.queryByText("150")).not.toBeInTheDocument();
   });
 
-  it("does not render access code when absent", () => {
-    const teamNoCode = { ...baseTeam, access_code: undefined } as unknown as PrivilegedDetailedTeam;
+  it("shows the final time for a finished team", () => {
     render(
-      <TeamHeaderCard
-        team={teamNoCode}
+      <TeamStatusBar
+        team={
+          {
+            ...baseTeam,
+            started_at: "2026-01-01T10:00:00Z",
+            finished_at: "2026-01-01T11:00:00Z",
+            elapsed_seconds: 3600,
+          } as PrivilegedDetailedTeam
+        }
         showScore
         showRanking
-        rank={2}
-        resolvedCount={0}
+        rank={1}
+        resolvedCount={5}
         totalCount={5}
       />,
     );
-    expect(screen.queryByText(/Código:/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Tempo final/)).toBeInTheDocument();
   });
 });
