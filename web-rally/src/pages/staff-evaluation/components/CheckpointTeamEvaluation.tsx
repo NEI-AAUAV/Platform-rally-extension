@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft, MapPin, Lock } from "lucide-react";
 import { Spinner } from "@/components/shared";
@@ -176,7 +177,14 @@ export default function CheckpointTeamEvaluation() {
           right. On a phone the rail comes first: scanning the arriving team
           is the staff member's main action. */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:order-last">
+        <aside
+          className={cn(
+            "space-y-4 lg:sticky lg:top-24 lg:order-last",
+            // While a team is open on a phone the rail would push its
+            // activities below the fold; the team list is one tap back.
+            selectedTeam && !showTeamList && "hidden lg:block",
+          )}
+        >
           {/* Staff scans the arriving team's QR to identify + open its evaluation */}
           <StaffCheckinScanner
             checkpointId={Number(checkpointId)}

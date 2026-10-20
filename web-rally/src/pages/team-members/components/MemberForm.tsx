@@ -123,9 +123,8 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
       clearDraft(selectedTeam);
       toast.success("Membro adicionado com sucesso!");
     },
-    onError: (error) => {
-      toast.error(getErrorMessage(error, "Erro ao adicionar membro"));
-    },
+    // The error is shown inline above the form (addError), next to what the
+    // user has to fix; a toast on top of it would say the same thing twice.
   });
 
   const handleAddMember = (data: AddMemberForm) => {
@@ -148,7 +147,7 @@ export default function MemberForm({ selectedTeam, onSuccess, className = "" }: 
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {addError instanceof Error ? addError.message : "Erro desconhecido"}
+                {getErrorMessage(addError, "Erro ao adicionar membro")}
               </AlertDescription>
             </Alert>
           )}

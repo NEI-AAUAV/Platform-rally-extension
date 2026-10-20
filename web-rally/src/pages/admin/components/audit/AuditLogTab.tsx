@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { History, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { Spinner } from "@/components/shared";
 import { listAuditLog, type AuditLogEntry } from "@/client";
 import { Input } from "@/components/ui/input";
@@ -169,19 +169,19 @@ export default function AuditLogTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <History className="h-5 w-5 text-muted-foreground" />
-        <h2 className="rally-display text-lg font-bold text-foreground">Auditoria</h2>
-        {isFetching && <Spinner size="sm" className="text-muted-foreground" label="" />}
-      </div>
+      {/* The admin shell already titles this section; keep the name for assistive tech only. */}
+      <h2 className="sr-only">Auditoria</h2>
+      {isFetching && <Spinner size="sm" className="text-muted-foreground" label="" />}
 
       {/* Filters */}
-      <div className="rally-surface flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      <div className="rally-surface grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="col-span-full flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Filter className="h-3.5 w-3.5" />
           Filtros
         </div>
-        <div className="w-full sm:w-auto sm:min-w-[180px]">
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">Ação</span>
+
           <Select
             value={action}
             onValueChange={(v) => {
@@ -201,7 +201,9 @@ export default function AuditLogTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-full sm:w-auto sm:min-w-[180px]">
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">Alvo</span>
+
           <Select
             value={targetType}
             onValueChange={(v) => {
@@ -221,7 +223,7 @@ export default function AuditLogTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex w-full flex-col gap-1 sm:w-auto">
+        <div className="flex flex-col gap-1">
           <label htmlFor="audit-since" className="text-[11px] text-muted-foreground">
             Desde
           </label>
@@ -236,7 +238,7 @@ export default function AuditLogTab() {
             }}
           />
         </div>
-        <div className="flex w-full flex-col gap-1 sm:w-auto">
+        <div className="flex flex-col gap-1">
           <label htmlFor="audit-until" className="text-[11px] text-muted-foreground">
             Até
           </label>

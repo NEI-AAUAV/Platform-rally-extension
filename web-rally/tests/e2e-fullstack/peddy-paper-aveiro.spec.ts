@@ -469,6 +469,11 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         await adminPage
           .getByPlaceholder("Ex: Onde o rio encontra a ponte de ferro...")
           .fill(post.clue);
+        // The optional passes of the form are folded disclosures; open them all
+        // (idempotent, unlike clicking a summary) before filling their fields.
+        await adminPage.locator("form details").evaluateAll((els) =>
+          els.forEach((el) => ((el as HTMLDetailsElement).open = true)),
+        );
         // The two columns of the planning sheet nothing in this suite had
         // ever filled: what the person at the post talks about, and the
         // challenge as it was planned. Neither is ever shown to a team.

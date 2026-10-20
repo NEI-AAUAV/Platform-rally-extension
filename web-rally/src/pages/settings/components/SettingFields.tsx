@@ -75,12 +75,21 @@ type SettingRowProps = Readonly<{
   help?: string;
   /** The control itself, rendered to the right of the label. */
   children: React.ReactNode;
+  /** Put a wide control under its label on a phone instead of squeezing both. */
+  stackOnMobile?: boolean;
 }>;
 
 /** One setting: label + optional help on the left, control on the right. */
-function SettingRow({ name, label, help, children }: SettingRowProps) {
+function SettingRow({ name, label, help, children, stackOnMobile = false }: SettingRowProps) {
   return (
-    <div data-admin-search-key={name} className="flex items-start justify-between gap-4 py-3">
+    <div
+      data-admin-search-key={name}
+      className={
+        stackOnMobile
+          ? "flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+          : "flex items-start justify-between gap-4 py-3"
+      }
+    >
       <div className="min-w-0 flex-1 space-y-0.5">
         <Label htmlFor={name} className="text-sm font-medium leading-snug">
           {label}
@@ -201,7 +210,7 @@ export function SettingSelect({ name, label, help, defaultValue, options }: Sett
   const { control } = useFormContext();
 
   return (
-    <SettingRow name={name} label={label} help={help}>
+    <SettingRow name={name} label={label} help={help} stackOnMobile>
       <Controller
         name={name}
         control={control}

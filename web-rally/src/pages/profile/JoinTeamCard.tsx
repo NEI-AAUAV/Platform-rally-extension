@@ -63,10 +63,16 @@ export default function JoinTeamCard() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder="XXXX-XXXX"
-          className="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-[color:var(--rally-accent,theme(colors.primary.DEFAULT))]"
+          className="min-w-0 flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm uppercase tracking-wide outline-none focus:border-[color:var(--rally-accent,theme(colors.primary.DEFAULT))]"
           aria-label="Código da equipa"
         />
-        <RallyButton type="submit" variant="primary" size="md" disabled={trimmed.length === 0}>
+        <RallyButton
+          type="submit"
+          variant="primary"
+          size="md"
+          className="shrink-0"
+          disabled={trimmed.length === 0}
+        >
           <Search className="h-4 w-4" />
           Procurar
         </RallyButton>

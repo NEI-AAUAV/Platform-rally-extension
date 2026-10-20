@@ -40,7 +40,12 @@ export default function AssignmentForm({
       )}
 
       {isSuccessUpdate && (
-        <div className="mt-4 text-center text-green-500">Atribuição atualizada com sucesso!</div>
+        <div
+          role="status"
+          className="mt-4 text-center font-semibold text-green-700 dark:text-green-400"
+        >
+          Atribuição atualizada com sucesso!
+        </div>
       )}
       {isErrorUpdate && (
         <div className="mt-4 text-center text-red-500">

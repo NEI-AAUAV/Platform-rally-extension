@@ -517,6 +517,10 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
           .fill(plan.clue);
         const opensInHours = "opensInHours" in plan ? plan.opensInHours : undefined;
         if (opensInHours !== undefined) {
+          // "Abre a" sits in a folded optional section of the form.
+          await adminPage.locator("form details").evaluateAll((els) =>
+            els.forEach((el) => ((el as HTMLDetailsElement).open = true)),
+          );
           await adminPage
             .getByLabel("Abre a (opcional)")
             .fill(datetimeLocal(Date.now() + opensInHours * 3_600_000));

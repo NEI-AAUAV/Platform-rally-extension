@@ -105,10 +105,8 @@ export default function MetricsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Gauge className="h-5 w-5 text-muted-foreground" />
-        <h2 className="rally-display text-lg font-bold text-foreground">Métricas</h2>
-      </div>
+      {/* The admin shell already titles this section; keep the name for assistive tech only. */}
+      <h2 className="sr-only">Métricas</h2>
 
       {(metricsError || readinessError) && (
         <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
