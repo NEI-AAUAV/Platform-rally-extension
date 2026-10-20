@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -28,6 +29,16 @@ class Activity(Base):
     """Base activity model"""
 
     __tablename__ = "activities"
+    # Mirrors migration 0065: a global activity has no checkpoint, a
+    # checkpoint activity has one.
+    __table_args__: Any = (
+        CheckConstraint(
+            "(is_global AND checkpoint_id IS NULL) "
+            "OR (NOT is_global AND checkpoint_id IS NOT NULL)",
+            name="ck_activity_scope",
+        ),
+        {"schema": settings.SCHEMA_NAME},
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)

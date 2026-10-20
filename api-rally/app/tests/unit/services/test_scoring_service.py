@@ -73,6 +73,7 @@ async def _make_activity(
         activity_type=activity_type,
         config=config or {"min_points": 0, "max_points": 100},
         checkpoint_id=checkpoint_id,
+        is_global=not with_checkpoint,
         event_id=event_id,
     )
     db.add(activity)
@@ -347,6 +348,7 @@ async def test_results_total_skips_incomplete_but_counts_global_results(pg_sessi
         activity_type=ActivityType.GENERAL.value,
         config={"min_points": 0, "max_points": 100},
         checkpoint_id=None,
+        is_global=True,
         event_id=await current_event_id(pg_session),
     )
     pg_session.add(global_activity)
@@ -412,6 +414,7 @@ async def test_update_all_team_scores_bulk_recomputes_multiple_teams(pg_session)
         activity_type=ActivityType.GENERAL.value,
         config={"min_points": 0, "max_points": 100},
         checkpoint_id=None,
+        is_global=True,
         event_id=await current_event_id(pg_session),
     )
     pg_session.add(global_activity)
