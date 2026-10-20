@@ -4,6 +4,7 @@ import { check } from "k6";
 import { Counter } from "k6/metrics";
 import { API_V1 } from "../lib/config.js";
 import { api, ipFor, json, mint, think, uuid } from "../lib/http.js";
+import { rand, randInt } from "../lib/rand.js";
 
 export const rateLimited = new Counter("rally_rate_limited_429");
 
@@ -47,7 +48,7 @@ const DENIED = [401, 403];
  */
 export function securityProbe(data) {
   const f = forgedTokens(data);
-  const ip = ipFor("security", Math.floor(Math.random() * 200));
+  const ip = ipFor("security", randInt(200));
   const deny = (label, method, path, token, body, expect = DENIED) => {
     const res = api(method, path, { token, ip, body, expect, name: `SEC ${method} ${path.replace(/\d+/g, "{id}")}` });
     const ok = check(res, { [`denied: ${label}`]: (r) => expect.includes(r.status) });
@@ -113,7 +114,7 @@ export function securityProbe(data) {
  * 5 min per IP and per code) must start answering 429 well before 40 tries.
  */
 export function loginAbuse() {
-  const ip = ipFor("abuse", Math.floor(Math.random() * 1000));
+  const ip = ipFor("abuse", randInt(1000));
   let limited = 0;
   for (let i = 0; i < 40; i++) {
     // Well-formed (XXXX-XXXX) but wrong, so it reaches the limiter.
@@ -179,8 +180,8 @@ export function evaluationRace(data) {
  * open (k6 reports a timeout, error_code 1050) and never answers 4xx/5xx.
  */
 export function sseListener(data) {
-  const t = data.teams[Math.floor(Math.random() * data.teams.length)];
-  const path = Math.random() < 0.7 ? "/scoreboard/stream" : "/events/stream";
+  const t = data.teams[randInt(data.teams.length)];
+  const path = rand() < 0.7 ? "/scoreboard/stream" : "/events/stream";
   const res = http.get(`${API_V1}${path}`, {
     headers: { Authorization: `Bearer ${t.teamToken}`, Accept: "text/event-stream" },
     timeout: "15s",

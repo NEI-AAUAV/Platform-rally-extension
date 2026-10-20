@@ -2,7 +2,7 @@ import http from "k6/http";
 import { check, sleep } from "k6";
 import { Trend } from "k6/metrics";
 import { API_V1, OIDC_URL, THINK_SCALE } from "./config.js";
-
+import { rand, randInt } from "./rand.js";
 // Statuses that are a legitimate business answer under concurrency (a second
 // staff member evaluating the same team, a stale QR token, a route that moved
 // on). They are asserted with checks, so they must not count as failures.
@@ -106,21 +106,21 @@ export function mintMany(reqs) {
 
 /** Human think time, scaled by THINK_SCALE. */
 export function think(min, max) {
-  sleep((min + Math.random() * (max - min)) * THINK_SCALE);
+  sleep((min + rand() * (max - min)) * THINK_SCALE);
 }
 
 export function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return arr[randInt(arr.length)];
 }
 
 export function chance(p) {
-  return Math.random() < p;
+  return rand() < p;
 }
 
 export function uuid() {
   // RFC4122-ish v4, enough for idempotency keys.
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
+    const r = (rand() * 16) | 0;
     return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
   });
 }

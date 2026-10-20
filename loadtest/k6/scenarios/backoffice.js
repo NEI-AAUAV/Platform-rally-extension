@@ -1,6 +1,7 @@
 import exec from "k6/execution";
 import { check } from "k6";
 import { api, call, chance, pick, think } from "../lib/http.js";
+import { randInt } from "../lib/rand.js";
 
 /** A guide walking with their team, following its progress. */
 export function guideShift(data) {
@@ -71,7 +72,7 @@ export function adminDashboard(data) {
 
 /** Unauthenticated visitors: the public leaderboard screen, the landing page. */
 export function spectator(data) {
-  const ip = `10.6.${Math.floor(Math.random() * 250)}.${1 + Math.floor(Math.random() * 250)}`;
+  const ip = `10.6.${randInt(250)}.${1 + randInt(250)}`;
   const team = pick(data.teams);
   call("GET", "/rally/settings/public", { ip });
   call("GET", "/events/current", { ip });

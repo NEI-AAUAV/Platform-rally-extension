@@ -8,6 +8,7 @@ import {
   TEAMS,
 } from "./config.js";
 import { ipFor, mint, mintMany, must } from "./http.js";
+import { rand, randInt } from "./rand.js";
 
 // Posts along a line in Aveiro, ~220 m apart, so "near"/"far" GPS fixes are
 // unambiguous for the geofence and proximity checks.
@@ -21,13 +22,13 @@ export const ACTIVITY_TYPES = ["BooleanActivity", "ScoreBasedActivity", "TimeBas
 export function resultFor(type) {
   switch (type) {
     case "BooleanActivity":
-      return { success: Math.random() < 0.8 };
+      return { success: rand() < 0.8 };
     case "ScoreBasedActivity":
-      return { achieved_points: Math.floor(Math.random() * 100) };
+      return { achieved_points: randInt(100) };
     case "TimeBasedActivity":
-      return { completion_time_seconds: 30 + Math.floor(Math.random() * 300) };
+      return { completion_time_seconds: 30 + randInt(300) };
     case "GeneralActivity":
-      return { assigned_points: Math.floor(Math.random() * 50) };
+      return { assigned_points: randInt(50) };
     default:
       return {};
   }
@@ -48,7 +49,7 @@ function userId(adminToken, email) {
  * guides, and TEAMS teams with MEMBERS_PER_TEAM OIDC participants each.
  */
 export function seedEvent() {
-  const run = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+  const run = `${Date.now().toString(36)}${randInt(1e6).toString(36)}`;
   const seedIp = ipFor("seed", 0);
 
   const admins = mintMany(

@@ -3,6 +3,7 @@ import { check } from "k6";
 import { Counter } from "k6/metrics";
 import { resultFor } from "../lib/seed.js";
 import { api, call, chance, json, think, uuid } from "../lib/http.js";
+import { randInt } from "../lib/rand.js";
 
 export const evaluationsCreated = new Counter("rally_evaluations_created");
 export const evaluationConflicts = new Counter("rally_evaluation_conflicts");
@@ -36,7 +37,7 @@ export function staffShift(data) {
     for (const a of sheet.activities) {
       if (a.evaluation_status !== "pending") continue;
       const key = uuid();
-      const body = { result_data: resultFor(a.activity_type), extra_shots: Math.floor(Math.random() * 3) };
+      const body = { result_data: resultFor(a.activity_type), extra_shots: randInt(3) };
       const path = `/staff/teams/${t.id}/activities/${a.id}/evaluate`;
       const name = "POST /staff/teams/{id}/activities/{id}/evaluate";
       const res = api("POST", path, { ...S, name, body, headers: { "Idempotency-Key": key }, business: true });
