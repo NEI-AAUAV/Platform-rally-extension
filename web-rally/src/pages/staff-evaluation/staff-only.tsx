@@ -31,7 +31,7 @@ export default function StaffEvaluationPage() {
 
   if (!myCheckpoint) {
     return (
-      <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-10 text-center">
+      <div className="rally-surface mx-auto max-w-lg p-10 text-center">
         <span className="rally-bg-accent-soft mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl text-foreground">
           <Activity className="h-6 w-6" />
         </span>
@@ -44,7 +44,7 @@ export default function StaffEvaluationPage() {
   }
 
   return (
-    <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-10 text-center">
+    <div className="rally-surface mx-auto max-w-lg p-10 text-center">
       <Spinner size="lg" className="rally-accent mx-auto mb-4" label="" />
       <p className="text-sm text-muted-foreground">
         A redirecionar para a avaliação do teu posto...

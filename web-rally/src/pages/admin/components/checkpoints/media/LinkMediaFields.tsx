@@ -13,13 +13,13 @@ export default function LinkMediaFields({ draft, onChange }: Props) {
         value={draft.contentUrl}
         onChange={(e) => onChange({ contentUrl: e.target.value })}
         placeholder="https://…"
-        className="border-border bg-muted sm:max-w-sm"
+        className="border-border sm:max-w-sm"
       />
       <Input
         value={draft.title}
         onChange={(e) => onChange({ title: e.target.value })}
         placeholder="Título (opcional)"
-        className="border-border bg-muted sm:max-w-xs"
+        className="border-border sm:max-w-xs"
       />
     </div>
   );

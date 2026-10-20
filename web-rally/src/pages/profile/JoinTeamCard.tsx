@@ -42,7 +42,7 @@ export default function JoinTeamCard() {
   const trimmed = code.trim();
 
   return (
-    <div className="rally-surface rounded-2xl p-6">
+    <div className="rally-surface p-6">
       <div className="flex items-center gap-2">
         <Users className="rally-accent h-5 w-5" />
         <h2 className="rally-display text-2xl text-foreground">Associa-te à tua equipa</h2>
@@ -92,7 +92,7 @@ export default function JoinTeamCard() {
                 type="button"
                 disabled={claim.isPending}
                 onClick={() => claim.mutate(member.id)}
-                className="rally-surface flex w-full items-center justify-between rounded-xl px-4 py-3 text-left transition hover:brightness-105 disabled:opacity-50"
+                className="rally-surface flex w-full items-center justify-between px-4 py-3 text-left transition hover:brightness-105 disabled:opacity-50"
               >
                 <span className="flex items-center gap-2 font-medium text-foreground">
                   {member.name}

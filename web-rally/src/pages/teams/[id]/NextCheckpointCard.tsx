@@ -34,7 +34,7 @@ export function NextCheckpointCard({
   return (
     <>
       <h2 className="rally-display mb-4 text-2xl font-bold text-foreground">Próximo Posto</h2>
-      <div className="rally-surface rally-border-accent mb-8 rounded-2xl border p-6">
+      <div className="rally-surface rally-border-accent mb-8 p-6">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             {isRedacted ? (

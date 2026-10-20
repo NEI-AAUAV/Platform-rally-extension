@@ -89,7 +89,7 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
   });
 
   return (
-    <section className="rally-surface rounded-2xl p-6">
+    <section className="rally-surface p-6">
       <h3 className="rally-display mb-1 flex items-center gap-2 text-2xl">
         <Layers className="h-4 w-4" />
         Etapas da rota
@@ -113,7 +113,7 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
           onChange={(e) => setName(e.target.value)}
           placeholder="Ex: Universidade"
           aria-label="Nome da nova etapa"
-          className="max-w-xs border-border bg-muted"
+          className="max-w-xs border-border"
         />
         <BloodyButton type="button" disabled={!name.trim() || isAdding} onClick={() => addStage()}>
           Adicionar etapa
@@ -178,7 +178,7 @@ export default function RouteStageManager({ onChanged }: RouteStageManagerProps)
                       max={stage.checkpoint_ids?.length ?? undefined}
                       defaultValue={stage.required_count ?? ""}
                       placeholder="todos"
-                      className="w-20 border-border bg-muted"
+                      className="w-20 border-border"
                       onBlur={(e) =>
                         editStage({
                           id: stage.id,

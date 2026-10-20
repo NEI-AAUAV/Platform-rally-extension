@@ -59,7 +59,7 @@ export default function BroadcastTab() {
             maxLength={TITLE_MAX}
             placeholder="Ex: Atenção equipas!"
             onChange={(e) => setTitle(e.target.value)}
-            className="border-border bg-muted"
+            className="border-border"
           />
         </label>
 
@@ -71,7 +71,7 @@ export default function BroadcastTab() {
             placeholder="Ex: Vai começar a chover, procurem abrigo no posto mais próximo."
             onChange={(e) => setBody(e.target.value)}
             rows={4}
-            className="w-full rounded-lg border border-border bg-muted p-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-2xl bg-secondary/60 p-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
 
@@ -83,7 +83,7 @@ export default function BroadcastTab() {
             value={url}
             placeholder="/scoreboard"
             onChange={(e) => setUrl(e.target.value)}
-            className="border-border bg-muted"
+            className="border-border"
           />
         </label>
 

@@ -25,7 +25,7 @@ function splitBoard(list: ListingTeam[], isIndividualMode: boolean, myRankIndex:
 
 function NoticeCard({ title, body }: { readonly title: string; readonly body: React.ReactNode }) {
   return (
-    <div className="rally-surface rally-elevate mx-auto mt-6 max-w-lg p-8 text-center">
+    <div className="rally-surface mx-auto mt-6 max-w-lg p-8 text-center">
       <h2 className="rally-display text-xl font-bold text-foreground">{title}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{body}</p>
     </div>
@@ -208,7 +208,7 @@ export default function Scoreboard() {
           {/* Aside */}
           <aside className="order-first space-y-4 lg:order-last">
             {!myTeam && (
-              <div className="rally-surface rally-elevate relative overflow-hidden p-6">
+              <div className="rally-surface relative overflow-hidden p-6">
                 <div
                   aria-hidden
                   className="rally-bg-accent-soft pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full blur-3xl"
@@ -233,7 +233,7 @@ export default function Scoreboard() {
                 const gapToPodium =
                   myRank > 3 && thirdPlace ? thirdPlace.total - myTeam.total + 1 : null;
                 return (
-                  <div className="rally-surface rally-elevate relative overflow-hidden p-6">
+                  <div className="rally-surface relative overflow-hidden p-6">
                     <div
                       aria-hidden
                       className="rally-bg-accent-soft pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full blur-3xl"

@@ -99,7 +99,7 @@ export default function AdminMobileDrawer({
         onClick={() => setIsDrawerOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={isDrawerOpen}
-        className="rally-surface rally-press flex w-full items-center gap-2.5 rounded-lg p-3 text-sm font-semibold text-foreground"
+        className="rally-surface rally-press flex w-full items-center gap-2.5 p-3 text-sm font-semibold text-foreground"
       >
         <Menu className="h-4 w-4 shrink-0 text-muted-foreground" />
         <ActiveIcon className="h-4 w-4 shrink-0" />

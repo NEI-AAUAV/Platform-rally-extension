@@ -32,7 +32,7 @@ function CounterRow({ idPrefix, counter, penalties, onChange }: Readonly<Counter
         min="0"
         value={displayCount(penalties[counter.key])}
         onChange={(e) => onChange({ ...penalties, [counter.key]: parseCount(e.target.value) })}
-        className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
+        className="w-20 rounded-xl border border-border bg-card p-2 text-foreground focus:border-ring focus:ring-1 focus:ring-ring"
         placeholder="0"
         aria-label={`Contagem de ${counter.label}`}
       />
@@ -103,7 +103,7 @@ export default function PenaltiesFieldset({
                 min="0"
                 value={displayCount(penalties.vomit)}
                 onChange={(e) => onChange({ ...penalties, vomit: parseCount(e.target.value) })}
-                className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
+                className="w-20 rounded-xl border border-border bg-card p-2 text-foreground focus:border-ring focus:ring-1 focus:ring-ring"
                 placeholder="0"
                 aria-label="Número de vezes que vomitou"
               />
@@ -125,7 +125,7 @@ export default function PenaltiesFieldset({
                     not_drinking: parseCount(e.target.value),
                   })
                 }
-                className="w-20 rounded border border-border bg-muted p-2 text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
+                className="w-20 rounded-xl border border-border bg-card p-2 text-foreground focus:border-ring focus:ring-1 focus:ring-ring"
                 placeholder="0"
                 aria-label="Número de vezes que não bebeu"
               />

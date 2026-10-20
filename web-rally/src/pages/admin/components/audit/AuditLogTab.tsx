@@ -176,7 +176,7 @@ export default function AuditLogTab() {
       </div>
 
       {/* Filters */}
-      <div className="rally-surface flex flex-col gap-3 rounded-xl border border-border p-4 sm:flex-row sm:flex-wrap sm:items-end">
+      <div className="rally-surface flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Filter className="h-3.5 w-3.5" />
           Filtros

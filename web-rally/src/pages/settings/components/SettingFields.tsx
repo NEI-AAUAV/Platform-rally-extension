@@ -181,7 +181,7 @@ export function SettingNumber({ name, label, help, min, max, unit }: SettingNumb
           min={min}
           max={max}
           {...register(name, { valueAsNumber: true })}
-          className="w-24 border-border bg-muted text-right"
+          className="w-24 border-border text-right"
         />
         {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
       </div>
@@ -208,7 +208,7 @@ export function SettingSelect({ name, label, help, defaultValue, options }: Sett
         defaultValue={defaultValue}
         render={({ field }) => (
           <Select value={field.value || defaultValue} onValueChange={field.onChange}>
-            <SelectTrigger id={name} className="w-52 border-border bg-muted">
+            <SelectTrigger id={name} className="w-52 border-border">
               <SelectValue placeholder="Selecione o modo" />
             </SelectTrigger>
             <SelectContent>
@@ -257,7 +257,7 @@ export function SettingTextarea({
         maxLength={maxLength}
         placeholder={placeholder}
         {...register(name)}
-        className="border-border bg-muted"
+        className="border-border"
       />
     </div>
   );

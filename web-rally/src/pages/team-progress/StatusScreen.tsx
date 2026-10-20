@@ -9,7 +9,7 @@ type StatusScreenProps = Readonly<{
 export default function StatusScreen({ variant, title, description }: StatusScreenProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="rally-surface rally-elevate-lg w-full max-w-md rounded-2xl p-8 text-center">
+      <div className="rally-surface rally-elevate-lg w-full max-w-md p-8 text-center">
         {variant === "loading" ? (
           <>
             <Spinner size="lg" className="rally-accent mx-auto mb-4 h-12 w-12" label="" />

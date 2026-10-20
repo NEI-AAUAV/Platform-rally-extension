@@ -46,21 +46,19 @@ export default function PostEventDashboard() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Flag className="h-5 w-5 text-muted-foreground" />
-        <h2 className="rally-display text-lg font-bold text-foreground">Prova terminada</h2>
+        <h2 className="rally-display text-3xl text-foreground">Prova terminada</h2>
       </div>
 
       {rankedTeams.length > 0 ? (
-        <div className="rally-surface rounded-xl border border-border p-5 shadow-[var(--rally-shadow-sm)]">
-          <h3 className="rally-display mb-4 text-base font-bold text-foreground">
-            Classificação final
-          </h3>
+        <div className="rally-surface p-5">
+          <h3 className="rally-display mb-4 text-2xl text-foreground">Classificação final</h3>
           <div className="flex flex-col gap-2">
             {rankedTeams.map((team, index) => (
               <div
                 key={team.id}
-                className="flex items-center gap-[13px] rounded-[12px] bg-muted/40 px-[14px] py-[11px]"
+                className="flex items-center gap-[13px] rounded-2xl bg-secondary/60 px-4 py-3"
               >
-                <span className="rally-display w-6 text-center text-base font-bold tabular-nums text-muted-foreground">
+                <span className="rally-display w-7 text-center text-2xl tabular-nums text-muted-foreground">
                   {displayRank(index)}
                 </span>
                 <span className="rally-bg-accent-soft grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full text-xs font-bold text-foreground">
@@ -69,7 +67,7 @@ export default function PostEventDashboard() {
                 <span className="flex-1 truncate text-sm font-semibold text-foreground">
                   {team.name}
                 </span>
-                <span className="rally-display shrink-0 text-[15px] font-bold tabular-nums text-foreground">
+                <span className="rally-num shrink-0 text-[15px] font-bold tabular-nums text-foreground">
                   {team.total}
                   <span className="ml-0.5 text-[10px] font-medium text-muted-foreground">pts</span>
                 </span>

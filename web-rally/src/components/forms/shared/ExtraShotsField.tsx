@@ -34,7 +34,7 @@ export default function ExtraShotsField({
         max={maxExtraShots}
         value={displayCount(extraShots)}
         onChange={handleChange}
-        className="w-full rounded border border-border bg-muted p-3 text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
+        className="w-full rounded-xl border border-border bg-card p-3 text-foreground focus:border-ring focus:ring-1 focus:ring-ring"
         placeholder="Shots extra tomados"
       />
       <p className="mt-1 text-sm text-muted-foreground">

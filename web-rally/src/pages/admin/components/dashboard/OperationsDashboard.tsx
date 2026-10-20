@@ -89,10 +89,7 @@ function StatCard({
 }>) {
   const shown = displayMetric(value, status);
   return (
-    <div
-      className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]"
-      data-status={status}
-    >
+    <div className="rally-surface flex items-center gap-4 p-4" data-status={status}>
       <div
         className={`rounded-lg p-2 ${accent ? "rally-bg-accent text-white" : "bg-secondary text-muted-foreground"}`}
       >
@@ -100,7 +97,7 @@ function StatCard({
       </div>
       <div>
         <p
-          className="rally-display text-2xl font-bold tabular-nums text-foreground"
+          className="rally-display text-4xl tabular-nums text-foreground"
           aria-label={status === "error" ? `${label}: indisponível` : undefined}
         >
           {shown}
@@ -212,13 +209,13 @@ export default function OperationsDashboard() {
     <div className="space-y-6">
       {/* Phase status */}
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="rally-display text-lg font-bold text-foreground">Estado do evento</h2>
+        <h2 className="rally-display text-3xl text-foreground">Estado do evento</h2>
         <PhaseChip phase={countdownState.phase} state={countdownState} />
         <FreshnessIndicator updatedAt={teamsUpdatedAt} className="ml-auto" />
       </div>
 
       {configurationErrors.length > 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+        <div className="flex items-center gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
           ⚠ Existem {configurationErrors.length} problema(s) de configuração que podem afetar a
           prova.
         </div>
@@ -244,7 +241,7 @@ export default function OperationsDashboard() {
 
       {/* Teams not started alert */}
       {teamsNotStarted > 0 && countdownState.phase === "live" && (
-        <div className="flex items-center gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
+        <div className="flex items-center gap-3 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
           <Clock className="h-4 w-4 shrink-0 text-yellow-800 dark:text-yellow-400" />
           <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
             {teamsNotStarted} equipa{teamsNotStarted !== 1 ? "s" : ""} ainda não iniciou o percurso
@@ -256,15 +253,15 @@ export default function OperationsDashboard() {
       {checkpointsStatus === "error" && (
         <div
           role="alert"
-          className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
+          className="flex items-center gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
         >
           <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
           Não foi possível carregar os postos — o progresso por posto está indisponível.
         </div>
       )}
       {perCheckpointData.length > 0 && (
-        <div className="rally-surface rounded-xl border border-border p-5 shadow-[var(--rally-shadow-sm)]">
-          <h3 className="rally-display mb-4 text-base font-bold text-foreground">
+        <div className="rally-surface p-5">
+          <h3 className="rally-display mb-4 text-2xl text-foreground">
             Equipas que concluíram por posto
           </h3>
           <ResponsiveContainer width="100%" height={Math.max(180, perCheckpointData.length * 36)}>
@@ -320,18 +317,18 @@ export default function OperationsDashboard() {
 
       {/* Live teams table */}
       {rankedTeams.length > 0 && (
-        <div className="rally-surface rounded-xl border border-border p-5 shadow-[var(--rally-shadow-sm)]">
+        <div className="rally-surface p-5">
           <div className="mb-4 flex items-center gap-2">
-            <h3 className="rally-display text-base font-bold text-foreground">Equipas ao vivo</h3>
+            <h3 className="rally-display text-2xl text-foreground">Equipas ao vivo</h3>
             {countdownState.phase === "live" && <ProvisionalBadge />}
           </div>
           <div className="flex flex-col gap-2">
             {rankedTeams.map((team, index) => (
               <div
                 key={team.id}
-                className="flex items-center gap-[13px] rounded-[12px] bg-muted/40 px-[14px] py-[11px]"
+                className="flex items-center gap-[13px] rounded-2xl bg-secondary/60 px-4 py-3"
               >
-                <span className="rally-display w-6 text-center text-base font-bold tabular-nums text-muted-foreground">
+                <span className="rally-display w-7 text-center text-2xl tabular-nums text-muted-foreground">
                   {displayRank(index)}
                 </span>
                 <span className="rally-bg-accent-soft grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full text-xs font-bold text-foreground">
@@ -345,7 +342,7 @@ export default function OperationsDashboard() {
                     ? `${team.resolved_checkpoint_orders?.length ?? 0}/${checkpointsTotal} postos`
                     : `${team.resolved_checkpoint_orders?.length ?? 0} postos`}
                 </span>
-                <span className="rally-display shrink-0 text-[15px] font-bold tabular-nums text-foreground">
+                <span className="rally-num shrink-0 text-[15px] font-bold tabular-nums text-foreground">
                   {team.total}
                   <span className="ml-0.5 text-[10px] font-medium text-muted-foreground">pts</span>
                 </span>

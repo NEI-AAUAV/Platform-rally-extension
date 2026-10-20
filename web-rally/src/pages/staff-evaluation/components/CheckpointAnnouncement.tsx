@@ -46,7 +46,7 @@ export default function CheckpointAnnouncement() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rally-surface space-y-3 rounded-xl p-4">
+    <form onSubmit={handleSubmit} className="rally-surface space-y-3 p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <BellRing className="h-4 w-4 text-amber-500" />
@@ -68,7 +68,7 @@ export default function CheckpointAnnouncement() {
         placeholder="Ex: Fila grande, contem 15 min de espera."
         onChange={(e) => setBody(e.target.value)}
         rows={3}
-        className="w-full rounded-lg border border-border bg-muted p-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+        className="w-full rounded-2xl bg-secondary/60 p-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
       />
 
       {announce.isError && (

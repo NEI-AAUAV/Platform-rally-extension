@@ -9,7 +9,7 @@ interface ConfigSectionProps {
 
 function ConfigSection({ title, children }: ConfigSectionProps) {
   return (
-    <div className="space-y-4 rounded-lg border border-border bg-muted p-4">
+    <div className="space-y-4 rounded-2xl bg-secondary/60 p-4">
       <h4 className="font-medium text-foreground">{title}</h4>
       {children}
     </div>

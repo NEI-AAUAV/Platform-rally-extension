@@ -52,7 +52,7 @@ export default function Rules() {
       />
 
       {settings?.rules_pdf_url && (
-        <div className="rally-surface space-y-3 rounded-2xl p-5">
+        <div className="rally-surface space-y-3 p-5">
           <div className="flex items-center gap-3">
             <span className="rally-bg-accent-soft grid h-9 w-9 shrink-0 place-items-center rounded-lg">
               <FileDown className="rally-accent h-4 w-4" />
@@ -83,7 +83,7 @@ export default function Rules() {
           const isOpen = open === id;
           const Icon = ruleSectionIcon(icon);
           return (
-            <div key={id} className="rally-surface overflow-hidden rounded-2xl">
+            <div key={id} className="rally-surface overflow-hidden">
               <button
                 type="button"
                 onClick={() => setOpen(isOpen ? null : id)}
@@ -111,7 +111,7 @@ export default function Rules() {
         })}
       </div>
 
-      <div className="rally-surface flex items-start gap-3 rounded-2xl p-6">
+      <div className="rally-surface flex items-start gap-3 p-6">
         <HelpCircle className="rally-accent mt-0.5 h-5 w-5 shrink-0" />
         <p className="text-sm text-muted-foreground">
           Dúvidas durante o evento? Fala com o staff no posto mais próximo ou com a organização do

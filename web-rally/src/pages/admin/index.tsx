@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
 import useUser from "@/hooks/useUser";
 import useFallbackNavigation from "@/hooks/useFallbackNavigation";
-import { PageHeader, LoadingState, FeatureDisabledAlert } from "@/components/shared";
+import { LoadingState, FeatureDisabledAlert } from "@/components/shared";
 import {
   TeamManagement,
   CheckpointManagement,
@@ -21,7 +21,7 @@ import {
 } from "./components";
 import AdminSidebar from "./components/AdminSidebar";
 import AdminMobileDrawer from "./components/AdminMobileDrawer";
-import { ADMIN_NAVIGATION, ADMIN_ITEMS, ADMIN_ITEM_BY_ID } from "./adminNavigation";
+import { ADMIN_NAVIGATION, ADMIN_ITEMS, ADMIN_ITEM_BY_ID, groupForTab } from "./adminNavigation";
 import { getCheckpoints, getVapidPublicKey } from "@/client";
 import useRallySettings from "@/hooks/useRallySettings";
 import { type AdminSearchEntry } from "@/lib/adminSearchIndex";
@@ -124,18 +124,21 @@ export default function Admin() {
     return <Navigate to={fallbackPath} />;
   }
 
+  const activeGroup = groupForTab(activeTab);
+
+  // Navigation and search live in one sticky rail; the content column opens
+  // with the active section's own heading, so the admin never has to scroll
+  // past a page banner to reach the tool it picked.
   return (
-    <div className="space-y-8">
-      <PageHeader
-        eyebrow="Gestão"
-        icon={Settings2}
-        title="Administração"
-        description="Gerir equipas, postos, atividades, identidade visual e edições do rally."
-      />
+    <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
+      <aside className="space-y-5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pb-6">
+        <h1 className="rally-display flex items-center gap-2 text-4xl text-foreground">
+          <Settings2 className="rally-accent h-6 w-6 shrink-0" />
+          Administração
+        </h1>
 
-      <AdminSearch onSelect={handleSearchSelect} />
+        <AdminSearch onSelect={handleSearchSelect} />
 
-      <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
         <AdminMobileDrawer
           groups={ADMIN_NAVIGATION}
           activeTab={activeTab}
@@ -151,6 +154,18 @@ export default function Admin() {
           disabledTabIds={disabledTabIds}
           onSelect={setActiveTab}
         />
+      </aside>
+
+      <section aria-labelledby="admin-section-heading" className="min-w-0 space-y-6">
+        <header>
+          {activeGroup && <p className="rally-eyebrow">{activeGroup.label}</p>}
+          <h2
+            id="admin-section-heading"
+            className="rally-display mt-1 text-5xl text-foreground sm:text-6xl"
+          >
+            {activeTabMeta.label}
+          </h2>
+        </header>
 
         {/* Tab content */}
         <div className="min-w-0">
@@ -211,7 +226,7 @@ export default function Admin() {
           {activeTab === "audit" && <AuditLogTab />}
           {activeTab === "metrics" && <MetricsTab />}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

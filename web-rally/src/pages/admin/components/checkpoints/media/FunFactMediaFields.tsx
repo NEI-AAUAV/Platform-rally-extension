@@ -12,7 +12,7 @@ export default function FunFactMediaFields({ draft, onChange }: Props) {
       value={draft.caption}
       onChange={(e) => onChange({ caption: e.target.value })}
       placeholder="Ex: Este edifício foi construído em 1890…"
-      className="border-border bg-muted"
+      className="border-border"
     />
   );
 }

@@ -67,38 +67,21 @@ export default function CheckpointManagement({
       .querySelector(`[data-checkpoint-id="${firstHighlightedId}"]`)
       ?.scrollIntoView?.({ behavior: "smooth", block: "center" });
   }, [firstHighlightedId, highlightKey]);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const editCheckpoint = (checkpoint: (typeof sortedCheckpoints)[number]) => {
+    startEditCheckpoint(checkpoint);
+    editorRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  };
   const selectedCheckpointName = sortedCheckpoints.find(
     (cp) => cp.id === selectedCheckpointId,
   )?.name;
 
+  // The list is what an admin scans most; the editor follows it and is
+  // brought into view when a post is picked for editing. Route stages are an
+  // advanced, set-once concern, so they close the page.
   return (
     <div className="space-y-6">
-      <RouteStageManager onChanged={() => void refetchCheckpoints()} />
-
-      <div>
-        <CheckpointForm
-          form={checkpointForm}
-          isEditing={!!editingCheckpoint}
-          isSubmitting={isCreatingCheckpoint || isUpdatingCheckpoint}
-          onSubmit={handleCheckpointSubmit}
-          onCancel={cancelEdit}
-          checkpoints={sortedCheckpoints}
-          currentId={editingCheckpoint?.id ?? pendingDraftId ?? null}
-          stages={stages}
-          pendingClueImage={pendingClueImage}
-          onPendingClueImageChange={setPendingClueImage}
-          hasAttachedPanel
-          hasPendingDraft={!!pendingDraftId}
-          onStartDraft={startDraftCheckpoint}
-          isStartingDraft={isStartingDraft}
-        />
-        <CheckpointDetailsPanel
-          checkpointId={selectedCheckpointId}
-          checkpointName={selectedCheckpointName}
-        />
-      </div>
-
-      <div className="rally-surface rounded-2xl p-6">
+      <div className="rally-surface p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="rally-display text-2xl">Checkpoints Existentes</h3>
           <p className="text-sm text-muted-foreground">
@@ -148,7 +131,7 @@ export default function CheckpointManagement({
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onDragEnd={handleDragEnd}
-                onEdit={startEditCheckpoint}
+                onEdit={editCheckpoint}
                 onDelete={deleteCheckpoint}
                 stages={stages}
                 isHighlighted={highlighted.has(checkpoint.id)}
@@ -163,6 +146,30 @@ export default function CheckpointManagement({
           />
         )}
       </div>
+      <div ref={editorRef} className="scroll-mt-24">
+        <CheckpointForm
+          form={checkpointForm}
+          isEditing={!!editingCheckpoint}
+          isSubmitting={isCreatingCheckpoint || isUpdatingCheckpoint}
+          onSubmit={handleCheckpointSubmit}
+          onCancel={cancelEdit}
+          checkpoints={sortedCheckpoints}
+          currentId={editingCheckpoint?.id ?? pendingDraftId ?? null}
+          stages={stages}
+          pendingClueImage={pendingClueImage}
+          onPendingClueImageChange={setPendingClueImage}
+          hasAttachedPanel
+          hasPendingDraft={!!pendingDraftId}
+          onStartDraft={startDraftCheckpoint}
+          isStartingDraft={isStartingDraft}
+        />
+        <CheckpointDetailsPanel
+          checkpointId={selectedCheckpointId}
+          checkpointName={selectedCheckpointName}
+        />
+      </div>
+
+      <RouteStageManager onChanged={() => void refetchCheckpoints()} />
     </div>
   );
 }

@@ -43,7 +43,7 @@ export function ConfigNumberField({
         min="0"
         value={resolveValue(value, defaultValue)}
         onChange={(e) => onChange(configKey, Number(e.target.value))}
-        className="border-border bg-muted text-foreground"
+        className="border-border text-foreground"
         placeholder={placeholder}
         data-testid={testId}
       />

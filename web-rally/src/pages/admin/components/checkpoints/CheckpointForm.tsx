@@ -19,7 +19,7 @@ import type { Checkpoint, CheckpointForm as CheckpointFormValues } from "./useCh
 import CheckpointLocationPicker from "./CheckpointLocationPicker";
 import ClueImageField from "./ClueImageField";
 
-const fieldClassName = "bg-muted border-border";
+const fieldClassName = "border-border";
 
 type SectionProps = Readonly<{
   title: string;
@@ -87,7 +87,7 @@ export default function CheckpointForm({
       </h3>
       <p className="mb-4 text-sm text-muted-foreground">
         Só o nome é obrigatório. Um posto com nome e mais nada é um rascunho legítimo — a lista
-        abaixo mostra o que ainda falta.
+        acima mostra o que ainda falta.
       </p>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -347,8 +347,9 @@ export default function CheckpointForm({
                     </>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Ainda não criaste nenhuma etapa — cria uma em "Etapas da rota" acima para
-                      poderes atribuir postos a ela. Sem etapas, a rota corre como um bloco só.
+                      Ainda não criaste nenhuma etapa — cria uma em "Etapas da rota" no fim da
+                      página para poderes atribuir postos a ela. Sem etapas, a rota corre como um
+                      bloco só.
                     </p>
                   )}
                   <FormMessage />

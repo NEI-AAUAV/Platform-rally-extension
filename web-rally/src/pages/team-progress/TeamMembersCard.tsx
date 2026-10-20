@@ -54,7 +54,7 @@ export default function TeamMembersCard({ team }: TeamMembersCardProps) {
   });
 
   return (
-    <div className="rally-surface rounded-xl border border-border p-5">
+    <div className="rally-surface p-5">
       <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
         Membros
       </p>

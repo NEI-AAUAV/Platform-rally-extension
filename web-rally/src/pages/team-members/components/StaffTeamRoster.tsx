@@ -13,7 +13,7 @@ type StaffTeamRosterProps = Readonly<{
 export default function StaffTeamRoster({ teamName, teamMembers, teamData }: StaffTeamRosterProps) {
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      <div className="rally-surface rounded-2xl p-6">
+      <div className="rally-surface p-6">
         <h3 className="rally-display mb-4 flex items-center gap-2 text-2xl">
           <Users className="h-5 w-5" />
           Membros da Equipa
@@ -26,7 +26,7 @@ export default function StaffTeamRoster({ teamName, teamMembers, teamData }: Sta
             <p className="text-center opacity-50">Nenhum membro registado</p>
           ) : (
             teamMembers?.map((member) => (
-              <div key={member.id} className="rounded-lg border border-border bg-muted p-3">
+              <div key={member.id} className="rounded-2xl bg-secondary/60 p-3">
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-bold">
                     {member.name.charAt(0).toUpperCase()}
@@ -50,7 +50,7 @@ export default function StaffTeamRoster({ teamName, teamMembers, teamData }: Sta
       </div>
 
       {teamData && (
-        <div className="rally-surface flex flex-col items-center justify-center rounded-2xl p-6">
+        <div className="rally-surface flex flex-col items-center justify-center p-6">
           <h3 className="rally-display mb-4 flex items-center gap-2 text-2xl">
             <QrCode className="h-5 w-5" />
             Código QR

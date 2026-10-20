@@ -21,7 +21,7 @@ export function TeamMembersErrorBanners({
 export function TeamsLoadingBanner({ teamsLoading }: { readonly teamsLoading?: boolean }) {
   if (!teamsLoading) return null;
   return (
-    <div className="rounded-lg border border-border bg-muted p-4 sm:p-6">
+    <div className="rounded-2xl bg-secondary/60 p-4 sm:p-6">
       <p className="text-muted-foreground">A carregar equipas...</p>
     </div>
   );
@@ -30,7 +30,7 @@ export function TeamsLoadingBanner({ teamsLoading }: { readonly teamsLoading?: b
 export function MembersLoadingBanner({ membersLoading }: { readonly membersLoading?: boolean }) {
   if (!membersLoading) return null;
   return (
-    <div className="rounded-lg border border-border bg-muted p-4 sm:p-6">
+    <div className="rounded-2xl bg-secondary/60 p-4 sm:p-6">
       <p className="text-muted-foreground">A carregar membros da equipa...</p>
     </div>
   );

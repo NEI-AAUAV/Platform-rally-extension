@@ -138,7 +138,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
         />
       ) : (
         <div className="space-y-4">
-          <div className="flex justify-center">
+          <div className="flex justify-end">
             <BloodyButton
               onClick={() => setShowActivityForm(true)}
               disabled={!checkpoints || checkpoints.length === 0}

@@ -33,7 +33,7 @@ export default function TeamSelector({
       <div className="space-y-3">
         <Label htmlFor="team-select">Equipa</Label>
         <Select value={selectedTeam} onValueChange={onTeamChange}>
-          <SelectTrigger id="team-select" className="border-border bg-muted">
+          <SelectTrigger id="team-select" className="border-border">
             <SelectValue placeholder="Selecionar equipa" />
           </SelectTrigger>
           <SelectContent>

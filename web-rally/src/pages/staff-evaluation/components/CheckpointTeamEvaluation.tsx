@@ -68,7 +68,7 @@ export default function CheckpointTeamEvaluation() {
 
   if (isForeignPost) {
     return (
-      <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-8 text-center">
+      <div className="rally-surface mx-auto max-w-lg p-8 text-center">
         <Lock className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
         <h2 className="rally-display text-xl font-bold text-foreground">Este não é o teu posto</h2>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -95,7 +95,7 @@ export default function CheckpointTeamEvaluation() {
 
   if (!checkpoint) {
     return (
-      <div className="rally-surface rally-elevate mx-auto max-w-lg rounded-2xl p-8 text-center">
+      <div className="rally-surface mx-auto max-w-lg p-8 text-center">
         <MapPin className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
         <h2 className="rally-display text-xl font-bold text-foreground">Posto não encontrado</h2>
         <p className="mt-2 text-sm text-muted-foreground">O posto solicitado não foi encontrado.</p>

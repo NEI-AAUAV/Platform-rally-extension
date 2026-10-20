@@ -549,7 +549,7 @@ export default function RallySettings({
               })}
             </nav>
 
-            <div className="rally-surface min-w-0 space-y-6 rounded-2xl p-5 sm:p-6">
+            <div className="rally-surface min-w-0 space-y-6 p-5 sm:p-6">
               <div className="space-y-1">
                 <h2 className="rally-display text-2xl leading-none">{activeSection.label}</h2>
                 <p className="text-sm text-muted-foreground">{activeSection.description}</p>

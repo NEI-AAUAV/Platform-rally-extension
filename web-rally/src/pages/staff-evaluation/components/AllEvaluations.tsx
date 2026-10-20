@@ -156,7 +156,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
   const hasActiveFilters = selectedTeam !== "all" || selectedCheckpoint !== "all";
   if (!evaluations || evaluations.length === 0) {
     return (
-      <div className="rally-surface rounded-2xl">
+      <div className="rally-surface">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <Activity className="h-5 w-5" />
@@ -171,7 +171,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
   }
 
   return (
-    <div className="rally-surface rounded-2xl">
+    <div className="rally-surface">
       <CardContent>
         {/* Filters */}
         <div className="mb-4 mt-4 p-2">
@@ -203,7 +203,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                 id="filter-team"
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value)}
-                className="w-full rounded border border-border bg-muted p-2 text-sm text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
+                className="w-full rounded-xl border border-border bg-card p-2 text-sm text-foreground focus:border-ring focus:ring-1 focus:ring-ring"
               >
                 <option value="all" className="bg-background">
                   Todas as equipas
@@ -228,7 +228,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                 id="filter-checkpoint"
                 value={selectedCheckpoint}
                 onChange={(e) => setSelectedCheckpoint(e.target.value)}
-                className="w-full rounded border border-border bg-muted p-2 text-sm text-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
+                className="w-full rounded-xl border border-border bg-card p-2 text-sm text-foreground focus:border-ring focus:ring-1 focus:ring-ring"
               >
                 <option value="all" className="bg-background">
                   Todos os postos

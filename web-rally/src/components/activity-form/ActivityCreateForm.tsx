@@ -231,7 +231,7 @@ export default function ActivityForm({
                   <Input
                     placeholder="Ex: Cabo de Guerra"
                     {...field}
-                    className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
                 </FormControl>
                 <FormMessage />
@@ -249,7 +249,7 @@ export default function ActivityForm({
                   <Input
                     placeholder="Descreva a atividade..."
                     {...field}
-                    className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
                 </FormControl>
                 <FormMessage />
@@ -268,7 +268,7 @@ export default function ActivityForm({
                     <select
                       {...field}
                       onChange={(e) => field.onChange(Number(e.target.value))}
-                      className="w-full rounded border border-border bg-muted p-2 text-foreground"
+                      className="w-full rounded-xl border border-border bg-card p-2 text-foreground"
                     >
                       {checkpoints.map((checkpoint) => (
                         <option
@@ -299,7 +299,7 @@ export default function ActivityForm({
                 <FormControl>
                   <select
                     {...field}
-                    className="w-full rounded border border-border bg-muted p-2 text-foreground"
+                    className="w-full rounded-xl border border-border bg-card p-2 text-foreground"
                   >
                     {Object.entries(activityTypeLabels).map(([value, label]) => (
                       <option
