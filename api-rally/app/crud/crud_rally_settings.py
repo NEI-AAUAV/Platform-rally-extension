@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from app.crud._session_memo import EVENT_SETTINGS, recall, remember
 from app.crud.base import CRUDBase
 from app.crud.crud_activity import rally_event
 from app.domain.event_configuration.policies import default_profile
@@ -29,6 +30,14 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         created with sensible defaults. Callers are unchanged — they still get
         back a single RallySettings object for "the active rally".
         """
+        memo = recall(db, EVENT_SETTINGS)
+        if memo is not None:
+            return memo  # type: ignore[no-any-return]
+        settings = await self._load_or_create(db)
+        remember(db, EVENT_SETTINGS, settings)
+        return settings
+
+    async def _load_or_create(self, db: "AsyncSession") -> RallySettings:
         event = await rally_event.ensure_current(db)
         # The race branches below use SAVEPOINTs and no longer call
         # db.rollback(), so `event` is never expired out from under us and its

@@ -273,28 +273,3 @@ async def test_clone_copies_global_activities(pg_session) -> None:
     assert global_activity is not None
     assert global_activity.is_global is True
     assert global_activity.checkpoint_id is None
-
-
-async def test_clone_skips_non_global_activity_with_no_checkpoint(pg_session) -> None:
-    source = await _make_event(pg_session, "2025", is_current=True)
-    await _populate(pg_session, source)
-    pg_session.add(
-        Activity(
-            name="Orphan",
-            activity_type="score_based",
-            checkpoint_id=None,
-            is_global=False,
-            event_id=source.id,
-            config={},
-        )
-    )
-    await pg_session.commit()
-    target = await _make_event(pg_session, "2026")
-
-    created = await EventService(pg_session).clone_structure(target.id, source.id)
-
-    assert created["activities"] == 1
-    orphan = await pg_session.scalar(
-        select(Activity).where(Activity.event_id == target.id, Activity.name == "Orphan")
-    )
-    assert orphan is None

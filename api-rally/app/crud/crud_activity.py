@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import RallyConfigurationError, RallyValidationError
 from app.crud import current_event_id
+from app.crud._session_memo import CURRENT_EVENT, recall, remember
 from app.domain.event_configuration.policies import (
     DOMAIN_CONFIG_KEYS,
     default_profile,
@@ -304,8 +305,12 @@ class CRUDRallyEvent:
         "Rally Tascas" event flagged current, so everything that scopes by the
         current event has something to attach to.
         """
+        memo = recall(db, CURRENT_EVENT)
+        if memo is not None:
+            return memo  # type: ignore[no-any-return]
         current = await self.get_current(db)
         if current is not None:
+            remember(db, CURRENT_EVENT, current)
             return current
 
         # Adopt an existing non-current event if one exists, else create.
@@ -315,6 +320,7 @@ class CRUDRallyEvent:
             db.add(existing)
             await db.commit()
             await db.refresh(existing)
+            remember(db, CURRENT_EVENT, existing)
             return existing
 
         # Fixed slug, not a pre-checked unique one: concurrent bootstraps must
@@ -351,9 +357,11 @@ class CRUDRallyEvent:
             current = await self.get_current(db)
             if current is None:
                 raise
+            remember(db, CURRENT_EVENT, current)
             return current
         await db.commit()
         await db.refresh(default)
+        remember(db, CURRENT_EVENT, default)
         return default
 
     async def _demote_all(self, db: AsyncSession) -> None:

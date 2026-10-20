@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.crud_checkpoint import checkpoint as checkpoint_crud
@@ -250,6 +250,29 @@ def _contiguous_prefix(
     return last_order, last_name
 
 
+# SQL form of ``ActivityResult.is_scored`` — ``is_scored``, never
+# ``is_completed`` alone: a deferred-judged capture sets is_completed=True at
+# capture time, before a judge has given it a score. Selecting just the ids
+# also avoids hydrating whole rows (and their mutable JSON columns).
+_SCORED_RESULT = (ActivityResult.is_completed.is_(True), ActivityResult.final_score.is_not(None))
+
+
+def _scored_activity_ids_stmt() -> Select[tuple[int]]:
+    return select(ActivityResult.activity_id).where(*_SCORED_RESULT)
+
+
+_EMPTY_PROGRESS = TeamProgress(
+    resolved_orders=frozenset(),
+    skipped_orders=frozenset(),
+    open_orders=frozenset(),
+    current_order=None,
+    last_completed_order=0,
+    last_completed_name=None,
+    is_finished=False,
+    total_published=0,
+)
+
+
 async def load_route_snapshot(db: AsyncSession, settings: Any) -> RouteSnapshot:
     """Load the per-event half of the progress calculation, once."""
     checkpoints = list(await checkpoint_crud.get_all_ordered(db))
@@ -287,20 +310,8 @@ async def progress_for_team(
     """
     if route is None:
         route = await load_route_snapshot(db, settings)
-    checkpoints = route.checkpoints
-    if not checkpoints:
-        return TeamProgress(
-            resolved_orders=frozenset(),
-            skipped_orders=frozenset(),
-            open_orders=frozenset(),
-            current_order=None,
-            last_completed_order=0,
-            last_completed_name=None,
-            is_finished=False,
-            total_published=0,
-        )
-
-    activities = route.activities
+    if not route.checkpoints:
+        return _EMPTY_PROGRESS
 
     skipped_ids = frozenset(
         (
@@ -316,14 +327,76 @@ async def progress_for_team(
             )
         ).all()
     )
-    results = (
-        await db.scalars(select(ActivityResult).where(ActivityResult.team_id == team.id))
-    ).all()
-    # ``is_scored``, never ``is_completed`` alone: a deferred-judged capture
-    # sets is_completed=True at capture time, before a judge has given it a
-    # score. See ActivityResult.is_scored.
-    scored_activity_ids = frozenset(r.activity_id for r in results if r.is_scored)
+    scored_activity_ids = frozenset(
+        (await db.scalars(_scored_activity_ids_stmt().where(ActivityResult.team_id == team.id)))
+        .unique()
+        .all()
+    )
+    return _progress_from_facts(
+        route,
+        skipped_ids=skipped_ids,
+        arrived_ids=arrived_ids,
+        scored_activity_ids=scored_activity_ids,
+        ignore_arrival_for=ignore_arrival_for,
+    )
 
+
+async def progress_for_teams(
+    db: AsyncSession,
+    teams: Sequence[Team],
+    settings: Any,
+    *,
+    route: RouteSnapshot | None = None,
+) -> dict[int, TeamProgress]:
+    """:func:`progress_for_team` for a whole roster in three queries, not 3 per team."""
+    if route is None:
+        route = await load_route_snapshot(db, settings)
+    ids = [team.id for team in teams]
+    skipped: dict[int, set[int]] = {tid: set() for tid in ids}
+    arrived: dict[int, set[int]] = {tid: set() for tid in ids}
+    scored: dict[int, set[int]] = {tid: set() for tid in ids}
+    if ids and route.checkpoints:
+        for team_id, checkpoint_id in await db.execute(
+            select(CheckpointSkip.team_id, CheckpointSkip.checkpoint_id).where(
+                CheckpointSkip.team_id.in_(ids)
+            )
+        ):
+            skipped[team_id].add(checkpoint_id)
+        for team_id, checkpoint_id in await db.execute(
+            select(CheckpointArrival.team_id, CheckpointArrival.checkpoint_id).where(
+                CheckpointArrival.team_id.in_(ids)
+            )
+        ):
+            arrived[team_id].add(checkpoint_id)
+        for team_id, activity_id in await db.execute(
+            select(ActivityResult.team_id, ActivityResult.activity_id).where(
+                ActivityResult.team_id.in_(ids), *_SCORED_RESULT
+            )
+        ):
+            scored[team_id].add(activity_id)
+    return {
+        tid: _progress_from_facts(
+            route,
+            skipped_ids=frozenset(skipped[tid]),
+            arrived_ids=frozenset(arrived[tid]),
+            scored_activity_ids=frozenset(scored[tid]),
+        )
+        for tid in ids
+    }
+
+
+def _progress_from_facts(
+    route: RouteSnapshot,
+    *,
+    skipped_ids: frozenset[int],
+    arrived_ids: frozenset[int],
+    scored_activity_ids: frozenset[int],
+    ignore_arrival_for: int | None = None,
+) -> TeamProgress:
+    checkpoints = route.checkpoints
+    if not checkpoints:
+        return _EMPTY_PROGRESS
+    activities = route.activities
     skipped_orders = frozenset(cp.order for cp in checkpoints if cp.id in skipped_ids)
     resolved = frozenset(
         cp.order

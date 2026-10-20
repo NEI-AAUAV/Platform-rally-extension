@@ -25,6 +25,12 @@ from app.core.config import Settings, settings
 # since JsonWebToken itself is not per-request state.
 _jwt = JsonWebToken(settings.OIDC_ALLOWED_ALGORITHMS)
 
+# A forced JWKS refresh (unknown-key / bad-signature token) is rate-limited to
+# one per window. Without it every forged token costs an outbound HTTP request
+# and a fresh TLS context, so a flood of bad tokens would hammer both this API
+# and the identity provider.
+_JWKS_FORCE_REFRESH_COOLDOWN_SECONDS = 30.0
+
 
 class OIDCJWTValidator:
     """Validate provider-issued JWT access tokens via OIDC discovery + JWKS."""
@@ -69,12 +75,16 @@ class OIDCJWTValidator:
         """Return the provider JWKS, cached for OIDC_JWKS_CACHE_TTL_SECONDS.
 
         Refetched when the cache is empty, expired, or a caller forces refresh
-        (e.g. after an unknown-key verification failure — key rotation).
+        (e.g. after an unknown-key verification failure — key rotation). A
+        forced refresh is ignored while the cache is younger than the cooldown.
         """
         ttl = settings.OIDC_JWKS_CACHE_TTL_SECONDS
-        fresh = (time.monotonic() - self._jwks_fetched_at) < ttl
-        if self._jwks is not None and fresh and not force_refresh:
-            return self._jwks
+        age = time.monotonic() - self._jwks_fetched_at
+        if self._jwks is not None:
+            if age < ttl and not force_refresh:
+                return self._jwks
+            if force_refresh and age < _JWKS_FORCE_REFRESH_COOLDOWN_SECONDS:
+                return self._jwks
 
         async with httpx.AsyncClient() as client:
             jwks_response = await client.get(jwks_uri, timeout=10.0)

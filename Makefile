@@ -1,9 +1,11 @@
-.PHONY: help dev dev-backend dev-db dev-down dev-build dev-logs dev-restart dev-clean dev-ps demo web-dev web-build prod prod-pull prod-build prod-down prod-logs staging staging-pull staging-down staging-logs test test-backend test-web test-smoke test-smoke-down lock
+.PHONY: help dev dev-backend dev-db dev-down dev-build dev-logs dev-restart dev-clean dev-ps demo web-dev web-build prod prod-pull prod-build prod-down prod-logs staging staging-pull staging-down staging-logs test test-backend test-web test-smoke test-smoke-down load-test load-test-down lock
 
 DEV_COMPOSE     := docker compose --project-name nei-rally-dev -f compose.yml --env-file .env
 PROD_COMPOSE    := docker compose --project-name nei-rally-prod -f deploy/docker-compose.prod.yaml --env-file .env.prod
 STAGING_COMPOSE := docker compose --project-name nei-rally-staging -f deploy/docker-compose.staging.yaml --env-file .env.staging
 SMOKE_COMPOSE   := docker compose --project-name nei-rally-smoke -f api-rally/docker-compose.smoke.yml
+LOAD_COMPOSE    := docker compose --project-name nei-rally-load -f loadtest/compose.yml
+PROFILE         ?= load
 
 help:
 	@echo "Available commands:"
@@ -42,6 +44,7 @@ help:
 	@echo "  make test-backend - Run api-rally pytest suite"
 	@echo "  make test-web     - Run web-rally vitest suite"
 	@echo "  make test-smoke   - Run e2e smoke suite against a real api-rally+Postgres stack"
+	@echo "  make load-test    - k6 rally-day load test (PROFILE=smoke|load|stress|soak|spike)"
 	@echo ""
 	@echo "Misc:"
 	@echo "  make lock         - Regenerate api-rally poetry.lock"
@@ -163,3 +166,11 @@ test-smoke-down:
 
 lock:
 	cd api-rally && poetry lock
+
+load-test:
+	mkdir -p loadtest/results
+	PROFILE=$(PROFILE) $(LOAD_COMPOSE) up --build --abort-on-container-exit --exit-code-from k6; \
+	status=$$?; $(LOAD_COMPOSE) down -v; exit $$status
+
+load-test-down:
+	$(LOAD_COMPOSE) down -v
