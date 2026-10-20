@@ -2,13 +2,20 @@ import { lazy, Suspense, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, Rectangle, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { BarShapeProps } from "recharts/types/cartesian/Bar";
-import { Activity, CheckCircle, Clock, Flag, Users } from "lucide-react";
-import { getTeams, getCheckpoints, getAllEvaluations, type ListingTeam } from "@/client";
-import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
+import { Activity, AlertTriangle, CheckCircle, Clock, Flag, Users } from "lucide-react";
+import { getTeams, getCheckpoints, getEvaluationsSummary, type ListingTeam } from "@/client";
+import {
+  ProvisionalBadge,
+  FreshnessIndicator,
+  LoadingState,
+  ErrorState,
+} from "@/components/shared";
 import useRallySettings from "@/hooks/useRallySettings";
+import { useEventConfiguration } from "@/pages/settings/components/useEventConfiguration";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import { useCountdown } from "@/pages/home/useCountdown";
-import { sortTeamsByRank } from "@/lib/teamRanking";
+import { sortTeamsByRank, displayRank } from "@/lib/teamRanking";
+import { displayMetric, statusOf, type MetricStatus } from "./metricStatus";
 
 const PointsDistributionChart = lazy(
   () => import("@/components/scoreboard/PointsDistributionChart"),
@@ -72,34 +79,57 @@ function StatCard({
   value,
   label,
   accent,
+  status = "ready",
 }: Readonly<{
   icon: typeof Users;
   value: number | string;
   label: string;
   accent?: boolean;
+  status?: MetricStatus;
 }>) {
+  const shown = displayMetric(value, status);
   return (
-    <div className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]">
+    <div
+      className="rally-surface flex items-center gap-4 rounded-xl border border-border p-4 shadow-[var(--rally-shadow-sm)]"
+      data-status={status}
+    >
       <div
         className={`rounded-lg p-2 ${accent ? "rally-bg-accent text-white" : "bg-secondary text-muted-foreground"}`}
       >
         <Icon className="h-5 w-5" />
       </div>
       <div>
-        <p className="rally-display text-2xl font-bold tabular-nums text-foreground">{value}</p>
+        <p
+          className="rally-display text-2xl font-bold tabular-nums text-foreground"
+          aria-label={status === "error" ? `${label}: indisponível` : undefined}
+        >
+          {shown}
+        </p>
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        {status === "error" && (
+          <p className="flex items-center gap-1 text-[11px] font-medium text-red-700 dark:text-red-300">
+            <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+            Indisponível
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
-export default function LiveDashboard() {
+export default function OperationsDashboard() {
   const { settings } = useRallySettings();
+  const configuration = useEventConfiguration();
   const countdownState = useCountdown(settings?.rally_start_time, settings?.rally_end_time);
 
   useScoreboardStream([["teams"]]);
 
-  const { data: teams, dataUpdatedAt: teamsUpdatedAt } = useQuery({
+  const {
+    data: teams,
+    dataUpdatedAt: teamsUpdatedAt,
+    isLoading: teamsLoading,
+    isError: teamsErrored,
+  } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
       const { data } = await getTeams();
@@ -108,19 +138,24 @@ export default function LiveDashboard() {
     refetchInterval: 15_000,
   });
 
-  const { data: checkpoints } = useQuery({
+  const checkpointsQuery = useQuery({
     queryKey: ["checkpoints"],
     queryFn: async () => {
       const { data } = await getCheckpoints();
       return data;
     },
   });
+  const checkpoints = checkpointsQuery.data;
 
-  const { data: allEvals } = useQuery<{ evaluations?: unknown[] }>({
-    queryKey: ["allEvaluations"],
+  // Count only: the full evaluation listing is never rendered here, so
+  // polling it every 15s would ship every serialized result for one number.
+  // Keyed under "allEvaluations" so existing prefix invalidations (evaluation
+  // submit, offline sync) refresh the count too.
+  const evaluationsQuery = useQuery({
+    queryKey: ["allEvaluations", "summary"],
     queryFn: async () => {
-      const { data } = await getAllEvaluations();
-      return data as unknown as { evaluations?: unknown[] };
+      const { data } = await getEvaluationsSummary();
+      return data;
     },
     refetchInterval: 15_000,
   });
@@ -130,20 +165,48 @@ export default function LiveDashboard() {
     () => (Array.isArray(checkpoints) ? checkpoints : []),
     [checkpoints],
   );
-  const totalEvals = allEvals?.evaluations?.length ?? 0;
+  const totalEvals = evaluationsQuery.data?.total ?? 0;
+  const checkpointsStatus = statusOf(checkpointsQuery);
+  const evaluationsStatus = statusOf(evaluationsQuery);
+  const configurationErrors =
+    configuration.data?.issues.filter((issue) => issue.severity === "error") ?? [];
 
-  const teamsStarted = teamList.filter((t) => (t.last_checkpoint_number ?? 0) > 0).length;
+  const teamsStarted = teamList.filter((t) => t.started_at != null).length;
   const teamsNotStarted = teamList.length - teamsStarted;
   const checkpointsTotal = checkpointList.length;
 
   const rankedTeams = sortTeamsByRank(teamList);
 
+  // "Concluíram" means genuinely completed, not merely resolved — a team
+  // that gave up on a post is resolved but did not complete it, so it must
+  // not count here even though `resolved_checkpoint_orders` includes it.
   const perCheckpointData = useMemo(() => {
     return checkpointList.map((cp) => {
-      const reached = teamList.filter((t) => (t.last_checkpoint_number ?? 0) >= cp.order).length;
-      return { name: cp.name.slice(0, 14), reached, total: teamList.length, order: cp.order };
+      const completed = teamList.filter(
+        (t) =>
+          t.resolved_checkpoint_orders?.includes(cp.order) &&
+          !t.skipped_checkpoint_orders?.includes(cp.order),
+      ).length;
+      return {
+        name: cp.name.slice(0, 14),
+        reached: completed,
+        total: teamList.length,
+        order: cp.order,
+      };
     });
   }, [checkpointList, teamList]);
+
+  // A failed/loading teams fetch must never render as "0 equipas" — that's
+  // indistinguishable from a real, empty event and hides an outage from the
+  // person watching this screen during a live rally.
+  if (teamsLoading) {
+    return <LoadingState message="A carregar dados operacionais..." />;
+  }
+  if (teamsErrored) {
+    return (
+      <ErrorState message="Não foi possível carregar as equipas. Tente novamente em instantes." />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -154,12 +217,29 @@ export default function LiveDashboard() {
         <FreshnessIndicator updatedAt={teamsUpdatedAt} className="ml-auto" />
       </div>
 
+      {configurationErrors.length > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          ⚠ Existem {configurationErrors.length} problema(s) de configuração que podem afetar a
+          prova.
+        </div>
+      )}
+
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard icon={Users} value={teamList.length} label="Equipas" accent />
-        <StatCard icon={Flag} value={checkpointList.length} label="Postos" />
+        <StatCard
+          icon={Flag}
+          value={checkpointList.length}
+          label="Postos"
+          status={checkpointsStatus}
+        />
         <StatCard icon={CheckCircle} value={teamsStarted} label="Iniciaram" />
-        <StatCard icon={Activity} value={totalEvals} label="Avaliações" />
+        <StatCard
+          icon={Activity}
+          value={totalEvals}
+          label="Avaliações"
+          status={evaluationsStatus}
+        />
       </div>
 
       {/* Teams not started alert */}
@@ -173,10 +253,19 @@ export default function LiveDashboard() {
       )}
 
       {/* Teams per checkpoint chart */}
+      {checkpointsStatus === "error" && (
+        <div
+          role="alert"
+          className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          Não foi possível carregar os postos — o progresso por posto está indisponível.
+        </div>
+      )}
       {perCheckpointData.length > 0 && (
         <div className="rally-surface rounded-xl border border-border p-5 shadow-[var(--rally-shadow-sm)]">
           <h3 className="rally-display mb-4 text-base font-bold text-foreground">
-            Equipas por posto
+            Equipas que concluíram por posto
           </h3>
           <ResponsiveContainer width="100%" height={Math.max(180, perCheckpointData.length * 36)}>
             <BarChart
@@ -200,7 +289,7 @@ export default function LiveDashboard() {
                 width={90}
               />
               <Tooltip
-                formatter={(val: unknown) => [`${val} equipas`, "Chegaram"]}
+                formatter={(val: unknown) => [`${val} equipas`, "Concluíram"]}
                 contentStyle={{
                   background: "hsl(var(--popover))",
                   border: "1px solid hsl(var(--border))",
@@ -243,7 +332,7 @@ export default function LiveDashboard() {
                 className="flex items-center gap-[13px] rounded-[12px] bg-muted/40 px-[14px] py-[11px]"
               >
                 <span className="rally-display w-6 text-center text-base font-bold tabular-nums text-muted-foreground">
-                  {index + 1}
+                  {displayRank(index)}
                 </span>
                 <span className="rally-bg-accent-soft grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full text-xs font-bold text-foreground">
                   {initialsOf(team.name)}
@@ -253,8 +342,8 @@ export default function LiveDashboard() {
                 </span>
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {checkpointsTotal
-                    ? `${team.last_checkpoint_number ?? 0}/${checkpointsTotal} postos`
-                    : `${team.last_checkpoint_number ?? 0} postos`}
+                    ? `${team.resolved_checkpoint_orders?.length ?? 0}/${checkpointsTotal} postos`
+                    : `${team.resolved_checkpoint_orders?.length ?? 0} postos`}
                 </span>
                 <span className="rally-display shrink-0 text-[15px] font-bold tabular-nums text-foreground">
                   {team.total}

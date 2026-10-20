@@ -335,7 +335,9 @@ async function buyEveryHint(page: Page): Promise<void> {
  * instead is immune to that render race by construction.
  */
 async function checkInWithGpsButton(page: Page): Promise<void> {
-  const registered = page.getByText(/Posto concluído|Check-in registado|Já registado/);
+  const registered = page.getByText(
+    /Posto concluído|Check-in registado|Já registado|Chegada registada — a aguardar/,
+  );
   const button = page.getByRole("button", { name: /^(Check-in GPS|Tentar novamente)$/ });
   let attempt = 0;
   await expect(async () => {

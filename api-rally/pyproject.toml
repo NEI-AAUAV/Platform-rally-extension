@@ -27,7 +27,7 @@ redis = "^8.0.1"
 greenlet = "^3.5.4"
 sentry-sdk = {version = "^2.66.1", extras = ["fastapi"]}
 openpyxl = "^3.1.5"
-boto3-stubs = "==1.43.97"
+boto3-stubs = "==1.43.114"
 botocore = "==1.43.93"
 prometheus-client = ">=0.21,<0.27"
 pywebpush = "^2.0.3"
@@ -143,6 +143,12 @@ ignore_imports = [
     "app.utils.rally_duration -> app.crud.crud_rally_settings",
     "app.utils.rally_duration -> app.models.rally_settings",
 ]
+
+[[tool.importlinter.contracts]]
+name = "domain is dependency-free of services"
+type = "forbidden"
+source_modules = ["app.domain"]
+forbidden_modules = ["app.services", "app.api", "app.crud"]
 
 [tool.mypy]
 exclude = ["app/tests"]

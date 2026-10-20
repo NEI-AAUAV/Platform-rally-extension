@@ -263,6 +263,7 @@ class TeamService:
             last_checkpoint_name=last_checkpoint_name,
             current_checkpoint_number=state.current_order,
             resolved_checkpoint_orders=sorted(state.resolved_orders),
+            skipped_checkpoint_orders=sorted(state.skipped_orders),
             open_checkpoint_orders=sorted(state.open_orders),
             is_route_finished=state.is_finished,
             started_at=None if hide_scores or pace is None else pace.started_at,
@@ -312,6 +313,7 @@ class TeamService:
             result.last_checkpoint_number = state.last_completed_order
             result.current_checkpoint_number = state.current_order
             result.resolved_checkpoint_orders = sorted(state.resolved_orders)
+            result.skipped_checkpoint_orders = sorted(state.skipped_orders)
             result.open_checkpoint_orders = sorted(state.open_orders)
             result.is_route_finished = state.is_finished
             result.total_checkpoints = state.total_published

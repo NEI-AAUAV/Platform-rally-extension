@@ -18,6 +18,7 @@ from app.services.pdf_report_service import PdfReportService
 
 _XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 _PDF_MEDIA_TYPE = "application/pdf"
+EVENT_NOT_FOUND_MSG = "Event not found"
 
 
 def _safe_filename(name: str) -> str:
@@ -40,7 +41,7 @@ class ExportController:
             methods=["GET"],
             name="export_event_results",
             tags=["Events"],
-            responses={404: {"description": "Event not found"}},
+            responses={404: {"description": EVENT_NOT_FOUND_MSG}},
         )
         self.router.add_api_route(
             "/events/{event_id}/report",
@@ -48,7 +49,7 @@ class ExportController:
             methods=["GET"],
             name="export_event_report",
             tags=["Events"],
-            responses={404: {"description": "Event not found"}},
+            responses={404: {"description": EVENT_NOT_FOUND_MSG}},
         )
 
     async def export_event_results(
@@ -62,7 +63,7 @@ class ExportController:
         """Return an .xlsx workbook of the event's results (admin/manager only)."""
         event = await crud.rally_event.get(db, event_id)
         if event is None:
-            raise RallyNotFoundError("Event not found")
+            raise RallyNotFoundError(EVENT_NOT_FOUND_MSG)
 
         content = await service.build_workbook(event_id)
         filename = f"{_safe_filename(event.name)}_results.xlsx"
@@ -92,7 +93,7 @@ class ExportController:
         ranking, per-checkpoint detail, captured photos, event stats."""
         event = await crud.rally_event.get(db, event_id)
         if event is None:
-            raise RallyNotFoundError("Event not found")
+            raise RallyNotFoundError(EVENT_NOT_FOUND_MSG)
 
         content = await service.build_report(event_id)
         filename = f"{_safe_filename(event.name)}_relatorio.pdf"

@@ -68,7 +68,7 @@ export function EvaluationTeamCard({
         <p className="mt-0.5 text-xs text-muted-foreground">
           {team.num_members || 0} membros
           {showScore && ` · ${team.total || 0} pts`}
-          {` · Posto ${team.last_checkpoint_number || "—"}`}
+          {` · ${team.resolved_checkpoint_orders?.length ?? 0} postos resolvidos`}
         </p>
       </div>
       <span

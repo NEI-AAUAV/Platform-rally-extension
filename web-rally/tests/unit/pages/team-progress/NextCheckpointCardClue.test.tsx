@@ -68,6 +68,7 @@ const hintState = (overrides: Record<string, unknown> = {}) => ({
   nextCost: 0,
   totalSpentInEvent: 0,
   isLoading: false,
+  hasLoaded: true,
   reveal: { mutate: mockReveal, isPending: false, isError: false, error: null },
   giveUp: { mutate: mockGiveUp, isPending: false, isError: false, error: null },
   ...overrides,

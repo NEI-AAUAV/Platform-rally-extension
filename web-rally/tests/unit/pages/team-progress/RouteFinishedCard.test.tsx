@@ -19,7 +19,7 @@ describe("RouteFinishedCard", () => {
   });
 
   it("says the route is over", () => {
-    render(<RouteFinishedCard completedCount={5} totalCount={5} showScore={false} total={120} />);
+    render(<RouteFinishedCard resolvedCount={5} totalCount={5} showScore={false} total={120} />);
 
     // Without this the card that carried the whole game just disappears.
     expect(screen.getByText("Chegaram ao fim!")).toBeInTheDocument();
@@ -27,13 +27,13 @@ describe("RouteFinishedCard", () => {
   });
 
   it("shows the score when the event reveals scores", () => {
-    render(<RouteFinishedCard completedCount={5} totalCount={5} showScore total={120} />);
+    render(<RouteFinishedCard resolvedCount={5} totalCount={5} showScore total={120} />);
 
     expect(screen.getByText("120")).toBeInTheDocument();
   });
 
   it("hides the score when the event does not", () => {
-    render(<RouteFinishedCard completedCount={5} totalCount={5} showScore={false} total={120} />);
+    render(<RouteFinishedCard resolvedCount={5} totalCount={5} showScore={false} total={120} />);
 
     expect(screen.queryByText("120")).not.toBeInTheDocument();
   });
@@ -48,13 +48,13 @@ describe("RouteFinishedCard", () => {
       checkpointGender: "f",
     });
 
-    render(<RouteFinishedCard completedCount={3} totalCount={4} showScore={false} total={0} />);
+    render(<RouteFinishedCard resolvedCount={3} totalCount={4} showScore={false} total={0} />);
 
     expect(screen.getByText(/3 de 4 tascas/)).toBeInTheDocument();
   });
 
   it("warns that the standings are not final", () => {
-    render(<RouteFinishedCard completedCount={5} totalCount={5} showScore total={120} />);
+    render(<RouteFinishedCard resolvedCount={5} totalCount={5} showScore total={120} />);
 
     // A team that gave up on a post, or is waiting on a judgement, would
     // otherwise read this as their final position.

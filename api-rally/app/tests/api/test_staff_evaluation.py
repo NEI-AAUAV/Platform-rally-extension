@@ -1123,3 +1123,110 @@ class TestAllEvaluationsAPI:
         body = resp.json()
         assert body["total"] >= 1
         assert any(e["team_id"] == team_obj.id for e in body["evaluations"])
+
+
+class TestEvaluationsSummaryAPI:
+    """``/staff/evaluations/summary`` must count exactly what
+    ``/staff/all-evaluations`` lists, under the same scoping rules."""
+
+    async def test_summary_matches_listing_total_for_manager(self, pg_session, pg_client, as_admin):
+        await _seed_result(pg_session, pg_client, as_admin)
+
+        listing = pg_client.get("/api/rally/v1/staff/all-evaluations")
+        summary = pg_client.get("/api/rally/v1/staff/evaluations/summary")
+
+        assert summary.status_code == 200, summary.text
+        assert summary.json() == {"total": listing.json()["total"]}
+        assert summary.json()["total"] == 1
+
+    async def test_summary_is_zero_with_no_evaluations(self, pg_session, pg_client, as_admin):
+        await _make_event(pg_session)
+        resp = pg_client.get("/api/rally/v1/staff/evaluations/summary")
+        assert resp.status_code == 200, resp.text
+        assert resp.json() == {"total": 0}
+
+    async def test_summary_staff_clamped_to_own_checkpoint(self, pg_session, pg_client, as_admin):
+        team_obj, _, _ = await _seed_result(pg_session, pg_client, as_admin)
+        other_checkpoint = await _make_checkpoint(pg_session, order=2)
+        as_admin.staff_checkpoint_id = other_checkpoint.id
+
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.get(f"/api/rally/v1/staff/evaluations/summary?team_id={team_obj.id}")
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json() == {"total": 0}
+
+    def test_summary_staff_without_checkpoint_forbidden(self, pg_session, pg_client, as_admin):
+        as_admin.staff_checkpoint_id = None
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            resp = pg_client.get("/api/rally/v1/staff/evaluations/summary")
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])
+        assert resp.status_code == 403
+
+
+class TestReadinessMatchesStaffEvaluability:
+    """Invariant: when readiness says a checkpoint has its scoring activity,
+    staff at that checkpoint can actually evaluate an activity there — and a
+    checkpoint readiness flags as uncovered has nothing staff can evaluate.
+
+    Pins the decision that a global activity (``is_global=True``,
+    ``checkpoint_id=None``) is event-wide and does not cover checkpoints.
+    """
+
+    async def test_global_activity_neither_covers_nor_is_evaluable_at_checkpoints(
+        self, pg_session, pg_client, as_admin
+    ):
+        event = await _make_event(pg_session, event_profile="staffed")
+        cp_local = await _make_checkpoint(pg_session, order=1)
+        cp_global_only = await _make_checkpoint(pg_session, order=2)
+        team_obj = await _make_team(pg_session, "TeamA")
+        local_activity = await _make_activity(pg_session, cp_local.id)
+        global_activity = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Global",
+                activity_type=ActivityType.GENERAL,
+                checkpoint_id=None,
+                is_global=True,
+                config={},
+            ),
+        )
+
+        resp = pg_client.get(f"/api/rally/v1/events/{event.id}/configuration-status")
+        assert resp.status_code == 200, resp.text
+        issues = {i["code"]: i for i in resp.json()["issues"]}
+        assert "NO_ACTIVITIES" not in issues
+        uncovered = set(issues["CHECKPOINTS_WITHOUT_ACTIVITIES"]["entity_ids"])
+        assert uncovered == {cp_global_only.id}
+
+        app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["rally-staff"])
+        try:
+            for checkpoint in (cp_local, cp_global_only):
+                as_admin.staff_checkpoint_id = checkpoint.id
+                listing = pg_client.get(f"/api/rally/v1/staff/teams/{team_obj.id}/activities")
+                assert listing.status_code == 200, listing.text
+                evaluable_ids = {a["id"] for a in listing.json()["activities"]}
+                assert global_activity.id not in evaluable_ids
+                # Readiness "covered" <=> staff there have something to evaluate.
+                assert bool(evaluable_ids) == (checkpoint.id not in uncovered)
+
+                resp = pg_client.post(
+                    f"/api/rally/v1/staff/teams/{team_obj.id}"
+                    f"/activities/{global_activity.id}/evaluate",
+                    json={"result_data": {"assigned_points": 10}},
+                )
+                assert resp.status_code in (403, 404), resp.text
+
+            as_admin.staff_checkpoint_id = cp_local.id
+            resp = pg_client.post(
+                f"/api/rally/v1/staff/teams/{team_obj.id}/activities/{local_activity.id}/evaluate",
+                json={"result_data": {"assigned_points": 10}},
+            )
+            assert resp.status_code == 200, resp.text
+        finally:
+            app.dependency_overrides[api_nei_auth] = lambda: _fake_auth_data(scopes=["admin"])

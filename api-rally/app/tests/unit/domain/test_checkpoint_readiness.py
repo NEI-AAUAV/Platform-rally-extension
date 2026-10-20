@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from app.services.checkpoint_planning import (
+from app.domain.event_configuration.checkpoint_readiness import (
     MISSING_ACTIVITY,
     MISSING_CLUE,
     MISSING_COORDINATES,
