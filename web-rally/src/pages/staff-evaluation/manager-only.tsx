@@ -117,122 +117,108 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
     });
   };
 
+  const showScore = settings?.show_score_mode !== "hidden";
+  const stats = [
+    { label: "Equipas", value: allTeams?.length || 0 },
+    { label: "Postos", value: allCheckpoints?.length || 0 },
+    { label: "Atividades", value: allActivities?.activities?.length || 0 },
+    {
+      label: "Avaliações",
+      value: evaluationsLoading ? "…" : (allEvaluations as Evaluation[])?.length || 0,
+    },
+  ];
+
+  // Overview first (how big is the event), then where to go (posts), then the
+  // records (evaluations) and the reference list of teams.
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="space-y-4 sm:space-y-6">
-        {/* Header */}
-        {!embedded && (
-          <PageHeader
-            eyebrow="Avaliação"
-            icon={Activity}
-            title="Painel de avaliação"
-            description="Visão geral e gestão de todas as avaliações."
-          />
-        )}
-
-        {/* All Evaluations Section */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowAllEvaluations(!showAllEvaluations)}
-            className="rally-surface flex w-full cursor-pointer items-center justify-between rounded-lg p-3 text-left transition-colors hover:bg-accent sm:p-4"
-          >
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5" />
-              <span className="font-semibold">Todas as Avaliações</span>
-              <Badge variant="outline" className="border-border text-foreground">
-                {evaluationsLoading
-                  ? "A carregar..."
-                  : (allEvaluations as Evaluation[])?.length || 0}
-              </Badge>
-            </div>
-            <ChevronDown
-              className={`h-5 w-5 transition-transform ${showAllEvaluations ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {showAllEvaluations && (
-            <div className="mt-2">
-              {evaluationsLoading ? (
-                <div className="rally-surface rounded-2xl p-4 sm:p-6">
-                  <p className="text-center text-muted-foreground">A carregar avaliações...</p>
-                </div>
-              ) : (
-                <AllEvaluations evaluations={(allEvaluations as Evaluation[]) || []} />
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Assigned Checkpoints */}
-        <AssignedCheckpoints
-          checkpoints={allCheckpoints || []}
-          activities={allActivities?.activities || []}
-          teams={allTeams || []}
-          onCheckpointClick={handleCheckpointClick}
+    <div className="space-y-10">
+      {!embedded && (
+        <PageHeader
+          eyebrow="Avaliação"
+          icon={Activity}
+          title="Painel de avaliação"
+          description="Visão geral e gestão de todas as avaliações."
         />
+      )}
 
-        {/* Teams Overview */}
-        <div className="rally-surface rounded-2xl p-5">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="rally-bg-accent-soft grid h-9 w-9 place-items-center rounded-lg text-foreground">
-              <Users className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="font-bold text-foreground">Visão Geral das Equipas</p>
-              <p className="text-xs text-muted-foreground">Todas as equipas do rally</p>
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl bg-border md:grid-cols-4">
+        {stats.map(({ label, value }) => (
+          <div key={label} className="flex flex-col-reverse justify-end bg-background p-5">
+            <dd className="rally-display mt-1 text-5xl tabular-nums text-foreground">{value}</dd>
+            <dt className="rally-eyebrow">{label}</dt>
+          </div>
+        ))}
+      </dl>
+
+      <AssignedCheckpoints
+        checkpoints={allCheckpoints || []}
+        activities={allActivities?.activities || []}
+        teams={allTeams || []}
+        onCheckpointClick={handleCheckpointClick}
+      />
+
+      <section className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setShowAllEvaluations(!showAllEvaluations)}
+          aria-expanded={showAllEvaluations}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <span className="flex items-baseline gap-3">
+            <span className="rally-display text-4xl text-foreground">Todas as Avaliações</span>
+            <Badge variant="outline" className="border-border text-foreground">
+              {evaluationsLoading ? "A carregar..." : (allEvaluations as Evaluation[])?.length || 0}
+            </Badge>
+          </span>
+          <span className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground">
+            <CheckCircle className="h-4 w-4" />
+            {showAllEvaluations ? "Esconder" : "Mostrar"}
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${showAllEvaluations ? "rotate-180" : ""}`}
+            />
+          </span>
+        </button>
+
+        {showAllEvaluations &&
+          (evaluationsLoading ? (
+            <div className="rally-surface p-6">
+              <p className="text-center text-muted-foreground">A carregar avaliações...</p>
             </div>
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {allTeams?.map((team) => (
-              <div key={team.id} className="rounded-xl border border-border bg-secondary p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="font-semibold text-foreground">{team.name}</h4>
-                  <Badge variant="outline" className="border-border text-foreground">
-                    #{team.id}
-                  </Badge>
-                </div>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>Membros: {team.num_members || 0}</p>
-                  {settings?.show_score_mode !== "hidden" && <p>Pontuação: {team.total || 0}</p>}
-                  {settings?.show_score_mode !== "hidden" && (
-                    <p>Classificação: {team.classification > 0 ? team.classification : "N/D"}</p>
-                  )}
-                  <p>Postos resolvidos: {team.resolved_checkpoint_orders?.length ?? 0}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          ) : (
+            <AllEvaluations evaluations={(allEvaluations as Evaluation[]) || []} />
+          ))}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-baseline gap-3">
+          <h2 className="rally-display text-4xl text-foreground">Equipas</h2>
+          <Users className="h-5 w-5 self-center text-muted-foreground" />
         </div>
-
-        {/* Statistics */}
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3 md:gap-6">
-          <div className="rally-surface rounded-2xl p-4 sm:p-6">
-            <div className="text-center">
-              <div className="mb-2 text-2xl font-bold text-foreground">{allTeams?.length || 0}</div>
-              <div className="text-sm text-muted-foreground">Equipas</div>
-            </div>
-          </div>
-
-          <div className="rally-surface rounded-2xl p-4 sm:p-6">
-            <div className="text-center">
-              <div className="mb-2 text-2xl font-bold text-foreground">
-                {allCheckpoints?.length || 0}
-              </div>
-              <div className="text-sm text-muted-foreground">Postos</div>
-            </div>
-          </div>
-
-          <div className="rally-surface rounded-2xl p-4 sm:p-6">
-            <div className="text-center">
-              <div className="mb-2 text-2xl font-bold text-foreground">
-                {allActivities?.activities?.length || 0}
-              </div>
-              <div className="text-sm text-muted-foreground">Atividades</div>
-            </div>
-          </div>
-        </div>
-      </div>
+        <ul className="rally-surface divide-y divide-border/70 p-2">
+          {allTeams?.map((team) => (
+            <li key={team.id} className="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-3">
+              <span className="rally-num w-10 text-sm font-bold text-muted-foreground">
+                #{team.id}
+              </span>
+              <span className="min-w-0 flex-1 truncate font-bold text-foreground">{team.name}</span>
+              <span className="text-sm text-muted-foreground">
+                Membros: {team.num_members || 0}
+              </span>
+              {showScore && (
+                <span className="text-sm text-muted-foreground">Pontuação: {team.total || 0}</span>
+              )}
+              {showScore && (
+                <span className="text-sm text-muted-foreground">
+                  Classificação: {team.classification > 0 ? team.classification : "N/D"}
+                </span>
+              )}
+              <span className="text-sm text-muted-foreground">
+                Postos resolvidos: {team.resolved_checkpoint_orders?.length ?? 0}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

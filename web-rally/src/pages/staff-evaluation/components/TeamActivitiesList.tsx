@@ -66,14 +66,16 @@ export function TeamActivitiesList({
           ← Voltar às atividades
         </Button>
 
-        <div className="rally-surface rally-elevate rounded-2xl p-5">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="rally-bg-accent-soft grid h-9 w-9 shrink-0 place-items-center rounded-lg text-foreground">
-              <Activity className="h-4 w-4" />
+        <div className="rally-surface p-6 sm:p-8">
+          <div className="mb-6 flex items-center gap-4">
+            <span className="rally-bg-accent grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white">
+              <Activity className="h-5 w-5" />
             </span>
-            <div>
-              <p className="font-bold text-foreground">{selectedActivity.name}</p>
-              <p className="text-xs text-muted-foreground">{team.name}</p>
+            <div className="min-w-0">
+              <p className="rally-eyebrow">{team.name}</p>
+              <p className="rally-display truncate text-3xl text-foreground">
+                {selectedActivity.name}
+              </p>
             </div>
           </div>
           <ActivityEvaluationForm
@@ -93,18 +95,18 @@ export function TeamActivitiesList({
 
   return (
     <div className="space-y-3">
-      <div className="mb-1 flex items-center gap-3">
-        <span className="rally-bg-accent-soft grid h-9 w-9 shrink-0 place-items-center rounded-lg text-foreground">
-          <Activity className="h-4 w-4" />
+      <div className="mb-3 flex items-center gap-4">
+        <span className="rally-bg-accent-soft rally-display grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-2xl text-foreground">
+          {team.name.trim().charAt(0).toUpperCase()}
         </span>
-        <div>
-          <p className="font-bold text-foreground">{team.name}</p>
-          <p className="text-xs text-muted-foreground">Atividades do posto</p>
+        <div className="min-w-0">
+          <p className="rally-display truncate text-4xl text-foreground">{team.name}</p>
+          <p className="text-sm text-muted-foreground">Atividades do posto</p>
         </div>
       </div>
 
       {activities.length === 0 ? (
-        <div className="rally-surface rounded-xl p-8 text-center">
+        <div className="rally-surface p-10 text-center">
           <Activity className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">Sem atividades para avaliar</p>
         </div>
@@ -118,15 +120,15 @@ export function TeamActivitiesList({
             <div
               key={activity.id}
               className={cn(
-                "flex items-center gap-4 rounded-xl border p-4 transition-colors",
+                "flex flex-wrap items-center gap-4 rounded-3xl border bg-card p-4 transition-colors sm:p-5",
                 isCompleted
-                  ? "border-border bg-card opacity-80"
-                  : "rally-border-accent rally-bg-accent-soft",
+                  ? "border-border/70 dark:border-transparent"
+                  : "rally-border-accent border-2",
               )}
             >
               <span
                 className={cn(
-                  "grid h-9 w-9 shrink-0 place-items-center rounded-lg",
+                  "grid h-11 w-11 shrink-0 place-items-center rounded-2xl",
                   isCompleted
                     ? "rally-bg-accent-soft text-foreground"
                     : "rally-bg-accent text-white",
@@ -136,7 +138,7 @@ export function TeamActivitiesList({
               </span>
 
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-foreground">{activity.name}</p>
+                <p className="text-base font-bold text-foreground">{activity.name}</p>
                 {activity.description && (
                   <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
                     {activity.description}
@@ -162,7 +164,6 @@ export function TeamActivitiesList({
                     variant={isCompleted ? "outline" : "default"}
                     size="sm"
                     disabled={isEvaluating}
-                    className={cn(!isCompleted && "rally-bg-accent text-white hover:opacity-90")}
                   >
                     {isCompleted ? (
                       <>

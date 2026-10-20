@@ -106,12 +106,10 @@ export function StaffCheckinScanner({ checkpointId, onTeamIdentified }: StaffChe
   }
 
   return (
-    <div className="rally-surface rounded-[18px] p-[20px_24px]">
+    <div className="rally-surface p-6">
       <div className="mb-1 flex items-center gap-2">
         <QrCode className="rally-accent h-4 w-4" />
-        <h3 className="rally-display text-[16px] font-bold text-foreground">
-          Identificar equipa por QR
-        </h3>
+        <h3 className="rally-display text-2xl text-foreground">Identificar equipa por QR</h3>
       </div>
       <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
         Lê o QR da equipa que chega para abrir a sua avaliação sem enganos e registar a chegada. A
