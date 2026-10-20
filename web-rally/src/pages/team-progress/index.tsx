@@ -6,7 +6,6 @@ import StatusScreen from "./StatusScreen";
 import TeamProgressSkeleton from "./TeamProgressSkeleton";
 import TeamStatusBar from "./TeamStatusBar";
 import TeamDetailsCard from "./TeamDetailsCard";
-import ProgressTabs, { type ProgressTab } from "./ProgressTabs";
 import { useIsDesktop } from "./useIsDesktop";
 import TeamMembersCard from "./TeamMembersCard";
 import NextCheckpointCard from "./NextCheckpointCard";
@@ -89,7 +88,7 @@ export default function TeamProgress() {
     <p className="rally-bg-accent-soft flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-foreground">
       <Route className="h-4 w-4 shrink-0" />
       {openCheckpointOrders.length} {terms.checkpoints} disponíveis — escolham por onde continuar
-      (os outros estão no Percurso).
+      (os outros estão no percurso abaixo).
     </p>
   );
   const nextCheckpointCard = nextCheckpoint ? (
@@ -171,56 +170,36 @@ export default function TeamProgress() {
     </section>
   );
 
-  const teamPanel = (
-    <div className="space-y-4">
-      <TeamDetailsCard team={team} rallyStartTime={settings?.rally_start_time} />
-      {!isPeddyPaper && <TeamMembersCard team={team} />}
-    </div>
-  );
   const nowPanel = nextCheckpointCard ? (
-    // Room below for the floating check-in bar on phones.
-    <div className="space-y-3 pb-40 lg:pb-0">{nextCheckpointCard}</div>
+    <div className="space-y-3">{nextCheckpointCard}</div>
   ) : (
     <p className="rally-surface p-6 text-center text-sm text-muted-foreground">
       Sem {terms.checkpoint} ativo de momento.
     </p>
   );
 
-  const tabs: ProgressTab[] = [
-    { id: "agora", label: "Agora", panel: nowPanel },
-    ...(hasRoute
-      ? [
-          {
-            id: "percurso" as const,
-            label: "Percurso",
-            badge: `${resolvedCheckpointsCount}/${totalCount}`,
-            panel: route,
-          },
-        ]
-      : []),
-    ...(mapSection ? [{ id: "mapa" as const, label: "Mapa", panel: mapSection }] : []),
-    { id: "equipa", label: "Equipa", panel: teamPanel },
-  ];
-
-  // Phones get one view at a time behind tabs; from lg the current task
-  // stays pinned on the left while the map and route sit beside it.
+  // Phones: one scroll — what to do now, then where you've been. The map and
+  // the team already have their own tabs in the bottom nav (Postos, Equipa),
+  // so repeating them here only stacked a second navigation on top of it.
+  // Desktop has the room to keep the current task pinned beside the rest.
   return (
     <div className="space-y-4 duration-500 animate-in fade-in lg:space-y-6">
       {header}
-      {isDesktop ? (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
-          <div className="space-y-6 lg:sticky lg:top-24">
-            {nowPanel}
-            {teamPanel}
-          </div>
-          <div className="space-y-6">
-            {mapSection}
-            {route}
-          </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
+        <div className="space-y-6 lg:sticky lg:top-24">
+          {nowPanel}
+          {isDesktop && (
+            <>
+              <TeamDetailsCard team={team} rallyStartTime={settings?.rally_start_time} />
+              {!isPeddyPaper && <TeamMembersCard team={team} />}
+            </>
+          )}
         </div>
-      ) : (
-        <ProgressTabs tabs={tabs} />
-      )}
+        <div className="space-y-6">
+          {isDesktop && mapSection}
+          {route}
+        </div>
+      </div>
     </div>
   );
 }

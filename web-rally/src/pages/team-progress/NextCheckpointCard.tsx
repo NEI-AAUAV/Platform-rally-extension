@@ -52,8 +52,7 @@ export default function NextCheckpointCard({
     showMap && hasCoords && !isRedacted
       ? `https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`
       : null;
-  // Only float a bar when it has something in it — an empty glass slab over
-  // the tab bar would be worse than nothing.
+  // Skip the divider + empty block when there is nothing to show.
   const showArrival =
     !persistent.hasArrived &&
     !persistent.isSkipped &&
@@ -94,30 +93,22 @@ export default function NextCheckpointCard({
           redacted checkpoint's payload, but this component must not use
           them either if it ever receives some anyway — a post's secret must
           not leak through two independent failures instead of one. */}
-      {(directionsUrl || (!isTerminal && access.proximityEnabled)) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {directionsUrl && (
-            <a
-              href={directionsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rally-press inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/40"
-            >
-              <Navigation className="h-4 w-4" aria-hidden />
-              Como chegar
-            </a>
-          )}
-          {!isTerminal && access.proximityEnabled && (
-            <ProximityButton checkpointId={checkpoint.id} />
-          )}
-        </div>
+      {directionsUrl && (
+        <a
+          href={directionsUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="rally-press inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/40"
+        >
+          <Navigation className="h-4 w-4" aria-hidden />
+          Como chegar
+        </a>
       )}
 
-      {/* On a phone the check-in floats above the tab bar (and the QR button
-          that sits on it) so the one thing the team came here to do is
-          always within thumb reach; from lg up it is inline in the panel. */}
+      {!isTerminal && access.proximityEnabled && <ProximityButton checkpointId={checkpoint.id} />}
+
       {showArrival && (
-        <div className="rally-glass rally-glass-solid rally-elevate-lg fixed inset-x-3 bottom-[calc(var(--safe-bottom)+8.75rem)] z-40 space-y-2 rounded-2xl border border-border/60 p-3 sm:bottom-6 lg:static lg:inset-auto lg:z-auto lg:space-y-3 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:border-t lg:bg-transparent lg:p-0 lg:pt-4 lg:shadow-none lg:backdrop-blur-none">
+        <div className="space-y-3 border-t border-border pt-4">
           <CheckpointArrivalAction
             openingNotice={openingNotice}
             settingsUnavailable={access.settingsUnavailable}
