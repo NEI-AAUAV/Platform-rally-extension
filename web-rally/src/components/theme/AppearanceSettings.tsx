@@ -54,7 +54,6 @@ export function AppearanceSettings({ className = "" }: AppearanceSettingsProps) 
           })}
         </div>
       </fieldset>
-
     </section>
   );
 }

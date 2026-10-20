@@ -39,17 +39,17 @@ class ErrorBoundary extends Component<Props, State> {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-5 w-5" />
-                Something went wrong
+                Algo correu mal
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="mb-4 text-muted-foreground">
-                An unexpected error occurred. Please try refreshing the page.
+                Ocorreu um erro inesperado. Tenta recarregar a página.
               </p>
               {this.state.error && (
                 <details className="mt-4">
                   <summary className="mb-2 cursor-pointer text-sm font-medium text-muted-foreground">
-                    Error details
+                    Detalhes do erro
                   </summary>
                   <pre className="max-h-96 overflow-auto rounded-md bg-muted p-4 text-sm">
                     {this.state.error.message}
@@ -63,7 +63,7 @@ class ErrorBoundary extends Component<Props, State> {
                 onClick={() => this.setState({ hasError: false, error: null })}
                 className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               >
-                Try again
+                Tentar de novo
               </button>
             </CardContent>
           </Card>

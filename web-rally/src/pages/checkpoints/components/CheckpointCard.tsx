@@ -35,10 +35,10 @@ export default function CheckpointCard({
   return (
     <article
       className={[
-        "overflow-hidden rounded-[16px] border transition-colors",
+        "overflow-hidden rounded-3xl border bg-card transition-colors",
         isSelected
-          ? "rally-border-accent bg-card"
-          : "border-border bg-card hover:border-muted-foreground/30",
+          ? "rally-border-accent"
+          : "border-border/70 hover:border-muted-foreground/30 dark:border-transparent",
       ].join(" ")}
     >
       <div className="flex w-full items-center justify-between gap-4 p-[16px_18px]">
@@ -51,14 +51,14 @@ export default function CheckpointCard({
         >
           <span
             className={[
-              "rally-display grid h-[44px] w-[44px] shrink-0 place-items-center rounded-[13px] text-[20px] font-bold",
-              isSelected ? "rally-bg-accent text-white" : "bg-muted/60 text-muted-foreground",
+              "rally-display grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-3xl",
+              isSelected ? "rally-bg-accent text-white" : "rally-accent bg-secondary",
             ].join(" ")}
           >
             {checkpoint.order}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[16px] font-bold text-foreground">{checkpoint.name}</p>
+            <p className="rally-display truncate text-2xl text-foreground">{checkpoint.name}</p>
             <p className="mt-[3px] flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground/80">
               <Compass className="h-3.5 w-3.5" />
               {isRedacted ? "Ainda por descobrir" : "Descobre este local"}
@@ -73,7 +73,7 @@ export default function CheckpointCard({
             })}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-[11px] border border-border bg-background px-3 py-2 text-xs font-bold text-foreground transition-colors hover:bg-muted/40"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-2 text-xs font-bold text-foreground transition-colors hover:bg-muted/40"
           >
             <Navigation className="h-3.5 w-3.5" />
             Ir
@@ -82,7 +82,7 @@ export default function CheckpointCard({
       </div>
 
       {hasDiscovery && (
-        <div className="border-t border-border px-[18px] pb-4 pt-3">
+        <div className="border-t border-border/70 px-[18px] pb-4 pt-3">
           <CheckpointDiscovery checkpointId={checkpoint.id} description={checkpoint.description} />
         </div>
       )}

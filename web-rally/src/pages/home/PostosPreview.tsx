@@ -33,10 +33,7 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
   return (
     <section aria-labelledby="postos-heading">
       <div className="flex items-end justify-between">
-        <h2
-          id="postos-heading"
-          className="rally-display text-5xl text-foreground sm:text-6xl"
-        >
+        <h2 id="postos-heading" className="rally-display text-5xl text-foreground sm:text-6xl">
           Postos
         </h2>
         <Link

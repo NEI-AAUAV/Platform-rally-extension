@@ -25,9 +25,7 @@ export function RallyMarquee({ items }: RallyMarqueeProps) {
         <div className="rally-marquee-track flex items-center whitespace-nowrap">
           {doubled.map((item, i) => (
             <Fragment key={`${item}-${i}`}>
-              <span className="rally-display text-2xl text-white sm:text-3xl">
-                {item}
-              </span>
+              <span className="rally-display text-2xl text-white sm:text-3xl">{item}</span>
               {/* Separator is its own flex sibling with symmetric margin, so it
                   sits exactly midway between the two adjacent labels. */}
               <span className="mx-8 text-white/70" aria-hidden="true">

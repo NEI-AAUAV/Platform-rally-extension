@@ -114,13 +114,16 @@ export function Podium({
             to="/teams/$id"
             params={{ id: String(team.id) }}
             className={[
-              "rally-surface rally-press flex flex-col items-center rounded-2xl border border-border p-4 text-center",
-              champion
-                ? "rally-bg-accent-soft rally-shadow-accent sm:-translate-y-3 sm:p-6"
-                : "bg-card",
+              "rally-press flex flex-col items-center rounded-[28px] p-4 text-center",
+              champion ? "rally-bg-accent text-white sm:-translate-y-4 sm:p-6" : "rally-surface",
             ].join(" ")}
           >
-            <span className="rally-display text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+            <span
+              className={[
+                "rally-display text-3xl sm:text-4xl",
+                champion ? "" : "text-muted-foreground",
+              ].join(" ")}
+            >
               {ORDINAL[rank - 1]}
             </span>
             <div
@@ -134,28 +137,44 @@ export function Podium({
             </div>
             <p
               className={[
-                "mt-3 max-w-full truncate font-semibold text-foreground",
-                champion ? "text-base sm:text-lg" : "text-sm",
+                "rally-display mt-3 max-w-full truncate",
+                champion ? "text-3xl sm:text-4xl" : "text-xl text-foreground sm:text-2xl",
               ].join(" ")}
             >
               {team.name}
             </p>
             <p
               className={[
-                "rally-display rally-accent mt-1 text-xl font-bold tabular-nums sm:text-2xl",
+                "rally-num mt-1 font-bold tabular-nums",
+                champion ? "text-2xl sm:text-3xl" : "rally-accent text-xl sm:text-2xl",
                 isProvisional ? "italic" : "",
               ].join(" ")}
             >
               {team.total}
-              <span className="ml-1 text-xs font-medium text-muted-foreground">pts</span>
+              <span
+                className={[
+                  "ml-1 text-xs font-medium",
+                  champion ? "" : "text-muted-foreground",
+                ].join(" ")}
+              >
+                pts
+              </span>
             </p>
             {reached > 0 && (
-              <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
+              <p
+                className={["mt-0.5 text-[0.7rem]", champion ? "" : "text-muted-foreground"].join(
+                  " ",
+                )}
+              >
                 {reachedLabel(reached, checkpointsCount, terms)}
               </p>
             )}
             {showPace && team.elapsed_seconds != null && (
-              <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
+              <p
+                className={["mt-0.5 text-[0.7rem]", champion ? "" : "text-muted-foreground"].join(
+                  " ",
+                )}
+              >
                 {formatElapsed(team.elapsed_seconds)}
               </p>
             )}
@@ -205,7 +224,7 @@ export function ScoreRows({
                 params={{ id: String(team.id) }}
                 className="rally-surface rally-press flex items-center gap-4 px-4 py-3.5"
               >
-                <span className="rally-display w-7 shrink-0 text-center text-xl font-bold tabular-nums text-muted-foreground">
+                <span className="rally-display w-9 shrink-0 text-center text-3xl tabular-nums text-muted-foreground">
                   {rank}
                 </span>
                 <span className="rally-bg-accent-soft grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full text-sm font-bold text-foreground">
@@ -235,7 +254,7 @@ export function ScoreRows({
                 </span>
                 <span
                   className={[
-                    "rally-display shrink-0 text-lg font-bold tabular-nums text-foreground",
+                    "rally-num shrink-0 text-lg font-bold tabular-nums text-foreground",
                     isProvisional ? "italic" : "",
                   ].join(" ")}
                 >
