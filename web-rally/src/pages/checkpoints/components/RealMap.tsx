@@ -45,7 +45,7 @@ function pinIcon(order: number, selected: boolean, accent: string): L.DivIcon {
       transform:rotate(-45deg);
       background:${accent};
       color:#fff;
-      font-family:'Space Grotesk',sans-serif;font-weight:700;
+      font-family:'Big Shoulders Display',sans-serif;font-weight:800;
       font-size:${selected ? 16 : 13}px;
       border:2px solid #fff;
       box-shadow:0 6px 16px -4px rgba(0,0,0,.5);

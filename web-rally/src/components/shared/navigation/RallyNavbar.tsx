@@ -47,7 +47,7 @@ function EventSwitcher({ eventName }: { readonly eventName: string }) {
         aria-label={`Edição atual: ${eventName}`}
         className="rally-press flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent"
       >
-        <span className="rally-display hidden max-w-[16ch] truncate text-xs font-black uppercase tracking-tight text-foreground sm:inline sm:text-sm">
+        <span className="rally-display hidden max-w-[16ch] truncate text-lg text-foreground sm:inline sm:text-xl">
           {eventName}
         </span>
         <ChevronDown
@@ -100,7 +100,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
     // but the top edge still swallows touches. It used to be an inline
     // max(20px, …), which put that iOS workaround on every platform — a
     // permanent 20px band above the navbar on desktop and Android.
-    <header className="rally-glass rally-topbar-inset sticky top-0 z-40 border-b border-border shadow-[var(--rally-shadow-sm)]">
+    <header className="rally-glass rally-glass-on-background rally-topbar-inset sticky top-0 z-40 border-b border-border/60">
       <nav
         aria-label="Navegação principal"
         className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2.5 sm:px-5"
@@ -115,7 +115,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
                 className="h-8 w-8 rounded-lg object-contain sm:h-9 sm:w-9"
               />
             ) : (
-              <span className="rally-bg-accent grid h-8 w-8 place-items-center rounded-lg text-xs font-bold text-white shadow-[var(--rally-shadow-sm)] sm:h-9 sm:w-9 sm:text-sm">
+              <span className="rally-bg-accent rally-display grid h-8 w-8 place-items-center rounded-lg text-base text-white sm:h-9 sm:w-9 sm:text-lg">
                 {initialsOf(eventName)}
               </span>
             )}
@@ -123,7 +123,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
           {isAdminOrManager ? (
             <EventSwitcher eventName={eventName} />
           ) : (
-            <span className="rally-display hidden max-w-[16ch] truncate text-xs font-black uppercase tracking-tight text-foreground sm:inline sm:text-sm">
+            <span className="rally-display hidden max-w-[16ch] truncate text-lg text-foreground sm:inline sm:text-xl">
               {eventName}
             </span>
           )}

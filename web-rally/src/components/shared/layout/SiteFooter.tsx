@@ -37,7 +37,7 @@ export function SiteFooter({ branding }: SiteFooterProps) {
 
   return (
     <footer
-      className="relative mt-16 overflow-hidden border-t border-border bg-card/40"
+      className="relative mt-24 overflow-hidden border-t border-border/60"
       style={{
         // Keeps the last row clear of the iOS home-indicator gesture zone,
         // which stays reserved even after the indicator itself fades.
@@ -49,13 +49,13 @@ export function SiteFooter({ branding }: SiteFooterProps) {
         src={mapWhite}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.45] dark:hidden"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.12] dark:hidden"
       />
       <img
         src={mapBlack}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.45] dark:block"
+        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.12] dark:block"
       />
 
       <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-3">

@@ -13,77 +13,77 @@
    ============================================================ */
 @layer base {
   :root {
-    --background: 40 30% 98%;
-    --foreground: 220 20% 12%;
+    /* Paper: warm off-white page, white cards, near-black ink. */
+    --background: 45 22% 94%;
+    --foreground: 60 4% 7%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 12%;
+    --card-foreground: 60 4% 7%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 12%;
+    --popover-foreground: 60 4% 7%;
 
-    --primary: 220 20% 12%;
-    --primary-foreground: 40 30% 98%;
+    --primary: 60 4% 7%;
+    --primary-foreground: 45 22% 94%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 20% 20%;
+    --secondary: 45 16% 89%;
+    --secondary-foreground: 60 4% 12%;
 
-    --muted: 220 14% 95%;
-    /* 34% (not 42%): muted text also lands on the soft accent tints
-       (.rally-bg-accent-soft), where the lighter value was 4.33:1 — under AA. */
-    --muted-foreground: 220 14% 34%;
+    --muted: 45 16% 89%;
+    /* Kept dark enough to clear AA on the soft accent tints too. */
+    --muted-foreground: 45 5% 32%;
 
-    --accent: 220 14% 94%;
-    --accent-foreground: 220 20% 18%;
+    --accent: 45 16% 87%;
+    --accent-foreground: 60 4% 10%;
 
-    --destructive: 0 72% 50%;
+    --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
-    --ring: 220 20% 12%;
+    --border: 45 10% 84%;
+    --input: 45 10% 80%;
+    --ring: 60 4% 7%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    /* Soft-depth elevation (light). */
-    --rally-shadow-sm: 0 1px 2px rgba(16, 18, 27, 0.06), 0 2px 8px rgba(16, 18, 27, 0.05);
-    --rally-shadow-md: 0 4px 12px rgba(16, 18, 27, 0.08), 0 10px 30px rgba(16, 18, 27, 0.07);
-    --rally-shadow-lg: 0 12px 28px rgba(16, 18, 27, 0.12), 0 28px 64px rgba(16, 18, 27, 0.1);
+    /* Flat depth: hairline lift, no soft glow. */
+    --rally-shadow-sm: 0 1px 0 rgba(17, 17, 15, 0.04);
+    --rally-shadow-md: 0 2px 0 rgba(17, 17, 15, 0.05), 0 12px 32px -16px rgba(17, 17, 15, 0.18);
+    --rally-shadow-lg: 0 24px 60px -24px rgba(17, 17, 15, 0.3);
   }
 
   .dark {
-    --background: 224 30% 6%;
-    --foreground: 210 20% 96%;
+    /* Night: near-black with a warm cast, so the accent reads as neon. */
+    --background: 60 5% 4%;
+    --foreground: 45 25% 94%;
 
-    --card: 224 26% 9%;
-    --card-foreground: 210 20% 96%;
+    --card: 60 4% 8%;
+    --card-foreground: 45 25% 94%;
 
-    --popover: 224 28% 8%;
-    --popover-foreground: 210 20% 96%;
+    --popover: 60 4% 9%;
+    --popover-foreground: 45 25% 94%;
 
-    --primary: 210 20% 96%;
-    --primary-foreground: 224 30% 8%;
+    --primary: 45 25% 94%;
+    --primary-foreground: 60 5% 4%;
 
-    --secondary: 222 18% 16%;
-    --secondary-foreground: 210 20% 92%;
+    --secondary: 60 4% 13%;
+    --secondary-foreground: 45 20% 90%;
 
-    --muted: 222 16% 16%;
-    --muted-foreground: 215 16% 62%;
+    --muted: 60 4% 13%;
+    --muted-foreground: 45 5% 62%;
 
-    --accent: 222 18% 18%;
-    --accent-foreground: 210 20% 92%;
+    --accent: 60 4% 15%;
+    --accent-foreground: 45 20% 92%;
 
-    --destructive: 0 62% 45%;
+    --destructive: 0 70% 52%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 222 16% 18%;
-    --input: 222 16% 18%;
-    --ring: 210 20% 70%;
+    --border: 60 3% 15%;
+    --input: 60 3% 20%;
+    --ring: 45 25% 80%;
 
-    /* Soft-depth elevation (dark) — deeper, accent-neutral. */
-    --rally-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.35);
-    --rally-shadow-md: 0 6px 16px rgba(0, 0, 0, 0.45), 0 14px 40px rgba(0, 0, 0, 0.4);
-    --rally-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5), 0 32px 80px rgba(0, 0, 0, 0.45);
+    --rally-shadow-sm: 0 0 0 transparent;
+    --rally-shadow-md: 0 16px 40px -20px rgba(0, 0, 0, 0.7);
+    --rally-shadow-lg: 0 30px 80px -30px rgba(0, 0, 0, 0.85);
   }
 }
 
@@ -217,19 +217,6 @@
     }
 
 
-    /* Organic multi-source gradient for the ambient background blobs — 0
-       network bytes, scales on any display. Non-iOS keeps the flat
-       .rally-bg-accent-soft tint set in the base rule below. */
-    .rally-ambient-blob {
-      background:
-        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.35), transparent 55%),
-        radial-gradient(
-          circle at 75% 75%,
-          var(--rally-accent, var(--rally-accent-fallback)),
-          transparent 60%
-        ),
-        var(--rally-accent-soft, var(--rally-accent-soft-fallback));
-    }
   }
 
   /* ------------------------------------------------------------------
@@ -411,11 +398,6 @@
     background-color: var(--rally-accent, var(--rally-accent-fallback));
   }
   .rally-bg-accent-soft {
-    background-color: var(--rally-accent-soft, var(--rally-accent-soft-fallback));
-  }
-  /* Flat tint by default; the iOS override above swaps this for an organic
-     multi-source gradient. */
-  .rally-ambient-blob {
     background-color: var(--rally-accent-soft, var(--rally-accent-soft-fallback));
   }
   .rally-border-accent {
@@ -600,9 +582,12 @@
   /* --- Soft-depth surfaces (the rally design language) --- */
   .rally-surface {
     background-color: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
+    border: 1px solid hsl(var(--border) / 0.7);
+    border-radius: calc(var(--radius) + 0.5rem);
     box-shadow: var(--rally-shadow-sm);
+  }
+  .dark .rally-surface {
+    border-color: transparent;
   }
   .rally-elevate {
     box-shadow: var(--rally-shadow-md);
@@ -675,12 +660,10 @@
       box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1);
   }
   .rally-press:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--rally-shadow-md);
+    transform: translateY(-1px);
   }
   .rally-press:active {
-    transform: translateY(0);
-    box-shadow: var(--rally-shadow-sm);
+    transform: translateY(0) scale(0.98);
   }
 
   /* --- Back-compat aliases (softened): keep B3 shell coherent until
@@ -714,10 +697,27 @@
   }
 
   /* --- Typography + atmosphere --- */
+  /* Condensed poster type: headings, scores, counters. Uppercase is what
+     makes Big Shoulders read as signage rather than as a narrow sans. */
   .rally-display {
-    font-family: "Space Grotesk", "Inter", sans-serif;
-    letter-spacing: -0.03em;
-    line-height: 0.92;
+    font-family: "Big Shoulders Display", Impact, sans-serif;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    line-height: 0.9;
+  }
+  /* Tabular figures for live numbers, so digits do not jitter as they tick. */
+  .rally-num {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Small all-caps label above a heading or a stat. */
+  .rally-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
   }
   .rally-serif {
     font-family: "Playfair Display", serif;

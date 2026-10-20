@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Trophy, Users } from "lucide-react";
+import { ArrowRight, Trophy } from "lucide-react";
 import { RallyButton } from "@/components/themes/rally";
+import { cn } from "@/lib/utils";
 import type { Branding } from "@/lib/branding";
 import type { RallySettingsResponse } from "@/client";
 import { useCountdown, type CountdownState } from "./useCountdown";
@@ -16,7 +17,14 @@ interface HomeHeroProps {
 const PAD = (n: number) => String(n).padStart(2, "0");
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-function CountdownDigits({ state }: { readonly state: CountdownState }) {
+/** Splits the name so its last word can carry the accent on its own line. */
+function splitName(name: string): readonly [string, string] {
+  const at = name.trim().lastIndexOf(" ");
+  return at > 0 ? [name.slice(0, at), name.slice(at + 1)] : ["", name];
+}
+
+/** Scoreboard-style clock on an inverted slab: ink on paper, paper on night. */
+function CountdownClock({ state }: { readonly state: CountdownState }) {
   // Days only appear once there are any: hours/min/sec are remainders, so
   // dropping the days cell on a multi-day event makes it read as ending today.
   const cells = [
@@ -26,20 +34,29 @@ function CountdownDigits({ state }: { readonly state: CountdownState }) {
     { label: "Seg", value: state.seconds },
   ];
   return (
-    <div className="flex justify-center gap-2 sm:gap-3">
-      {cells.map((cell) => (
-        <div
-          key={cell.label}
-          className="rally-surface rally-elevate flex min-w-[4.5rem] flex-col items-center px-3 py-3 sm:min-w-[5.5rem] sm:py-3.5"
-        >
-          <span className="rally-display text-3xl font-bold tabular-nums text-foreground sm:text-4xl">
-            {PAD(cell.value)}
-          </span>
-          <span className="text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {cell.label}
-          </span>
-        </div>
-      ))}
+    <div className="rounded-[28px] bg-foreground p-6 text-background sm:p-8">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] opacity-60">
+        {state.phase === "pre" ? "Começa em" : "Termina em"}
+      </p>
+      <div className="mt-3 flex items-start">
+        {cells.map((cell, i) => (
+          <div key={cell.label} className="flex items-start">
+            {i > 0 && (
+              <span aria-hidden className="rally-display rally-accent px-1 text-6xl sm:text-8xl">
+                :
+              </span>
+            )}
+            <div className="flex flex-col">
+              <span className="rally-display text-6xl tabular-nums sm:text-8xl">
+                {PAD(cell.value)}
+              </span>
+              <span className="mt-1 text-[0.65rem] font-bold uppercase tracking-[0.16em] opacity-60">
+                {cell.label}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -47,109 +64,75 @@ function CountdownDigits({ state }: { readonly state: CountdownState }) {
 export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHeroProps) {
   const state = useCountdown(settings?.rally_start_time, settings?.rally_end_time);
   const { eventName, eventSubtitle } = branding;
+  const [lead, last] = splitName(eventName);
+  const showClock = state.phase === "pre" || state.phase === "live";
 
   return (
     <section
       aria-labelledby="home-hero-heading"
-      className="relative flex min-h-[34rem] flex-col items-center justify-center overflow-hidden rounded-[26px] border border-border bg-card/40 px-5 py-16 text-center sm:min-h-[42rem] sm:px-10"
+      className={cn(
+        "grid items-end gap-10 pb-6 pt-6 sm:pt-12 lg:gap-14",
+        showClock && "lg:grid-cols-[1.35fr_1fr]",
+      )}
     >
-      {/* soft blobs */}
-      <div
-        aria-hidden
-        className="rally-bg-accent-soft pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="rally-bg-accent-soft pointer-events-none absolute -bottom-28 -right-20 h-96 w-96 rounded-full blur-3xl"
-      />
-      {/* grid texture */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.04] [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)] [background-size:34px_34px]"
-      />
-
-      <div className="relative z-10 flex flex-col items-center gap-6 sm:gap-7">
-        {/* live / pre pill */}
+      <div className="flex flex-col items-start gap-6">
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: EASE }}
         >
           {state.phase === "live" && (
-            <span className="rally-bg-accent inline-flex items-center gap-2 rounded-full px-5 py-[7px] text-sm font-bold uppercase tracking-[0.06em] text-white">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-white" />A decorrer agora
+            <span className="inline-flex items-center gap-2.5 text-sm font-bold uppercase tracking-[0.1em] text-foreground">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="rally-bg-accent absolute inset-0 animate-ping rounded-full opacity-60" />
+                <span className="rally-bg-accent relative h-2.5 w-2.5 rounded-full" />
+              </span>
+              A decorrer agora
             </span>
           )}
           {state.phase === "pre" && (
-            <span className="inline-flex items-center rounded-full border border-border bg-card px-5 py-[7px] text-sm font-semibold text-muted-foreground">
+            <span className="inline-flex items-center rounded-full border border-border px-4 py-1.5 text-sm font-semibold text-muted-foreground">
               Em breve
             </span>
           )}
           {state.phase === "post" && (
-            <span className="inline-flex items-center rounded-full border border-border bg-secondary px-5 py-[7px] text-sm font-semibold text-secondary-foreground">
+            <span className="inline-flex items-center rounded-full bg-secondary px-4 py-1.5 text-sm font-semibold text-secondary-foreground">
               Edição terminada
             </span>
           )}
         </motion.div>
 
-        {/* giant event name */}
-        <div>
-          <motion.h1
-            id="home-hero-heading"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: EASE, delay: 0.05 }}
-            className="rally-display font-bold leading-[0.9] tracking-[-0.02em] text-foreground"
-            style={{ fontSize: "clamp(48px, 10vw, 108px)" }}
-          >
-            {eventName}
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: EASE, delay: 0.18 }}
-            className="mx-auto mt-4 max-w-[30ch] text-[15px] leading-relaxed text-muted-foreground sm:text-base"
-          >
-            {eventSubtitle}
-          </motion.p>
-        </div>
-
-        {/* countdown */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.35, duration: 0.6 }}
-        >
-          {state.phase === "pre" && (
-            <div className="space-y-3">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                Começa em
-              </p>
-              <CountdownDigits state={state} />
-            </div>
-          )}
-          {state.phase === "live" && (
-            <div className="space-y-3">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                Termina em
-              </p>
-              <CountdownDigits state={state} />
-            </div>
-          )}
-        </motion.div>
-
-        {/* CTAs */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
+        <motion.h1
+          id="home-hero-heading"
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.55, ease: EASE }}
-          className="flex flex-wrap items-center justify-center gap-3"
+          transition={{ duration: 0.7, ease: EASE, delay: 0.05 }}
+          className="rally-display text-foreground"
+          style={{ fontSize: "clamp(72px, 15vw, 176px)", lineHeight: 0.84 }}
+        >
+          {lead && <>{lead} </>}
+          <span className="rally-accent block">{last}</span>
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: EASE, delay: 0.18 }}
+          className="max-w-[34ch] text-lg leading-relaxed text-muted-foreground"
+        >
+          {eventSubtitle}
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.55, ease: EASE }}
+          className="flex flex-wrap items-center gap-3"
         >
           <RallyButton asChild variant="primary" size="xl">
             <Link to="/team-login">
-              <Users className="h-4 w-4" />
               Entrar com a Equipa
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </RallyButton>
           {showLeaderboard && (
@@ -162,6 +145,16 @@ export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHer
           )}
         </motion.div>
       </div>
+
+      {showClock && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.7, ease: EASE }}
+        >
+          <CountdownClock state={state} />
+        </motion.div>
+      )}
     </section>
   );
 }

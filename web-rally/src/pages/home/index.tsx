@@ -42,7 +42,7 @@ export default function Home() {
   const layout = settings?.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT;
 
   return (
-    <div className="flex flex-col gap-[22px]">
+    <div className="flex flex-col gap-16 sm:gap-24">
       {layout
         .filter((section) => section.visible)
         .map((section) => {

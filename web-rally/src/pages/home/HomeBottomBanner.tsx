@@ -7,22 +7,21 @@ import useEventTerms from "@/hooks/useEventTerms";
 export function HomeBottomBanner() {
   const terms = useEventTerms();
   return (
-    <div className="rally-bg-accent relative overflow-hidden rounded-[22px] text-center text-white">
-      {/* grid texture */}
+    <div className="relative overflow-hidden rounded-[32px] bg-foreground text-background">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.14] [background-image:linear-gradient(currentColor_1px,transparent_1px),linear-gradient(90deg,currentColor_1px,transparent_1px)] [background-size:34px_34px]"
+        className="rally-bg-accent pointer-events-none absolute -right-16 -top-16 hidden h-56 w-56 rotate-12 rounded-[48px] sm:block"
       />
-      <div className="relative z-10 px-6 py-12 sm:px-10 sm:py-[48px]">
-        <h2 className="rally-display m-0 text-[28px] font-bold leading-tight tracking-[-0.02em] sm:text-[40px]">
+      <div className="relative z-10 px-6 py-12 sm:px-12 sm:py-16">
+        <h2 className="rally-display m-0 max-w-[12ch] text-6xl sm:text-8xl">
           Pronto para o {terms.event}?
         </h2>
-        <p className="mx-auto mb-[22px] mt-3 max-w-[42ch] text-[15px] leading-relaxed opacity-90">
+        <p className="mb-7 mt-4 max-w-[42ch] text-base leading-relaxed opacity-70">
           Junta-te à tua equipa e começa o percurso. O primeiro check-in está a um toque.
         </p>
         <Link
           to="/team-login"
-          className="rally-accent inline-flex items-center gap-2 rounded-[14px] bg-white px-7 py-3.5 text-[15px] font-bold transition-opacity hover:opacity-90"
+          className="rally-bg-accent rally-press inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-[15px] font-bold text-white"
         >
           Entrar agora →
         </Link>
