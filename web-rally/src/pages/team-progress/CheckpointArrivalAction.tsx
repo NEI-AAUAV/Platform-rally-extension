@@ -3,7 +3,7 @@ import { Spinner } from "@/components/shared";
 import type { GpsState } from "./useCheckpointArrival";
 
 const BUTTON_CLASSES: Record<GpsState, string> = {
-  idle: "border border-border bg-card text-foreground hover:bg-accent/40",
+  idle: "rally-bg-accent text-white shadow-[var(--rally-shadow-sm)] hover:brightness-110",
   locating: "border border-border bg-card text-foreground hover:bg-accent/40",
   done: "cursor-default bg-green-500/15 text-green-600",
   queued: "bg-amber-500/15 text-amber-600",
@@ -82,6 +82,9 @@ interface CheckpointArrivalActionProps {
    * Callers must never pass a redacted checkpoint's name here — pass
    * `undefined` (falls back to `idleLabel`) in that case. */
   ariaLabel?: string;
+  /** Drop the divider above the button, for when the caller already frames
+   * the control (e.g. the floating check-in bar). */
+  bare?: boolean;
 }
 
 /**
@@ -103,6 +106,7 @@ export default function CheckpointArrivalAction({
   onRetrySettings,
   idleLabel = "Check-in GPS",
   ariaLabel,
+  bare = false,
 }: Readonly<CheckpointArrivalActionProps>) {
   return (
     <>
@@ -128,7 +132,7 @@ export default function CheckpointArrivalAction({
       )}
 
       {canCheckin && (
-        <div className="space-y-2 border-t border-border pt-4">
+        <div className={bare ? "space-y-2" : "space-y-2 border-t border-border pt-4"}>
           <button
             type="button"
             disabled={gpsState === "locating" || isPending || gpsState === "done"}

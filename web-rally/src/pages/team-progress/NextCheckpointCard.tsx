@@ -1,4 +1,4 @@
-import { MapPin, Sparkles } from "lucide-react";
+import { Navigation, Sparkles } from "lucide-react";
 import { CheckpointDiscovery } from "@/components/shared";
 import type { CheckpointProgress, DetailedCheckPoint } from "@/client";
 import useEventTerms from "@/hooks/useEventTerms";
@@ -48,14 +48,31 @@ export default function NextCheckpointCard({
   const isTerminal = persistent.isCompleted || persistent.isSkipped;
   const persistentNotice = persistentStatusNotice(persistent.status);
 
+  const directionsUrl =
+    showMap && hasCoords && !isRedacted
+      ? `https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`
+      : null;
+  // Only float a bar when it has something in it — an empty glass slab over
+  // the tab bar would be worse than nothing.
+  const showArrival =
+    !persistent.hasArrived &&
+    !persistent.isSkipped &&
+    (canCheckin || openingNotice !== null || access.settingsUnavailable);
+
   return (
-    <div className="rally-border-accent space-y-5 rounded-[28px] border-2 bg-card p-6 sm:p-8">
+    <article className="rally-surface rally-border-accent space-y-4 border-2 p-5 sm:p-6">
       <CheckpointHeader
         name={checkpoint.name}
         isRedacted={isRedacted}
         feminino={feminino}
         checkpointTerm={terms.checkpoint}
       />
+
+      {persistentNotice && (
+        <p className="rounded-xl bg-muted/50 px-4 py-3 text-sm font-medium text-foreground">
+          {persistentNotice}
+        </p>
+      )}
 
       <CheckpointClue
         isRedacted={isRedacted}
@@ -73,57 +90,48 @@ export default function NextCheckpointCard({
         />
       )}
 
-      {persistentNotice && (
-        <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          {persistentNotice}
-        </p>
-      )}
-
-      {!isTerminal && access.proximityEnabled && <ProximityButton checkpointId={checkpoint.id} />}
-
-      {!isTerminal && (
-        <CheckpointGiveUpAction
-          canGiveUp={access.canGiveUp}
-          skipCost={access.skipCost}
-          giveUp={hints.giveUp}
-          onRequestGiveUp={actions.requestGiveUp}
-        />
-      )}
-
       {/* Defense in depth: the backend already strips coordinates from a
-          redacted checkpoint's payload, but this component must not render
+          redacted checkpoint's payload, but this component must not use
           them either if it ever receives some anyway — a post's secret must
           not leak through two independent failures instead of one. */}
-      {showMap && hasCoords && !isRedacted && (
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-4 w-4 shrink-0" />
-          <span className="font-mono">
-            {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
-          </span>
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
-            target="_blank"
-            rel="noreferrer"
-            className="rally-accent font-semibold underline"
-          >
-            Como chegar
-          </a>
+      {(directionsUrl || (!isTerminal && access.proximityEnabled)) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {directionsUrl && (
+            <a
+              href={directionsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rally-press inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/40"
+            >
+              <Navigation className="h-4 w-4" aria-hidden />
+              Como chegar
+            </a>
+          )}
+          {!isTerminal && access.proximityEnabled && (
+            <ProximityButton checkpointId={checkpoint.id} />
+          )}
         </div>
       )}
 
-      {!persistent.hasArrived && !persistent.isSkipped && (
-        <CheckpointArrivalAction
-          openingNotice={openingNotice}
-          settingsUnavailable={access.settingsUnavailable}
-          canCheckin={canCheckin}
-          gpsState={ui.gpsState}
-          gpsMsg={ui.gpsMsg}
-          isQueuedHere={ui.isQueuedHere}
-          isPending={ui.isPending}
-          onCheckin={actions.handleCheckin}
-          onClearError={actions.clearError}
-          onRetrySettings={() => void actions.refetchSettings()}
-        />
+      {/* On a phone the check-in floats above the tab bar (and the QR button
+          that sits on it) so the one thing the team came here to do is
+          always within thumb reach; from lg up it is inline in the panel. */}
+      {showArrival && (
+        <div className="rally-glass rally-glass-solid rally-elevate-lg fixed inset-x-3 bottom-[calc(var(--safe-bottom)+8.75rem)] z-40 space-y-2 rounded-2xl border border-border/60 p-3 sm:bottom-6 lg:static lg:inset-auto lg:z-auto lg:space-y-3 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:bg-transparent lg:p-0 lg:border-t lg:pt-4 lg:shadow-none lg:backdrop-blur-none">
+          <CheckpointArrivalAction
+            openingNotice={openingNotice}
+            settingsUnavailable={access.settingsUnavailable}
+            canCheckin={canCheckin}
+            gpsState={ui.gpsState}
+            gpsMsg={ui.gpsMsg}
+            isQueuedHere={ui.isQueuedHere}
+            isPending={ui.isPending}
+            onCheckin={actions.handleCheckin}
+            onClearError={actions.clearError}
+            onRetrySettings={() => void actions.refetchSettings()}
+            bare
+          />
+        </div>
       )}
 
       {/* Discover the place — revealed as the reward for reaching this stop */}
@@ -140,6 +148,15 @@ export default function NextCheckpointCard({
         </div>
       )}
 
+      {!isTerminal && (
+        <CheckpointGiveUpAction
+          canGiveUp={access.canGiveUp}
+          skipCost={access.skipCost}
+          giveUp={hints.giveUp}
+          onRequestGiveUp={actions.requestGiveUp}
+        />
+      )}
+
       <CheckpointConfirmDialog
         pendingAction={ui.pendingAction}
         skipCost={access.skipCost}
@@ -147,6 +164,6 @@ export default function NextCheckpointCard({
         onConfirm={actions.confirmPendingAction}
         onClose={actions.closeConfirm}
       />
-    </div>
+    </article>
   );
 }
