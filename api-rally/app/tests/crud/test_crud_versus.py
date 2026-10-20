@@ -51,6 +51,7 @@ async def _make_activity(pg_session, *, activity_type: str) -> Activity:
             if activity_type == ActivityType.TEAM_VS.value
             else {"min_points": 0, "max_points": 100}
         ),
+        is_global=True,
         event_id=await current_event_id(pg_session),
     )
     pg_session.add(activity)
