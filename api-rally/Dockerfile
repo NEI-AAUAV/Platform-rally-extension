@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS requirements-stage
+FROM python:3.15-slim AS requirements-stage
 
 ENV PYTHONUNBUFFERED=1
 ENV POETRY_INSTALLER_ONLY_BINARY=":all:"
