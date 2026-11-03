@@ -19,9 +19,9 @@ import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 import { LoadingState } from "@/components/shared";
 import { cn } from "@/lib/utils";
-import { RallyButton } from "@/components/themes/rally";
+import { FallingChestnuts, RallyButton } from "@/components/themes/rally";
 
-type ButtonStyle = "plain" | "glow" | "sharp" | "shine" | "halloween";
+type ButtonStyle = "plain" | "glow" | "sharp" | "shine" | "halloween" | "magusto";
 
 // Quick-pick accent colours for the Colour axis (custom hex still available).
 const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
@@ -31,6 +31,7 @@ const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
   { label: "Azul", value: "#2563eb" },
   { label: "Roxo", value: "#7c3aed" },
   { label: "Rosa", value: "#db2777" },
+  { label: "Magusto", value: "#c2410c" },
 ];
 
 // Button axis options.
@@ -40,12 +41,21 @@ const BUTTON_STYLE_OPTIONS: ReadonlyArray<{ value: ButtonStyle; label: string; h
   { value: "sharp", label: "Angular", hint: "Cantos direitos + sombra dura, estilo brutalista" },
   { value: "shine", label: "Reflexo", hint: "Brilho gloss sobre o preenchimento" },
   { value: "halloween", label: "Halloween", hint: "Gotas a escorrer + brilho tremeluzente" },
+  { value: "magusto", label: "Magusto", hint: "Brasa incandescente + gradiente laranja-vermelho" },
 ];
 
 const asButtonStyle = (value: unknown): ButtonStyle =>
   BUTTON_STYLE_OPTIONS.some((o) => o.value === value) ? (value as ButtonStyle) : "plain";
 
-type BackgroundStyle = "plain" | "dots" | "grid" | "glow" | "stripes" | "confetti" | "halloween";
+type BackgroundStyle =
+  | "plain"
+  | "dots"
+  | "grid"
+  | "glow"
+  | "stripes"
+  | "confetti"
+  | "halloween"
+  | "magusto";
 
 // Background pattern axis options.
 const BACKGROUND_STYLE_OPTIONS: ReadonlyArray<{
@@ -60,6 +70,7 @@ const BACKGROUND_STYLE_OPTIONS: ReadonlyArray<{
   { value: "stripes", label: "Riscas", hint: "Riscas diagonais festivas" },
   { value: "confetti", label: "Confetti", hint: "Confetti colorido — Carnaval" },
   { value: "halloween", label: "Halloween", hint: "Ambiente escuro com morcegos" },
+  { value: "magusto", label: "Magusto", hint: "Castanhas a cair sobre brasas" },
 ];
 
 const asBackgroundStyle = (value: unknown): BackgroundStyle =>
@@ -105,11 +116,12 @@ function IdentityPreview({
     <div className="space-y-2">
       <Label>Pré-visualização</Label>
       <div
-        className="rally-identity-preview overflow-hidden rounded-xl border border-border bg-background p-5"
+        className="rally-identity-preview relative isolate overflow-hidden rounded-xl border border-border bg-background p-5"
         data-rally-buttons={buttonStyle}
         data-rally-bg={backgroundStyle}
         style={vars as CSSProperties}
       >
+        {backgroundStyle === "magusto" && <FallingChestnuts contained />}
         <p className="font-display text-lg font-bold leading-tight">
           {eventName || "Rally Tascas"}
         </p>

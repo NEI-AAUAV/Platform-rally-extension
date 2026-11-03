@@ -560,6 +560,29 @@
     animation: rally-flicker-soft 3.4s ease-in-out infinite;
   }
 
+  /* --- Magusto: "brasa discreta". Solid accent at rest; on hover/focus a warm
+         ember glow rises from beneath, like a coal catching. No idle motion. --- */
+  [data-rally-buttons="magusto"] .rally-btn,
+  .rally-identity-preview[data-rally-buttons="magusto"] .rally-btn {
+    transition:
+      box-shadow var(--duration-normal, 300ms) ease-out,
+      transform var(--duration-fast, 150ms) ease-out;
+  }
+  [data-rally-buttons="magusto"] .rally-blood-button:hover,
+  [data-rally-buttons="magusto"] .rally-blood-button:focus-visible,
+  .rally-identity-preview[data-rally-buttons="magusto"] .rally-blood-button:hover {
+    box-shadow:
+      0 10px 24px -10px #f97316,
+      0 4px 14px -6px var(--rally-accent, var(--rally-accent-fallback));
+    transform: translateY(-1px);
+  }
+  [data-rally-buttons="magusto"] .rally-btn:not(.rally-blood-button):hover,
+  [data-rally-buttons="magusto"] .rally-btn:not(.rally-blood-button):focus-visible,
+  .rally-identity-preview[data-rally-buttons="magusto"] .rally-btn:not(.rally-blood-button):hover {
+    border-color: var(--rally-accent, var(--rally-accent-fallback));
+    box-shadow: 0 8px 20px -12px #f97316;
+  }
+
   /* Flashed on a field after the admin/settings search jumps to it, so the
      landing spot is obvious even when it's already in view. */
   .rally-search-highlight {
@@ -796,6 +819,43 @@
     --rally-bg-size: 90px 90px, cover, cover;
   }
 
+  [data-rally-bg="magusto"] {
+    --rally-bg-image:
+      radial-gradient(70% 45% at 50% 108%, rgba(249, 115, 22, 0.28), transparent 70%),
+      radial-gradient(
+        50% 40% at 85% 6%,
+        var(--rally-accent-soft, var(--rally-accent-soft-fallback)),
+        transparent 72%
+      ),
+      radial-gradient(45% 40% at 8% 30%, rgba(185, 28, 28, 0.12), transparent 70%);
+    --rally-bg-size: cover, cover, cover;
+  }
+  /* Magusto falling chestnuts (components/themes/rally/FallingChestnuts.tsx).
+     The wrapper is a size container so the fall distance (110cqh) matches
+     whatever it covers: the viewport in the shell, the panel in the preview.
+     Outer span falls; inner span sways + spins. Transform-only motion. */
+  .rally-chestnuts {
+    container-type: size;
+  }
+  .rally-chestnut {
+    position: absolute;
+    top: 0;
+    width: var(--chestnut-size);
+    height: var(--chestnut-size);
+    transform: translateY(-120%);
+    animation: rally-chestnut-fall var(--chestnut-duration) linear var(--chestnut-delay) infinite;
+    will-change: transform;
+  }
+  .rally-chestnut-sway {
+    display: block;
+    animation: rally-chestnut-sway calc(var(--chestnut-duration) / 4) ease-in-out
+      var(--chestnut-delay) infinite alternate;
+  }
+  .rally-chestnut svg {
+    display: block;
+    filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.25));
+  }
+
   /* Shell: fixed full-screen pattern layer (skips 'plain'). */
   .rally-grain[data-rally-bg]:not([data-rally-bg="plain"])::after {
     content: "";
@@ -862,6 +922,24 @@
     box-shadow:
       0 0 0 1px var(--rally-accent, var(--rally-accent-fallback)),
       0 0 18px -2px var(--rally-accent, var(--rally-accent-fallback));
+  }
+}
+
+/* Magusto chestnuts: fall from above the box to below it; sway + spin. */
+@keyframes rally-chestnut-fall {
+  from {
+    transform: translateY(-120%);
+  }
+  to {
+    transform: translateY(110cqh);
+  }
+}
+@keyframes rally-chestnut-sway {
+  from {
+    transform: translateX(calc(-1 * var(--chestnut-sway))) rotate(calc(-1 * var(--chestnut-spin)));
+  }
+  to {
+    transform: translateX(var(--chestnut-sway)) rotate(var(--chestnut-spin));
   }
 }
 
@@ -995,6 +1073,13 @@
   [data-rally-buttons="halloween"] .rally-btn,
   .rally-identity-preview[data-rally-buttons="halloween"] .rally-btn {
     animation: none;
+  }
+  .rally-chestnut,
+  .rally-chestnut-sway {
+    animation: none;
+  }
+  [data-rally-buttons="magusto"] .rally-btn {
+    transition: none;
   }
   .rally-press,
   .brutal-press {

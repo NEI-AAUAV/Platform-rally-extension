@@ -4,16 +4,25 @@ import { createContext, useContext, useState, useEffect, useMemo, type ReactNode
 import { getThemeComponents, type ThemeName, type ThemeComponents } from "@/components";
 import useRallySettings from "@/hooks/useRallySettings";
 
-type ButtonStyle = "plain" | "glow" | "sharp" | "shine" | "halloween";
+type ButtonStyle = "plain" | "glow" | "sharp" | "shine" | "halloween" | "magusto";
 const BUTTON_STYLES: ReadonlySet<ButtonStyle> = new Set<ButtonStyle>([
   "plain",
   "glow",
   "sharp",
   "shine",
   "halloween",
+  "magusto",
 ]);
 
-type BackgroundStyle = "plain" | "dots" | "grid" | "glow" | "stripes" | "confetti" | "halloween";
+type BackgroundStyle =
+  | "plain"
+  | "dots"
+  | "grid"
+  | "glow"
+  | "stripes"
+  | "confetti"
+  | "halloween"
+  | "magusto";
 const BACKGROUND_STYLES: ReadonlySet<BackgroundStyle> = new Set<BackgroundStyle>([
   "plain",
   "dots",
@@ -22,6 +31,7 @@ const BACKGROUND_STYLES: ReadonlySet<BackgroundStyle> = new Set<BackgroundStyle>
   "stripes",
   "confetti",
   "halloween",
+  "magusto",
 ]);
 
 interface ThemeContextType {
