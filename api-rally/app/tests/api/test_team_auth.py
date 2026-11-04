@@ -3,9 +3,9 @@ real Postgres for the HTTP-layer tests. Token-helper unit tests need no DB."""
 
 from datetime import UTC, datetime, timedelta
 
+import jwt
 import pytest
 from fastapi import HTTPException
-from jose import jwt
 
 from app.core.config import settings
 from app.crud.crud_team import team as crud_team
