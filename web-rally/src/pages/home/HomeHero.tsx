@@ -86,7 +86,7 @@ export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHer
               <span className="relative flex h-2.5 w-2.5">
                 <span className="rally-bg-accent absolute inset-0 animate-ping rounded-full opacity-60" />
                 <span className="rally-bg-accent relative h-2.5 w-2.5 rounded-full" />
-              </span>
+              </span>{" "}
               A decorrer agora
             </span>
           )}

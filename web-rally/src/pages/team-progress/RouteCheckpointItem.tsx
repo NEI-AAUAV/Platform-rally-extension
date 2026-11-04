@@ -69,6 +69,50 @@ function checkpointStatusLabel(status: string, isCurrent: boolean): string {
   return "Pendente";
 }
 
+function CheckpointName({
+  name,
+  canReveal,
+  isFuture,
+}: Readonly<{ name: string; canReveal: boolean; isFuture: boolean }>) {
+  // Name only shown once revealable — the value itself is server-redacted,
+  // but printing a name over its own lock reads as a contradiction.
+  if (!canReveal) {
+    return (
+      <span className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+        <Lock className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0 truncate">Descobre este local quando lá chegares</span>
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cn(
+        "block truncate text-sm font-semibold",
+        isFuture ? "text-muted-foreground" : "text-foreground",
+      )}
+    >
+      {name}
+    </span>
+  );
+}
+
+function CompletedMeta({
+  score,
+  time,
+}: Readonly<{ score: number | null; time: ReturnType<typeof checkpointArrivedAt> }>) {
+  if (score === null && !time) return null;
+  return (
+    <span className="flex shrink-0 flex-col items-end gap-0.5">
+      {score !== null && (
+        <span className="rally-num rally-accent text-sm font-bold">+{score} pts</span>
+      )}
+      {time && (
+        <span className="rally-num text-[11px] text-muted-foreground">{formatTime(time)}</span>
+      )}
+    </span>
+  );
+}
+
 export default function RouteCheckpointItem({
   checkpoint,
   team,
@@ -144,24 +188,7 @@ export default function RouteCheckpointItem({
         />
 
         <span className="min-w-0 flex-1">
-          {/* Name only shown once revealable — the value itself is
-              server-redacted, but printing a name over its own lock reads
-              as a contradiction. */}
-          {canReveal ? (
-            <span
-              className={cn(
-                "block truncate text-sm font-semibold",
-                isFuture ? "text-muted-foreground" : "text-foreground",
-              )}
-            >
-              {checkpoint.name}
-            </span>
-          ) : (
-            <span className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
-              <Lock className="h-3.5 w-3.5 shrink-0" />
-              <span className="min-w-0 truncate">Descobre este local quando lá chegares</span>
-            </span>
-          )}
+          <CheckpointName name={checkpoint.name} canReveal={canReveal} isFuture={isFuture} />
           <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
             <span className={cn(isCurrent && "rally-accent font-semibold")}>{statusLabel}</span>
             {hasDiscovery && (
@@ -182,20 +209,9 @@ export default function RouteCheckpointItem({
           />
         )}
 
-        {(showScore && isCompleted) || (isCompleted && teamTime) ? (
-          <span className="flex shrink-0 flex-col items-end gap-0.5">
-            {showScore && isCompleted && (
-              <span className="rally-num rally-accent text-sm font-bold">
-                +{checkpointScore} pts
-              </span>
-            )}
-            {isCompleted && teamTime && (
-              <span className="rally-num text-[11px] text-muted-foreground">
-                {formatTime(teamTime)}
-              </span>
-            )}
-          </span>
-        ) : null}
+        {isCompleted && (
+          <CompletedMeta score={showScore ? checkpointScore : null} time={teamTime} />
+        )}
       </CardElement>
 
       {/* A second way in, for the posts the main card cannot offer. That card

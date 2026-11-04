@@ -37,7 +37,7 @@ describe("TeamStatusBar", () => {
     expect(screen.getByRole("heading", { name: "Team Alpha" })).toBeInTheDocument();
     expect(screen.getByText("TA")).toBeInTheDocument();
     expect(screen.getByText("3/5 postos")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "3");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("value", "3");
   });
 
   it("does not print the access code (it lives in the Equipa view)", () => {

@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
-import { apiCall, seedRealOidcSession } from './helpers/fullstackAuth';
-import { seedRally, waitForApi } from './helpers/seedRally';
+import { test, expect, type Page, type Locator } from "@playwright/test";
+import { apiCall, seedRealOidcSession } from "./helpers/fullstackAuth";
+import { seedRally, waitForApi } from "./helpers/seedRally";
 
 /**
  * Scoring-arithmetic-vs-oracle: reimplements api-rally's scoring formulas
@@ -23,7 +23,11 @@ function scoreBasedOracle(achievedPoints: number, maxPoints = 100, baseScore = 5
 
 function applyModifiersOracle(
   baseScore: number,
-  { extraShots = 0, bonusPerShot = EXTRA_SHOT_BONUS, penalties = {} as Record<string, number> } = {},
+  {
+    extraShots = 0,
+    bonusPerShot = EXTRA_SHOT_BONUS,
+    penalties = {} as Record<string, number>,
+  } = {},
 ): number {
   let final = baseScore;
   if (extraShots > 0) final += extraShots * bonusPerShot;
@@ -38,7 +42,11 @@ interface TeamActivitiesResponse {
 }
 
 async function getFinalScore(teamId: number, activityId: number, token: string): Promise<number> {
-  const response = await apiCall<TeamActivitiesResponse>('GET', `/staff/teams/${teamId}/activities`, { token });
+  const response = await apiCall<TeamActivitiesResponse>(
+    "GET",
+    `/staff/teams/${teamId}/activities`,
+    { token },
+  );
   const entry = response.activities.find((a) => a.id === activityId);
   if (!entry?.existing_result) {
     throw new Error(`No evaluated result for activity ${activityId} on team ${teamId}`);
@@ -46,32 +54,45 @@ async function getFinalScore(teamId: number, activityId: number, token: string):
   return entry.existing_result.final_score;
 }
 
-test.describe('Scoring arithmetic vs. real backend oracle', () => {
+async function openScoreboardRow(page: Page, checkpointOrder: number): Promise<Locator> {
+  await page.goto("/rally/scoreboard");
+  return page.locator('a[href*="/teams/"]', { hasText: `E2E Team ${checkpointOrder}` });
+}
+
+test.describe("Scoring arithmetic vs. real backend oracle", () => {
   test.beforeAll(async () => {
     await waitForApi();
   });
 
-  test('boolean activity success score matches the oracle exactly on UI and API', async ({ page, context }) => {
+  test("boolean activity success score matches the oracle exactly on UI and API", async ({
+    page,
+    context,
+  }) => {
     const rally = await seedRally();
     await seedRealOidcSession(context, rally.admin);
 
-    await apiCall('POST', '/checkpoint/staff-check-in', {
+    await apiCall("POST", "/checkpoint/staff-check-in", {
       token: rally.admin.accessToken,
       body: { team_code: rally.accessCode, checkpoint_id: rally.checkpointId },
     });
 
     await page.goto(`/rally/staff-evaluation/checkpoint/${rally.checkpointId}`);
     await page.getByText(`E2E Team ${rally.checkpointOrder}`).first().click();
-    await page.getByRole('button', { name: /avaliar|evaluate/i }).first().click();
-    await page.getByText('Equipa teve sucesso na atividade').first().click();
-    await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
+    await page
+      .getByRole("button", { name: /avaliar|evaluate/i })
+      .first()
+      .click();
+    await page.getByText("Equipa teve sucesso na atividade").first().click();
+    await page
+      .getByRole("button", { name: /submit evaluation|submeter avaliação|atualizar avaliação/i })
+      .click();
     // Only the success toast, not "Voltar às equipas": that back button is
     // always on screen once a team is selected (CheckpointTeamEvaluation.tsx),
     // well before submission — matching it too made this assertion pass
     // instantly regardless of whether the save actually completed, letting
     // the test race ahead to read the score via API while the mutation was
     // still pending ("A guardar...", confirmed via trace).
-    await expect(page.getByText('Atividade avaliada com sucesso!')).toBeVisible({
+    await expect(page.getByText("Atividade avaliada com sucesso!")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -80,26 +101,28 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     expect(actual).toBe(expected);
 
     // Verify scoreboard UI renders the expected score
-    await page.goto('/rally/scoreboard');
-    const teamRow = page.locator('a[href*="/teams/"]', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    const teamRow = await openScoreboardRow(page, rally.checkpointOrder);
     await expect(teamRow.getByText(`${expected}`)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('extra-shots bonus and penalties combine exactly as apply_modifiers computes server-side', async ({
+  test("extra-shots bonus and penalties combine exactly as apply_modifiers computes server-side", async ({
     page,
     context,
   }) => {
     const rally = await seedRally();
     await seedRealOidcSession(context, rally.admin);
 
-    await apiCall('POST', '/checkpoint/staff-check-in', {
+    await apiCall("POST", "/checkpoint/staff-check-in", {
       token: rally.admin.accessToken,
       body: { team_code: rally.accessCode, checkpoint_id: rally.checkpointId },
     });
     const evaluated = await apiCall<{ id: number }>(
-      'POST',
+      "POST",
       `/staff/teams/${rally.teamId}/activities/${rally.activityId}/evaluate`,
-      { token: rally.admin.accessToken, body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} } },
+      {
+        token: rally.admin.accessToken,
+        body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} },
+      },
     );
     const resultId = evaluated.id;
 
@@ -111,16 +134,16 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     const settings = await apiCall<{
       bonus_per_extra_shot: number;
       penalty_per_puke: number;
-    }>('GET', '/rally/settings', {
+    }>("GET", "/rally/settings", {
       token: rally.admin.accessToken,
     });
 
     const vomitCount = 2;
-    await apiCall('POST', `/activities/results/${resultId}/extra-shots?extra_shots=2`, {
+    await apiCall("POST", `/activities/results/${resultId}/extra-shots?extra_shots=2`, {
       token: rally.admin.accessToken,
     });
     await apiCall(
-      'POST',
+      "POST",
       `/activities/results/${resultId}/penalty?penalty_type=vomit&penalty_count=${vomitCount}`,
       { token: rally.admin.accessToken },
     );
@@ -135,28 +158,30 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     expect(actual).toBe(expected);
 
     // Verify scoreboard UI shows the modified total score
-    await page.goto('/rally/scoreboard');
-    const teamRow = page.locator('a[href*="/teams/"]', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    const teamRow = await openScoreboardRow(page, rally.checkpointOrder);
     await expect(teamRow.getByText(`${expected}`)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('penalties cannot drive a score below zero — server clamps exactly like the oracle', async ({
+  test("penalties cannot drive a score below zero — server clamps exactly like the oracle", async ({
     page,
     context,
   }) => {
     const rally = await seedRally();
     await seedRealOidcSession(context, rally.admin);
 
-    await apiCall('POST', '/checkpoint/staff-check-in', {
+    await apiCall("POST", "/checkpoint/staff-check-in", {
       token: rally.admin.accessToken,
       body: { team_code: rally.accessCode, checkpoint_id: rally.checkpointId },
     });
     const evaluated = await apiCall<{ id: number }>(
-      'POST',
+      "POST",
       `/staff/teams/${rally.teamId}/activities/${rally.activityId}/evaluate`,
-      { token: rally.admin.accessToken, body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} } },
+      {
+        token: rally.admin.accessToken,
+        body: { result_data: { success: true }, extra_shots: 0, penalty_counts: {} },
+      },
     );
-    const settings = await apiCall<{ penalty_per_not_drinking: number }>('GET', '/rally/settings', {
+    const settings = await apiCall<{ penalty_per_not_drinking: number }>("GET", "/rally/settings", {
       token: rally.admin.accessToken,
     });
 
@@ -164,7 +189,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     // is far larger than the base score.
     const notDrinkingCount = 500;
     await apiCall(
-      'POST',
+      "POST",
       `/activities/results/${evaluated.id}/penalty?penalty_type=not_drinking&penalty_count=${notDrinkingCount}`,
       { token: rally.admin.accessToken },
     );
@@ -184,34 +209,37 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     // sum(final_score) + _active_award_points(). So the scoreboard shows the
     // *unclamped* shortfall, not 0 — asserting `0 pts` here was asserting a
     // behaviour the backend does not have.
-    const shortfall = Math.round(booleanOracle(true) - notDrinkingCount * Math.abs(settings.penalty_per_not_drinking));
-    await page.goto('/rally/scoreboard');
-    const teamRow = page.locator('a[href*="/teams/"]', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    const shortfall = Math.round(
+      booleanOracle(true) - notDrinkingCount * Math.abs(settings.penalty_per_not_drinking),
+    );
+    const teamRow = await openScoreboardRow(page, rally.checkpointOrder);
     // Anchored on the whole score node (`-49900pts`) rather than a bare
     // number string: getByText substring-matches, so a bare number also hits
     // the elapsed-time line and other teams' scores, tripping strict mode.
-    await expect(teamRow.getByText(new RegExp(`^${shortfall}\\s*pts$`))).toBeVisible({ timeout: 15_000 });
+    await expect(teamRow.getByText(new RegExp(`^${shortfall}\\s*pts$`))).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
-  test('score-based activity applies the percentage-of-max formula exactly and shows on UI', async ({
+  test("score-based activity applies the percentage-of-max formula exactly and shows on UI", async ({
     page,
     context,
   }) => {
     const rally = await seedRally();
     await seedRealOidcSession(context, rally.admin);
 
-    const activity = await apiCall<{ id: number }>('POST', '/activities/', {
+    const activity = await apiCall<{ id: number }>("POST", "/activities/", {
       token: rally.admin.accessToken,
       body: {
-        name: 'E2E Score Activity',
-        activity_type: 'ScoreBasedActivity',
+        name: "E2E Score Activity",
+        activity_type: "ScoreBasedActivity",
         checkpoint_id: rally.checkpointId,
         config: { max_points: 100, base_score: 50 },
         is_active: true,
       },
     });
 
-    await apiCall('POST', '/checkpoint/staff-check-in', {
+    await apiCall("POST", "/checkpoint/staff-check-in", {
       token: rally.admin.accessToken,
       body: { team_code: rally.accessCode, checkpoint_id: rally.checkpointId },
     });
@@ -227,10 +255,10 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     // bug). `.rounded-3xl` is the specific activity-card's own class
     // (TeamActivitiesList.tsx), so this scopes to just that card.
     const evaluateButton = page
-      .locator('div.rounded-3xl', { hasText: 'E2E Score Activity' })
-      .getByRole('button', { name: /avaliar|evaluate/i })
+      .locator("div.rounded-3xl", { hasText: "E2E Score Activity" })
+      .getByRole("button", { name: /avaliar|evaluate/i })
       .first();
-    const scoreInput = page.locator('#score-achieved');
+    const scoreInput = page.locator("#score-achieved");
     // The evaluate dialog opens via a Radix dismiss-layer; the click occasionally
     // lands while a previous layer is still unmounting and gets swallowed (same
     // race documented in helpers/comboboxSelect.ts). Retry the click itself too —
@@ -246,15 +274,17 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
         if (attempt === 3) throw error;
       }
     }
-    await scoreInput.fill('75');
-    await page.getByRole('button', { name: /submit evaluation|submeter avaliação|atualizar avaliação/i }).click();
+    await scoreInput.fill("75");
+    await page
+      .getByRole("button", { name: /submit evaluation|submeter avaliação|atualizar avaliação/i })
+      .click();
     // Only the success toast, not "Voltar às equipas": that back button is
     // always on screen once a team is selected (CheckpointTeamEvaluation.tsx),
     // well before submission — matching it too made this assertion pass
     // instantly regardless of whether the save actually completed, letting
     // the test race ahead to read the score via API while the mutation was
     // still pending ("A guardar...", confirmed via trace).
-    await expect(page.getByText('Atividade avaliada com sucesso!')).toBeVisible({
+    await expect(page.getByText("Atividade avaliada com sucesso!")).toBeVisible({
       timeout: 15_000,
     });
 
@@ -268,9 +298,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     // never truncates, so 99.999… doesn't silently lose a point) while
     // getFinalScore above reads the exact per-activity float — so the UI
     // assertion compares against the rounded value, not `expected` itself.
-    await page.goto('/rally/scoreboard');
-    const teamRow = page.locator('a[href*="/teams/"]', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    const teamRow = await openScoreboardRow(page, rally.checkpointOrder);
     await expect(teamRow.getByText(`${Math.round(expected)}`)).toBeVisible({ timeout: 15_000 });
   });
 });
-

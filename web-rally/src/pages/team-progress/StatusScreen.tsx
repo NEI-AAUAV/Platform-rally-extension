@@ -11,9 +11,7 @@ export default function StatusScreen({ variant, title, description }: StatusScre
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="rally-surface rally-elevate-lg w-full max-w-md p-8 text-center">
         {variant === "loading" ? (
-          <>
-            <LoadingState variant="block" message={title} />
-          </>
+          <LoadingState variant="block" message={title} />
         ) : (
           <>
             <p className="text-lg font-semibold text-red-500">{title}</p>

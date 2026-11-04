@@ -57,9 +57,9 @@ export default function LoadingState({
 }: Readonly<LoadingStateProps>) {
   const Placeholder = VARIANTS[variant];
   return (
-    <div role="status" aria-busy="true" className={`py-4 ${className}`}>
+    <output aria-busy="true" className={`block py-4 ${className}`}>
       <span className="sr-only">{message}</span>
       <Placeholder />
-    </div>
+    </output>
   );
 }

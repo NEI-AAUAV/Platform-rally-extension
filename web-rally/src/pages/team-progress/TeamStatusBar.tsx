@@ -83,13 +83,15 @@ export default function TeamStatusBar({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <progress
+          className="sr-only"
+          aria-label="Progresso do percurso"
+          max={totalCount}
+          value={resolvedCount}
+        />
         <div
           className="h-1.5 min-w-[6rem] flex-1 basis-24 overflow-hidden rounded-full bg-muted"
-          role="progressbar"
-          aria-label="Progresso do percurso"
-          aria-valuemin={0}
-          aria-valuemax={totalCount}
-          aria-valuenow={resolvedCount}
+          aria-hidden
         >
           <div
             className="rally-bg-accent h-full origin-left rounded-full transition-transform duration-700 ease-out"

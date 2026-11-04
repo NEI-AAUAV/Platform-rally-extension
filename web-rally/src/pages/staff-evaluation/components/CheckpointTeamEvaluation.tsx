@@ -158,14 +158,13 @@ export default function CheckpointTeamEvaluation() {
             <p className="mt-1.5 text-xs font-semibold">Avaliadas</p>
           </div>
         </div>
-        <div
-          className="mt-6 h-2 w-full overflow-hidden rounded-full bg-white/25"
-          role="progressbar"
+        <progress
+          className="sr-only"
           aria-label="Equipas avaliadas"
-          aria-valuemin={0}
-          aria-valuemax={teams.length}
-          aria-valuenow={teamsAlreadyEvaluated.length}
-        >
+          max={teams.length}
+          value={teamsAlreadyEvaluated.length}
+        />
+        <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-white/25" aria-hidden>
           <div
             className="h-full rounded-full bg-white transition-[width] duration-700 ease-out"
             style={{ width: `${evaluatedPct}%` }}

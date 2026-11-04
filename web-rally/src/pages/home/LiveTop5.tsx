@@ -56,8 +56,7 @@ export function LiveTop5() {
           className="rally-bg-accent rally-press relative flex min-h-[15rem] flex-col justify-between overflow-hidden rounded-[28px] p-6 text-white sm:p-8"
         >
           <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em]">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-            Em 1.º lugar
+            <span className="h-2 w-2 animate-pulse rounded-full bg-white" /> Em 1.º lugar
           </span>
           <span
             aria-hidden
