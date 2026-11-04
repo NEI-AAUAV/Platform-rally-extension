@@ -308,11 +308,11 @@ async function checkInWithGpsButton(page: Page): Promise<void> {
  * The team's own score, read where the team reads it.
  *
  * Anchored on the "Pontos" caption rather than on a class name: the header
- * renders three of these figures side by side (position, points, posts) and
+ * renders several of these figures side by side (position, points, posts) and
  * only the caption tells them apart.
  */
 function ownScore(page: Page) {
-  return page.locator('xpath=//p[normalize-space(.)="Pontos"]/preceding-sibling::p[1]');
+  return page.locator('xpath=//span[normalize-space(.)="Pontos"]/preceding-sibling::span[1]');
 }
 
 async function walkToPostAndCheckIn(page: Page, target: BuiltPost): Promise<void> {
