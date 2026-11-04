@@ -12,7 +12,7 @@ pydantic = "^2.13.4"
 loguru = "^0.7.3"
 python-multipart = "^0.0.32"
 fastapi = "==0.141.1"
-python-jose = "^3.5.0"
+pyjwt = "^2.13.0"
 psycopg2-binary = "^2.9.12"
 asyncpg = ">=0.31,<0.33"
 pydantic-settings = "^2.14.2"
@@ -43,7 +43,6 @@ uvicorn = ">=0.51,<0.53"
 # StatReload, which stats every watched file 4x/second and pegs a CPU core
 # when the source tree is a bind mount.
 watchfiles = "^1.0"
-types-python-jose = "^3.5.0.20260408"
 types-passlib = "^1.7.7.20260211"
 safety = "^3.2.0"
 

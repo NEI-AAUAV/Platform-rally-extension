@@ -1,6 +1,3 @@
-# pnpm 10 reads dependency overrides from here, not from the "pnpm.overrides"
-# key in package.json (which pnpm 10 ignores with a warning).
+# Dependency overrides live in package.json "pnpm.overrides": this project pins
+# pnpm 9 (packageManager), which does not read overrides from this file.
 packages: []
-overrides:
-  glob: '>=10.5.0'
-  postcss: '>=8.5.19'

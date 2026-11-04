@@ -7,10 +7,10 @@ sync, concurrent-creation race) and the team-token dependencies.
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
+import jwt
 import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
-from jose import jwt
 from sqlalchemy.exc import IntegrityError
 
 from app.api import deps
