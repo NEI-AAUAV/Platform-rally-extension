@@ -91,7 +91,8 @@ class OIDCJWTValidator:
             jwks_response.raise_for_status()
             self._jwks = jwks_response.json()
             self._jwks_fetched_at = time.monotonic()
-        assert self._jwks is not None
+        if self._jwks is None:
+            raise RuntimeError("OIDC JWKS could not be loaded")
         return self._jwks
 
     async def validate_token(self, token: str, settings: Settings) -> dict[str, Any]:

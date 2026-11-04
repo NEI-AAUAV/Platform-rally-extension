@@ -67,10 +67,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       
     - name: Set up Python
-      uses: actions/setup-python@v7
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
       with:
         python-version: '3.12'
         
@@ -83,7 +83,7 @@ jobs:
         
     - name: Load cached venv
       id: cached-poetry-dependencies
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: api-rally/.venv
         key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
@@ -139,14 +139,14 @@ jobs:
         COVERAGE_FILE: .coverage.shard${{ matrix.shard }}
 
     - name: Upload API test results
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       if: always()
       with:
         name: api-test-results-${{ matrix.shard }}
         path: api-rally/test-results.xml
 
     - name: Upload coverage data
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       if: ${{ github.event.inputs.coverage == 'true' || github.event.inputs.coverage == '' }}
       with:
         name: api-coverage-data-${{ matrix.shard }}
@@ -161,10 +161,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set up Python
-      uses: actions/setup-python@v7
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
       with:
         python-version: '3.12'
 
@@ -176,7 +176,7 @@ jobs:
         virtualenvs-in-project: true
 
     - name: Load cached venv
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: api-rally/.venv
         key: venv-${{ runner.os }}-3.12-${{ hashFiles('**/poetry.lock') }}
@@ -192,7 +192,7 @@ jobs:
     # the leaderboard, so it doesn't get to hide behind well-covered code
     # elsewhere) are enforced against the same combined data.
     - name: Download coverage data from all shards
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
       with:
         pattern: api-coverage-data-*
         path: api-rally
@@ -222,7 +222,7 @@ jobs:
         app/workers/worker_badges.py"
 
     - name: Upload combined coverage report
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       if: always()
       with:
         name: api-coverage-combined
@@ -235,10 +235,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set up Python
-      uses: actions/setup-python@v7
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
       with:
         python-version: '3.12'
 
@@ -266,7 +266,7 @@ jobs:
         version: 9
 
     - name: Set up Node.js
-      uses: actions/setup-node@v7
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
       with:
         node-version: '24'
         cache: 'pnpm'
@@ -290,7 +290,7 @@ jobs:
         fi
 
     - name: Upload frontend test results
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       if: always()
       with:
         name: frontend-test-results
@@ -304,7 +304,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set up pnpm
       uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
@@ -312,7 +312,7 @@ jobs:
         version: 9
 
     - name: Set up Node.js
-      uses: actions/setup-node@v7
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
       with:
         node-version: '24'
         cache: 'pnpm'
@@ -345,7 +345,7 @@ jobs:
       run: pnpm run test:e2e --project=chromium --project=mobile
 
     - name: Upload Playwright report
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       if: ${{ !cancelled() }}
       with:
         name: playwright-report-mocked
@@ -355,7 +355,7 @@ jobs:
     # produced on Linux. Publishing the rendered screenshots lets a failed
     # visual diff be turned into an updated baseline without a Linux machine.
     - name: Upload rendered screenshots (visual baseline refresh)
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       if: ${{ failure() }}
       with:
         name: playwright-actual-screenshots
@@ -372,7 +372,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set up pnpm
       uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
@@ -380,7 +380,7 @@ jobs:
         version: 9
 
     - name: Set up Node.js
-      uses: actions/setup-node@v7
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
       with:
         node-version: '24'
         cache: 'pnpm'
@@ -486,7 +486,7 @@ jobs:
       run: docker compose -f docker-compose.smoke.yml down -v
 
     - name: Upload Playwright report
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       if: ${{ !cancelled() }}
       with:
         name: playwright-report-fullstack
@@ -516,10 +516,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       
     - name: Set up Python
-      uses: actions/setup-python@v7
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
       with:
         python-version: '3.12'
         
@@ -531,7 +531,7 @@ jobs:
         virtualenvs-in-project: true
         
     - name: Load cached venv
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: api-rally/.venv
         key: venv-${{ runner.os }}-3.12-${{ hashFiles('**/poetry.lock') }}
@@ -568,7 +568,7 @@ jobs:
         TEAM_JWT_SECRET_KEY: test_secret
 
     - name: Upload integration test results
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       if: always()
       with:
         name: integration-test-results
