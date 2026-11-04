@@ -519,7 +519,7 @@ export default function RallySettings({
 
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(handleSave, handleSubmitError)}>
-          <div className="grid gap-6 lg:grid-cols-[13rem_1fr] lg:items-start">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[13rem_1fr] lg:items-start">
             {/* Mobile: a scrollable pill strip. Desktop: a vertical rail.
                 Same markup, so the active section is stated once. */}
             <nav
@@ -549,11 +549,9 @@ export default function RallySettings({
               })}
             </nav>
 
-            <div className="rally-surface min-w-0 space-y-6 rounded-2xl p-5 sm:p-6">
+            <div className="rally-surface min-w-0 space-y-6 p-5 sm:p-6">
               <div className="space-y-1">
-                <h2 className="text-lg font-semibold leading-none tracking-tight">
-                  {activeSection.label}
-                </h2>
+                <h2 className="rally-display text-2xl leading-none">{activeSection.label}</h2>
                 <p className="text-sm text-muted-foreground">{activeSection.description}</p>
               </div>
 

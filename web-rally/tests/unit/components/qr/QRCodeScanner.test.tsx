@@ -79,7 +79,7 @@ describe("QRCodeScanner", () => {
     render(<QRCodeScanner onScan={vi.fn()} isOpen />);
 
     expect(
-      await screen.findByText("Não foi possível aceder à câmara. Tente novamente."),
+      await screen.findByText("Não foi possível aceder à câmara. Tenta outra vez."),
     ).toBeInTheDocument();
   });
 

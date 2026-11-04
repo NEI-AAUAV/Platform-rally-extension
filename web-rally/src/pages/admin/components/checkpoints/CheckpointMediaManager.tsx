@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { Spinner } from "@/components/shared";
+import { LoadingState, Spinner } from "@/components/shared";
 import {
   listCheckpointMedia,
   createCheckpointMedia,
@@ -104,9 +104,7 @@ export default function CheckpointMediaManager({ checkpointId }: CheckpointMedia
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Spinner size="sm" label="" /> A carregar…
-        </div>
+        <LoadingState variant="block" message="A carregar…" />
       ) : (
         media.length > 0 && (
           <ul className="space-y-2">

@@ -78,7 +78,7 @@ describe("MemberForm", () => {
     expect(mockToast.success).toHaveBeenCalled();
   });
 
-  it("shows an error toast when submission fails", async () => {
+  it("shows the error once, inline, when submission fails", async () => {
     vi.mocked(addTeamMember).mockRejectedValue(new Error("boom"));
     const user = userEvent.setup();
     render(<MemberForm selectedTeam="1" userToken="tok" onSuccess={onSuccess} />, {
@@ -88,9 +88,8 @@ describe("MemberForm", () => {
     await user.type(screen.getByLabelText("Nome"), "Alice");
     await user.click(screen.getByRole("button", { name: /Adicionar Membro/i }));
 
-    await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalled();
-    });
+    expect(await screen.findByText("boom")).toBeInTheDocument();
+    expect(mockToast.error).not.toHaveBeenCalled();
   });
 
   it("restores a half-typed name after the form is unmounted and remounted", async () => {

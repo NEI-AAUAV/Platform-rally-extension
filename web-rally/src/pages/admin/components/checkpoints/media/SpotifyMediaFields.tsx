@@ -21,7 +21,7 @@ export default function SpotifyMediaFields({ draft, onChange }: Props) {
           value={draft.contentUrl}
           onChange={(e) => onChange({ contentUrl: e.target.value })}
           placeholder="https://open.spotify.com/track/…"
-          className="border-border bg-muted"
+          className="border-border"
         />
         {urlLooksInvalid && (
           <p className="mt-1 text-xs text-destructive">Tem de ser um link open.spotify.com</p>
@@ -31,7 +31,7 @@ export default function SpotifyMediaFields({ draft, onChange }: Props) {
         value={draft.title}
         onChange={(e) => onChange({ title: e.target.value })}
         placeholder="Título (opcional)"
-        className="border-border bg-muted sm:max-w-xs"
+        className="border-border sm:max-w-xs"
       />
     </div>
   );

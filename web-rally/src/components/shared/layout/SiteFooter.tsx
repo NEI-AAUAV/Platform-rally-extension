@@ -3,6 +3,8 @@ import { Mail, MapPin } from "lucide-react";
 import { SiFacebook, SiGithub, SiInstagram, SiYoutube } from "@icons-pack/react-simple-icons";
 import { LinkedinIcon } from "@/components/shared/icons/LinkedinIcon";
 import type { Branding } from "@/lib/branding";
+import useEventTerms from "@/hooks/useEventTerms";
+import { capitalize } from "@/lib/eventTerms";
 import neiLogoBlack from "@/assets/nei/logo/horizontal/black.png";
 import neiLogoWhite from "@/assets/nei/logo/horizontal/white.png";
 import mapBlack from "@/assets/footer/map-black.png";
@@ -20,11 +22,15 @@ const SOCIALS = [
   { label: "YouTube", href: "https://www.youtube.com/@neiaauav2598", Icon: SiYoutube },
 ] as const;
 
-const QUICK_LINKS = [
-  { name: "Pontuação", to: "/scoreboard" },
-  { name: "Postos", to: "/checkpoints" },
-  { name: "Regras", to: "/rules" },
-] as const;
+function quickLinks(checkpointsLabel: string) {
+  return [
+    { name: "Pontuação", to: "/scoreboard" },
+    // Same event-aware noun as the navbar ("Tascas" for a rally), so the
+    // footer never names the same page differently.
+    { name: checkpointsLabel, to: "/checkpoints" },
+    { name: "Regras", to: "/rules" },
+  ] as const;
+}
 
 /**
  * Site footer mirroring the NEI ecosystem structure (brand + contact + social +
@@ -34,10 +40,11 @@ const QUICK_LINKS = [
  */
 export function SiteFooter({ branding }: SiteFooterProps) {
   const year = new Date().getFullYear();
+  const terms = useEventTerms();
 
   return (
     <footer
-      className="relative mt-16 overflow-hidden border-t border-border bg-card/40"
+      className="relative mt-12 overflow-hidden border-t border-border/60 sm:mt-24"
       style={{
         // Keeps the last row clear of the iOS home-indicator gesture zone,
         // which stays reserved even after the indicator itself fades.
@@ -49,21 +56,25 @@ export function SiteFooter({ branding }: SiteFooterProps) {
         src={mapWhite}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.45] dark:hidden"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.12] dark:hidden"
       />
       <img
         src={mapBlack}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.45] dark:block"
+        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.12] dark:block"
       />
 
-      <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-8 sm:grid-cols-2 sm:gap-10 sm:py-12 lg:grid-cols-3">
         {/* Brand + social */}
         <div className="space-y-4 lg:col-span-1">
-          <img src={neiLogoBlack} alt="NEI" className="h-20 object-contain dark:hidden" />
-          <img src={neiLogoWhite} alt="NEI" className="hidden h-20 object-contain dark:block" />
-          <p className="max-w-xs text-sm text-muted-foreground">
+          <img src={neiLogoBlack} alt="NEI" className="h-12 object-contain dark:hidden sm:h-20" />
+          <img
+            src={neiLogoWhite}
+            alt="NEI"
+            className="hidden h-12 object-contain dark:block sm:h-20"
+          />
+          <p className="hidden max-w-xs text-sm text-muted-foreground sm:block">
             Núcleo de Estudantes de Informática da AAUAv. A apoiar os estudantes desde 2013.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -82,13 +93,13 @@ export function SiteFooter({ branding }: SiteFooterProps) {
           </div>
         </div>
 
-        {/* Quick links */}
-        <nav aria-label="Ligações rápidas" className="space-y-3">
+        {/* Quick links — on a phone the bottom tab bar already offers these. */}
+        <nav aria-label="Ligações rápidas" className="hidden space-y-3 sm:block">
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             {branding.eventName}
           </h2>
           <ul className="space-y-2 text-sm">
-            {QUICK_LINKS.map((link) => (
+            {quickLinks(capitalize(terms.checkpoints)).map((link) => (
               <li key={link.to}>
                 <Link
                   to={link.to}

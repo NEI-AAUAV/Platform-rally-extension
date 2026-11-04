@@ -120,12 +120,12 @@ describe("Admin index page", () => {
     expect(screen.getByText("Navigate to /scoreboard")).toBeInTheDocument();
   });
 
-  it("renders the page header and dashboard tab by default for admins", () => {
+  it("renders the admin title, section heading and dashboard tab by default for admins", () => {
     mockUseUser.mockReturnValue({ isLoading: false, isRallyAdmin: true, userStore: {} });
     renderWithClient(<Admin />);
 
-    expect(screen.getByTestId("page-header")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Administração" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByTestId("tab-dashboard")).toBeInTheDocument();
   });
 

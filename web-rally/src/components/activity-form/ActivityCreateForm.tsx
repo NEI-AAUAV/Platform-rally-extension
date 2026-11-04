@@ -34,6 +34,7 @@ import {
   type QuizQuestion,
 } from "@/lib/quizQuestions";
 import type { ConfigValue } from "@/components/activity-form/ConfigNumberField";
+import { ACTIVITY_TYPE_LABELS } from "@/lib/activityTypeLabels";
 
 const activityFormSchema = z.object({
   name: z.string().min(1, "Nome da atividade é obrigatório"),
@@ -79,15 +80,6 @@ type ActivityFormProps = Readonly<{
    */
   lockCheckpointId?: number;
 }>;
-
-const activityTypeLabels = {
-  [ActivityType.TIME_BASED]: "Baseada em Tempo",
-  [ActivityType.SCORE_BASED]: "Baseada em Pontuação",
-  [ActivityType.BOOLEAN]: "Sim/Não",
-  [ActivityType.TEAM_VS]: "Equipa vs Equipa",
-  [ActivityType.GENERAL]: "Geral",
-  [ActivityType.DEFERRED_JUDGED]: "Avaliação Posterior (Fotos)",
-};
 
 function getSubmitButtonLabel(isLoading: boolean, hasInitialData: boolean): string {
   if (isLoading) return "Salvando...";
@@ -202,7 +194,7 @@ export default function ActivityForm({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="mb-2 text-xl font-semibold">
+        <h3 className="rally-display mb-2 text-3xl">
           {initialData ? "Editar Atividade" : "Criar Nova Atividade"}
         </h3>
         <p className="text-muted-foreground">
@@ -231,7 +223,7 @@ export default function ActivityForm({
                   <Input
                     placeholder="Ex: Cabo de Guerra"
                     {...field}
-                    className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
                 </FormControl>
                 <FormMessage />
@@ -249,7 +241,7 @@ export default function ActivityForm({
                   <Input
                     placeholder="Descreva a atividade..."
                     {...field}
-                    className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground"
                   />
                 </FormControl>
                 <FormMessage />
@@ -268,10 +260,14 @@ export default function ActivityForm({
                     <select
                       {...field}
                       onChange={(e) => field.onChange(Number(e.target.value))}
-                      className="w-full rounded border border-border bg-muted p-2 text-foreground"
+                      className="w-full rounded-xl border border-border bg-card p-2 text-foreground"
                     >
                       {checkpoints.map((checkpoint) => (
-                        <option key={checkpoint.id} value={checkpoint.id} className="bg-gray-800">
+                        <option
+                          key={checkpoint.id}
+                          value={checkpoint.id}
+                          className="bg-popover text-popover-foreground"
+                        >
                           {checkpoint.name} - {checkpoint.description}
                         </option>
                       ))}
@@ -295,10 +291,14 @@ export default function ActivityForm({
                 <FormControl>
                   <select
                     {...field}
-                    className="w-full rounded border border-border bg-muted p-2 text-foreground"
+                    className="w-full rounded-xl border border-border bg-card p-2 text-foreground"
                   >
-                    {Object.entries(activityTypeLabels).map(([value, label]) => (
-                      <option key={value} value={value} className="bg-gray-800">
+                    {Object.entries(ACTIVITY_TYPE_LABELS).map(([value, label]) => (
+                      <option
+                        key={value}
+                        value={value}
+                        className="bg-popover text-popover-foreground"
+                      >
                         {label}
                       </option>
                     ))}

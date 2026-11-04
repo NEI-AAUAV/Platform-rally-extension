@@ -42,7 +42,7 @@ export default function QuizQuestionConfigFields({
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-muted p-4">
+    <div className="space-y-3 rounded-2xl bg-secondary/60 p-4">
       <div>
         <h4 className="font-medium text-foreground">Perguntas do quiz (opcional)</h4>
         <p className="mt-1 text-xs text-muted-foreground">

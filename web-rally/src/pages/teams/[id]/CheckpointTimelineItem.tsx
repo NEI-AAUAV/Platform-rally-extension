@@ -142,7 +142,7 @@ export function CheckpointTimelineItem({
               )}
               {hasPendingTimeBasedActivity && <ProvisionalBadge />}
             </div>
-            <h3 className="mb-1 text-lg font-semibold">
+            <h3 className="rally-display mb-1 text-2xl">
               {/* The server already replaced the name with "Posto N" when this
                   post is still redacted for the viewer, so `name` is safe to
                   print as-is. */}

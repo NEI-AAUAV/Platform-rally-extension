@@ -13,6 +13,7 @@ import { resolveBranding } from "@/lib/branding";
 import { useUserStore } from "@/stores/useUserStore";
 import { Outlet, useLocation } from "@tanstack/react-router";
 import { ThemeProvider, useTheme } from "@/components/themes";
+import { FallingChestnuts } from "@/components/themes/rally";
 
 function MainLayoutContent() {
   // The skin's themeName still drives the accent fallback (data-rally-theme)
@@ -80,6 +81,7 @@ function MainLayoutContent() {
         data-rally-buttons={buttonStyle}
         data-rally-bg={backgroundStyle}
       >
+        {backgroundStyle === "magusto" && <FallingChestnuts />}
         <div className="relative z-10">
           <LandingGate branding={branding} onStaffLogin={onStaffLogin} />
         </div>
@@ -98,6 +100,7 @@ function MainLayoutContent() {
         data-rally-buttons={buttonStyle}
         data-rally-bg={backgroundStyle}
       >
+        {backgroundStyle === "magusto" && <FallingChestnuts />}
         <div className="relative z-10 mx-4 flex min-h-screen flex-col items-center justify-center gap-4">
           <Spinner size="lg" label="A carregar" />
           <p className="rally-display text-sm uppercase tracking-[0.18em] text-muted-foreground">
@@ -115,12 +118,7 @@ function MainLayoutContent() {
       data-rally-buttons={buttonStyle}
       data-rally-bg={backgroundStyle}
     >
-      {/* Ambient accent atmosphere — fixed, behind all content. */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="rally-ambient-blob absolute -left-32 top-[-10%] h-80 w-80 rounded-full blur-3xl" />
-        <div className="rally-ambient-blob absolute right-[-8%] top-[35%] h-96 w-96 rounded-full blur-3xl" />
-        <div className="rally-ambient-blob absolute bottom-[-10%] left-[25%] h-72 w-72 rounded-full blur-3xl" />
-      </div>
+      {backgroundStyle === "magusto" && <FallingChestnuts />}
       <div
         className="relative z-10 flex min-h-screen flex-1 flex-col"
         style={{ paddingLeft: "var(--safe-left)", paddingRight: "var(--safe-right)" }}

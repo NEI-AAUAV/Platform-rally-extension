@@ -68,11 +68,14 @@ test.describe("Team login", () => {
     await page.getByPlaceholder("XXXX-XXXX").fill("WRNG-0000");
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
 
-    await expect(page.getByText("Invalid access code").first()).toBeVisible();
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Código de acesso inválido" }),
+    ).toBeVisible();
+    await expect(page.getByText("Invalid access code")).toHaveCount(0);
     expect(page.url()).toContain("/team-login");
   });
 
-  test("rate-limited login surfaces the 429 message", async ({ page }) => {
+  test("rate-limited login surfaces a translated 429 message", async ({ page }) => {
     await mockPublicRoutes(page);
     await page.route("**/api/rally/v1/team-auth/login", (route) =>
       route.fulfill({
@@ -87,6 +90,8 @@ test.describe("Team login", () => {
     await page.getByPlaceholder("XXXX-XXXX").fill("ABCD-1234");
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
 
-    await expect(page.getByText("Too many requests, try again later").first()).toBeVisible();
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Demasiadas tentativas" }),
+    ).toBeVisible();
   });
 });

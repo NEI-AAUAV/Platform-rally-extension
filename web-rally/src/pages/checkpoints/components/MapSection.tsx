@@ -1,3 +1,4 @@
+import { LoadingState } from "@/components/shared";
 import { lazy, Suspense } from "react";
 import { Navigation } from "lucide-react";
 import { routeUrl, type MapCoordinates } from "@/lib/mapLinks";
@@ -92,13 +93,11 @@ export default function MapSection({
 
   return (
     <div className="isolate overflow-hidden rounded-[20px] border border-border bg-card">
-      <div className="relative h-[340px] bg-muted/40">
+      <div className="relative h-[220px] bg-muted/40 sm:h-[340px]">
         {useRealMap ? (
           <Suspense
             fallback={
-              <div className="grid h-full place-items-center text-sm text-muted-foreground">
-                A carregar mapa...
-              </div>
+              <LoadingState variant="block" className="h-full p-0" message="A carregar mapa..." />
             }
           >
             <RealMap

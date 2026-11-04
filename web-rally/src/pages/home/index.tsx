@@ -40,9 +40,10 @@ export default function Home() {
   const checkpointsPublic = settings?.show_checkpoint_map === true;
 
   const layout = settings?.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT;
+  const heroVisible = layout.some((s) => s.key === "home_hero" && s.visible);
 
   return (
-    <div className="flex flex-col gap-[22px]">
+    <div className="flex flex-col gap-12 sm:gap-24">
       {layout
         .filter((section) => section.visible)
         .map((section) => {
@@ -58,7 +59,11 @@ export default function Home() {
               break;
             case "event_stats":
               content = (
-                <EventStatsRibbon settings={settings} checkpointsPublic={checkpointsPublic} />
+                <EventStatsRibbon
+                  settings={settings}
+                  checkpointsPublic={checkpointsPublic}
+                  showPhase={!heroVisible}
+                />
               );
               break;
             case "live_top5":

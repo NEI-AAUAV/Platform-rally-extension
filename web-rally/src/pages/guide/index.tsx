@@ -30,6 +30,8 @@ import useGuideAccess from "@/hooks/useGuideAccess";
 import { useBackDismiss } from "@/hooks/useBackDismiss";
 import MapSection from "@/pages/checkpoints/components/MapSection";
 import { useUserStore } from "@/stores/useUserStore";
+import useEventTerms from "@/hooks/useEventTerms";
+import { capitalize } from "@/lib/eventTerms";
 
 const PRIVILEGED_SCOPES = ["admin", "manager-rally", "rally-staff"];
 
@@ -296,7 +298,10 @@ export default function GuidePage() {
   // every team directly from the Postos tab — so "Equipa" only makes sense
   // for a plain guide, who accompanies exactly one.
   const isPrivileged = scopes !== undefined && PRIVILEGED_SCOPES.some((s) => scopes.includes(s));
-  const tabs = isPrivileged ? TABS.filter((t) => t.id !== "equipa") : TABS;
+  const terms = useEventTerms();
+  const tabs = (isPrivileged ? TABS.filter((t) => t.id !== "equipa") : TABS).map((t) =>
+    t.id === "postos" ? { ...t, label: capitalize(terms.checkpoints) } : t,
+  );
   const [tab, setTab] = useState<GuideTab>("postos");
 
   const { data: checkpoints = [], isLoading } = useQuery<GuideCheckpointResponse[]>({

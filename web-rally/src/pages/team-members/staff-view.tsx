@@ -39,7 +39,7 @@ export default function StaffTeamView() {
   return (
     <div className="mt-2 space-y-6">
       <div className="text-center">
-        <h2 className="mb-2 flex items-center justify-center gap-2 text-2xl font-bold">
+        <h2 className="rally-display mb-2 flex items-center justify-center gap-2 text-2xl">
           <Users className="h-6 w-6" />
           Consultar Equipas
         </h2>

@@ -86,7 +86,9 @@ export default function AssignmentEntityList({
             </div>
 
             <Select
-              value={assignment.entity_id ? String(assignment.entity_id) : "none"}
+              // Unassigned shows the placeholder, not the "remove" action as if it
+              // were the current state.
+              value={assignment.entity_id ? String(assignment.entity_id) : ""}
               onValueChange={(value: string) => {
                 if (value === "none") {
                   onUpdateAssignment(assignment.user_id, 0); // Use 0 to indicate no assignment
@@ -95,7 +97,7 @@ export default function AssignmentEntityList({
                 }
               }}
             >
-              <SelectTrigger className="w-48 rounded-xl border border-border bg-muted">
+              <SelectTrigger className="w-48">
                 <SelectValue placeholder={selectPlaceholder} />
               </SelectTrigger>
               <SelectContent>

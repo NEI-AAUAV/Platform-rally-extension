@@ -60,7 +60,7 @@ export default function ManualAwardPanel({ definitions }: Readonly<ManualAwardPa
         <p className="text-sm font-semibold">Atribuição manual</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label data-admin-search-key="award_manual_team" className="space-y-1">
           <span className="text-xs text-muted-foreground">Equipa</span>
           <Select value={teamId || undefined} onValueChange={setTeamId}>

@@ -13,7 +13,7 @@ export default function PhotoMediaFields({ draft, onChange }: Props) {
         value={draft.caption}
         onChange={(e) => onChange({ caption: e.target.value })}
         placeholder="Legenda (opcional)"
-        className="border-border bg-muted sm:max-w-xs"
+        className="border-border sm:max-w-xs"
       />
       <input
         type="file"

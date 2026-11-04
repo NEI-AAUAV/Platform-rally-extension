@@ -1,4 +1,4 @@
-import { MapPin, Sparkles } from "lucide-react";
+import { Navigation, Sparkles } from "lucide-react";
 import { CheckpointDiscovery } from "@/components/shared";
 import type { CheckpointProgress, DetailedCheckPoint } from "@/client";
 import useEventTerms from "@/hooks/useEventTerms";
@@ -48,14 +48,30 @@ export default function NextCheckpointCard({
   const isTerminal = persistent.isCompleted || persistent.isSkipped;
   const persistentNotice = persistentStatusNotice(persistent.status);
 
+  const directionsUrl =
+    showMap && hasCoords && !isRedacted
+      ? `https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`
+      : null;
+  // Skip the divider + empty block when there is nothing to show.
+  const showArrival =
+    !persistent.hasArrived &&
+    !persistent.isSkipped &&
+    (canCheckin || openingNotice !== null || access.settingsUnavailable);
+
   return (
-    <div className="rally-surface rally-elevate space-y-4 rounded-2xl p-6">
+    <article className="rally-surface rally-border-accent space-y-4 border-2 p-5 sm:p-6">
       <CheckpointHeader
         name={checkpoint.name}
         isRedacted={isRedacted}
         feminino={feminino}
         checkpointTerm={terms.checkpoint}
       />
+
+      {persistentNotice && (
+        <p className="rounded-xl bg-muted/50 px-4 py-3 text-sm font-medium text-foreground">
+          {persistentNotice}
+        </p>
+      )}
 
       <CheckpointClue
         isRedacted={isRedacted}
@@ -73,57 +89,40 @@ export default function NextCheckpointCard({
         />
       )}
 
-      {persistentNotice && (
-        <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          {persistentNotice}
-        </p>
+      {/* Defense in depth: the backend already strips coordinates from a
+          redacted checkpoint's payload, but this component must not use
+          them either if it ever receives some anyway — a post's secret must
+          not leak through two independent failures instead of one. */}
+      {directionsUrl && (
+        <a
+          href={directionsUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="rally-press inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/40"
+        >
+          <Navigation className="h-4 w-4" aria-hidden />
+          Como chegar
+        </a>
       )}
 
       {!isTerminal && access.proximityEnabled && <ProximityButton checkpointId={checkpoint.id} />}
 
-      {!isTerminal && (
-        <CheckpointGiveUpAction
-          canGiveUp={access.canGiveUp}
-          skipCost={access.skipCost}
-          giveUp={hints.giveUp}
-          onRequestGiveUp={actions.requestGiveUp}
-        />
-      )}
-
-      {/* Defense in depth: the backend already strips coordinates from a
-          redacted checkpoint's payload, but this component must not render
-          them either if it ever receives some anyway — a post's secret must
-          not leak through two independent failures instead of one. */}
-      {showMap && hasCoords && !isRedacted && (
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-4 w-4 shrink-0" />
-          <span className="font-mono">
-            {checkpoint.latitude?.toFixed(6)}, {checkpoint.longitude?.toFixed(6)}
-          </span>
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${checkpoint.latitude},${checkpoint.longitude}`}
-            target="_blank"
-            rel="noreferrer"
-            className="rally-accent font-semibold underline"
-          >
-            Como chegar
-          </a>
+      {showArrival && (
+        <div className="space-y-3 border-t border-border pt-4">
+          <CheckpointArrivalAction
+            openingNotice={openingNotice}
+            settingsUnavailable={access.settingsUnavailable}
+            canCheckin={canCheckin}
+            gpsState={ui.gpsState}
+            gpsMsg={ui.gpsMsg}
+            isQueuedHere={ui.isQueuedHere}
+            isPending={ui.isPending}
+            onCheckin={actions.handleCheckin}
+            onClearError={actions.clearError}
+            onRetrySettings={() => void actions.refetchSettings()}
+            bare
+          />
         </div>
-      )}
-
-      {!persistent.hasArrived && !persistent.isSkipped && (
-        <CheckpointArrivalAction
-          openingNotice={openingNotice}
-          settingsUnavailable={access.settingsUnavailable}
-          canCheckin={canCheckin}
-          gpsState={ui.gpsState}
-          gpsMsg={ui.gpsMsg}
-          isQueuedHere={ui.isQueuedHere}
-          isPending={ui.isPending}
-          onCheckin={actions.handleCheckin}
-          onClearError={actions.clearError}
-          onRetrySettings={() => void actions.refetchSettings()}
-        />
       )}
 
       {/* Discover the place — revealed as the reward for reaching this stop */}
@@ -140,6 +139,15 @@ export default function NextCheckpointCard({
         </div>
       )}
 
+      {!isTerminal && (
+        <CheckpointGiveUpAction
+          canGiveUp={access.canGiveUp}
+          skipCost={access.skipCost}
+          giveUp={hints.giveUp}
+          onRequestGiveUp={actions.requestGiveUp}
+        />
+      )}
+
       <CheckpointConfirmDialog
         pendingAction={ui.pendingAction}
         skipCost={access.skipCost}
@@ -147,6 +155,6 @@ export default function NextCheckpointCard({
         onConfirm={actions.confirmPendingAction}
         onClose={actions.closeConfirm}
       />
-    </div>
+    </article>
   );
 }

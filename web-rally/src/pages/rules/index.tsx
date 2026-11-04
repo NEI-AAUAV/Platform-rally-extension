@@ -51,39 +51,12 @@ export default function Rules() {
         description="Como decorre o rally, como se pontua e o que precisas de saber."
       />
 
-      {settings?.rules_pdf_url && (
-        <div className="rally-surface space-y-3 rounded-2xl p-5">
-          <div className="flex items-center gap-3">
-            <span className="rally-bg-accent-soft grid h-9 w-9 shrink-0 place-items-center rounded-lg">
-              <FileDown className="rally-accent h-4 w-4" />
-            </span>
-            <span className="flex-1">
-              <span className="block font-semibold text-foreground">Regulamento oficial</span>
-              <span className="block text-sm text-muted-foreground">Documento completo em PDF</span>
-            </span>
-            <a
-              href={settings.rules_pdf_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rally-accent shrink-0 text-sm font-medium underline underline-offset-2"
-            >
-              Abrir numa nova aba
-            </a>
-          </div>
-          <iframe
-            src={settings.rules_pdf_url}
-            title="Regulamento oficial (PDF)"
-            className="h-[70vh] w-full rounded-xl border border-border"
-          />
-        </div>
-      )}
-
       <div className="space-y-3">
         {sections.map(({ id, title, icon, body }) => {
           const isOpen = open === id;
           const Icon = ruleSectionIcon(icon);
           return (
-            <div key={id} className="rally-surface overflow-hidden rounded-2xl">
+            <div key={id} className="rally-surface overflow-hidden">
               <button
                 type="button"
                 onClick={() => setOpen(isOpen ? null : id)}
@@ -111,7 +84,36 @@ export default function Rules() {
         })}
       </div>
 
-      <div className="rally-surface flex items-start gap-3 rounded-2xl p-6">
+      {settings?.rules_pdf_url && (
+        <div className="rally-surface space-y-3 p-5">
+          <div className="flex items-center gap-3">
+            <span className="rally-bg-accent-soft grid h-9 w-9 shrink-0 place-items-center rounded-lg">
+              <FileDown className="rally-accent h-4 w-4" />
+            </span>
+            <span className="flex-1">
+              <span className="block font-semibold text-foreground">Regulamento oficial</span>
+              <span className="block text-sm text-muted-foreground">Documento completo em PDF</span>
+            </span>
+            <a
+              href={settings.rules_pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rally-accent shrink-0 text-sm font-semibold underline underline-offset-2"
+            >
+              Abrir numa nova aba
+            </a>
+          </div>
+          <iframe
+            src={settings.rules_pdf_url}
+            title="Regulamento oficial (PDF)"
+            // Phones do not render PDFs inside an iframe (they show a broken-file
+            // placeholder), so there the link above is the way in.
+            className="hidden h-[70vh] w-full rounded-xl border border-border sm:block"
+          />
+        </div>
+      )}
+
+      <div className="rally-surface flex items-start gap-3 p-6">
         <HelpCircle className="rally-accent mt-0.5 h-5 w-5 shrink-0" />
         <p className="text-sm text-muted-foreground">
           Dúvidas durante o evento? Fala com o staff no posto mais próximo ou com a organização do

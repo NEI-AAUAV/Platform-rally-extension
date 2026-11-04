@@ -18,11 +18,11 @@ export default function RouteFinishedCard({ resolvedCount, totalCount, showScore
   const terms = useEventTerms();
 
   return (
-    <div className="rally-surface rally-elevate space-y-3 rounded-2xl p-6 text-center">
+    <div className="rally-surface rally-border-accent space-y-3 border-2 p-6 text-center sm:p-8">
       <div className="rally-bg-accent mx-auto grid h-14 w-14 place-items-center rounded-2xl shadow-[var(--rally-shadow-sm)]">
         <Flag className="h-7 w-7 text-white" />
       </div>
-      <h2 className="rally-display text-2xl font-bold text-foreground">Chegaram ao fim!</h2>
+      <h2 className="rally-display text-4xl text-foreground">Chegaram ao fim!</h2>
       <p className="text-sm text-muted-foreground">
         {resolvedCount} de {totalCount} {terms.checkpoints} — está tudo feito.
       </p>

@@ -17,7 +17,7 @@ export default function QrMediaFields({ draft, onChange }: Props) {
         value={draft.contentText}
         onChange={(e) => onChange({ contentText: e.target.value })}
         placeholder="URL ou texto a codificar no QR"
-        className="border-border bg-muted sm:max-w-sm"
+        className="border-border sm:max-w-sm"
       />
       {draft.contentText.trim() && (
         <div className="w-fit shrink-0 rounded-lg bg-white p-2">

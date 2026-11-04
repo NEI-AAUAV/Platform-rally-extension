@@ -291,7 +291,8 @@ test.describe("Fase 5: Separadores de Administração e Identidade Visual", () =
 
       // 2. Verificar aba de Métricas
       await adminPage.goto("/rally/admin?tab=metrics");
-      await expect(adminPage.getByRole("heading", { name: "Métricas" })).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.locator("#admin-section-heading")).toHaveText("Métricas", { timeout: 15_000 });
+      await expect(adminPage.getByRole("heading", { name: "Métricas" }).first()).toBeVisible({ timeout: 15_000 });
       await expect(adminPage.getByText("Base de dados")).toBeVisible({ timeout: 15_000 });
       await expect(adminPage.getByText("Redis")).toBeVisible({ timeout: 15_000 });
     } finally {

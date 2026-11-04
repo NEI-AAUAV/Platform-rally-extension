@@ -12,8 +12,8 @@ module.exports = {
   theme: {
     fontFamily: {
       inter: ["Inter", "sans-serif", "system-ui"],
-      playfair: ["Playfair Display", "serif", "system-ui"],
-      display: ["Space Grotesk", "Inter", "sans-serif", "system-ui"],
+      display: ["Big Shoulders Display", "Impact", "sans-serif", "system-ui"],
+      mono: ["JetBrains Mono", "ui-monospace", "monospace"],
     },
     container: {
       center: true,

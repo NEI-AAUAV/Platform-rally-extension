@@ -8,7 +8,7 @@ interface AdminSidebarProps {
   readonly onSelect: (id: AdminTabId) => void;
 }
 
-/** Desktop sticky sidebar: admin nav grouped under secondary-styled headings. */
+/** Desktop sidebar: admin nav grouped under eyebrow headings; the rail around it is sticky. */
 export default function AdminSidebar({
   groups,
   activeTab,
@@ -16,15 +16,10 @@ export default function AdminSidebar({
   onSelect,
 }: AdminSidebarProps) {
   return (
-    <nav
-      aria-label="Secções de administração"
-      className="rally-surface hidden gap-3 p-1.5 lg:sticky lg:top-24 lg:flex lg:flex-col"
-    >
+    <nav aria-label="Secções de administração" className="hidden gap-5 lg:flex lg:flex-col">
       {groups.map((group) => (
-        <div key={group.id} className="flex flex-col gap-1">
-          <span className="px-3.5 pt-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            {group.label}
-          </span>
+        <div key={group.id} className="flex flex-col gap-0.5">
+          <span className="rally-eyebrow px-3.5 pb-1 text-[11px]">{group.label}</span>
           {group.items.map(({ id, label, icon: Icon }) => {
             const active = activeTab === id;
             const disabled = disabledTabIds.has(id);
@@ -35,10 +30,10 @@ export default function AdminSidebar({
                 onClick={() => onSelect(id)}
                 aria-current={active ? "page" : undefined}
                 className={[
-                  "rally-press flex shrink-0 items-center gap-2.5 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-colors lg:w-full",
+                  "flex shrink-0 items-center gap-2.5 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors lg:w-full",
                   active
-                    ? "rally-bg-accent text-white"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 ].join(" ")}
               >
                 <Icon className="h-4 w-4 shrink-0" />

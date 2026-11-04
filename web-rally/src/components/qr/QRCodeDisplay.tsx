@@ -43,7 +43,7 @@ export default function QRCodeDisplay({
       </div>
       <div className="text-center">
         <p className="text-sm text-muted-foreground">Código de Acesso</p>
-        <p className="font-mono mt-1 break-all text-2xl font-bold tracking-wider">{accessCode}</p>
+        <p className="mt-1 break-all font-mono text-2xl font-bold tracking-wider">{accessCode}</p>
       </div>
     </div>
   );

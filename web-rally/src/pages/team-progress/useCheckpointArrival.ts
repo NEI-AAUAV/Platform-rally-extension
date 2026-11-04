@@ -79,7 +79,7 @@ function traduzirDistancia(error: unknown): string {
   if (!details?.distance_band || details.max_distance_m == null) {
     return "Ainda não estás perto o suficiente. Aproxima-te e tenta outra vez.";
   }
-  return `Ainda não estás perto o suficiente: ${details.distance_band} (tens de estar a menos de ${details.max_distance_m} m). Aproxima-te e tenta outra vez.`;
+  return `Estás a ${details.distance_band} do local, mas o check-in só é aceite a menos de ${details.max_distance_m} m. Aproxima-te e tenta outra vez.`;
 }
 
 /**

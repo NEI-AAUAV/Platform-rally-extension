@@ -175,7 +175,9 @@ test.describe("Multi-edition isolation", () => {
     await page.getByPlaceholder("XXXX-XXXX").fill("OLD1-2025");
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
 
-    await expect(page.getByText("Invalid access code").first()).toBeVisible();
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Código de acesso inválido" }),
+    ).toBeVisible();
     expect(page.url()).toContain("/team-login");
   });
 });

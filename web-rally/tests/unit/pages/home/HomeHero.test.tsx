@@ -34,7 +34,7 @@ describe("HomeHero", () => {
 
   it("renders the event name and subtitle", () => {
     render(<HomeHero branding={branding} settings={null} />);
-    expect(screen.getByText("Rally Tascas")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Rally Tascas" })).toBeInTheDocument();
     expect(screen.getByText("A maior caça ao tesouro académica")).toBeInTheDocument();
   });
 
@@ -104,6 +104,6 @@ describe("HomeHero", () => {
 
   it("renders without a settings prop", () => {
     render(<HomeHero branding={branding} />);
-    expect(screen.getByText("Rally Tascas")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Rally Tascas" })).toBeInTheDocument();
   });
 });
