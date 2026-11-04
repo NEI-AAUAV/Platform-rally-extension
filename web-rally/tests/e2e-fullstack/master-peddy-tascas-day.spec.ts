@@ -1162,8 +1162,8 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
 
       // --- The board in the bar, still on the same page since this morning -
       if (!publicPage) throw new Error("the public scoreboard was never opened");
-      const betaCard = publicPage.locator("a", { hasText: beta!.name });
-      await expect(betaCard.getByText(/pts/)).not.toHaveText("0 pts", { timeout: 30_000 });
+      const betaCard = publicPage.locator("a", { hasText: beta!.name }).last();
+      await expect(betaCard.locator(".rally-num")).toHaveText(/^[1-9]\d*\s*pts$/, { timeout: 30_000 });
     } finally {
       await Promise.all([
         staffPage.context().close(),

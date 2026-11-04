@@ -1004,8 +1004,8 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // would satisfy a single-team check.
       for (const team of teams) {
         await expect(
-          publicPage.locator("a", { hasText: team.name }).first().getByText(/pts/),
-        ).not.toHaveText("0 pts", { timeout: 60_000 });
+          publicPage.locator("a", { hasText: team.name }).last().locator(".rally-num"),
+        ).toHaveText(/^[1-9]\d*\s*pts$/, { timeout: 60_000 });
       }
     } finally {
       await Promise.all([

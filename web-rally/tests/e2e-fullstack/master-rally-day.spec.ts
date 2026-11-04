@@ -300,8 +300,8 @@ test.describe('Master rally day — every feature combined under real concurrenc
         }
       }).toPass({ timeout: 20_000 });
 
-      const epsilonCard = publicPage.locator('a', { hasText: teamEpsilon.name });
-      await expect(epsilonCard.getByText(/pts/)).not.toHaveText('0 pts', { timeout: 20_000 });
+      const epsilonCard = publicPage.locator('a', { hasText: teamEpsilon.name }).last();
+      await expect(epsilonCard.locator('.rally-num')).toHaveText(/^[1-9]\d*\s*pts$/, { timeout: 20_000 });
 
       // Final cross-check: exactly one evaluation per (team, checkpoint)
       // pair actually evaluated — the edit above must not have duplicated
