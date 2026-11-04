@@ -20,19 +20,11 @@ import type {
 import { BloodyButton } from "@/components/themes/bloody";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
+import { activityTypeLabel } from "@/lib/activityTypeLabels";
 
 type Props = Readonly<{
   checkpointId: number;
 }>;
-
-const activityTypeLabels: Record<string, string> = {
-  TimeBasedActivity: "Baseada em tempo",
-  ScoreBasedActivity: "Baseada em pontuação",
-  BooleanActivity: "Sim/Não",
-  TeamVsActivity: "Equipa vs equipa",
-  GeneralActivity: "Geral",
-  DeferredJudgedActivity: "Avaliação posterior (fotos)",
-};
 
 /**
  * The desafio for one post, created and edited without leaving the post's
@@ -141,7 +133,7 @@ export default function CheckpointActivitiesManager({ checkpointId }: Props) {
                   <div className="text-sm">
                     <p className="font-medium">{activity.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {activityTypeLabels[activity.activity_type] ?? activity.activity_type}
+                      {activityTypeLabel(activity.activity_type)}
                       {!activity.is_active && " · inativa"}
                     </p>
                   </div>

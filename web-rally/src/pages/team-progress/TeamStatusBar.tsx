@@ -29,9 +29,15 @@ function Stat({
   value,
   label,
   emphasis = false,
-}: Readonly<{ value: string; label: string; emphasis?: boolean }>) {
+  hint,
+}: Readonly<{ value: string; label: string; emphasis?: boolean; hint?: string }>) {
   return (
-    <div className="flex flex-col items-end">
+    <div
+      className="flex flex-col items-end"
+      title={hint}
+      aria-label={hint ? `${label}: ${hint}` : undefined}
+      role={hint ? "group" : undefined}
+    >
       <span
         className={cn(
           "rally-num text-base font-bold leading-none sm:text-lg",
@@ -77,7 +83,15 @@ export default function TeamStatusBar({
           {team.name}
         </h1>
         <div className="flex shrink-0 items-center gap-4 sm:gap-6">
-          {showRanking && <Stat value={rank != null ? `#${rank}` : "—"} label="Posição" emphasis />}
+          {showRanking && (
+            <Stat
+              value={rank != null ? `#${rank}` : "—"}
+              label="Posição"
+              emphasis
+              // A bare dash reads as an error; say why there is no number.
+              hint={rank == null ? "classificação ainda indisponível" : undefined}
+            />
+          )}
           {showScore && <Stat value={String(team.total)} label="Pontos" />}
         </div>
       </div>

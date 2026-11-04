@@ -85,7 +85,7 @@ export default function VersusPairForm({ teams, onSuccess, className = "" }: Ver
           Criar Novo Par Versus
         </CardTitle>
         <CardDescription>
-          Selecione duas equipas para criar um par de competição direta
+          Seleciona duas equipas para criar um par de competição direta
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

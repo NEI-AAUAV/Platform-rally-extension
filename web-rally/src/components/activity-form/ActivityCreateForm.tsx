@@ -34,6 +34,7 @@ import {
   type QuizQuestion,
 } from "@/lib/quizQuestions";
 import type { ConfigValue } from "@/components/activity-form/ConfigNumberField";
+import { ACTIVITY_TYPE_LABELS } from "@/lib/activityTypeLabels";
 
 const activityFormSchema = z.object({
   name: z.string().min(1, "Nome da atividade é obrigatório"),
@@ -79,15 +80,6 @@ type ActivityFormProps = Readonly<{
    */
   lockCheckpointId?: number;
 }>;
-
-const activityTypeLabels = {
-  [ActivityType.TIME_BASED]: "Baseada em Tempo",
-  [ActivityType.SCORE_BASED]: "Baseada em Pontuação",
-  [ActivityType.BOOLEAN]: "Sim/Não",
-  [ActivityType.TEAM_VS]: "Equipa vs Equipa",
-  [ActivityType.GENERAL]: "Geral",
-  [ActivityType.DEFERRED_JUDGED]: "Avaliação Posterior (Fotos)",
-};
 
 function getSubmitButtonLabel(isLoading: boolean, hasInitialData: boolean): string {
   if (isLoading) return "Salvando...";
@@ -301,7 +293,7 @@ export default function ActivityForm({
                     {...field}
                     className="w-full rounded-xl border border-border bg-card p-2 text-foreground"
                   >
-                    {Object.entries(activityTypeLabels).map(([value, label]) => (
+                    {Object.entries(ACTIVITY_TYPE_LABELS).map(([value, label]) => (
                       <option
                         key={value}
                         value={value}

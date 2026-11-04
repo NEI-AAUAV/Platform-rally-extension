@@ -10,6 +10,7 @@ import useTeamAuth from "@/hooks/useTeamAuth";
 import useStaffLogin from "@/hooks/useLoginLink";
 import { useAppToast } from "@/hooks/use-toast";
 import QRCodeScanner from "@/components/qr/QRCodeScanner";
+import { loginErrorMessage } from "./loginErrorMessage";
 
 export default function TeamLogin() {
   const navigate = useNavigate();
@@ -32,9 +33,8 @@ export default function TeamLogin() {
           await login(codeFromUrl.trim());
           toast.success("Login bem-sucedido!");
           await navigate({ to: "/team-progress" });
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : "Código de acesso inválido";
-          toast.error(errorMessage);
+        } catch {
+          // Shown inline via loginError; a toast too would repeat it.
         }
       }, 500);
       return () => clearTimeout(timer);
@@ -71,7 +71,7 @@ export default function TeamLogin() {
         void handleSubmit(undefined, code);
       }, 200);
     } else {
-      toast.error("Código QR inválido. Por favor, tente novamente.");
+      toast.error("Código QR inválido. Tenta outra vez.");
     }
   };
 
@@ -81,7 +81,7 @@ export default function TeamLogin() {
     const code = codeToUse || accessCode.trim();
 
     if (!code) {
-      toast.error("Código necessário - por favor, insira o código de acesso da equipa");
+      toast.error("Escreve o código de acesso da tua equipa.");
       return;
     }
 
@@ -89,9 +89,8 @@ export default function TeamLogin() {
       await login(code);
       toast.success("Login bem-sucedido!");
       await navigate({ to: "/team-progress" });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Código de acesso inválido";
-      toast.error(errorMessage);
+    } catch {
+      // Shown inline via loginError; a toast too would repeat it.
     }
   };
 
@@ -112,8 +111,8 @@ export default function TeamLogin() {
                 </h1>
                 <p className="text-sm font-medium text-muted-foreground">
                   {isAuthenticated && teamData
-                    ? `Equipa atual: ${teamData.team_name}. Introduza o código da nova equipa.`
-                    : "Introduza o seu código de acesso"}
+                    ? `Equipa atual: ${teamData.team_name}. Introduz o código da nova equipa.`
+                    : "Introduz o código de acesso da tua equipa"}
                 </p>
               </div>
             </div>
@@ -146,8 +145,8 @@ export default function TeamLogin() {
 
               {loginError && (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 animate-in slide-in-from-top-2">
-                  <p className="text-center text-sm font-medium text-destructive">
-                    {loginError instanceof Error ? loginError.message : "Código inválido"}
+                  <p role="alert" className="text-center text-sm font-medium text-destructive">
+                    {loginErrorMessage(loginError)}
                   </p>
                 </div>
               )}
@@ -203,7 +202,7 @@ export default function TeamLogin() {
             {/* Footer */}
             <div className="pt-2">
               <p className="text-xs text-muted-foreground">
-                Pode inserir o código manualmente ou usar a câmara para ler o QR code.
+                Podes escrever o código ou usar a câmara para ler o QR code.
               </p>
             </div>
           </div>

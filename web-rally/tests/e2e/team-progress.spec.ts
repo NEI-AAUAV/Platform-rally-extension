@@ -275,7 +275,7 @@ test.describe("Team progress", () => {
 
     await expect(
       page.getByText(
-        "Ainda não estás perto o suficiente: menos de 500m (tens de estar a menos de 50 m). Aproxima-te e tenta outra vez.",
+        "Estás a menos de 500m do local, mas o check-in só é aceite a menos de 50 m. Aproxima-te e tenta outra vez.",
       ),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Tentar novamente" })).toBeVisible();

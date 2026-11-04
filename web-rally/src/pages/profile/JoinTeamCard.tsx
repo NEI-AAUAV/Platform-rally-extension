@@ -14,6 +14,11 @@ function errorMessage(error: unknown): string {
   return "Algo correu mal. Tenta novamente.";
 }
 
+/** A 409 means the member is already linked to another account. */
+function isConflict(error: unknown): boolean {
+  return (error as { status?: number } | null)?.status === 409;
+}
+
 /**
  * Shown on the profile when a logged-in NEI user is not yet on a team. They
  * enter their team's access code, pick the placeholder member that is them, and
@@ -112,7 +117,15 @@ export default function JoinTeamCard() {
       )}
 
       {claim.isError && (
-        <p className="mt-3 text-sm text-destructive">{errorMessage(claim.error)}</p>
+        <div role="alert" className="mt-3 space-y-1 text-sm">
+          <p className="text-destructive">{errorMessage(claim.error)}</p>
+          {isConflict(claim.error) && (
+            <p className="text-muted-foreground">
+              Se és mesmo tu, fala com o staff do evento para libertarem este nome. Caso contrário,
+              escolhe outro membro da lista.
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

@@ -59,7 +59,8 @@ describe("ActivityEvaluationForm", () => {
       />,
     );
     expect(screen.getByText("Detalhes da atividade")).toBeInTheDocument();
-    expect(screen.getByText("TimeBasedActivity")).toBeInTheDocument();
+    expect(screen.getByText("Baseada em Tempo")).toBeInTheDocument();
+    expect(screen.queryByText("TimeBasedActivity")).not.toBeInTheDocument();
     expect(screen.getByText("Team A")).toBeInTheDocument();
     expect(screen.getByText("Do the thing")).toBeInTheDocument();
   });

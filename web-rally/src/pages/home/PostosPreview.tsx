@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, MapPin } from "lucide-react";
 import { getCheckpoints, type DetailedCheckPoint } from "@/client";
+import useEventTerms from "@/hooks/useEventTerms";
+import { capitalize } from "@/lib/eventTerms";
 
 const PREVIEW_LIMIT = 6;
 
@@ -16,6 +18,7 @@ interface PostosPreviewProps {
  * restricted viewers simply hides the section).
  */
 export function PostosPreview({ enabled }: PostosPreviewProps) {
+  const terms = useEventTerms();
   const { data: checkpoints } = useQuery({
     queryKey: ["checkpoints"],
     queryFn: async () => (await getCheckpoints()).data,
@@ -34,7 +37,7 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
     <section aria-labelledby="postos-heading">
       <div className="flex items-end justify-between">
         <h2 id="postos-heading" className="rally-display text-5xl text-foreground sm:text-6xl">
-          Postos
+          {capitalize(terms.checkpoints)}
         </h2>
         <Link
           to="/checkpoints"

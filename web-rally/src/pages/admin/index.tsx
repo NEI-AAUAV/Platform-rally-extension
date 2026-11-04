@@ -131,7 +131,10 @@ export default function Admin() {
   // past a page banner to reach the tool it picked.
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
-      <aside className="space-y-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:space-y-5 lg:overflow-y-auto lg:pb-6">
+      {/* lg:pt-2: the title's display font sets line-height 0.9, so the tilde of
+          "Administração" rises above its line box and this scroll container
+          (overflow-y-auto) would clip it. */}
+      <aside className="space-y-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:space-y-5 lg:overflow-y-auto lg:pb-6 lg:pt-2">
         {/* On a phone the menu button below already names the section, so the
             page title is kept for assistive tech only. */}
         <h1 className="rally-display sr-only items-center gap-2 text-4xl text-foreground lg:not-sr-only lg:flex">

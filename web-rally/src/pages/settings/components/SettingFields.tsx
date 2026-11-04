@@ -218,7 +218,7 @@ export function SettingSelect({ name, label, help, defaultValue, options }: Sett
         render={({ field }) => (
           <Select value={field.value || defaultValue} onValueChange={field.onChange}>
             <SelectTrigger id={name} className="w-52 border-border">
-              <SelectValue placeholder="Selecione o modo" />
+              <SelectValue placeholder="Seleciona o modo" />
             </SelectTrigger>
             <SelectContent>
               {options.map((option) => (

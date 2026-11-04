@@ -41,11 +41,11 @@ test.describe("Fase 1: Casos de Falha, Validações e Testes Negativos de UI", (
   // -------------------------------------------------------------------
   test("1.1 — Login de equipa rejeita código inexistente e valida campo", async ({ page }) => {
     await page.goto("/rally/team-login");
-    await expect(
-      page.getByRole("heading", { name: /Login de Equipa|Trocar Equipa/i }),
-    ).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(page.getByRole("heading", { name: /Login de Equipa|Trocar Equipa/i })).toBeVisible(
+      {
+        timeout: 15_000,
+      },
+    );
 
     const codeInput = page.getByPlaceholder("XXXX-XXXX");
     const submitBtn = page.getByRole("button", { name: "Entrar", exact: true });
@@ -170,7 +170,9 @@ test.describe("Fase 1: Casos de Falha, Validações e Testes Negativos de UI", (
 
       // Verifica mensagem de rejeição por distância
       await expect(
-        teamPage.getByText(/Ainda não estás perto o suficiente|Too far from checkpoint/i),
+        teamPage.getByText(
+          /Ainda não estás perto o suficiente|só é aceite a menos de|Too far from checkpoint/i,
+        ),
       ).toBeVisible({ timeout: 15_000 });
 
       // O botão passa a "Tentar novamente" e existe botão para "Limpar erro"
@@ -201,7 +203,9 @@ test.describe("Fase 1: Casos de Falha, Validações e Testes Negativos de UI", (
 
       // Posto 1 foi revelado pelo nome e Posto 2 é o novo enigma
       await expect(teamPage.getByText(cpName).first()).toBeVisible({ timeout: 15_000 });
-      await expect(teamPage.getByText("Enigma de teste negativo 2").first()).toBeVisible({ timeout: 15_000 });
+      await expect(teamPage.getByText("Enigma de teste negativo 2").first()).toBeVisible({
+        timeout: 15_000,
+      });
     } finally {
       await teamContext.close();
     }
@@ -238,9 +242,9 @@ test.describe("Fase 1: Casos de Falha, Validações e Testes Negativos de UI", (
       await adminPage.goto("/rally/admin?tab=activities");
       await adminPage.getByRole("button", { name: "Nova Atividade" }).click();
       await adminPage.getByRole("button", { name: /^Criar$/ }).click();
-      await expect(
-        adminPage.getByText(/Nome da atividade é obrigatório/i).first(),
-      ).toBeVisible({ timeout: 10_000 });
+      await expect(adminPage.getByText(/Nome da atividade é obrigatório/i).first()).toBeVisible({
+        timeout: 10_000,
+      });
     } finally {
       await adminPage.context().close();
     }
@@ -329,9 +333,7 @@ test.describe("Fase 1: Casos de Falha, Validações e Testes Negativos de UI", (
       expect(anonPage.url()).not.toContain("/admin");
 
       await anonPage.goto("/rally/staff-evaluation");
-      await expect(
-        anonPage.getByText(/Sem posto atribuído|Login Staff/i).first(),
-      ).toBeVisible({
+      await expect(anonPage.getByText(/Sem posto atribuído|Login Staff/i).first()).toBeVisible({
         timeout: 15_000,
       });
     } finally {

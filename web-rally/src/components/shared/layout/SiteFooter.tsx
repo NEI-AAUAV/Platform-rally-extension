@@ -3,6 +3,8 @@ import { Mail, MapPin } from "lucide-react";
 import { SiFacebook, SiGithub, SiInstagram, SiYoutube } from "@icons-pack/react-simple-icons";
 import { LinkedinIcon } from "@/components/shared/icons/LinkedinIcon";
 import type { Branding } from "@/lib/branding";
+import useEventTerms from "@/hooks/useEventTerms";
+import { capitalize } from "@/lib/eventTerms";
 import neiLogoBlack from "@/assets/nei/logo/horizontal/black.png";
 import neiLogoWhite from "@/assets/nei/logo/horizontal/white.png";
 import mapBlack from "@/assets/footer/map-black.png";
@@ -20,11 +22,15 @@ const SOCIALS = [
   { label: "YouTube", href: "https://www.youtube.com/@neiaauav2598", Icon: SiYoutube },
 ] as const;
 
-const QUICK_LINKS = [
-  { name: "Pontuação", to: "/scoreboard" },
-  { name: "Postos", to: "/checkpoints" },
-  { name: "Regras", to: "/rules" },
-] as const;
+function quickLinks(checkpointsLabel: string) {
+  return [
+    { name: "Pontuação", to: "/scoreboard" },
+    // Same event-aware noun as the navbar ("Tascas" for a rally), so the
+    // footer never names the same page differently.
+    { name: checkpointsLabel, to: "/checkpoints" },
+    { name: "Regras", to: "/rules" },
+  ] as const;
+}
 
 /**
  * Site footer mirroring the NEI ecosystem structure (brand + contact + social +
@@ -34,6 +40,7 @@ const QUICK_LINKS = [
  */
 export function SiteFooter({ branding }: SiteFooterProps) {
   const year = new Date().getFullYear();
+  const terms = useEventTerms();
 
   return (
     <footer
@@ -92,7 +99,7 @@ export function SiteFooter({ branding }: SiteFooterProps) {
             {branding.eventName}
           </h2>
           <ul className="space-y-2 text-sm">
-            {QUICK_LINKS.map((link) => (
+            {quickLinks(capitalize(terms.checkpoints)).map((link) => (
               <li key={link.to}>
                 <Link
                   to={link.to}

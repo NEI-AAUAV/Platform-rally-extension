@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import TeamLogin from "@/pages/team-login/index";
+import { loginErrorMessage } from "@/pages/team-login/loginErrorMessage";
 
 const { mockNavigate, mockSearch, mockUseTeamAuth, mockUseStaffLogin, mockToast, mockLogin } =
   vi.hoisted(() => ({
@@ -107,17 +108,16 @@ describe("TeamLogin page", () => {
     });
   });
 
-  it("shows an error toast on failed login", async () => {
-    mockLogin.mockRejectedValue(new Error("Invalid code"));
+  it("does not toast a failed login (the inline alert already shows it)", async () => {
+    mockLogin.mockRejectedValue(new Error("Invalid access code"));
     const user = userEvent.setup();
     render(<TeamLogin />);
 
     await user.type(screen.getByPlaceholderText("XXXX-XXXX"), "WRONG");
     await user.click(screen.getByRole("button", { name: "Entrar" }));
 
-    await waitFor(() => {
-      expect(mockToast.error).toHaveBeenCalledWith("Invalid code");
-    });
+    await waitFor(() => expect(mockLogin).toHaveBeenCalled());
+    expect(mockToast.error).not.toHaveBeenCalled();
   });
 
   it("displays a loginError message", () => {
@@ -126,10 +126,22 @@ describe("TeamLogin page", () => {
       isAuthenticated: false,
       teamData: null,
       isLoggingIn: false,
-      loginError: new Error("bad code"),
+      loginError: new Error("Invalid access code"),
     });
     render(<TeamLogin />);
-    expect(screen.getByText("bad code")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Código de acesso inválido");
+    expect(screen.queryByText("Invalid access code")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["Invalid access code", "Código de acesso inválido. Confirma o código e tenta outra vez."],
+    [
+      "Too many requests, try again later",
+      "Demasiadas tentativas. Espera um pouco e tenta outra vez.",
+    ],
+    ["Login failed", "Não foi possível entrar. Verifica a ligação e tenta outra vez."],
+  ])("loginErrorMessage maps %s to Portuguese", (raw, expected) => {
+    expect(loginErrorMessage(new Error(raw))).toBe(expected);
   });
 
   it("pre-fills and auto-submits code from URL", async () => {
@@ -191,7 +203,7 @@ describe("TeamLogin page", () => {
     await user.click(screen.getByTitle("Ler código QR com câmara"));
     await user.click(screen.getByText("scan-invalid"));
 
-    expect(mockToast.error).toHaveBeenCalledWith("Código QR inválido. Por favor, tente novamente.");
+    expect(mockToast.error).toHaveBeenCalledWith("Código QR inválido. Tenta outra vez.");
   });
 
   it("closes the scanner after any scan result so the camera is released", async () => {

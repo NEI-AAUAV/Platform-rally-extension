@@ -126,6 +126,7 @@ export default function OperationsDashboard() {
     dataUpdatedAt: teamsUpdatedAt,
     isLoading: teamsLoading,
     isError: teamsErrored,
+    refetch: refetchTeams,
   } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
@@ -201,7 +202,10 @@ export default function OperationsDashboard() {
   }
   if (teamsErrored) {
     return (
-      <ErrorState message="Não foi possível carregar as equipas. Tente novamente em instantes." />
+      <ErrorState
+        message="Não foi possível carregar as equipas."
+        onRetry={() => void refetchTeams()}
+      />
     );
   }
 

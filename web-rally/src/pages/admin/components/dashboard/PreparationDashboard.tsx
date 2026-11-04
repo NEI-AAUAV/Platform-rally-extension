@@ -101,7 +101,8 @@ export default function PreparationDashboard({ onNavigate }: Readonly<Preparatio
 
       {unavailable.length > 0 && (
         <p role="alert" className="text-sm text-destructive">
-          Não foi possível carregar {unavailable.join(" nem ")}. Tente novamente em instantes.
+          Não foi possível carregar {unavailable.join(" nem ")}. Tenta outra vez dentro de
+          instantes.
         </p>
       )}
 

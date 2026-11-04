@@ -727,6 +727,14 @@
     letter-spacing: 0;
     line-height: 0.9;
   }
+  /* With line-height 0.9, capital accents (Ã, Õ, É) rise above
+     the line box. Wherever the heading clips its own overflow (truncate), grow
+     the clip box upward and pull it back with a negative margin, so the accent
+     shows and the layout does not move. */
+  .rally-display.truncate {
+    padding-top: 0.15em;
+    margin-top: -0.15em;
+  }
   /* Tabular figures for live numbers, so digits do not jitter as they tick. */
   .rally-num {
     font-family: "JetBrains Mono", ui-monospace, monospace;

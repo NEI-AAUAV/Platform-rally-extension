@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Users, ArrowLeft, MapPin, Lock } from "lucide-react";
@@ -66,6 +67,7 @@ export default function CheckpointTeamEvaluation() {
     backToTeams,
     dismissWarning,
   } = useCheckpointEvaluation(checkpointId);
+  const [isEvaluationFormOpen, setIsEvaluationFormOpen] = useState(false);
 
   if (isForeignPost) {
     return (
@@ -213,10 +215,12 @@ export default function CheckpointTeamEvaluation() {
           {/* Team activities detail */}
           {selectedTeam && !showTeamList && (
             <div className="space-y-4">
-              <Button onClick={backToTeams} variant="outline" size="sm">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Voltar às equipas
-              </Button>
+              {!isEvaluationFormOpen && (
+                <Button onClick={backToTeams} variant="outline" size="sm">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Voltar às equipas
+                </Button>
+              )}
 
               {teamActivitiesLoading ? (
                 <LoadingState variant="list" message="A carregar atividades..." />
@@ -226,6 +230,7 @@ export default function CheckpointTeamEvaluation() {
                   activities={teamActivities || []}
                   onEvaluate={staffScoringOff ? undefined : handleEvaluateActivity}
                   isEvaluating={isEvaluating}
+                  onFormOpenChange={setIsEvaluationFormOpen}
                 />
               )}
             </div>

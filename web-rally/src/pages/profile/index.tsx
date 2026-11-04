@@ -7,6 +7,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { EVENT_TYPE_LABELS, type EventType } from "@/types/event";
 import type { ParticipationEntry } from "@/types/profile";
 import JoinTeamCard from "./JoinTeamCard";
+import { roleLabels } from "./roleLabels";
 
 function initialsOf(name: string): string {
   return name
@@ -166,14 +167,14 @@ export default function Profile() {
               {displayName}
             </h2>
             {userEmail && <p className="truncate text-sm text-muted-foreground">{userEmail}</p>}
-            {userScopes.length > 0 && (
+            {roleLabels(userScopes).length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {userScopes.map((s) => (
+                {roleLabels(userScopes).map((label) => (
                   <span
-                    key={s}
+                    key={label}
                     className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                   >
-                    {s}
+                    {label}
                   </span>
                 ))}
               </div>

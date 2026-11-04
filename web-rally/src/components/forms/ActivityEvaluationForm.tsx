@@ -14,6 +14,7 @@ import {
   parsePenaltyCounters,
 } from "@/lib/penaltyCounters";
 import { parseAnswersPerQuestion, parseQuizQuestions } from "@/lib/quizQuestions";
+import { activityTypeLabel } from "@/lib/activityTypeLabels";
 
 interface ActivityWithStatus extends ActivityResponse {
   evaluation_status: "pending" | "completed";
@@ -172,7 +173,7 @@ export default function ActivityEvaluationForm({
       <div className="rounded-2xl bg-secondary/60 p-4">
         <h3 className="mb-2 font-semibold text-foreground">Detalhes da atividade</h3>
         <p className="text-muted-foreground">
-          <strong>Tipo:</strong> {activity.activity_type}
+          <strong>Tipo:</strong> {activityTypeLabel(activity.activity_type)}
         </p>
         <p className="text-muted-foreground">
           <strong>Equipa:</strong> {team.name}

@@ -133,13 +133,11 @@ export default function QRCodeScanner({
       } catch (err) {
         if (err instanceof DOMException && err.name === "NotAllowedError") {
           setPermissionDenied(true);
-          setCameraError(
-            "Permissão de câmara negada. Por favor, ative a câmara nas configurações.",
-          );
+          setCameraError("Permissão de câmara negada. Ativa a câmara nas definições do browser.");
         } else if (err instanceof DOMException && err.name === "NotFoundError") {
           setCameraError("Nenhuma câmara disponível no dispositivo.");
         } else {
-          setCameraError("Não foi possível aceder à câmara. Tente novamente.");
+          setCameraError("Não foi possível aceder à câmara. Tenta outra vez.");
         }
         logger.error("Camera error", err);
       }
@@ -215,7 +213,7 @@ export default function QRCodeScanner({
             <div className="px-4 text-center">
               <p className="mb-2 font-semibold text-foreground">Permissão Negada</p>
               <p className="text-sm text-muted-foreground">
-                {cameraError || "Por favor, ative o acesso à câmara para utilizar o scanner."}
+                {cameraError || "Ativa o acesso à câmara para usar o scanner."}
               </p>
             </div>
           </div>

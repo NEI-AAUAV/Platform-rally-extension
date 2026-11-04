@@ -249,7 +249,7 @@ describe("team-progress NextCheckpointCard", () => {
     await vi.waitFor(() =>
       expect(
         screen.getByText(
-          /Ainda não estás perto o suficiente: menos de 500m \(tens de estar a menos de 50 m\)/,
+          /Estás a menos de 500m do local, mas o check-in só é aceite a menos de 50 m/,
         ),
       ).toBeInTheDocument(),
     );

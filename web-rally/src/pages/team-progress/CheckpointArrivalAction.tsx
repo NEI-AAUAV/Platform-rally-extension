@@ -7,7 +7,9 @@ const BUTTON_CLASSES: Record<GpsState, string> = {
   locating: "border border-border bg-card text-foreground hover:bg-accent/40",
   done: "cursor-default bg-green-500/15 text-green-600",
   queued: "bg-amber-500/15 text-amber-600",
-  error: "bg-red-500/10 text-red-500",
+  // Retrying is the next step, so it keeps the primary look; the message
+  // below carries the error, not the button.
+  error: "rally-bg-accent text-white shadow-[var(--rally-shadow-sm)] hover:brightness-110",
 };
 
 const MESSAGE_CLASSES: Record<GpsState, string> = {

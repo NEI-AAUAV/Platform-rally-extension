@@ -3,6 +3,7 @@ import { BloodyButton } from "@/components/themes/bloody";
 
 import { Edit, Trash2, GripVertical, Activity as LucideActivity } from "lucide-react";
 import { Activity as ActivityType, Checkpoint } from "@/types/activityTypes";
+import { activityTypeLabel } from "@/lib/activityTypeLabels";
 
 interface ActivityListProps {
   activities: ActivityType[];
@@ -11,15 +12,6 @@ interface ActivityListProps {
   onDelete: (id: number) => void;
   onReorder?: (activityOrders: Record<number, number>) => void;
 }
-
-const activityTypeLabels = {
-  TimeBasedActivity: "Baseada em Tempo",
-  ScoreBasedActivity: "Baseada em Pontuação",
-  BooleanActivity: "Sim/Não",
-  TeamVsActivity: "Equipa vs Equipa",
-  GeneralActivity: "Geral",
-  DeferredJudgedActivity: "Avaliação Posterior (Fotos)",
-};
 
 export default function ActivityList({
   activities,
@@ -153,7 +145,7 @@ export default function ActivityList({
 
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span>
-                      <strong>Tipo:</strong> {activityTypeLabels[activity.activity_type]}
+                      <strong>Tipo:</strong> {activityTypeLabel(activity.activity_type)}
                     </span>
                     <span>
                       <strong>Checkpoint:</strong> {getCheckpointName(activity.checkpoint_id)}

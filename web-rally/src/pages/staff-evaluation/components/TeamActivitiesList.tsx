@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Activity, CheckCircle, Clock, Star, Trophy, Edit, Camera } from "lucide-react";
 import ActivityEvaluationForm from "@/components/forms/ActivityEvaluationForm";
@@ -17,6 +17,9 @@ type TeamActivitiesListProps = Readonly<{
     resultData: ActivityResultData,
   ) => Promise<void>;
   isEvaluating: boolean;
+  /** Told when the evaluation form opens/closes, so the caller can hide its
+   *  own "back to teams" control and keep a single back action on screen. */
+  onFormOpenChange?: (open: boolean) => void;
 }>;
 
 const activityTypeIcons = {
@@ -37,9 +40,17 @@ export function TeamActivitiesList({
   activities,
   onEvaluate,
   isEvaluating,
+  onFormOpenChange,
 }: TeamActivitiesListProps) {
   const [selectedActivity, setSelectedActivity] = useState<TeamActivityWithStatus | null>(null);
-  const [showEvaluationForm, setShowEvaluationForm] = useState(false);
+  const [showEvaluationForm, setShowEvaluationFormState] = useState(false);
+  const setShowEvaluationForm = (open: boolean) => {
+    setShowEvaluationFormState(open);
+    onFormOpenChange?.(open);
+  };
+  // If the list unmounts mid-form (team switched, data reloading), the caller
+  // must not keep its back button hidden.
+  useEffect(() => () => onFormOpenChange?.(false), [onFormOpenChange]);
 
   const handleEvaluateClick = (activity: TeamActivityWithStatus) => {
     setSelectedActivity(activity);

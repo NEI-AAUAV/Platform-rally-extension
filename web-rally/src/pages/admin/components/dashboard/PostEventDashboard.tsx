@@ -21,6 +21,7 @@ export default function PostEventDashboard() {
     data: teams,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => (await getTeams()).data,
@@ -38,7 +39,10 @@ export default function PostEventDashboard() {
   }
   if (isError) {
     return (
-      <ErrorState message="Não foi possível carregar a classificação final. Tente novamente em instantes." />
+      <ErrorState
+        message="Não foi possível carregar a classificação final."
+        onRetry={() => void refetch()}
+      />
     );
   }
 
