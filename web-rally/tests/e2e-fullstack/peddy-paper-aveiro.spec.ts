@@ -431,7 +431,7 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       for (const stage of AVEIRO_STAGES) {
         await adminPage.getByPlaceholder("Ex: Universidade").fill(`${stage.name} ${runId}`);
         await adminPage.getByRole("button", { name: "Adicionar etapa" }).click();
-        await expect(adminPage.getByText(`${stage.name} ${runId}`).first()).toBeVisible({
+        await expect(adminPage.locator("li").getByText(`${stage.name} ${runId}`).first()).toBeVisible({
           timeout: 15_000,
         });
       }

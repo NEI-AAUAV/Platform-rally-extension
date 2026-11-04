@@ -224,10 +224,10 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     // picked up the first *other* activity's "Avaliar" button instead of
     // this one's — confirmed via the real backend (both activities were
     // genuinely there; this was a pure locator-scoping bug, not a product
-    // bug). `.rounded-xl` is the specific activity-card's own class
+    // bug). `.rounded-3xl` is the specific activity-card's own class
     // (TeamActivitiesList.tsx), so this scopes to just that card.
     const evaluateButton = page
-      .locator('div.rounded-xl', { hasText: 'E2E Score Activity' })
+      .locator('div.rounded-3xl', { hasText: 'E2E Score Activity' })
       .getByRole('button', { name: /avaliar|evaluate/i })
       .first();
     const scoreInput = page.locator('#score-achieved');
