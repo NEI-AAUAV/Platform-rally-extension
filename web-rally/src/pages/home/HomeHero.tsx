@@ -71,11 +71,11 @@ export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHer
     <section
       aria-labelledby="home-hero-heading"
       className={cn(
-        "grid items-end gap-10 pb-6 pt-6 sm:pt-12 lg:gap-14",
-        showClock && "lg:grid-cols-[1.35fr_1fr]",
+        "grid grid-cols-1 items-end gap-10 pb-6 pt-6 sm:pt-12 lg:gap-14",
+        showClock && "lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]",
       )}
     >
-      <div className="flex flex-col items-start gap-6">
+      <div className="flex min-w-0 flex-col items-start gap-6">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -107,7 +107,7 @@ export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHer
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: EASE, delay: 0.05 }}
-          className="rally-display text-foreground"
+          className="rally-display max-w-full text-foreground [overflow-wrap:anywhere]"
           style={{ fontSize: "clamp(64px, 15vw, 176px)", lineHeight: 0.84 }}
         >
           {lead && <>{lead} </>}
