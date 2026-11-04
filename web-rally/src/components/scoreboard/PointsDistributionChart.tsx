@@ -27,10 +27,8 @@ export default function PointsDistributionChart({ teams }: PointsDistributionCha
   }
 
   return (
-    <div className="rally-brutal bg-muted p-4">
-      <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">
-        Distribuição de pontos
-      </h3>
+    <div className="rally-surface p-6">
+      <h3 className="rally-display mb-4 text-2xl text-foreground">Distribuição de pontos</h3>
       <ResponsiveContainer width="100%" height={Math.max(120, data.length * 38)}>
         <BarChart data={data} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
           <XAxis type="number" hide />

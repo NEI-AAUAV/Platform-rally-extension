@@ -1,3 +1,4 @@
+import { LoadingState } from "@/components/shared";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Gavel, Image, CheckCircle2, AlertCircle, ArrowUp, ArrowDown, Trophy } from "lucide-react";
@@ -206,11 +207,7 @@ export default function DeferredJudgingTab() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground">
-        A carregar julgamentos pendentes…
-      </div>
-    );
+    return <LoadingState variant="list" message="A carregar julgamentos pendentes…" />;
   }
 
   if (activityIds.length === 0) {
@@ -229,7 +226,7 @@ export default function DeferredJudgingTab() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Gavel className="h-5 w-5 text-amber-500" />
-        <h2 className="text-lg font-semibold">Julgamentos Pendentes</h2>
+        <h2 className="rally-display text-2xl">Julgamentos Pendentes</h2>
         <span className="ml-auto rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-semibold text-amber-600">
           {pending.length}
         </span>

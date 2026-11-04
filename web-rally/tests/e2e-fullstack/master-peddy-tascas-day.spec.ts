@@ -517,6 +517,10 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
           .fill(plan.clue);
         const opensInHours = "opensInHours" in plan ? plan.opensInHours : undefined;
         if (opensInHours !== undefined) {
+          // "Abre a" sits in a folded optional section of the form.
+          await adminPage.locator("form details").evaluateAll((els) =>
+            els.forEach((el) => ((el as HTMLDetailsElement).open = true)),
+          );
           await adminPage
             .getByLabel("Abre a (opcional)")
             .fill(datetimeLocal(Date.now() + opensInHours * 3_600_000));
@@ -1158,8 +1162,8 @@ test.describe("Um dia de Peddy Tascas — da configuração ao pódio", () => {
 
       // --- The board in the bar, still on the same page since this morning -
       if (!publicPage) throw new Error("the public scoreboard was never opened");
-      const betaCard = publicPage.locator("a", { hasText: beta!.name });
-      await expect(betaCard.getByText(/pts/)).not.toHaveText("0 pts", { timeout: 30_000 });
+      const betaCard = publicPage.locator("a", { hasText: beta!.name }).last();
+      await expect(betaCard.locator(".rally-num")).toHaveText(/^[1-9]\d*\s*pts$/, { timeout: 30_000 });
     } finally {
       await Promise.all([
         staffPage.context().close(),

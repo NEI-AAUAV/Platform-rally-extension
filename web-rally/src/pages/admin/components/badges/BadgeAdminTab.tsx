@@ -32,7 +32,7 @@ export default function BadgeAdminTab() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Trophy className="h-5 w-5 text-amber-500" />
-        <h2 className="text-lg font-semibold">Catálogo de Crachás</h2>
+        <h2 className="rally-display text-2xl">Catálogo de Crachás</h2>
         {!formMode.open && (
           <button
             type="button"

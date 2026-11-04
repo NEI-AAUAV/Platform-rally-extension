@@ -71,13 +71,16 @@ export default function MemberList({
                 className="rounded-xl border border-border bg-card/60 p-3 transition-colors hover:bg-accent sm:p-4"
               >
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="border-blue-500 bg-blue-600/20 text-blue-300">
+                  <Badge
+                    variant="outline"
+                    className="rally-bg-accent-soft rally-accent border-transparent"
+                  >
                     ID: {member.id}
                   </Badge>
                   {member.is_captain && (
                     <Badge
                       variant="outline"
-                      className="border-yellow-500 bg-yellow-600/20 text-yellow-300"
+                      className="border-yellow-500 bg-yellow-600/20 text-yellow-800 dark:text-yellow-300"
                     >
                       Capitão
                     </Badge>
@@ -94,7 +97,7 @@ export default function MemberList({
                   {member.is_linked ? (
                     <Badge
                       variant="outline"
-                      className="border-emerald-500 bg-emerald-600/20 text-emerald-300"
+                      className="border-emerald-500 bg-emerald-600/20 text-emerald-800 dark:text-emerald-300"
                     >
                       <Link2 className="mr-1.5 h-3.5 w-3.5" />
                       Conta NEI associada
@@ -104,7 +107,7 @@ export default function MemberList({
                       variant="outline"
                       size="sm"
                       onClick={() => setLinkingId((id) => (id === member.id ? null : member.id))}
-                      className="text-blue-400 hover:bg-blue-600/20 hover:text-blue-300"
+                      className="rally-accent hover:bg-accent"
                     >
                       <Link2 className="mr-2 h-4 w-4" />
                       {linkingId === member.id ? "Cancelar" : "Ligar conta NEI"}
@@ -115,7 +118,7 @@ export default function MemberList({
                     size="sm"
                     onClick={() => handleRemoveMember(member.id)}
                     disabled={isRemovingMember}
-                    className="text-red-400 hover:bg-red-600/20 hover:text-red-300"
+                    className="text-red-700 hover:bg-red-600/20 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Remover

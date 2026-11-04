@@ -29,10 +29,10 @@ const RallyCard = forwardRef<HTMLDivElement | HTMLButtonElement, RallyCardProps>
     ref,
   ) => {
     const variantStyles = {
-      default: "bg-card border-border shadow-[var(--rally-shadow-sm)]",
-      elevated: "bg-card border-border shadow-[var(--rally-shadow-md)]",
-      subtle: "bg-card/60 border-border",
-      nested: "bg-secondary border-border",
+      default: "bg-card border-border/70 dark:border-transparent",
+      elevated: "bg-card border-border/70 shadow-[var(--rally-shadow-md)] dark:border-transparent",
+      subtle: "bg-card/60 border-border/60 dark:border-transparent",
+      nested: "bg-secondary border-transparent",
     };
 
     const paddingStyles = {
@@ -46,7 +46,7 @@ const RallyCard = forwardRef<HTMLDivElement | HTMLButtonElement, RallyCardProps>
       md: "rounded-md",
       lg: "rounded-lg",
       xl: "rounded-xl",
-      "2xl": "rounded-2xl",
+      "2xl": "rounded-3xl",
     };
 
     const hoverStyles = hover ? "transition-colors hover:bg-accent" : "";

@@ -12,7 +12,7 @@ export default function StopwatchWidget({ onUseTime }: StopwatchWidgetProps) {
   const worstLap = laps.length > 1 ? Math.max(...laps.map((l) => l.split)) : null;
 
   return (
-    <div className="rally-surface flex flex-col items-center gap-4 rounded-lg p-4">
+    <div className="rally-surface flex flex-col items-center gap-4 p-4">
       <time
         dateTime={`PT${Math.floor(elapsed / 1000)}S`}
         className="font-mono text-3xl font-bold tabular-nums tracking-tight"
@@ -97,13 +97,13 @@ export default function StopwatchWidget({ onUseTime }: StopwatchWidgetProps) {
                     <td className="px-3 py-1.5 font-semibold text-muted-foreground">{l.n}</td>
                     <td
                       className={[
-                        "font-mono px-3 py-1.5 font-semibold tabular-nums",
+                        "px-3 py-1.5 font-mono font-semibold tabular-nums",
                         splitClass,
                       ].join(" ")}
                     >
                       {formatStopwatchTime(l.split)}
                     </td>
-                    <td className="font-mono px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                    <td className="px-3 py-1.5 text-right font-mono tabular-nums text-muted-foreground">
                       {formatStopwatchTime(l.elapsed)}
                     </td>
                   </tr>

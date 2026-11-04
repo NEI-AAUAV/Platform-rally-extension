@@ -69,25 +69,25 @@ const ToastComponent: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast
       bg: "bg-green-600",
       border: "border-green-500",
       icon: CheckCircle,
-      iconColor: "text-green-300",
+      iconColor: "text-green-800 dark:text-green-300",
     },
     error: {
       bg: "bg-red-600",
       border: "border-red-500",
       icon: AlertCircle,
-      iconColor: "text-red-300",
+      iconColor: "text-red-800 dark:text-red-300",
     },
     warning: {
       bg: "bg-yellow-600",
       border: "border-yellow-500",
       icon: AlertTriangle,
-      iconColor: "text-yellow-300",
+      iconColor: "text-yellow-800 dark:text-yellow-300",
     },
     info: {
       bg: "bg-blue-600",
       border: "border-blue-500",
       icon: Info,
-      iconColor: "text-blue-300",
+      iconColor: "text-blue-800 dark:text-blue-300",
     },
   };
 

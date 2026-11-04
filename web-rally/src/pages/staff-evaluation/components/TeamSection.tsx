@@ -2,14 +2,8 @@ import type { ListingTeam } from "@/client";
 import { EvaluationTeamCard, type TeamCardVariant } from "./EvaluationTeamCard";
 import { cn } from "@/lib/utils";
 
-const DIVIDER_CLASS: Record<TeamCardVariant, string> = {
-  current: "rally-bg-accent-soft",
-  previous: "bg-amber-500/20",
-  evaluated: "bg-border",
-};
-
 const LABEL_CLASS: Record<TeamCardVariant, string> = {
-  current: "rally-accent",
+  current: "text-foreground",
   // amber-800, not amber-600: at this size and weight amber-600 is 3.05:1 on
   // the light surface, a serious WCAG AA contrast failure the a11y suite
   // catches now that the "postos anteriores" section actually renders. The
@@ -38,15 +32,12 @@ export function TeamSection({
   if (teams.length === 0) return null;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <div className={cn("h-px flex-1", DIVIDER_CLASS[variant])} />
-        <span className={cn("text-xs font-bold uppercase tracking-[0.1em]", LABEL_CLASS[variant])}>
-          {title}
-        </span>
-        <div className={cn("h-px flex-1", DIVIDER_CLASS[variant])} />
+    <section className="space-y-3">
+      <div className="flex items-baseline gap-3">
+        <h3 className={cn("rally-display text-2xl", LABEL_CLASS[variant])}>{title}</h3>
+        <span className="rally-num text-sm font-bold text-muted-foreground">{teams.length}</span>
       </div>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {teams.map((team) => (
           <EvaluationTeamCard
             key={team.id}
@@ -57,6 +48,6 @@ export function TeamSection({
           />
         ))}
       </div>
-    </div>
+    </section>
   );
 }

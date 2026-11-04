@@ -44,7 +44,7 @@ export default function BroadcastTab() {
     <div className="mx-auto max-w-xl space-y-4">
       <div className="flex items-center gap-2">
         <BellRing className="h-5 w-5 text-amber-500" />
-        <h2 className="text-lg font-semibold">Anúncio a todas as equipas</h2>
+        <h2 className="rally-display text-2xl">Anúncio a todas as equipas</h2>
       </div>
       <p className="text-sm text-muted-foreground">
         Envia uma notificação push a todos os dispositivos subscritos — ex. "Chuva a chegar,
@@ -59,7 +59,7 @@ export default function BroadcastTab() {
             maxLength={TITLE_MAX}
             placeholder="Ex: Atenção equipas!"
             onChange={(e) => setTitle(e.target.value)}
-            className="border-border bg-muted"
+            className="border-border"
           />
         </label>
 
@@ -71,7 +71,7 @@ export default function BroadcastTab() {
             placeholder="Ex: Vai começar a chover, procurem abrigo no posto mais próximo."
             onChange={(e) => setBody(e.target.value)}
             rows={4}
-            className="w-full rounded-lg border border-border bg-muted p-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-2xl bg-secondary/60 p-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
 
@@ -83,7 +83,7 @@ export default function BroadcastTab() {
             value={url}
             placeholder="/scoreboard"
             onChange={(e) => setUrl(e.target.value)}
-            className="border-border bg-muted"
+            className="border-border"
           />
         </label>
 

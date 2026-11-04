@@ -55,7 +55,7 @@ export default function PWAUpdatePrompt() {
           // `true` tells the waiting worker to skipWaiting and reloads once it
           // takes control — src/sw.ts handles the SKIP_WAITING message.
           onClick={() => void updateServiceWorker(true)}
-          className="rally-bg-accent rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          className="rally-bg-accent rounded-full px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
           Atualizar
         </button>

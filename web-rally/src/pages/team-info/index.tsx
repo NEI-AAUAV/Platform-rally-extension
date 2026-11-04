@@ -87,7 +87,7 @@ export default function TeamInfo() {
         <h1 className="rally-display mt-2 text-4xl font-bold text-foreground">{team?.name}</h1>
       </header>
 
-      <div className="rally-surface rally-elevate space-y-3 rounded-[22px] p-6">
+      <div className="rally-surface space-y-3 p-6">
         {team?.members.map((member) => (
           <div
             key={member.id}

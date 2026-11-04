@@ -111,8 +111,8 @@ class HomeSection(BaseModel):
 
 # Visual-identity axes. Each axis is applied live and can be mixed freely; a
 # saved VisualPreset bundles a chosen value per axis under a name.
-BUTTON_STYLES = ("plain", "glow", "sharp", "shine", "halloween")
-BACKGROUND_STYLES = ("plain", "dots", "grid", "glow", "stripes", "confetti", "halloween")
+BUTTON_STYLES = ("plain", "glow", "sharp", "shine", "halloween", "magusto")
+BACKGROUND_STYLES = ("plain", "dots", "grid", "glow", "stripes", "confetti", "halloween", "magusto")
 MAX_VISUAL_PRESETS = 24
 
 

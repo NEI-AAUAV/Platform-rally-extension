@@ -35,7 +35,7 @@ export default function EvaluationFormModal({
         backgroundColor: "rgba(0, 0, 0, 0.8)",
       }}
     >
-      <div className="rally-surface rally-elevate max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl p-6">
+      <div className="rally-surface max-h-[90vh] w-full max-w-2xl overflow-y-auto p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="rally-display text-2xl font-bold text-foreground">
             Avaliar: {activity.name}

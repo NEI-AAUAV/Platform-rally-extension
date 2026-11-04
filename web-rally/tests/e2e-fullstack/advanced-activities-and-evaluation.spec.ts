@@ -161,7 +161,7 @@ test.describe("Fase 6: Atividades Avançadas e Avaliação", () => {
       await adminPage.goto("/rally/staff-evaluation");
 
       // Verificar elementos do painel de manager/staff
-      await expect(adminPage.getByText("Visão Geral das Equipas")).toBeVisible({ timeout: 15_000 });
+      await expect(adminPage.getByRole("heading", { name: "Equipas", exact: true })).toBeVisible({ timeout: 15_000 });
       await expect(adminPage.getByRole("button", { name: /Todas as Avaliações/i })).toBeVisible({ timeout: 15_000 });
 
       // Verificar que as equipas criadas aparecem listadas no painel

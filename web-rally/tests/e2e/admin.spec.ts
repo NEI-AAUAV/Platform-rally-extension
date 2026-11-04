@@ -177,5 +177,10 @@ test.describe("Admin Panel", () => {
 
     // Wait for tabs to appear (admin panel should still load even if teams endpoint fails)
     await expect(page.getByRole("button", { name: /Equipas/i })).toBeVisible({ timeout: 10000 });
+    // The failure must surface with a way forward, not leave a skeleton.
+    await expect(page.getByText("Não foi possível carregar as equipas.")).toBeVisible({
+      timeout: 20000,
+    });
+    await expect(page.getByRole("button", { name: "Tentar novamente" })).toBeVisible();
   });
 });

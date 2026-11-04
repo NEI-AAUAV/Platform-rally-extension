@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Zap, Plus, Trash2, AlertCircle, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Trash2, AlertCircle, ToggleLeft, ToggleRight } from "lucide-react";
 import {
   viewRallySettings,
   updateRallySettings,
@@ -532,10 +532,8 @@ export default function DynamicScoringTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Zap className="h-5 w-5 text-amber-500" />
-        <h2 className="text-lg font-semibold">Pontuação Dinâmica</h2>
-      </div>
+      {/* The admin shell already titles this section; keep the name for assistive tech only. */}
+      <h2 className="sr-only">Pontuação Dinâmica</h2>
       <BonusCeilingCard />
       <div className="border-t border-border" />
       <RulesSection kind="penalty_counter" />

@@ -33,7 +33,7 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
 
-    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+    expect(screen.getByText("Algo correu mal")).toBeInTheDocument();
     expect(h.captureError).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({ componentStack: expect.any(String) }),
@@ -49,15 +49,15 @@ describe("ErrorBoundary", () => {
     expect(screen.getByText("custom fallback")).toBeInTheDocument();
   });
 
-  it('resets the error state when "Try again" is clicked', () => {
+  it('resets the error state when "Tentar de novo" is clicked', () => {
     render(
       <ErrorBoundary>
         <Bomb />
       </ErrorBoundary>,
     );
-    fireEvent.click(screen.getByText("Try again"));
+    fireEvent.click(screen.getByText("Tentar de novo"));
     // After reset, hasError is false but the same Bomb child throws again on render,
     // so the boundary should show the error UI again (proves reset ran + re-render happened).
-    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+    expect(screen.getByText("Algo correu mal")).toBeInTheDocument();
   });
 });

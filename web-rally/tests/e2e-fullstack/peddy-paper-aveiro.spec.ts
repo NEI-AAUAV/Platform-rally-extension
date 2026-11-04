@@ -308,11 +308,11 @@ async function checkInWithGpsButton(page: Page): Promise<void> {
  * The team's own score, read where the team reads it.
  *
  * Anchored on the "Pontos" caption rather than on a class name: the header
- * renders three of these figures side by side (position, points, posts) and
+ * renders several of these figures side by side (position, points, posts) and
  * only the caption tells them apart.
  */
 function ownScore(page: Page) {
-  return page.locator('xpath=//p[normalize-space(.)="Pontos"]/preceding-sibling::p[1]');
+  return page.locator('xpath=//span[normalize-space(.)="Pontos"]/preceding-sibling::span[1]');
 }
 
 async function walkToPostAndCheckIn(page: Page, target: BuiltPost): Promise<void> {
@@ -419,6 +419,11 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // and says so in its place when none do — assert that, because it is the
       // instruction an organizer actually follows.
       await adminPage.goto("/rally/admin?tab=checkpoints");
+      // The stage field lives in the folded "Quando entra na rota" disclosure.
+      await adminPage.locator("form details").first().waitFor({ state: "attached" });
+      await adminPage.locator("form details").evaluateAll((els) =>
+        els.forEach((el) => ((el as HTMLDetailsElement).open = true)),
+      );
       await expect(adminPage.getByText(/Ainda não criaste nenhuma etapa/)).toBeVisible({
         timeout: 15_000,
       });
@@ -426,7 +431,7 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       for (const stage of AVEIRO_STAGES) {
         await adminPage.getByPlaceholder("Ex: Universidade").fill(`${stage.name} ${runId}`);
         await adminPage.getByRole("button", { name: "Adicionar etapa" }).click();
-        await expect(adminPage.getByText(`${stage.name} ${runId}`).first()).toBeVisible({
+        await expect(adminPage.locator("li").getByText(`${stage.name} ${runId}`).first()).toBeVisible({
           timeout: 15_000,
         });
       }
@@ -469,6 +474,11 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
         await adminPage
           .getByPlaceholder("Ex: Onde o rio encontra a ponte de ferro...")
           .fill(post.clue);
+        // The optional passes of the form are folded disclosures; open them all
+        // (idempotent, unlike clicking a summary) before filling their fields.
+        await adminPage.locator("form details").evaluateAll((els) =>
+          els.forEach((el) => ((el as HTMLDetailsElement).open = true)),
+        );
         // The two columns of the planning sheet nothing in this suite had
         // ever filled: what the person at the post talks about, and the
         // challenge as it was planned. Neither is ever shown to a team.
@@ -994,8 +1004,8 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // would satisfy a single-team check.
       for (const team of teams) {
         await expect(
-          publicPage.locator("a", { hasText: team.name }).first().getByText(/pts/),
-        ).not.toHaveText("0 pts", { timeout: 60_000 });
+          publicPage.locator("a", { hasText: team.name }).last().locator(".rally-num"),
+        ).toHaveText(/^[1-9]\d*\s*pts$/, { timeout: 60_000 });
       }
     } finally {
       await Promise.all([

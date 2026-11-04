@@ -135,8 +135,8 @@ test.describe('Live scoreboard updates via real SSE', () => {
       // inside the same link/row — walk up to that common ancestor via the
       // <a> the team name always sits inside (Podium and ScoreRows both link
       // to /teams/$id).
-      const teamCard = publicPage.locator('a', { hasText: teamName });
-      await expect(teamCard.getByText(/pts/)).not.toHaveText('0 pts', { timeout: 20_000 });
+      const teamCard = publicPage.locator('a', { hasText: teamName }).last();
+      await expect(teamCard.locator('.rally-num')).toHaveText(/^[1-9]\d*\s*pts$/, { timeout: 20_000 });
     } finally {
       await Promise.all([staffContext.close(), publicContext.close()]);
     }

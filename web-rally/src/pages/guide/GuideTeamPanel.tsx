@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Crown, Users } from "lucide-react";
-import { Spinner } from "@/components/shared";
+import { LoadingState } from "@/components/shared";
 import { getGuideTeam } from "@/client";
 import QRCodeDisplay from "@/components/qr/QRCodeDisplay";
 
@@ -21,11 +21,7 @@ export default function GuideTeamPanel() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-        <Spinner size="sm" label="" /> A carregar equipa…
-      </div>
-    );
+    return <LoadingState variant="block" message="A carregar equipa…" />;
   }
 
   if (isError || !team) {
@@ -38,7 +34,7 @@ export default function GuideTeamPanel() {
   }
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
       <section className="rally-surface space-y-3 p-4">
         <h2 className="rally-display text-2xl font-bold text-foreground">{team.name}</h2>
         <p className="rally-accent flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em]">

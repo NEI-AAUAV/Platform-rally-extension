@@ -74,8 +74,10 @@ const linkClass = (isActive: boolean, isSidebar = false) =>
           : "text-foreground/80 hover:bg-accent hover:text-foreground",
       )
     : cn(
-        "block rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-colors",
-        isActive ? "rally-accent" : "text-muted-foreground hover:text-foreground hover:bg-accent",
+        "block rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+        isActive
+          ? "bg-foreground text-background"
+          : "text-muted-foreground hover:text-foreground hover:bg-accent",
       );
 
 function NavGroup({
@@ -350,7 +352,7 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           aria-label="Abrir menu"
           aria-expanded={isMobileMenuOpen}
-          className="flex items-center justify-center rounded-md border border-border bg-card p-2 text-foreground transition-colors hover:bg-accent"
+          className="flex items-center justify-center rounded-full border border-border bg-card p-2 text-foreground transition-colors hover:bg-accent"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -406,12 +408,12 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
                 <img src={logoSrc} alt="" className="h-8 w-8 shrink-0 rounded-lg object-contain" />
               ) : (
                 eventName && (
-                  <span className="rally-bg-accent grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold text-white shadow-[var(--rally-shadow-sm)]">
+                  <span className="rally-bg-accent rally-display grid h-8 w-8 shrink-0 place-items-center rounded-lg text-base text-white">
                     {initialsOf(eventName)}
                   </span>
                 )
               )}
-              <span className="rally-display truncate text-sm font-black uppercase tracking-tight text-popover-foreground">
+              <span className="rally-display truncate text-lg text-popover-foreground">
                 {eventName || "Menu"}
               </span>
             </div>
