@@ -81,7 +81,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
 
     // Verify scoreboard UI renders the expected score
     await page.goto('/rally/scoreboard');
-    const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    const teamRow = page.locator('a[href*="/teams/"]', { hasText: `E2E Team ${rally.checkpointOrder}` });
     await expect(teamRow.getByText(`${expected}`)).toBeVisible({ timeout: 15_000 });
   });
 
@@ -136,7 +136,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
 
     // Verify scoreboard UI shows the modified total score
     await page.goto('/rally/scoreboard');
-    const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    const teamRow = page.locator('a[href*="/teams/"]', { hasText: `E2E Team ${rally.checkpointOrder}` });
     await expect(teamRow.getByText(`${expected}`)).toBeVisible({ timeout: 15_000 });
   });
 
@@ -186,7 +186,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     // behaviour the backend does not have.
     const shortfall = Math.round(booleanOracle(true) - notDrinkingCount * Math.abs(settings.penalty_per_not_drinking));
     await page.goto('/rally/scoreboard');
-    const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    const teamRow = page.locator('a[href*="/teams/"]', { hasText: `E2E Team ${rally.checkpointOrder}` });
     // Anchored on the whole score node (`-49900pts`) rather than a bare
     // number string: getByText substring-matches, so a bare number also hits
     // the elapsed-time line and other teams' scores, tripping strict mode.
@@ -269,7 +269,7 @@ test.describe('Scoring arithmetic vs. real backend oracle', () => {
     // getFinalScore above reads the exact per-activity float — so the UI
     // assertion compares against the rounded value, not `expected` itself.
     await page.goto('/rally/scoreboard');
-    const teamRow = page.locator('.rally-surface', { hasText: `E2E Team ${rally.checkpointOrder}` });
+    const teamRow = page.locator('a[href*="/teams/"]', { hasText: `E2E Team ${rally.checkpointOrder}` });
     await expect(teamRow.getByText(`${Math.round(expected)}`)).toBeVisible({ timeout: 15_000 });
   });
 });

@@ -52,7 +52,15 @@ function Chestnut({ size }: { readonly size: number }) {
         fill="#d9b88f"
       />
       {/* gloss */}
-      <ellipse cx="13.5" cy="18" rx="2.6" ry="6" fill="#fff" opacity="0.28" transform="rotate(28 13.5 18)" />
+      <ellipse
+        cx="13.5"
+        cy="18"
+        rx="2.6"
+        ry="6"
+        fill="#fff"
+        opacity="0.28"
+        transform="rotate(28 13.5 18)"
+      />
     </svg>
   );
 }

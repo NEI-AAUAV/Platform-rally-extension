@@ -419,6 +419,11 @@ test.describe("Peddy paper de Aveiro — a edição que já aconteceu", () => {
       // and says so in its place when none do — assert that, because it is the
       // instruction an organizer actually follows.
       await adminPage.goto("/rally/admin?tab=checkpoints");
+      // The stage field lives in the folded "Quando entra na rota" disclosure.
+      await adminPage.locator("form details").first().waitFor({ state: "attached" });
+      await adminPage.locator("form details").evaluateAll((els) =>
+        els.forEach((el) => ((el as HTMLDetailsElement).open = true)),
+      );
       await expect(adminPage.getByText(/Ainda não criaste nenhuma etapa/)).toBeVisible({
         timeout: 15_000,
       });
