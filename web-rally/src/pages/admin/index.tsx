@@ -130,7 +130,7 @@ export default function Admin() {
   // with the active section's own heading, so the admin never has to scroll
   // past a page banner to reach the tool it picked.
   return (
-    <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
       <aside className="space-y-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:space-y-5 lg:overflow-y-auto lg:pb-6">
         {/* On a phone the menu button below already names the section, so the
             page title is kept for assistive tech only. */}

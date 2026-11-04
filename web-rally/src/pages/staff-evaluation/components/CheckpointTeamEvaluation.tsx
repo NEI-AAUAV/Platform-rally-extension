@@ -175,7 +175,7 @@ export default function CheckpointTeamEvaluation() {
       {/* Work area on the left, the post's own tools in a sticky rail on the
           right. On a phone the rail comes first: scanning the arriving team
           is the staff member's main action. */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         <aside
           className={cn(
             "space-y-4 lg:sticky lg:top-24 lg:order-last",

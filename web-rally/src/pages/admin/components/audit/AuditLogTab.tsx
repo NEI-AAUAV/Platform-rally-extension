@@ -170,7 +170,7 @@ export default function AuditLogTab() {
       {isFetching && <Spinner size="sm" className="text-muted-foreground" label="" />}
 
       {/* Filters */}
-      <div className="rally-surface grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="rally-surface grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="col-span-full flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Filter className="h-3.5 w-3.5" />
           Filtros

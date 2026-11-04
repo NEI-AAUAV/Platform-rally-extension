@@ -58,7 +58,7 @@ export function SiteFooter({ branding }: SiteFooterProps) {
         className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.12] dark:block"
       />
 
-      <div className="relative mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:grid-cols-2 sm:gap-10 sm:py-12 lg:grid-cols-3">
+      <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-8 sm:grid-cols-2 sm:gap-10 sm:py-12 lg:grid-cols-3">
         {/* Brand + social */}
         <div className="space-y-4 lg:col-span-1">
           <img src={neiLogoBlack} alt="NEI" className="h-12 object-contain dark:hidden sm:h-20" />

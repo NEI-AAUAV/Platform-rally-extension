@@ -87,7 +87,7 @@ export default function TeamsById() {
 
       {/* Team Details */}
       {isSuccess && team && settings?.show_team_details !== false ? (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start">
           {/* Left column — identity, badges, members */}
           <div className="space-y-6 lg:sticky lg:top-24">
             <div className="rally-surface overflow-hidden">
@@ -131,7 +131,7 @@ export default function TeamsById() {
 
             <div>
               <h2 className="rally-display mb-3 text-2xl">Membros</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 {team?.members.map((member) => {
                   const names = member.name.split(" ");
                   const firstName = names[0];

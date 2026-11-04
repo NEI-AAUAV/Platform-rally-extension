@@ -137,8 +137,8 @@ export function TeamActivitiesList({
                 <IconComponent className="h-4 w-4" />
               </span>
 
-              <div className="min-w-0 flex-1">
-                <p className="text-base font-bold text-foreground">{activity.name}</p>
+              <div className="min-w-0 flex-1 basis-40">
+                <p className="break-words text-base font-bold text-foreground">{activity.name}</p>
                 {activity.description && (
                   <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
                     {activity.description}
@@ -146,7 +146,7 @@ export function TeamActivitiesList({
                 )}
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="ml-auto flex shrink-0 items-center gap-2">
                 <span
                   className={cn(
                     "rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",

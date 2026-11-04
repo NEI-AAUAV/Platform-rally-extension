@@ -34,7 +34,7 @@ export default function GuideTeamPanel() {
   }
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
       <section className="rally-surface space-y-3 p-4">
         <h2 className="rally-display text-2xl font-bold text-foreground">{team.name}</h2>
         <p className="rally-accent flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.16em]">

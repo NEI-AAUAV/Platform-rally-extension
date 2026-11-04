@@ -185,7 +185,7 @@ export default function Scoreboard() {
         </div>
       )}
       {!showSkeleton && list.length > 0 && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
           {/* Left: podium + rows */}
           <div className="space-y-6">
             {podium.length > 0 && (

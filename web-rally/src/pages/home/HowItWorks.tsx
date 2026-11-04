@@ -30,7 +30,7 @@ export function HowItWorks() {
       <h2 id="how-heading" className="rally-display mb-5 text-5xl text-foreground sm:text-6xl">
         Como funciona
       </h2>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {steps.map((step) => (
           <div
             key={step.n}

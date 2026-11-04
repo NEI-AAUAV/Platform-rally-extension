@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/shared";
 /** Layout-stable placeholder matching the podium + rows structure. */
 export function ScoreboardSkeleton() {
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
       <div className="space-y-6">
         <div className="grid grid-cols-3 gap-3">
           <Skeleton className="h-40 rounded-2xl" />

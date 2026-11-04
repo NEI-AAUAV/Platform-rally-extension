@@ -45,7 +45,7 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
         </Link>
       </div>
 
-      <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {ordered.map((cp, i) => (
           <li
             key={cp.id}

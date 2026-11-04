@@ -66,7 +66,7 @@ export default function Versus({ embedded = false }: VersusProps) {
         />
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start">
         <div className="lg:sticky lg:top-24">
           <VersusPairForm teams={teams} onSuccess={handleSuccess} />
         </div>

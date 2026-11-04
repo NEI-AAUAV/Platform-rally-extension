@@ -168,7 +168,7 @@ export default function TeamManagement() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
       {/* Create/Edit Team Form — a side column on wide screens, list first */}
       <div className="rally-surface p-6 xl:sticky xl:top-24 xl:order-last">
         <h3 className="rally-display mb-4 text-2xl">

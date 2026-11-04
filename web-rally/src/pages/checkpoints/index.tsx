@@ -69,7 +69,7 @@ export default function Postos() {
         </p>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:items-start">
         <CheckpointList
           checkpoints={sortedCheckpoints}
           selectedCheckpoint={selectedCheckpoint}

@@ -29,7 +29,7 @@ export default function AssignedCheckpoints({
   return (
     <section className="space-y-3">
       <h2 className="rally-display text-4xl text-foreground">Postos Atribuídos</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {checkpoints.map((checkpoint) => {
           const checkpointActivities = activities.filter(
             (activity) => activity.checkpoint_id === checkpoint.id,

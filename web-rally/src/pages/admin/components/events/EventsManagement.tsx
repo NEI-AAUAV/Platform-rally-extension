@@ -522,7 +522,7 @@ export default function EventsManagement() {
             {/* Tools: grouped by intent with a small caption per group instead
                 of one flat stack of identical outline buttons — mobile stacks
                 each group full-width, desktop lets them sit inline. */}
-            <div className="mt-5 grid gap-4 border-t border-border/60 pt-4 sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-1 gap-4 border-t border-border/60 pt-4 sm:grid-cols-3">
               <div className="min-w-0 space-y-1.5">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Exportar
@@ -582,7 +582,7 @@ export default function EventsManagement() {
       {showForm && (
         <div className="rally-surface p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div data-admin-search-key="ev-name" className="space-y-1.5">
                 <Label htmlFor="ev-name">Nome</Label>
                 <Input

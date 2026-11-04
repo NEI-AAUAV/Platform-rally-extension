@@ -49,7 +49,7 @@ export function LiveTop5() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_1.25fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.25fr]">
         <Link
           to="/teams/$id"
           params={{ id: String(leader.id) }}
