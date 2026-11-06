@@ -164,7 +164,7 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
     ) -> RallySettings:
         """Replace the partner-logo list (a new list; JSON columns need reassignment)."""
         settings = await self.get_or_create(db)
-        settings.partner_logos = [dict(item) for item in logos]
+        settings.partner_logos = [dict(item) for item in logos]  # type: ignore[assignment]
         await db.commit()
         await db.refresh(settings)
         return settings
