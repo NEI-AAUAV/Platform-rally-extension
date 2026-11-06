@@ -108,7 +108,7 @@ describe("ManagerEvaluationPage", () => {
     expect(screen.queryByTestId("all-evaluations")).not.toBeInTheDocument();
   });
 
-  it("shows loading label for evaluations count while loading", () => {
+  it("shows a skeleton for evaluations count while loading", () => {
     mockUseQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
       if (queryKey[0] === "allCheckpoints") return { data: [] };
       if (queryKey[0] === "allActivities") return { data: { activities: [] } };
@@ -116,8 +116,8 @@ describe("ManagerEvaluationPage", () => {
       if (queryKey[0] === "allEvaluations") return { data: undefined, isLoading: true };
       return { data: undefined };
     });
-    render(<ManagerEvaluationPage />);
-    expect(screen.getByText("A carregar...")).toBeInTheDocument();
+    const { container } = render(<ManagerEvaluationPage />);
+    expect(container.querySelector(".animate-pulse")).not.toBeNull();
   });
 
   it("hides score fields when show_score_mode is hidden", () => {

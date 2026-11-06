@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Security, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Security, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.abac_deps import validate_settings_update_access, validate_settings_view_access
@@ -10,7 +10,11 @@ from app.core.exceptions import RallyConfigurationError
 from app.crud.crud_activity import rally_event
 from app.crud.crud_rally_settings import rally_settings
 from app.domain.event_configuration.validator import ConfigurationValidator
-from app.schemas.rally_settings import RallySettingsResponse, RallySettingsUpdate
+from app.schemas.rally_settings import (
+    PartnerOrderUpdate,
+    RallySettingsResponse,
+    RallySettingsUpdate,
+)
 from app.schemas.user import DetailedUser
 from app.services.audit_service import AuditActor, record_field_changes, snapshot_fields
 from app.services.deps import get_rally_settings_service
@@ -116,6 +120,77 @@ class RallySettingsController:
                 400: {"description": INVALID_FILE_ERROR},
                 403: {"description": NOT_AUTHORIZED_ERROR},
                 503: {"description": R2_UPLOAD_ERROR},
+            },
+        )
+        self.router.add_api_route(
+            "/rally/settings/aauav-logo",
+            self.upload_rally_aauav_logo,
+            methods=["PUT"],
+            status_code=200,
+            name="upload_rally_aauav_logo",
+            responses={
+                400: {"description": INVALID_FILE_ERROR},
+                403: {"description": NOT_AUTHORIZED_ERROR},
+                503: {"description": R2_UPLOAD_ERROR},
+            },
+        )
+        self.router.add_api_route(
+            "/rally/settings/aauav-logo-dark",
+            self.upload_rally_aauav_logo_dark,
+            methods=["PUT"],
+            status_code=200,
+            name="upload_rally_aauav_logo_dark",
+            responses={
+                400: {"description": INVALID_FILE_ERROR},
+                403: {"description": NOT_AUTHORIZED_ERROR},
+                503: {"description": R2_UPLOAD_ERROR},
+            },
+        )
+        self.router.add_api_route(
+            "/rally/settings/partners/{logo_id}/dark",
+            self.upload_rally_partner_dark_logo,
+            methods=["PUT"],
+            status_code=200,
+            name="upload_rally_partner_dark_logo",
+            responses={
+                400: {"description": INVALID_FILE_ERROR},
+                403: {"description": NOT_AUTHORIZED_ERROR},
+                404: {"description": "Not found"},
+                503: {"description": R2_UPLOAD_ERROR},
+            },
+        )
+        self.router.add_api_route(
+            "/rally/settings/partners",
+            self.add_rally_partner_logo,
+            methods=["POST"],
+            status_code=200,
+            name="add_rally_partner_logo",
+            responses={
+                400: {"description": INVALID_FILE_ERROR},
+                403: {"description": NOT_AUTHORIZED_ERROR},
+                503: {"description": R2_UPLOAD_ERROR},
+            },
+        )
+        self.router.add_api_route(
+            "/rally/settings/partners/order",
+            self.reorder_rally_partner_logos,
+            methods=["PUT"],
+            status_code=200,
+            name="reorder_rally_partner_logos",
+            responses={
+                400: {"description": "Invalid order"},
+                403: {"description": NOT_AUTHORIZED_ERROR},
+            },
+        )
+        self.router.add_api_route(
+            "/rally/settings/partners/{logo_id}",
+            self.remove_rally_partner_logo,
+            methods=["DELETE"],
+            status_code=200,
+            name="remove_rally_partner_logo",
+            responses={
+                403: {"description": NOT_AUTHORIZED_ERROR},
+                404: {"description": "Not found"},
             },
         )
 
@@ -260,6 +335,92 @@ class RallySettingsController:
             auth=auth,
             max_size_bytes=MAX_DOCUMENT_SIZE_BYTES,
         )
+
+    async def upload_rally_aauav_logo(
+        self,
+        image: Annotated[UploadFile, File(...)],
+        curr_user: Annotated[DetailedUser, Depends(get_participant)],
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
+    ) -> RallySettingsResponse:
+        """Upload the AAUAv symbol shown left of the núcleos strip (admin only)."""
+        return await service.upload_branding_image(
+            field="aauav_logo_url",
+            image=image,
+            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
+            curr_user=curr_user,
+            auth=auth,
+        )
+
+    async def upload_rally_aauav_logo_dark(
+        self,
+        image: Annotated[UploadFile, File(...)],
+        curr_user: Annotated[DetailedUser, Depends(get_participant)],
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
+    ) -> RallySettingsResponse:
+        """Upload the white AAUAv symbol used in dark mode (admin only)."""
+        return await service.upload_branding_image(
+            field="aauav_logo_dark_url",
+            image=image,
+            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
+            curr_user=curr_user,
+            auth=auth,
+        )
+
+    async def upload_rally_partner_dark_logo(
+        self,
+        logo_id: str,
+        image: Annotated[UploadFile, File(...)],
+        curr_user: Annotated[DetailedUser, Depends(get_participant)],
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
+    ) -> RallySettingsResponse:
+        """Upload the white (dark-mode) version of one núcleo logo (admin only)."""
+        return await service.upload_partner_dark_logo(
+            logo_id=logo_id,
+            image=image,
+            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
+            curr_user=curr_user,
+            auth=auth,
+        )
+
+    async def add_rally_partner_logo(
+        self,
+        image: Annotated[UploadFile, File(...)],
+        name: Annotated[str, Form(...)],
+        curr_user: Annotated[DetailedUser, Depends(get_participant)],
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
+    ) -> RallySettingsResponse:
+        """Upload a núcleo logo and append it to the home strip (admin only)."""
+        return await service.add_partner_logo(
+            name=name,
+            image=image,
+            allowed_content_types=ALLOWED_PHOTO_CONTENT_TYPES,
+            curr_user=curr_user,
+            auth=auth,
+        )
+
+    async def reorder_rally_partner_logos(
+        self,
+        order: PartnerOrderUpdate,
+        curr_user: Annotated[DetailedUser, Depends(get_participant)],
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
+    ) -> RallySettingsResponse:
+        """Set the display order of the núcleo logos (admin only)."""
+        return await service.reorder_partner_logos(ids=order.ids, curr_user=curr_user, auth=auth)
+
+    async def remove_rally_partner_logo(
+        self,
+        logo_id: str,
+        curr_user: Annotated[DetailedUser, Depends(get_participant)],
+        auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[RallySettingsService, Depends(get_rally_settings_service)],
+    ) -> RallySettingsResponse:
+        """Remove a núcleo logo from the home strip (admin only)."""
+        return await service.remove_partner_logo(logo_id=logo_id, curr_user=curr_user, auth=auth)
 
 
 router = RallySettingsController().router

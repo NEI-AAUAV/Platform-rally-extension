@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, MapPin } from "lucide-react";
@@ -19,13 +20,26 @@ interface PostosPreviewProps {
  */
 export function PostosPreview({ enabled }: PostosPreviewProps) {
   const terms = useEventTerms();
-  const { data: checkpoints } = useQuery({
+  const { data: checkpoints, isLoading } = useQuery({
     queryKey: ["checkpoints"],
     queryFn: async () => (await getCheckpoints()).data,
     retry: false,
     enabled,
   });
 
+  if (enabled && isLoading) {
+    return (
+      <output aria-busy="true" className="block">
+        <span className="sr-only">A carregar…</span>
+        <Skeleton className="mb-5 h-14 w-56" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {["p1", "p2", "p3"].map((key) => (
+            <Skeleton key={key} className="h-28 rounded-2xl" />
+          ))}
+        </div>
+      </output>
+    );
+  }
   if (!enabled || !Array.isArray(checkpoints) || checkpoints.length === 0) return null;
 
   const ordered = [...checkpoints]

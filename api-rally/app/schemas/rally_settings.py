@@ -114,6 +114,8 @@ class HomeSection(BaseModel):
 BUTTON_STYLES = ("plain", "glow", "sharp", "shine", "halloween", "magusto")
 BACKGROUND_STYLES = ("plain", "dots", "grid", "glow", "stripes", "confetti", "halloween", "magusto")
 MAX_VISUAL_PRESETS = 24
+MAX_PARTNER_LOGOS = 16
+MAX_PARTNER_NAME_LENGTH = 60
 
 
 class VisualPreset(BaseModel):
@@ -122,6 +124,38 @@ class VisualPreset(BaseModel):
     accent_color: str = ""
     button_style: str = "plain"
     background_style: str = "plain"
+
+
+class PartnerLogo(BaseModel):
+    """One organising/participating núcleo shown in the home logo strip."""
+
+    id: str
+    name: str = ""
+    url: str
+    # Optional white version used in dark mode ("" = fall back to ``url``).
+    dark_url: str = ""
+
+
+class PartnerOrderUpdate(BaseModel):
+    """New display order for the partner logos, as their ids."""
+
+    ids: list[str] = Field(default_factory=list, max_length=MAX_PARTNER_LOGOS)
+
+
+def normalize_partner_logos(value: Any) -> list[dict[str, str]]:
+    """Keep well-formed partner entries (free-form JSON on read), capped."""
+    if not isinstance(value, list):
+        return []
+    return [
+        {
+            "id": str(item["id"]),
+            "name": str(item.get("name") or ""),
+            "url": str(item["url"]),
+            "dark_url": str(item.get("dark_url") or ""),
+        }
+        for item in value
+        if isinstance(item, dict) and item.get("id") and item.get("url")
+    ][:MAX_PARTNER_LOGOS]
 
 
 def normalize_home_layout(value: list[Any]) -> list[dict[str, Any]]:
@@ -220,6 +254,8 @@ class RallySettingsBase(BaseModel):
     background_style: str = "plain"  # pattern axis; see BACKGROUND_STYLES
     # Saved named identity presets (bundles of the axis values).
     visual_presets: list[VisualPreset] = []
+    # Show the organising-núcleos logo strip under the home subtitle.
+    show_partners: bool = False
 
     # Access control
     public_access_enabled: bool
@@ -356,3 +392,12 @@ class RallySettingsResponse(RallySettingsBase):
     logo_url: str = ""
     favicon_url: str = ""
     rules_pdf_url: str = ""
+    aauav_logo_url: str = ""
+    aauav_logo_dark_url: str = ""
+    partner_logos: list[PartnerLogo] = []
+
+    @field_validator("partner_logos", mode="before")
+    @classmethod
+    def _sanitize_partner_logos(cls, value: Any) -> Any:
+        # Drop malformed entries instead of failing the whole settings response.
+        return normalize_partner_logos(value)

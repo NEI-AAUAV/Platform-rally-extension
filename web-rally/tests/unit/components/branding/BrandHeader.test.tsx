@@ -13,6 +13,10 @@ const baseBranding: Branding = {
   faviconHref: "/favicon.ico",
   customFaviconUrl: "",
   themeColor: "#ff0000",
+  showPartners: false,
+  aauavLogoSrc: "",
+  aauavLogoDarkSrc: "",
+  partners: [],
 };
 
 describe("BrandHeader", () => {

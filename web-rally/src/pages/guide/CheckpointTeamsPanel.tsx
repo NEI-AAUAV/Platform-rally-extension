@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, UserCheck, Users } from "lucide-react";
-import { Spinner } from "@/components/shared";
+import { LoadingState, Spinner } from "@/components/shared";
 import {
   getGuideTeam,
   getTeams,
@@ -114,7 +114,7 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
         )}
       </p>
 
-      {isLoading && <Spinner size="sm" className="text-muted-foreground" label="" />}
+      {isLoading && <LoadingState variant="list" className="py-0" message="A carregar equipas…" />}
 
       {!isLoading && arrived.length === 0 && (
         <p className="text-sm text-muted-foreground">Ainda não chegou nenhuma equipa.</p>

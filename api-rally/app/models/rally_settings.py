@@ -76,6 +76,14 @@ class RallySettings(Base):
     banner_url = Column(String(500), nullable=False, default="")
     logo_url = Column(String(500), nullable=False, default="")
     favicon_url = Column(String(500), nullable=False, default="")
+    # Organising-núcleos strip under the home subtitle: AAUAv symbol on the
+    # left, then the ordered partner logos [{"id","name","url","dark_url"}]. URLs are
+    # written only by the R2 upload endpoints; show_partners is a plain toggle.
+    aauav_logo_url = Column(String(500), nullable=False, default="")
+    # White version of the AAUAv symbol for dark mode ("" = use aauav_logo_url).
+    aauav_logo_dark_url = Column(String(500), nullable=False, default="")
+    partner_logos = Column(JSON, nullable=False, default=list)
+    show_partners = Column(Boolean, nullable=False, default=False)
     # PDF regulation, written by its own R2 upload endpoint (same pattern as
     # the branding images above), not the settings PUT.
     rules_pdf_url = Column(String(500), nullable=False, default="")

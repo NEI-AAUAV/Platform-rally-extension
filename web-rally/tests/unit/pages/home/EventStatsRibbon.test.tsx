@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EventStatsRibbon } from "@/pages/home/EventStatsRibbon";
@@ -37,8 +38,7 @@ describe("EventStatsRibbon", () => {
     const { container } = renderWithClient(
       <EventStatsRibbon settings={null} checkpointsPublic={false} />,
     );
-    await new Promise((r) => setTimeout(r, 0));
-    expect(container.firstChild).toBeNull();
+    await waitFor(() => expect(container.firstChild).toBeNull());
   });
 
   it("renders team count, total points and phase when teams are present", async () => {

@@ -67,7 +67,7 @@ describe("BadgeAdminTab", () => {
   it("shows loading state", () => {
     mockUseBadgeDefinitions.mockReturnValue({ data: [], isLoading: true });
     render(<BadgeAdminTab />);
-    expect(screen.getByText("A carregar…")).toBeInTheDocument();
+    expect(screen.getByText("A carregar conquistas…")).toBeInTheDocument();
   });
 
   it("shows empty state when no badges", () => {

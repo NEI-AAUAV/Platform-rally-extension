@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/shared";
 import { useQuery } from "@tanstack/react-query";
 import {
   getCheckpoints,
@@ -35,7 +36,7 @@ export function EventStatsRibbon({
 }: EventStatsRibbonProps) {
   const phase = useCountdown(settings?.rally_start_time, settings?.rally_end_time).phase;
 
-  const { data: teams } = useQuery({
+  const { data: teams, isLoading } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => (await getTeams()).data,
     retry: false,
@@ -49,6 +50,16 @@ export function EventStatsRibbon({
   });
 
   const teamList = Array.isArray(teams) ? (teams as ListingTeam[]) : [];
+  if (isLoading) {
+    return (
+      <output aria-busy="true" className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl sm:grid-cols-4">
+        <span className="sr-only">A carregar estatísticas…</span>
+        {["s1", "s2", "s3", "s4"].map((key) => (
+          <Skeleton key={key} className="h-28 rounded-none" />
+        ))}
+      </output>
+    );
+  }
   if (teamList.length === 0) return null;
 
   const totalPoints = teamList.reduce((sum, t) => sum + (t.total ?? 0), 0);

@@ -16,6 +16,7 @@ export { default as LoadingState } from "./state/LoadingState";
 export { default as ErrorState } from "./state/ErrorState";
 export { default as EmptyState } from "./state/EmptyState";
 export { default as Skeleton } from "./state/Skeleton";
+export { default as AppShellSkeleton } from "./state/AppShellSkeleton";
 export { default as StatusMessage } from "./state/StatusMessage";
 
 // Checkpoint

@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PostosPreview } from "@/pages/home/PostosPreview";
@@ -38,8 +39,7 @@ describe("PostosPreview", () => {
   it("renders nothing when there are no checkpoints", async () => {
     mockGetCheckpoints.mockResolvedValue({ data: [] });
     const { container } = renderWithClient(<PostosPreview enabled />);
-    await new Promise((r) => setTimeout(r, 0));
-    expect(container.firstChild).toBeNull();
+    await waitFor(() => expect(container.firstChild).toBeNull());
   });
 
   it("renders ordered checkpoints up to the preview limit", async () => {

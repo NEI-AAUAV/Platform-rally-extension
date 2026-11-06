@@ -20,6 +20,10 @@ const branding: Branding = {
   faviconHref: "/favicon.ico",
   customFaviconUrl: "",
   themeColor: "#dc2626",
+  showPartners: false,
+  aauavLogoSrc: "",
+  aauavLogoDarkSrc: "",
+  partners: [],
 };
 
 describe("HomeHero", () => {

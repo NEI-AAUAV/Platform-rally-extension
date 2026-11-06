@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useBadgeShowcase } from "@/hooks/useBadges";
 import { getBadgeDisplay } from "@/lib/badges";
+import LoadingState from "@/components/shared/state/LoadingState";
 
 interface BadgeShowcaseProps {
   readonly teamId: number;
@@ -14,7 +15,8 @@ interface BadgeShowcaseProps {
 export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
   const { data, isLoading, isError } = useBadgeShowcase(teamId);
 
-  if (isLoading || isError || !data) return null;
+  if (isLoading) return <LoadingState variant="block" message="A carregar conquistas..." />;
+  if (isError || !data) return null;
 
   const { definitions, earned } = data;
 

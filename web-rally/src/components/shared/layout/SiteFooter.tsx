@@ -51,29 +51,33 @@ export function SiteFooter({ branding }: SiteFooterProps) {
         paddingBottom: "var(--safe-bottom)",
       }}
     >
-      {/* Faint Aveiro map — swaps with color mode */}
+      {/* Aveiro map — swaps with color mode */}
       <img
         src={mapWhite}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.12] dark:hidden"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-50 dark:hidden"
       />
       <img
         src={mapBlack}
         alt=""
         aria-hidden
-        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-[0.12] dark:block"
+        className="pointer-events-none absolute inset-0 hidden h-full w-full object-cover opacity-50 dark:block"
       />
 
       <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-8 sm:grid-cols-2 sm:gap-10 sm:py-12 lg:grid-cols-3">
         {/* Brand + social */}
         <div className="space-y-4 lg:col-span-1">
-          <img src={neiLogoBlack} alt="NEI" className="h-12 object-contain dark:hidden sm:h-20" />
-          <img
-            src={neiLogoWhite}
-            alt="NEI"
-            className="hidden h-12 object-contain dark:block sm:h-20"
-          />
+          {/* Own wrapper: space-y-4 would otherwise push the 2nd (dark) <img>
+              down even while the 1st is display:none, shifting the logo. */}
+          <div>
+            <img src={neiLogoBlack} alt="NEI" className="h-12 object-contain dark:hidden sm:h-20" />
+            <img
+              src={neiLogoWhite}
+              alt="NEI"
+              className="hidden h-12 object-contain dark:block sm:h-20"
+            />
+          </div>
           <p className="hidden max-w-xs text-sm text-muted-foreground sm:block">
             Núcleo de Estudantes de Informática da AAUAv. A apoiar os estudantes desde 2013.
           </p>
