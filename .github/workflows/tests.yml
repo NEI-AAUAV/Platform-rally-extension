@@ -261,7 +261,7 @@ jobs:
         TEAM_JWT_SECRET_KEY: test_secret
 
     - name: Set up pnpm
-      uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      uses: pnpm/action-setup@5eea8caf49c844361c1e9ddc1324e179c54b58e9 # v4
       with:
         version: 9
 
@@ -307,7 +307,7 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set up pnpm
-      uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      uses: pnpm/action-setup@5eea8caf49c844361c1e9ddc1324e179c54b58e9 # v4
       with:
         version: 9
 
@@ -375,7 +375,7 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set up pnpm
-      uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      uses: pnpm/action-setup@5eea8caf49c844361c1e9ddc1324e179c54b58e9 # v4
       with:
         version: 9
 
