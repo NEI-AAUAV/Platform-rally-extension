@@ -1,3 +1,4 @@
+import { LoadingState } from "@/components/shared";
 import { useState } from "react";
 import { Pencil, Plus, ToggleLeft, ToggleRight, Trash2, Trophy } from "lucide-react";
 import type { BadgeDefinitionResponse } from "@/client";
@@ -49,7 +50,7 @@ export default function BadgeAdminTab() {
         <BadgeForm editing={formMode.editing} onDone={() => setFormMode({ open: false })} />
       )}
 
-      {isLoading && <p className="py-8 text-center text-sm text-muted-foreground">A carregar…</p>}
+      {isLoading && <LoadingState variant="list" message="A carregar conquistas…" />}
 
       {!isLoading && badges.length === 0 && !formMode.open && (
         <div className="rally-surface flex flex-col items-center gap-3 py-12 text-center">

@@ -19,10 +19,10 @@ describe("ConfigurationReadiness", () => {
     vi.clearAllMocks();
   });
 
-  it("renders nothing while loading", () => {
+  it("renders a skeleton while loading", () => {
     mockConfig(undefined, true);
     const { container } = render(<ConfigurationReadiness />);
-    expect(container).toBeEmptyDOMElement();
+    expect(container.querySelector("[aria-busy='true']")).not.toBeNull();
   });
 
   it("renders nothing without data", () => {

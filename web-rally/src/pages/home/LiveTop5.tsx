@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,7 +21,11 @@ export function LiveTop5() {
   const { settings } = useRallySettings();
   const { phase } = useCountdown(settings?.rally_start_time, settings?.rally_end_time);
   const isProvisional = phase === "live";
-  const { data: teams, dataUpdatedAt } = useQuery({
+  const {
+    data: teams,
+    dataUpdatedAt,
+    isLoading,
+  } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => (await getTeams()).data,
   });
@@ -28,6 +33,18 @@ export function LiveTop5() {
   const top = Array.isArray(teams) ? sortTeamsByRank(teams).slice(0, 5) : undefined;
 
   const [leader, ...rest] = top ?? [];
+  if (isLoading) {
+    return (
+      <output aria-busy="true" className="block">
+        <span className="sr-only">A carregar classificação…</span>
+        <Skeleton className="mb-5 h-14 w-80 max-w-full" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.25fr]">
+          <Skeleton className="min-h-[15rem] rounded-[28px]" />
+          <Skeleton className="min-h-[15rem] rounded-2xl" />
+        </div>
+      </output>
+    );
+  }
   if (!leader) return null;
 
   const best = Math.max(leader.total ?? 0, 1);

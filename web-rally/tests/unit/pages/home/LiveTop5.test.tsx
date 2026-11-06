@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import LiveTop5 from "@/pages/home/LiveTop5";
@@ -54,6 +55,7 @@ vi.mock("framer-motion", () => ({
 
 vi.mock("@/components/shared", () => ({
   Spinner: () => <div data-testid="spinner" />,
+  Skeleton: () => <div data-testid="skeleton" />,
   FreshnessIndicator: () => <div>Freshness</div>,
 }));
 
@@ -66,8 +68,7 @@ describe("LiveTop5", () => {
   it("renders nothing when there are no teams", async () => {
     mockGetTeams.mockResolvedValue({ data: [] });
     const { container } = renderWithClient(<LiveTop5 />);
-    await new Promise((r) => setTimeout(r, 0));
-    expect(container.firstChild).toBeNull();
+    await waitFor(() => expect(container.firstChild).toBeNull());
   });
 
   it("renders top 5 sorted teams", async () => {

@@ -1552,6 +1552,351 @@
         ]
       }
     },
+    "/api/rally/v1/rally/settings/aauav-logo": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Upload Rally Aauav Logo",
+        "description": "Upload the AAUAv symbol shown left of the n\u00facleos strip (admin only).",
+        "operationId": "upload_rally_aauav_logo",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_rally_aauav_logo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RallySettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid file"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "503": {
+            "description": "R2 storage not configured or upload failed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/rally/v1/rally/settings/aauav-logo-dark": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Upload Rally Aauav Logo Dark",
+        "description": "Upload the white AAUAv symbol used in dark mode (admin only).",
+        "operationId": "upload_rally_aauav_logo_dark",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_rally_aauav_logo_dark"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RallySettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid file"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "503": {
+            "description": "R2 storage not configured or upload failed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/rally/v1/rally/settings/partners/{logo_id}/dark": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Upload Rally Partner Dark Logo",
+        "description": "Upload the white (dark-mode) version of one n\u00facleo logo (admin only).",
+        "operationId": "upload_rally_partner_dark_logo",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "logo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Logo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_rally_partner_dark_logo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RallySettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid file"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "503": {
+            "description": "R2 storage not configured or upload failed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rally/v1/rally/settings/partners": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Add Rally Partner Logo",
+        "description": "Upload a n\u00facleo logo and append it to the home strip (admin only).",
+        "operationId": "add_rally_partner_logo",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_add_rally_partner_logo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RallySettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid file"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "503": {
+            "description": "R2 storage not configured or upload failed"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/rally/v1/rally/settings/partners/order": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Reorder Rally Partner Logos",
+        "description": "Set the display order of the n\u00facleo logos (admin only).",
+        "operationId": "reorder_rally_partner_logos",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartnerOrderUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RallySettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid order"
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/rally/v1/rally/settings/partners/{logo_id}": {
+      "delete": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Remove Rally Partner Logo",
+        "description": "Remove a n\u00facleo logo from the home strip (admin only).",
+        "operationId": "remove_rally_partner_logo",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "logo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Logo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RallySettingsResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rally/v1/versus/pair": {
       "post": {
         "tags": [
@@ -9083,6 +9428,25 @@
         "title": "BadgeShowcaseResponse",
         "description": "Everything the team badge board needs in one request.\n\n``definitions`` is the full active catalogue (drives the locked+earned grid);\n``earned`` is this team's awards, joined to the catalogue by ``code``."
       },
+      "Body_add_rally_partner_logo": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image",
+          "name"
+        ],
+        "title": "Body_add_rally_partner_logo"
+      },
       "Body_capture_deferred_result": {
         "properties": {
           "images": {
@@ -9278,6 +9642,34 @@
         ],
         "title": "Body_upload_clue_image"
       },
+      "Body_upload_rally_aauav_logo": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "title": "Body_upload_rally_aauav_logo"
+      },
+      "Body_upload_rally_aauav_logo_dark": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "title": "Body_upload_rally_aauav_logo_dark"
+      },
       "Body_upload_rally_banner": {
         "properties": {
           "image": {
@@ -9319,6 +9711,20 @@
           "image"
         ],
         "title": "Body_upload_rally_logo"
+      },
+      "Body_upload_rally_partner_dark_logo": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "title": "Body_upload_rally_partner_dark_logo"
       },
       "Body_upload_rally_rules_pdf": {
         "properties": {
@@ -12102,6 +12508,50 @@
         "title": "ParticipationEntry",
         "description": "One event a person took part in, with their team and result."
       },
+      "PartnerLogo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "dark_url": {
+            "type": "string",
+            "title": "Dark Url",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "url"
+        ],
+        "title": "PartnerLogo",
+        "description": "One organising/participating n\u00facleo shown in the home logo strip."
+      },
+      "PartnerOrderUpdate": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Ids"
+          }
+        },
+        "type": "object",
+        "title": "PartnerOrderUpdate",
+        "description": "New display order for the partner logos, as their ids."
+      },
       "PrivilegedDetailedTeam": {
         "properties": {
           "last_checkpoint_number": {
@@ -13035,6 +13485,11 @@
             "title": "Visual Presets",
             "default": []
           },
+          "show_partners": {
+            "type": "boolean",
+            "title": "Show Partners",
+            "default": false
+          },
           "public_access_enabled": {
             "type": "boolean",
             "title": "Public Access Enabled"
@@ -13273,6 +13728,24 @@
             "type": "string",
             "title": "Rules Pdf Url",
             "default": ""
+          },
+          "aauav_logo_url": {
+            "type": "string",
+            "title": "Aauav Logo Url",
+            "default": ""
+          },
+          "aauav_logo_dark_url": {
+            "type": "string",
+            "title": "Aauav Logo Dark Url",
+            "default": ""
+          },
+          "partner_logos": {
+            "items": {
+              "$ref": "#/components/schemas/PartnerLogo"
+            },
+            "type": "array",
+            "title": "Partner Logos",
+            "default": []
           }
         },
         "type": "object",
@@ -13421,6 +13894,11 @@
             "type": "array",
             "title": "Visual Presets",
             "default": []
+          },
+          "show_partners": {
+            "type": "boolean",
+            "title": "Show Partners",
+            "default": false
           },
           "public_access_enabled": {
             "type": "boolean",

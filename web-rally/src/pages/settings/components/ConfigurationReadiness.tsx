@@ -1,12 +1,16 @@
 import EventReadinessSummary from "@/pages/admin/components/readiness/EventReadinessSummary";
 import EventReadinessChecklist from "@/pages/admin/components/readiness/EventReadinessChecklist";
 import { useEventConfiguration } from "./useEventConfiguration";
+import LoadingState from "@/components/shared/state/LoadingState";
 
 /** Admin-only summary. It deliberately reads the event-scoped preflight instead of guessing from switches. */
 export default function ConfigurationReadiness() {
   const query = useEventConfiguration();
 
-  if (query.isLoading || !query.data) return null;
+  if (query.isLoading) {
+    return <LoadingState variant="block" message="A verificar configuração..." />;
+  }
+  if (!query.data) return null;
   const { ready, issues, capabilities } = query.data;
 
   return (

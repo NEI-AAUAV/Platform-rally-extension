@@ -143,11 +143,28 @@ class CRUDRallySettings(CRUDBase[RallySettings, RallySettingsUpdate, RallySettin
         Kept separate from update() so image URLs are only ever written by the
         R2 upload endpoints, never by a plain settings PUT.
         """
-        if field not in ("banner_url", "logo_url", "favicon_url", "rules_pdf_url"):
+        if field not in (
+            "banner_url",
+            "logo_url",
+            "favicon_url",
+            "rules_pdf_url",
+            "aauav_logo_url",
+            "aauav_logo_dark_url",
+        ):
             raise ValueError(f"Unsupported branding image field: {field}")
 
         settings = await self.get_or_create(db)
         setattr(settings, field, url)
+        await db.commit()
+        await db.refresh(settings)
+        return settings
+
+    async def set_partner_logos(
+        self, db: "AsyncSession", *, logos: list[dict[str, str]]
+    ) -> RallySettings:
+        """Replace the partner-logo list (a new list; JSON columns need reassignment)."""
+        settings = await self.get_or_create(db)
+        settings.partner_logos = [dict(item) for item in logos]  # type: ignore[assignment]
         await db.commit()
         await db.refresh(settings)
         return settings

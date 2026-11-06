@@ -12,6 +12,10 @@ const base: Branding = {
   faviconHref: "/rally/favicon.ico",
   customFaviconUrl: "",
   themeColor: "#dc2626",
+  showPartners: false,
+  aauavLogoSrc: "",
+  aauavLogoDarkSrc: "",
+  partners: [],
 };
 
 const make = (over: Partial<Branding>): Branding => ({ ...base, ...over });

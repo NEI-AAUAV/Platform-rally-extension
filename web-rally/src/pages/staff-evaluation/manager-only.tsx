@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Users, Activity, CheckCircle, ChevronDown } from "lucide-react";
 import { useUserStore } from "@/stores/useUserStore";
-import { LoadingState, PageHeader } from "@/components/shared";
+import { LoadingState, PageHeader, Skeleton } from "@/components/shared";
 import { AssignedCheckpoints } from "./components/AssignedCheckpoints";
 import { AllEvaluations, type Evaluation } from "./components/AllEvaluations";
 import { useNavigate } from "@tanstack/react-router";
@@ -167,7 +167,11 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
           <span className="flex items-baseline gap-3">
             <span className="rally-display text-4xl text-foreground">Todas as Avaliações</span>
             <Badge variant="outline" className="border-border text-foreground">
-              {evaluationsLoading ? "A carregar..." : (allEvaluations as Evaluation[])?.length || 0}
+              {evaluationsLoading ? (
+                <Skeleton className="inline-block h-7 w-10 align-middle" />
+              ) : (
+                (allEvaluations as Evaluation[])?.length || 0
+              )}
             </Badge>
           </span>
           <span className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground">

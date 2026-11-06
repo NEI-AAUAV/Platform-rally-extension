@@ -9,6 +9,14 @@ export const FALLBACK_BANNER_SRC = "/rally/banner/Carnaval_2026.jpeg";
 export const FALLBACK_FAVICON_HREF = "/rally/favicon.ico";
 export const FALLBACK_THEME_COLOR = "#dc2626";
 
+export interface PartnerLogo {
+  id: string;
+  name: string;
+  src: string;
+  /** White version for dark mode, "" when not uploaded. */
+  darkSrc: string;
+}
+
 export interface Branding {
   eventName: string;
   eventSubtitle: string;
@@ -23,6 +31,13 @@ export interface Branding {
   customFaviconUrl: string;
   /** Browser theme-color (accent or bundled fallback). */
   themeColor: string;
+  /** Organising-núcleos strip under the home subtitle. */
+  showPartners: boolean;
+  /** AAUAv symbol shown left of the núcleo logos, "" when unset. */
+  aauavLogoSrc: string;
+  /** White AAUAv symbol for dark mode, "" when not uploaded. */
+  aauavLogoDarkSrc: string;
+  partners: PartnerLogo[];
 }
 
 const firstNonEmpty = (...vals: Array<string | null | undefined>): string =>
@@ -219,5 +234,16 @@ export function resolveBranding(settings?: RallySettingsResponse | null): Brandi
     faviconHref: firstNonEmpty(customFaviconUrl, FALLBACK_FAVICON_HREF),
     customFaviconUrl,
     themeColor: firstNonEmpty(accentColor, FALLBACK_THEME_COLOR),
+    showPartners: settings?.show_partners ?? false,
+    aauavLogoSrc: firstNonEmpty(settings?.aauav_logo_url),
+    aauavLogoDarkSrc: firstNonEmpty(settings?.aauav_logo_dark_url),
+    partners: (settings?.partner_logos ?? [])
+      .filter((logo) => firstNonEmpty(logo.url))
+      .map((logo) => ({
+        id: logo.id,
+        name: logo.name ?? "",
+        src: logo.url,
+        darkSrc: firstNonEmpty(logo.dark_url),
+      })),
   };
 }

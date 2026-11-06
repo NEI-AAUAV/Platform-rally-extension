@@ -8,6 +8,7 @@ import {
   ProvisionalBadge,
   FreshnessIndicator,
   LoadingState,
+  Skeleton,
   ErrorState,
 } from "@/components/shared";
 import useRallySettings from "@/hooks/useRallySettings";
@@ -314,7 +315,7 @@ export default function OperationsDashboard() {
 
       {/* Points distribution */}
       {teamList.length > 1 && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<Skeleton className="h-64 rounded-2xl" />}>
           <PointsDistributionChart teams={teamList} />
         </Suspense>
       )}

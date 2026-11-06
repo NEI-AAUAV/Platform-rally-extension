@@ -1,3 +1,4 @@
+import { LoadingState } from "@/components/shared";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, MapPin, Users } from "lucide-react";
@@ -108,7 +109,11 @@ export default function PreparationDashboard({ onNavigate }: Readonly<Preparatio
 
       <div className="rally-surface p-4">
         {configQuery.isLoading && (
-          <p className="text-sm text-muted-foreground">A verificar configuração do evento…</p>
+          <LoadingState
+            variant="block"
+            className="py-0"
+            message="A verificar configuração do evento…"
+          />
         )}
         {configQuery.isError && (
           <p className="text-sm text-destructive">

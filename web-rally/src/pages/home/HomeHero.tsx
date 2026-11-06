@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import PartnerStrip from "@/components/branding/PartnerStrip";
 import { motion } from "framer-motion";
 import { ArrowRight, Trophy } from "lucide-react";
 import { RallyButton } from "@/components/themes/rally";
@@ -122,6 +123,16 @@ export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHer
         >
           {eventSubtitle}
         </motion.p>
+
+        {branding.showPartners && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: EASE, delay: 0.24 }}
+          >
+            <PartnerStrip branding={branding} />
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 14 }}

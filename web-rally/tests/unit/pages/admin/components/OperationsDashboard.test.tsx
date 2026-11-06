@@ -39,6 +39,7 @@ vi.mock("@/pages/home/useCountdown", () => ({
 
 vi.mock("@/components/shared", () => ({
   Spinner: () => <div data-testid="spinner" />,
+  Skeleton: () => <div data-testid="skeleton" />,
   ProvisionalBadge: () => <span data-testid="provisional-badge" />,
   FreshnessIndicator: () => <span data-testid="freshness-indicator" />,
   LoadingState: ({ message }: { message: string }) => (

@@ -53,9 +53,9 @@ describe("BadgeShowcase", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders nothing while loading", () => {
+  it("renders a skeleton while loading", () => {
     mockUseBadgeShowcase.mockReturnValue({ isLoading: true, isError: false, data: undefined });
     const { container } = render(<BadgeShowcase teamId={7} />);
-    expect(container).toBeEmptyDOMElement();
+    expect(container.querySelector("[aria-busy='true']")).not.toBeNull();
   });
 });
