@@ -167,7 +167,11 @@ export default function ManagerEvaluationPage({ embedded = false }: ManagerEvalu
           <span className="flex items-baseline gap-3">
             <span className="rally-display text-4xl text-foreground">Todas as Avaliações</span>
             <Badge variant="outline" className="border-border text-foreground">
-              {evaluationsLoading ? <Skeleton className="inline-block h-7 w-10 align-middle" /> : (allEvaluations as Evaluation[])?.length || 0}
+              {evaluationsLoading ? (
+                <Skeleton className="inline-block h-7 w-10 align-middle" />
+              ) : (
+                (allEvaluations as Evaluation[])?.length || 0
+              )}
             </Badge>
           </span>
           <span className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground">

@@ -21,7 +21,11 @@ export function LiveTop5() {
   const { settings } = useRallySettings();
   const { phase } = useCountdown(settings?.rally_start_time, settings?.rally_end_time);
   const isProvisional = phase === "live";
-  const { data: teams, dataUpdatedAt, isLoading } = useQuery({
+  const {
+    data: teams,
+    dataUpdatedAt,
+    isLoading,
+  } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => (await getTeams()).data,
   });

@@ -109,7 +109,11 @@ export default function PreparationDashboard({ onNavigate }: Readonly<Preparatio
 
       <div className="rally-surface p-4">
         {configQuery.isLoading && (
-          <LoadingState variant="block" className="py-0" message="A verificar configuração do evento…" />
+          <LoadingState
+            variant="block"
+            className="py-0"
+            message="A verificar configuração do evento…"
+          />
         )}
         {configQuery.isError && (
           <p className="text-sm text-destructive">

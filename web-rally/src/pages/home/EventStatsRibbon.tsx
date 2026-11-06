@@ -52,7 +52,10 @@ export function EventStatsRibbon({
   const teamList = Array.isArray(teams) ? (teams as ListingTeam[]) : [];
   if (isLoading) {
     return (
-      <output aria-busy="true" className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl sm:grid-cols-4">
+      <output
+        aria-busy="true"
+        className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl sm:grid-cols-4"
+      >
         <span className="sr-only">A carregar estatísticas…</span>
         {["s1", "s2", "s3", "s4"].map((key) => (
           <Skeleton key={key} className="h-28 rounded-none" />

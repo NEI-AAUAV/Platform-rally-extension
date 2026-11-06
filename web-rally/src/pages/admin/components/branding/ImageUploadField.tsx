@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { useRef, type ChangeEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Upload, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,13 +30,11 @@ export function ImageUploadField({
 }: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const toast = useAppToast();
-  const [preview, setPreview] = useState<string | null>(null);
 
   const { mutate, isPending } = useMutation({
     mutationFn: upload,
     onSuccess: () => {
       toast.success(`${label} atualizado com sucesso!`);
-      setPreview(null);
       onUploaded();
     },
     onError: (error) => {
@@ -47,12 +45,11 @@ export function ImageUploadField({
   const handleSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setPreview(URL.createObjectURL(file));
     mutate(file);
     event.target.value = "";
   };
 
-  const ALLOWED_IMAGE_PROTOCOLS = new Set(["http:", "https:", "blob:"]);
+  const ALLOWED_IMAGE_PROTOCOLS = new Set(["http:", "https:"]);
   const SAFE_DATA_IMAGE_PATTERN = /^data:image\/(png|jpe?g|gif|webp|avif);base64,[a-z0-9+/]+=*$/i;
 
   const isSafeImageUrl = (url: string): boolean => {
@@ -65,8 +62,7 @@ export function ImageUploadField({
     }
   };
 
-  const candidate = preview ?? currentUrl ?? null;
-  const shown = candidate && isSafeImageUrl(candidate) ? candidate : null;
+  const shown = currentUrl && isSafeImageUrl(currentUrl) ? currentUrl : null;
 
   return (
     <div className="flex items-center gap-4 border-t border-border py-4 first:border-t-0 first:pt-0">
