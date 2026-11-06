@@ -50,7 +50,8 @@ def create_team_access_token(
         "orig_iat": orig_iat if orig_iat is not None else int(now.timestamp()),
         "type": "team_access",
     }
-    assert settings.TEAM_JWT_SECRET_KEY is not None  # validated at startup
+    if settings.TEAM_JWT_SECRET_KEY is None:  # validated at startup
+        raise RuntimeError("TEAM_JWT_SECRET_KEY is not configured")
     return jwt.encode(
         to_encode, settings.TEAM_JWT_SECRET_KEY, algorithm=settings.TEAM_JWT_ALGORITHM
     )
@@ -59,7 +60,8 @@ def create_team_access_token(
 def decode_team_token(token: str) -> dict[str, Any]:
     """Decode and validate a team JWT, returning its full payload."""
     try:
-        assert settings.TEAM_JWT_SECRET_KEY is not None  # validated at startup
+        if settings.TEAM_JWT_SECRET_KEY is None:  # validated at startup
+            raise RuntimeError("TEAM_JWT_SECRET_KEY is not configured")
         payload = jwt.decode(
             token, settings.TEAM_JWT_SECRET_KEY, algorithms=[settings.TEAM_JWT_ALGORITHM]
         )

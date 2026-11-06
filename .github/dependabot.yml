@@ -9,6 +9,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     reviewers:
       - "NEI-maintainers"
@@ -32,6 +34,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     reviewers:
       - "NEI-maintainers"
@@ -54,6 +58,8 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 3
     reviewers:
       - "NEI-maintainers"
@@ -69,6 +75,8 @@ updates:
     directory: "/api-rally"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 3
     reviewers:
       - "NEI-maintainers"
@@ -82,6 +90,8 @@ updates:
     directory: "/web-rally"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 3
     reviewers:
       - "NEI-maintainers"

@@ -53,7 +53,8 @@ class CRUDTeam(CRUDBase[Team, TeamCreate, TeamUpdate]):
         if event is None:
             # Preserve the long-standing lazy bootstrap for legacy deployments.
             event = await db.get(RallyEvent, await current_event_id(db))
-        assert event is not None
+        if event is None:
+            raise RuntimeError("No current rally event could be resolved")
         return event
 
     async def get_multi(
