@@ -33,6 +33,13 @@ services:
     image: ghcr.io/nei-aauav/rally/api:${IMAGE_TAG:-latest}
     restart: always
     logging: *default-logging
+    # Loopback only, for the Prometheus scrape of /metrics. nginx still
+    # reaches this service by its network alias, so publishing changes
+    # nothing about how the app is served -- it only gives the host a way in.
+    # NOT 0.0.0.0: /metrics has no authentication, and the app's own module
+    # says the route must be blocked at the reverse proxy in production.
+    ports:
+      - "127.0.0.1:8003:8003"
     networks:
       default: {}
       rally_network:
