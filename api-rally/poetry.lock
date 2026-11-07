@@ -500,18 +500,18 @@ joserfc = ">=1.6.8"
 
 [[package]]
 name = "boto3"
-version = "1.43.83"
-description = "The AWS SDK for Python"
+version = "1.43.123"
+description = "The AWS SDK for Python (Boto3)"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "boto3-1.43.83-py3-none-any.whl", hash = "sha256:73a3564f737d4516625964eee709a498fa98ccee6aca929febad2b0b5fbeae1e"},
-    {file = "boto3-1.43.83.tar.gz", hash = "sha256:6413d6e99f716af5d333a732db140e4b3359cac005a1271b11777b6d9ca82194"},
+    {file = "boto3-1.43.123-py3-none-any.whl", hash = "sha256:d18d66e1e13faa0c25d0b1b8c5ce946e29fb5fc0b6456b655a93a678ff4cc313"},
+    {file = "boto3-1.43.123.tar.gz", hash = "sha256:055fabb990c5d2f31fce4ca569255bd640cdd11a3ca68c9ecad35f4f8a5b83b5"},
 ]
 
 [package.dependencies]
-botocore = ">=1.43.83,<1.44.0"
+botocore = ">=1.43.123,<1.44.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.19.0,<0.20.0"
 
@@ -4712,4 +4712,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "c742428db158ee5ea13350e4938ef587a21bbd8e0b851dada1a85e4f5047126b"
+content-hash = "9dfa6d5cdbc75c05b1bd18f80f983f4be37b6c5c9c6b9364a994e05d45941b0f"
