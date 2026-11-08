@@ -47,6 +47,44 @@ def _mock_no_group_members(monkeypatch):
     )
 
 
+class TestRevocationRequiresComparableEmail:
+    async def test_staff_without_email_keeps_scope_and_assignment(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        """A row with no email can't be compared with the Authentik group, so
+        listing staff must not read it as "removed from the group"."""
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session)
+        staff = await _make_staff_user(pg_session, name="No Email", email=None)
+        assigned = pg_client.put(
+            f"/api/rally/v1/user/{staff.id}/checkpoint-assignment",
+            json={"checkpoint_id": checkpoint.id},
+        )
+        assert assigned.status_code == 200, assigned.text
+
+        monkeypatch.setattr(
+            "app.api.api_v1.user.authentik_client.list_group_members",
+            AsyncMock(
+                return_value=[
+                    AuthentikUser(
+                        authentik_sub="sub-other",
+                        name="Other Staff",
+                        username="other",
+                        email="other@example.com",
+                    )
+                ]
+            ),
+        )
+
+        resp = pg_client.get("/api/rally/v1/user/staff-assignments")
+
+        assert resp.status_code == 200, resp.text
+        listed = next(u for u in resp.json()["items"] if u["user_id"] == staff.id)
+        assert listed["checkpoint_id"] == checkpoint.id
+        await pg_session.refresh(staff)
+        assert "rally-staff" in staff.scopes
+
+
 class TestGetMe:
     async def test_get_me_returns_auth_data(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)

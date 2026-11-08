@@ -74,7 +74,11 @@ class UserService:
 
         users = []
         for user in scoped_users:
-            if group_members and normalize_email(user.email) not in member_emails:
+            email = normalize_email(user.email)
+            # A row without an email (e.g. created at OIDC login when the
+            # address was already taken) can't be compared with the group, so
+            # absence from ``member_emails`` says nothing about it.
+            if group_members and email is not None and email not in member_emails:
                 # No longer in the Authentik group: revoke the stale local
                 # scope so the mirror stays truthful even if this user never
                 # logs in again. Dropping the scope is what removes them from
