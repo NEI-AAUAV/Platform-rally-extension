@@ -6,11 +6,36 @@ from typing import Any
 
 from app.models.activities.base import BaseActivity
 
+RANK_BY_SCORE_KEY = "rank_by_score"
+
 
 class ScoreBasedActivity(BaseActivity):
     @classmethod
     def get_type(cls) -> str:
         return "ScoreBasedActivity"
+
+    def calculate_relative_ranking_score(self, all_scores: list[float], team_score: float) -> float:
+        """Points by position among all teams: highest score first.
+
+        First place gets max_points, last gets min_points, linear in between.
+        Equal scores share a rank, and so the same points.
+        """
+        if team_score not in all_scores:
+            return 0.0
+
+        max_points = float(self.config.get("max_points", 100))
+        min_points = float(self.config.get("min_points", 0))
+
+        teams_ahead = sum(1 for score in all_scores if score > team_score)
+        if teams_ahead == 0:
+            return max_points
+        # Checked by value, not by rank: teams tied for last never reach the
+        # last rank number, and must still get min_points.
+        if team_score == min(all_scores):
+            return min_points
+
+        position_ratio = teams_ahead / (len(all_scores) - 1)
+        return max_points - (max_points - min_points) * position_ratio
 
     def persisted_score_fields(self, result_data: dict[str, Any]) -> dict[str, Any]:
         return {"points_score": result_data.get("achieved_points")}

@@ -19,7 +19,7 @@ function ConfigSection({ title, children }: ConfigSectionProps) {
 interface ActivityConfigFieldsProps {
   readonly activityType: ActivityType;
   readonly configData: Record<string, ConfigValue>;
-  readonly updateConfig: (key: string, value: number) => void;
+  readonly updateConfig: (key: string, value: ConfigValue) => void;
 }
 
 export function ActivityConfigFields({
@@ -59,15 +59,47 @@ export function ActivityConfigFields({
         </ConfigSection>
       );
 
-    case ActivityType.SCORE_BASED:
+    case ActivityType.SCORE_BASED: {
+      const isRanked = configData.rank_by_score === true;
       return (
         <ConfigSection title="Configurações de Atividade Baseada em Pontuação">
+          <label className="flex items-center gap-3 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={isRanked}
+              onChange={(e) => updateConfig("rank_by_score", e.target.checked)}
+              className="h-4 w-4"
+            />
+            Pontuar por ranking: quem tiver o valor mais alto ganha os pontos máximos
+          </label>
           <div className="grid grid-cols-2 gap-4">
-            {field("config-sb-max-points", "Pontuação Máxima", "max_points", 100, "100")}
-            {field("config-sb-base-score", "Pontuação Base", "base_score", 50, "50")}
+            {isRanked ? (
+              <>
+                {field(
+                  "config-sb-max-points",
+                  "Pontos Máximos (1º lugar)",
+                  "max_points",
+                  100,
+                  "100",
+                )}
+                {field(
+                  "config-sb-min-points",
+                  "Pontos Mínimos (último lugar)",
+                  "min_points",
+                  0,
+                  "0",
+                )}
+              </>
+            ) : (
+              <>
+                {field("config-sb-max-points", "Pontuação Máxima", "max_points", 100, "100")}
+                {field("config-sb-base-score", "Pontuação Base", "base_score", 50, "50")}
+              </>
+            )}
           </div>
         </ConfigSection>
       );
+    }
 
     case ActivityType.BOOLEAN:
       return (

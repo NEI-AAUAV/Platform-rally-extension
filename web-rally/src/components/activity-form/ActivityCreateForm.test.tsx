@@ -38,4 +38,36 @@ describe("ActivityCreateForm", () => {
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
+
+  it("swaps score fields for position fields and saves the ranking flag", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <ActivityForm
+        checkpoints={[]}
+        lockCheckpointId={1}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+        initialData={{
+          name: "Desafios",
+          activity_type: ActivityType.SCORE_BASED,
+          checkpoint_id: 1,
+          config: { max_points: 10, base_score: 10 },
+          is_active: true,
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText("Pontuação Base")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: /Pontuar por ranking/ }));
+
+    expect(screen.queryByLabelText("Pontuação Base")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Pontos Mínimos (último lugar)")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Atualizar" }));
+
+    expect(onSubmit.mock.calls[0]?.[0].config).toMatchObject({ rank_by_score: true });
+  });
 });

@@ -343,6 +343,8 @@ class ScoreBasedConfig(BaseModel):
 
     max_points: int = Field(default=100, gt=0)
     base_score: int = Field(default=50, gt=0)
+    rank_by_score: bool = False
+    min_points: int = Field(default=0, ge=0)
 
 
 class BooleanConfig(BaseModel):

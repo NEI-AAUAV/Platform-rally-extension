@@ -667,6 +667,92 @@ class TestEvaluationIdempotency:
         assert scoreboard[1]["total_score"] == 10.0
         assert scoreboard[1]["rank"] == 2
 
+    async def _seed_score_activity(self, pg_session, config: dict):
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        team_a = await _make_team(pg_session, "Team A")
+        team_b = await _make_team(pg_session, "Team B")
+        activity_obj = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Desafios",
+                activity_type=ActivityType.SCORE_BASED,
+                checkpoint_id=checkpoint.id,
+                config=config,
+            ),
+        )
+        return team_a, team_b, activity_obj
+
+    @staticmethod
+    def _evaluate_score(pg_client, team_id: int, activity_id: int, achieved: int, key: str):
+        resp = pg_client.post(
+            f"/api/rally/v1/staff/teams/{team_id}/activities/{activity_id}/evaluate",
+            json={"result_data": {"achieved_points": achieved}, "extra_shots": 0},
+            headers={"Idempotency-Key": key},
+        )
+        assert resp.status_code == 200, resp.text
+
+    @staticmethod
+    async def _final_score(pg_session, activity_id: int, team_id: int) -> float:
+        result = await pg_session.scalar(
+            select(ActivityResult)
+            .where(
+                ActivityResult.activity_id == activity_id,
+                ActivityResult.team_id == team_id,
+            )
+            .execution_options(populate_existing=True)
+        )
+        assert result is not None
+        return result.final_score
+
+    async def test_ranked_score_activity_gives_max_only_to_the_best(
+        self, pg_session, pg_client, as_admin
+    ):
+        team_a, team_b, activity_obj = await self._seed_score_activity(
+            pg_session, {"rank_by_score": True, "max_points": 10, "min_points": 0}
+        )
+
+        self._evaluate_score(pg_client, team_a.id, activity_obj.id, 3, "rank-a")
+        self._evaluate_score(pg_client, team_b.id, activity_obj.id, 7, "rank-b")
+
+        assert await self._final_score(pg_session, activity_obj.id, team_b.id) == pytest.approx(10)
+        assert await self._final_score(pg_session, activity_obj.id, team_a.id) == pytest.approx(0)
+
+        await pg_session.refresh(team_a)
+        await pg_session.refresh(team_b)
+        assert team_b.total == 10
+        assert team_a.total == 0
+
+    async def test_unranked_score_activity_stays_proportional(
+        self, pg_session, pg_client, as_admin
+    ):
+        team_a, team_b, activity_obj = await self._seed_score_activity(
+            pg_session, {"max_points": 10, "base_score": 10}
+        )
+
+        self._evaluate_score(pg_client, team_a.id, activity_obj.id, 3, "prop-a")
+        self._evaluate_score(pg_client, team_b.id, activity_obj.id, 7, "prop-b")
+
+        assert await self._final_score(pg_session, activity_obj.id, team_a.id) == pytest.approx(3)
+        assert await self._final_score(pg_session, activity_obj.id, team_b.id) == pytest.approx(7)
+
+    async def test_reprice_applies_ranking_enabled_after_results_exist(
+        self, pg_session, pg_client, as_admin
+    ):
+        team_a, team_b, activity_obj = await self._seed_score_activity(
+            pg_session, {"max_points": 10, "base_score": 10}
+        )
+        self._evaluate_score(pg_client, team_a.id, activity_obj.id, 3, "late-a")
+        self._evaluate_score(pg_client, team_b.id, activity_obj.id, 7, "late-b")
+
+        activity_obj.config = {"rank_by_score": True, "max_points": 10, "min_points": 0}
+        await pg_session.commit()
+        await ScoringService(pg_session).reprice_all_results()
+        await pg_session.commit()
+
+        assert await self._final_score(pg_session, activity_obj.id, team_b.id) == pytest.approx(10)
+        assert await self._final_score(pg_session, activity_obj.id, team_a.id) == pytest.approx(0)
+
     async def test_same_key_different_payload_conflicts(self, pg_session, pg_client, as_admin):
         _team, _activity, url = await self._seed(pg_session)
         headers = {"Idempotency-Key": "dup-key"}
