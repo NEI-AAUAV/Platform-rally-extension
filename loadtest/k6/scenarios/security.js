@@ -110,13 +110,13 @@ export function securityProbe(data) {
 }
 
 /**
- * One address brute-forcing team access codes. The limiter (10 attempts per
- * 5 min per IP and per code) must start answering 429 well before 40 tries.
+ * One address brute-forcing team access codes. The per-IP limiter (150 attempts
+ * per 5 min) must start answering 429 well before 200 tries.
  */
 export function loginAbuse() {
   const ip = ipFor("abuse", randInt(1000));
   let limited = 0;
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 200; i++) {
     // Well-formed (XXXX-XXXX) but wrong, so it reaches the limiter.
     const code = `${uuid().slice(0, 4)}-${String(1000 + i)}`.toUpperCase();
     const res = api("POST", "/team-auth/login", { ip, body: { access_code: code }, expect: [401, 429], name: "ABUSE POST /team-auth/login" });
@@ -125,7 +125,7 @@ export function loginAbuse() {
       rateLimited.add(1);
     }
   }
-  if (__ENV.DEBUG) console.warn(`login abuse: ${limited}/40 limited`);
+  if (__ENV.DEBUG) console.warn(`login abuse: ${limited}/200 limited`);
   check(limited, { "brute force on team login is rate limited": (n) => n >= 20 });
 }
 

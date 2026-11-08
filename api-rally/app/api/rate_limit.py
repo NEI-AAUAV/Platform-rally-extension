@@ -99,12 +99,14 @@ async def check_login_rate_limit(request: Request, access_code: str, settings: S
     * per submitted access code (throttles a distributed guess of one code)
 
     The access code is hashed before use as a key so raw secrets never land in
-    Redis. Both use the login attempt/window settings. Fails open.
+    Redis. The IP budget is larger than the code budget because a whole event
+    can share one address (venue Wi-Fi, carrier NAT). Fails open.
     """
     ip = resolve_client_ip(request, settings)
     code_hash = hashlib.sha256(access_code.encode("utf-8")).hexdigest()[:32]
-    limit = settings.TEAM_LOGIN_RATE_LIMIT_ATTEMPTS
     window = settings.TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS
 
-    await _enforce(f"rally:team-login:ip:{ip}", limit, window)
-    await _enforce(f"rally:team-login:code:{code_hash}", limit, window)
+    await _enforce(f"rally:team-login:ip:{ip}", settings.TEAM_LOGIN_IP_RATE_LIMIT_ATTEMPTS, window)
+    await _enforce(
+        f"rally:team-login:code:{code_hash}", settings.TEAM_LOGIN_RATE_LIMIT_ATTEMPTS, window
+    )

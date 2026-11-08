@@ -233,8 +233,13 @@ class Settings(BaseSettings):
     ## Absolute session lifetime: /refresh cannot extend a token chain beyond
     ## this many hours after the original login (0 disables the cap).
     TEAM_TOKEN_MAX_LIFETIME_HOURS: int = int(os.getenv("TEAM_TOKEN_MAX_LIFETIME_HOURS", "168"))
-    ## Team login brute-force guard: max attempts per client IP per window.
+    ## Team login brute-force guard: max attempts per access code per window.
     TEAM_LOGIN_RATE_LIMIT_ATTEMPTS: int = int(os.getenv("TEAM_LOGIN_RATE_LIMIT_ATTEMPTS", "10"))
+    ## Max attempts per client IP per window. Higher than the per-code limit:
+    ## every participant can log in from one shared address (venue Wi-Fi, NAT).
+    TEAM_LOGIN_IP_RATE_LIMIT_ATTEMPTS: int = int(
+        os.getenv("TEAM_LOGIN_IP_RATE_LIMIT_ATTEMPTS", "150")
+    )
     TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = int(
         os.getenv("TEAM_LOGIN_RATE_LIMIT_WINDOW_SECONDS", "300")
     )

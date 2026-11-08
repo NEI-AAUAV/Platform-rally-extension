@@ -67,7 +67,7 @@ with the response body).
 | `spectators` | anonymous, arrival-rate | Public settings, current event, badges, rules, VAPID key, readiness |
 | `sse` | team phones | Hold `/scoreboard/stream` and `/events/stream` open |
 | `security` | — | Forged tokens (payload escalation, `alg=none`, HS256 confusion, expired, wrong audience, garbage, tampered team token) → 401; every role on endpoints it must not reach → 401/403; malformed input → 4xx, never 5xx |
-| `login_abuse` | one IP | 40 well-formed wrong access codes → the login limiter must answer 429 |
+| `login_abuse` | one IP | 200 well-formed wrong access codes → the login limiter must answer 429 |
 | `races` | — | 10 concurrent evaluations of the same team+activity → exactly one result; 10 concurrent retries with one key → one row; 10 concurrent arrivals → no 5xx |
 | `scoreboard_spike` | everyone | Final leaderboard reveal: ramping arrival rate on scoreboard/team/pace ranking |
 
