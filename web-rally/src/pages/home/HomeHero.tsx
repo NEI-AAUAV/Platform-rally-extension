@@ -111,7 +111,7 @@ export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHer
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: EASE, delay: 0.05 }}
-          className="rally-display max-w-full text-foreground [overflow-wrap:break-word] [hyphens:none]"
+          className="rally-display max-w-full text-foreground [hyphens:none] [overflow-wrap:break-word]"
           style={{ fontSize: titleSize, lineHeight: 0.84 }}
         >
           {lead && <>{lead} </>}

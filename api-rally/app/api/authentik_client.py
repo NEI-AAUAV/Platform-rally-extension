@@ -10,6 +10,7 @@ can be reconciled if a deployment customised the ``sub`` mapping.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 from loguru import logger
@@ -93,7 +94,7 @@ async def list_group_members(group_name: str) -> list[AuthentikUser]:
 
     url = f"{settings.AUTHENTIK_API_URL.rstrip('/')}/core/users/"
     headers = {"Authorization": f"Bearer {settings.AUTHENTIK_API_TOKEN}"}
-    items: list[dict] = []
+    items: list[dict[str, Any]] = []
     page = 1
 
     try:
