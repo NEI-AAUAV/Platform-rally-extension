@@ -103,6 +103,25 @@ async def test_list_group_members_filters_by_group(monkeypatch):
     assert members[0].authentik_sub == "g-1"
 
 
+async def test_list_group_members_follows_pagination(monkeypatch):
+    _configured(monkeypatch)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params["page"])
+        return httpx.Response(
+            200,
+            json={
+                "results": [{"uuid": f"u-{page}", "name": "N", "username": "n"}],
+                "pagination": {"next": 2 if page == 1 else 0},
+            },
+        )
+
+    with patch.object(authentik_client.httpx, "AsyncClient", _client_factory(handler)):
+        members = await authentik_client.list_group_members("rally-staff")
+
+    assert [m.authentik_sub for m in members] == ["u-1", "u-2"]
+
+
 async def test_list_group_members_empty_when_not_configured(monkeypatch):
     monkeypatch.setattr(settings, "AUTHENTIK_API_URL", "")
     monkeypatch.setattr(settings, "AUTHENTIK_API_TOKEN", "")
