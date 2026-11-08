@@ -109,3 +109,22 @@ async def test_login_limit_checks_ip_and_code_keys():
     assert any(k.startswith("rally:team-login:code:") for k in seen)
     # Raw access code never used as a key.
     assert all("ABCD-1234" not in k for k in seen)
+
+
+@pytest.mark.asyncio
+async def test_login_limit_uses_separate_ip_and_code_budgets():
+    """A shared venue IP needs far more logins than one team's code does."""
+    limits: dict[str, int] = {}
+
+    async def fake_enforce(key, limit, window):
+        await asyncio.sleep(0)
+        limits[key.split(":")[2]] = limit
+
+    with (
+        patch.object(rl, "_enforce", side_effect=fake_enforce),
+        patch.object(settings, "TEAM_LOGIN_IP_RATE_LIMIT_ATTEMPTS", 150),
+        patch.object(settings, "TEAM_LOGIN_RATE_LIMIT_ATTEMPTS", 10),
+    ):
+        await rl.check_login_rate_limit(_request("192.0.2.1"), "ABCD-1234", settings)
+
+    assert limits == {"ip": 150, "code": 10}
