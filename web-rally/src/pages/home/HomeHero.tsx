@@ -67,6 +67,9 @@ export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHer
   const { eventName, eventSubtitle } = branding;
   const [lead, last] = splitName(eventName);
   const showClock = state.phase === "pre" || state.phase === "live";
+  const longestWord = Math.max(...eventName.split(/\s+/).map((w) => w.length), 1);
+  // Size title so longest word fits the column width (condensed display font ≈ 0.62em/char).
+  const titleSize = `clamp(40px, min(15vw, calc(100cqi / ${longestWord * 0.62})), 176px)`;
 
   return (
     <section
@@ -76,7 +79,7 @@ export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHer
         showClock && "lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]",
       )}
     >
-      <div className="flex min-w-0 flex-col items-start gap-6">
+      <div className="flex min-w-0 flex-col items-start gap-6 [container-type:inline-size]">
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -108,8 +111,8 @@ export function HomeHero({ branding, settings, showLeaderboard = true }: HomeHer
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: EASE, delay: 0.05 }}
-          className="rally-display max-w-full text-foreground [overflow-wrap:anywhere]"
-          style={{ fontSize: "clamp(64px, 15vw, 176px)", lineHeight: 0.84 }}
+          className="rally-display max-w-full text-foreground [overflow-wrap:break-word] [hyphens:none]"
+          style={{ fontSize: titleSize, lineHeight: 0.84 }}
         >
           {lead && <>{lead} </>}
           <span className="rally-accent block">{last}</span>
