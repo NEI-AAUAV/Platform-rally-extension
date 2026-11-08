@@ -37,6 +37,7 @@ from app.events import (
     TeamScoreUpdatedPayload,
     publish_event,
 )
+from app.models.activities.score_based import RANK_BY_SCORE_KEY
 from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.activity_factory import ActivityFactory
 from app.models.dynamic_scoring import (
@@ -186,28 +187,55 @@ class ScoringService:
         )
         return len(team.members) if team and team.members else 1
 
-    async def _completed_times(
-        self, activity_id: int, extra_time: float | None = None
-    ) -> list[float]:
-        """All completion times for an activity's completed results
+    @staticmethod
+    def _uses_relative_ranking(activity_type: str, config: dict[str, Any] | None) -> bool:
+        """Whether a result's points depend on every other team's result."""
+        if activity_type == ActivityType.TIME_BASED.value:
+            return True
+        return activity_type == ActivityType.SCORE_BASED.value and bool(
+            (config or {}).get(RANK_BY_SCORE_KEY)
+        )
 
-        Pass extra_time to include a result not yet persisted (create path)
+    @staticmethod
+    def _ranking_metric(activity_type: str, result_data: dict[str, Any]) -> float | None:
+        """The value a ranked activity compares, taken from a result's data."""
+        key = (
+            "completion_time_seconds"
+            if activity_type == ActivityType.TIME_BASED.value
+            else "achieved_points"
+        )
+        value = result_data.get(key)
+        return float(value) if value is not None else None
+
+    @staticmethod
+    def _ranking_values(activity: Activity, results: Sequence[ActivityResult]) -> list[float]:
+        """The persisted values ranked against each other, one per scored result."""
+        column = (
+            "time_score"
+            if activity.activity_type == ActivityType.TIME_BASED.value
+            else "points_score"
+        )
+        values = (getattr(result, column) for result in results)
+        return [float(value) for value in values if value is not None]
+
+    async def _completed_ranking_values(
+        self, activity: Activity, extra_value: float | None = None
+    ) -> list[float]:
+        """Ranking values of an activity's completed results.
+
+        Pass extra_value to include a result not yet persisted (create path)
         """
 
         stmt = select(ActivityResult).where(
-            ActivityResult.activity_id == activity_id, ActivityResult.is_completed.is_(True)
+            ActivityResult.activity_id == activity.id, ActivityResult.is_completed.is_(True)
         )
 
-        times = [
-            float(r.time_score)
-            for r in (await self.db.scalars(stmt)).all()
-            if r.time_score is not None
-        ]
+        values = self._ranking_values(activity, (await self.db.scalars(stmt)).all())
 
-        if extra_time is not None:
-            times.append(extra_time)
+        if extra_value is not None:
+            values.append(extra_value)
 
-        return times
+        return values
 
     async def compute_final_score(
         self,
@@ -260,17 +288,20 @@ class ScoringService:
 
         instance = ActivityFactory.create_activity(activity_type, config)
 
-        is_time_based = activity_type == ActivityType.TIME_BASED.value
-        this_time = result_data.get("completion_time_seconds")
+        ranking_metric = (
+            self._ranking_metric(activity_type, result_data)
+            if self._uses_relative_ranking(activity_type, config)
+            else None
+        )
 
-        if is_time_based and this_time is not None:
+        if ranking_metric is not None:
             if (
                 all_times
                 and len(all_times) > 1
                 and hasattr(instance, "calculate_relative_ranking_score")
             ):
                 base_score = float(
-                    instance.calculate_relative_ranking_score(all_times, float(this_time))
+                    instance.calculate_relative_ranking_score(all_times, ranking_metric)
                 )
             else:
                 base_score = float(instance.config.get("max_points", 100))
@@ -873,8 +904,8 @@ class ScoringService:
             return
 
         all_times = (
-            await self._completed_times(activity.id)
-            if activity.activity_type == ActivityType.TIME_BASED.value
+            await self._completed_ranking_values(activity)
+            if self._uses_relative_ranking(activity.activity_type, activity.config)
             else None
         )
 
@@ -1012,12 +1043,13 @@ class ScoringService:
             if bonus_counts
             else obj_in.bonuses
         )
-        is_time_based = activity.activity_type == ActivityType.TIME_BASED.value
-        completion_time = obj_in.result_data.get("completion_time_seconds")
-        extra_time = float(completion_time) if completion_time is not None else None
+        is_ranked = self._uses_relative_ranking(activity.activity_type, activity.config)
         all_times = (
-            await self._completed_times(obj_in.activity_id, extra_time=extra_time)
-            if is_time_based
+            await self._completed_ranking_values(
+                activity,
+                extra_value=self._ranking_metric(activity.activity_type, obj_in.result_data),
+            )
+            if is_ranked
             else None
         )
         breakdown = await self.compute_score_breakdown(
@@ -1043,7 +1075,7 @@ class ScoringService:
 
         totals: dict[int, float] = {}
         if not self._defer_recompute:
-            if recalc and is_time_based:
+            if recalc and is_ranked:
                 totals.update(
                     await self._recalculate_all_results_for_activity(activity.id, commit=False)
                 )
@@ -1177,7 +1209,7 @@ class ScoringService:
 
             if (
                 activity
-                and activity.activity_type == ActivityType.TIME_BASED.value
+                and self._uses_relative_ranking(activity.activity_type, activity.config)
                 and "result_data" in update_data
                 and not self._defer_recompute
             ):
@@ -1311,12 +1343,12 @@ class ScoringService:
         activity_id = db_obj.activity_id
         await self._lock_activity_scoring(activity_id)
         activity = await self.db.get(Activity, activity_id)
-        is_time_based = (
-            activity is not None and activity.activity_type == ActivityType.TIME_BASED.value
+        is_ranked = activity is not None and self._uses_relative_ranking(
+            activity.activity_type, activity.config
         )
 
         affected_team_ids = {team_id}
-        if is_time_based:
+        if is_ranked:
             affected_team_ids |= set(
                 (
                     await self.db.scalars(
@@ -1330,7 +1362,7 @@ class ScoringService:
         await activity_result_crud.delete(self.db, db_obj=db_obj, commit=False)
         totals: dict[int, float] = {}
         if not self._defer_recompute:
-            if is_time_based:
+            if is_ranked:
                 totals.update(
                     await self._recalculate_all_results_for_activity(activity_id, commit=False)
                 )
@@ -1350,14 +1382,16 @@ class ScoringService:
     async def _recalculate_all_results_for_activity(
         self, activity_id: int, *, commit: bool = True
     ) -> dict[int, float]:
-        """Rescore every completed result of a time-based activity."""
+        """Rescore every completed result of a relatively ranked activity."""
         start = time.perf_counter()
         totals: dict[int, float] = {}
         with traced("scoring.recalculate_all_results_for_activity"):
             await self._lock_activity_scoring(activity_id)
 
             activity = await self.db.get(Activity, activity_id)
-            if not activity or activity.activity_type != ActivityType.TIME_BASED.value:
+            if not activity or not self._uses_relative_ranking(
+                activity.activity_type, activity.config
+            ):
                 return totals
 
             stmt = select(ActivityResult).where(
@@ -1368,7 +1402,7 @@ class ScoringService:
             if not all_results:
                 return totals
 
-            all_times = [float(r.time_score) for r in all_results if r.time_score is not None]
+            all_times = self._ranking_values(activity, all_results)
 
             team_size_cache: dict[int, int] = {}
             for result in all_results:
@@ -1448,8 +1482,8 @@ class ScoringService:
             if activity is None:
                 continue
             all_times = (
-                [float(r.time_score) for r in activity_results if r.time_score is not None]
-                if activity.activity_type == ActivityType.TIME_BASED.value
+                self._ranking_values(activity, activity_results)
+                if self._uses_relative_ranking(activity.activity_type, activity.config)
                 else None
             )
             for result in activity_results:
