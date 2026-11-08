@@ -1,6 +1,8 @@
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Security, UploadFile
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -41,7 +43,7 @@ from app.services.deps import get_team_service
 from app.services.image_upload import ALLOWED_PHOTO_CONTENT_TYPES, validate_and_store
 from app.services.pace_service import compute_paces
 from app.services.storage import storage_client
-from app.services.team_service import TeamService
+from app.services.team_service import TeamService, is_rally_window_open
 from app.services.visibility_policy import (
     public_listing_allowed,
     require_participant_view,
@@ -353,13 +355,29 @@ class TeamController:
                 raise RallyValidationError(
                     "Cannot delete team with members. Remove all members first."
                 )
+            await self._reject_deleting_evaluated_team_during_rally(db, id)
 
             await team_crud.remove(db=db, id=id, commit=True)
             return {"message": "Team deleted successfully"}
         except (HTTPException, RallyError):
             raise
         except Exception as e:
-            raise RallyValidationError(f"Cannot delete team: {str(e)}") from e
+            logger.exception(f"Failed to delete team {id}")
+            raise RallyValidationError("Cannot delete team") from e
+
+    @staticmethod
+    async def _reject_deleting_evaluated_team_during_rally(db: AsyncSession, team_id: int) -> None:
+        """Deleting a team deletes its evaluations, so never allow that mid-event."""
+        settings = await rally_settings.get_or_create(db)
+        if not is_rally_window_open(settings, datetime.now(UTC)):
+            return
+        has_results = await db.scalar(
+            select(ActivityResult.id).where(ActivityResult.team_id == team_id).limit(1)
+        )
+        if has_results is not None:
+            raise RallyValidationError(
+                "Cannot delete a team with evaluations while the rally is running."
+            )
 
     async def get_team_evaluations(
         self,

@@ -58,7 +58,7 @@ class Team(Base):
 
     # Activity relationships
     activity_results: Mapped[list["ActivityResult"]] = relationship(
-        "ActivityResult", back_populates="team"
+        "ActivityResult", back_populates="team", cascade="save-update, merge, delete"
     )
 
     # Per-post progress is not stored here: it lives in the identity-keyed

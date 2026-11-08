@@ -3,13 +3,16 @@ against real Postgres.
 """
 
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth, api_nei_auth_optional
 from app.crud.crud_activity import activity as crud_activity
 from app.crud.crud_checkpoint import checkpoint as crud_checkpoint
+from app.crud.crud_team import CRUDTeam
 from app.crud.crud_team import team as crud_team
 from app.main import app
+from app.models.activity import ActivityResult
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
@@ -570,6 +573,78 @@ class TestDeleteTeam:
 
         assert resp.status_code == 400
         assert "Cannot delete team with members" in resp.json()["detail"]
+
+    async def _team_with_result(self, pg_session):
+        checkpoint = await _create_checkpoint(pg_session)
+        activity = await _create_activity(pg_session, checkpoint.id)
+        team = await _make_team(pg_session, "Evaluated")
+        result = ActivityResult(activity_id=activity.id, team_id=team.id, result_data={})
+        pg_session.add(result)
+        await pg_session.commit()
+        return team.id, result.id
+
+    async def test_delete_team_removes_results_when_rally_not_running(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(
+            pg_session,
+            start_time=datetime.now(UTC) + timedelta(days=1),
+            end_time=datetime.now(UTC) + timedelta(days=2),
+        )
+        team_id, result_id = await self._team_with_result(pg_session)
+
+        resp = pg_client.delete(f"/api/rally/v1/team/{team_id}")
+
+        assert resp.status_code == 200, resp.text
+        pg_session.expire_all()
+        assert await pg_session.get(ActivityResult, result_id) is None
+
+    async def test_delete_team_with_results_rejected_while_rally_running(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(
+            pg_session,
+            start_time=datetime.now(UTC) - timedelta(hours=1),
+            end_time=datetime.now(UTC) + timedelta(hours=1),
+        )
+        team_id, result_id = await self._team_with_result(pg_session)
+
+        resp = pg_client.delete(f"/api/rally/v1/team/{team_id}")
+
+        assert resp.status_code == 400
+        assert "while the rally is running" in resp.json()["detail"]
+        pg_session.expire_all()
+        assert await pg_session.get(ActivityResult, result_id) is not None
+
+    async def test_delete_team_without_results_allowed_while_rally_running(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(
+            pg_session,
+            start_time=datetime.now(UTC) - timedelta(hours=1),
+            end_time=datetime.now(UTC) + timedelta(hours=1),
+        )
+        team = await _make_team(pg_session, "Created by mistake")
+
+        resp = pg_client.delete(f"/api/rally/v1/team/{team.id}")
+
+        assert resp.status_code == 200, resp.text
+
+    async def test_delete_team_failure_does_not_expose_database_details(
+        self, pg_session, pg_client, as_admin, monkeypatch
+    ):
+        await _make_event(pg_session)
+        team = await _make_team(pg_session, "Fails")
+
+        async def fail(*_args, **_kwargs):
+            raise RuntimeError("relation activity_results secret detail")
+
+        monkeypatch.setattr(CRUDTeam, "remove", fail)
+
+        resp = pg_client.delete(f"/api/rally/v1/team/{team.id}")
+
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Cannot delete team"
 
 
 class TestGetTeamEvaluations:

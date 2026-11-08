@@ -75,6 +75,19 @@ def validate_rally_timing(
         )
 
 
+def is_rally_window_open(settings: Any, current_time: datetime) -> bool:
+    """True while the event's configured window contains ``current_time``.
+
+    An event with neither boundary configured has no window, so it is never open.
+    """
+    start_time, end_time = settings.rally_start_time, settings.rally_end_time
+    if start_time is None and end_time is None:
+        return False
+    has_started = start_time is None or start_time <= current_time
+    has_not_ended = end_time is None or current_time <= end_time
+    return has_started and has_not_ended
+
+
 def assign_ranks(teams: list[Team]) -> None:
     """Write ``team.classification`` (1..N, dense) from current totals.
 
