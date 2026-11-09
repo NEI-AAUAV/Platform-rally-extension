@@ -11,13 +11,13 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST
 
 from app.api.api import api_v1_router
 from app.core.config import settings
 from app.core.exceptions import RallyError
 from app.core.logging import bind_request_context, init_logging
-from app.core.metrics import record_request, registry
+from app.core.metrics import record_request, render_latest
 from app.core.observability import init_sentry
 from app.core.redis import close_pools
 from app.db.init_db import init_db
@@ -258,7 +258,7 @@ async def metrics() -> Response:
     """
     if not settings.METRICS_ENABLED:
         return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": "Not Found"})
-    return Response(content=generate_latest(registry), media_type=CONTENT_TYPE_LATEST)
+    return Response(content=render_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 if __name__ == "__main__":

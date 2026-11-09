@@ -54,6 +54,7 @@ services:
       # Concurrency. Each uvicorn worker owns a DB pool, so keep
       # WEB_CONCURRENCY x (DB_POOL_SIZE + DB_MAX_OVERFLOW) well under
       # Postgres max_connections (100): 3 x (10 + 10) = 60.
+      # /metrics combines all workers via PROMETHEUS_MULTIPROC_DIR, set in the image.
       - WEB_CONCURRENCY=${WEB_CONCURRENCY:-3}
       - DB_POOL_SIZE=${DB_POOL_SIZE:-10}
       - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-10}

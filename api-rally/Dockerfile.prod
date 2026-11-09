@@ -48,4 +48,8 @@ EXPOSE 8003
 # uvicorn reads WEB_CONCURRENCY as its worker count. One worker per core of the
 # production box; override at runtime (compose) rather than rebuilding.
 ENV WEB_CONCURRENCY=3
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003", "--forwarded-allow-ips", "*"]
+# Workers share Prometheus values through files here. A container restart keeps
+# its filesystem, so old files are cleared or their counts would carry over.
+ENV PROMETHEUS_MULTIPROC_DIR=/tmp/rally-metrics
+RUN mkdir -p /tmp/rally-metrics
+CMD ["sh", "-c", "rm -f \"$PROMETHEUS_MULTIPROC_DIR\"/*.db && exec uvicorn app.main:app --host 0.0.0.0 --port 8003 --forwarded-allow-ips '*'"]
