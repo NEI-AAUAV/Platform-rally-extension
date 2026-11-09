@@ -116,6 +116,15 @@ def test_admin_metrics_endpoint_requires_auth(client: TestClient) -> None:
     assert resp.status_code in (401, 403)
 
 
+def test_unmatched_paths_share_one_label(client: TestClient) -> None:
+    """Anyone can request invented URLs, and each distinct label is a new
+    series kept in memory and in the multiprocess files."""
+    client.get("/no-such-route-a1b2c3")
+    resp = client.get("/metrics")
+    assert "no-such-route-a1b2c3" not in resp.text
+    assert f'path_template="{metrics.UNMATCHED_PATH_LABEL}"' in resp.text
+
+
 def test_request_duration_histogram_measures_past_ten_seconds(client: TestClient) -> None:
     """A top finite bucket of 10s pins every slower request's quantile at 10s."""
     client.get("/health")

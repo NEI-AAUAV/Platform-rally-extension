@@ -23,6 +23,9 @@ from app.core.config import settings
 
 registry = CollectorRegistry()
 
+# Label for requests that matched no route; see the middleware in ``app.main``.
+UNMATCHED_PATH_LABEL = "__unmatched__"
+
 # The client's default buckets stop at 10s, which pins the quantile of anything
 # slower at exactly 10s.
 HTTP_DURATION_BUCKETS = (

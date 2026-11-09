@@ -17,7 +17,7 @@ from app.api.api import api_v1_router
 from app.core.config import settings
 from app.core.exceptions import RallyError
 from app.core.logging import bind_request_context, init_logging
-from app.core.metrics import record_request, render_latest
+from app.core.metrics import UNMATCHED_PATH_LABEL, record_request, render_latest
 from app.core.observability import init_sentry
 from app.core.redis import close_pools
 from app.db.init_db import init_db
@@ -165,10 +165,10 @@ async def request_id_and_timing(request: Request, call_next):  # type: ignore[no
             rid=request_id,
         )
         # Route template, not the raw path — raw paths carry team/activity
-        # IDs and would blow up label cardinality. Falls back to the raw path
-        # for unmatched routes (404s), which are low-cardinality by nature.
+        # IDs and would blow up label cardinality. Unmatched routes share one
+        # label, because anyone can request an unlimited number of invented URLs.
         route = request.scope.get("route")
-        path_template = route.path if route is not None else request.url.path
+        path_template = route.path if route is not None else UNMATCHED_PATH_LABEL
         record_request(
             method=request.method,
             path_template=path_template,
@@ -248,8 +248,9 @@ async def health_check() -> dict[str, str]:
     }
 
 
+# Sync so FastAPI runs it in a thread: merging the worker files reads from disk.
 @app.get("/metrics", tags=["health"], include_in_schema=False)
-async def metrics() -> Response:
+def metrics() -> Response:
     """Prometheus scrape endpoint.
 
     Gated on ``settings.METRICS_ENABLED``; MUST additionally be blocked at
