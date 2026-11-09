@@ -5,13 +5,48 @@ sites (middleware, workers, publisher, rate limiter) can call them
 unconditionally rather than guarding every call. The registry is exposed via
 ``GET /metrics`` in ``app.main`` — that route must be blocked at the reverse
 proxy in production; the flag alone does not restrict access.
+
+Production runs several uvicorn workers. With ``PROMETHEUS_MULTIPROC_DIR`` set,
+each worker writes its values to a file there and every read combines them, so
+a scrape answered by any one worker reports all of them. Without it each worker
+would expose only its own totals, and Prometheus would read every switch to a
+lower total as a counter reset. The directory must exist before this module is
+imported and be emptied when the service starts (see ``Dockerfile.prod``).
 """
 
-from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+import os
+
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
+from prometheus_client.multiprocess import MultiProcessCollector
 
 from app.core.config import settings
 
 registry = CollectorRegistry()
+
+# Label for requests that matched no route; see the middleware in ``app.main``.
+UNMATCHED_PATH_LABEL = "__unmatched__"
+
+# The client's default buckets stop at 10s, which pins the quantile of anything
+# slower at exactly 10s.
+HTTP_DURATION_BUCKETS = (
+    0.005,
+    0.01,
+    0.025,
+    0.05,
+    0.075,
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    2.5,
+    5.0,
+    7.5,
+    10.0,
+    15.0,
+    30.0,
+    60.0,
+)
 
 # Route template (not the raw path) is used as a label — raw paths carry
 # team/activity IDs and would blow up cardinality.
@@ -25,6 +60,7 @@ http_request_duration_seconds = Histogram(
     "rally_http_request_duration_seconds",
     "HTTP request duration in seconds",
     ["method", "path_template"],
+    buckets=HTTP_DURATION_BUCKETS,
     registry=registry,
 )
 worker_last_beat_age_seconds = Gauge(
@@ -32,6 +68,8 @@ worker_last_beat_age_seconds = Gauge(
     "Seconds since the worker's last heartbeat",
     ["worker"],
     registry=registry,
+    # Every uvicorn worker runs its own copy, and the stalest one is the signal.
+    multiprocess_mode="max",
 )
 events_published_total = Counter(
     "rally_events_published_total",
@@ -87,6 +125,20 @@ def observe_scoring_recompute(duration_seconds: float) -> None:
     scoring_recompute_duration_seconds.observe(duration_seconds)
 
 
+def _readable_registry() -> CollectorRegistry:
+    """The registry to read from: every worker's values when multiprocess."""
+    if not os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+        return registry
+    combined = CollectorRegistry()
+    MultiProcessCollector(combined)  # type: ignore[no-untyped-call]
+    return combined
+
+
+def render_latest() -> bytes:
+    """The Prometheus text exposition served by ``GET /metrics``."""
+    return generate_latest(_readable_registry())
+
+
 def collect_summary() -> dict[str, float]:
     """Aggregate the registry into the handful of totals the admin panel shows.
 
@@ -107,7 +159,7 @@ def collect_summary() -> dict[str, float]:
         "request_duration_seconds_count": 0.0,
     }
 
-    for metric in registry.collect():
+    for metric in _readable_registry().collect():
         for sample in metric.samples:
             if sample.name == "rally_http_requests_total":
                 totals["requests_total"] += sample.value

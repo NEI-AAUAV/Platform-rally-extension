@@ -48,7 +48,8 @@ The service exposes:
 - Readiness probe at `/api/rally/v1/health/ready` — under the versioned prefix because only
   `/api/rally/...` is proxied through to this service in production
 - Prometheus scrape at `/metrics` — unauthenticated, deliberately left off the public routes;
-  the admin panel reads the same counters through `/api/rally/v1/admin/metrics` (admin only)
+  the admin panel reads the same counters through `/api/rally/v1/admin/metrics` (admin only).
+  With several uvicorn workers, set `PROMETHEUS_MULTIPROC_DIR` (the production image does) so both report all workers
 
 ## Tests
 
