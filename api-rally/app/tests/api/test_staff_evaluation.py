@@ -20,6 +20,7 @@ from app.crud.crud_team import team as crud_team
 from app.main import app
 from app.models.activity import ActivityResult
 from app.models.idempotency_key import IdempotencyKey
+from app.models.user import User
 from app.schemas.activity import ActivityCreate, ActivityType
 from app.schemas.checkpoint import CheckPointCreate
 from app.schemas.team import TeamCreate
@@ -752,6 +753,85 @@ class TestEvaluationIdempotency:
 
         assert await self._final_score(pg_session, activity_obj.id, team_b.id) == pytest.approx(10)
         assert await self._final_score(pg_session, activity_obj.id, team_a.id) == pytest.approx(0)
+
+    async def _seed_relay(self, pg_session, config: dict):
+        """A timed relay with a team of six and a team of five."""
+        await _make_event(pg_session)
+        checkpoint = await _make_checkpoint(pg_session, order=1)
+        six = await _make_team(pg_session, "Six")
+        five = await _make_team(pg_session, "Five")
+        for team, size in ((six, 6), (five, 5)):
+            pg_session.add_all(
+                User(name=f"{team.name} {i}", disabled=False, team_id=team.id) for i in range(size)
+            )
+        await pg_session.commit()
+        activity_obj = await crud_activity.create(
+            pg_session,
+            obj_in=ActivityCreate(
+                name="Estafeta",
+                activity_type=ActivityType.TIME_BASED,
+                checkpoint_id=checkpoint.id,
+                config=config,
+            ),
+        )
+        return six, five, activity_obj
+
+    @staticmethod
+    def _evaluate_time(pg_client, team_id: int, activity_id: int, seconds: float, key: str):
+        resp = pg_client.post(
+            f"/api/rally/v1/staff/teams/{team_id}/activities/{activity_id}/evaluate",
+            json={"result_data": {"completion_time_seconds": seconds}, "extra_shots": 0},
+            headers={"Idempotency-Key": key},
+        )
+        assert resp.status_code == 200, resp.text
+
+    async def test_per_member_time_ranks_by_time_per_member(self, pg_session, pg_client, as_admin):
+        six, five, activity_obj = await self._seed_relay(
+            pg_session, {"per_member_time": True, "max_points": 100, "min_points": 10}
+        )
+
+        # 60s / 6 = 10s per member beats 55s / 5 = 11s per member.
+        self._evaluate_time(pg_client, six.id, activity_obj.id, 60, "relay-six")
+        self._evaluate_time(pg_client, five.id, activity_obj.id, 55, "relay-five")
+
+        assert await self._final_score(pg_session, activity_obj.id, six.id) == pytest.approx(100)
+        assert await self._final_score(pg_session, activity_obj.id, five.id) == pytest.approx(10)
+
+        result = await pg_session.scalar(
+            select(ActivityResult).where(
+                ActivityResult.activity_id == activity_obj.id, ActivityResult.team_id == six.id
+            )
+        )
+        assert result is not None
+        assert result.time_score == pytest.approx(60)
+
+    async def test_raw_time_ranking_unchanged_without_flag(self, pg_session, pg_client, as_admin):
+        six, five, activity_obj = await self._seed_relay(
+            pg_session, {"max_points": 100, "min_points": 10}
+        )
+
+        self._evaluate_time(pg_client, six.id, activity_obj.id, 60, "raw-six")
+        self._evaluate_time(pg_client, five.id, activity_obj.id, 55, "raw-five")
+
+        assert await self._final_score(pg_session, activity_obj.id, five.id) == pytest.approx(100)
+        assert await self._final_score(pg_session, activity_obj.id, six.id) == pytest.approx(10)
+
+    async def test_reprice_applies_per_member_time_enabled_later(
+        self, pg_session, pg_client, as_admin
+    ):
+        six, five, activity_obj = await self._seed_relay(
+            pg_session, {"max_points": 100, "min_points": 10}
+        )
+        self._evaluate_time(pg_client, six.id, activity_obj.id, 60, "late-six")
+        self._evaluate_time(pg_client, five.id, activity_obj.id, 55, "late-five")
+
+        activity_obj.config = {"per_member_time": True, "max_points": 100, "min_points": 10}
+        await pg_session.commit()
+        await ScoringService(pg_session).reprice_all_results()
+        await pg_session.commit()
+
+        assert await self._final_score(pg_session, activity_obj.id, six.id) == pytest.approx(100)
+        assert await self._final_score(pg_session, activity_obj.id, five.id) == pytest.approx(10)
 
     async def test_same_key_different_payload_conflicts(self, pg_session, pg_client, as_admin):
         _team, _activity, url = await self._seed(pg_session)

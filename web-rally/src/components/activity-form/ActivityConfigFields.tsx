@@ -52,6 +52,15 @@ export function ActivityConfigFields({
     case ActivityType.TIME_BASED:
       return (
         <ConfigSection title="Configurações de Atividade Baseada em Tempo">
+          <label className="flex items-center gap-3 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={configData.per_member_time === true}
+              onChange={(e) => updateConfig("per_member_time", e.target.checked)}
+              className="h-4 w-4"
+            />
+            Dividir o tempo pelo nº de elementos da equipa (estafetas em que todos jogam à vez)
+          </label>
           <div className="grid grid-cols-2 gap-4">
             {field("config-tb-max-points", "Pontos Máximos (1º lugar)", "max_points", 100, "100")}
             {field("config-tb-min-points", "Pontos Mínimos (último lugar)", "min_points", 10, "10")}

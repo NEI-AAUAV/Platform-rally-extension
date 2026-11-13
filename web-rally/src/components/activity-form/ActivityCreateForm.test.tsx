@@ -70,4 +70,32 @@ describe("ActivityCreateForm", () => {
 
     expect(onSubmit.mock.calls[0]?.[0].config).toMatchObject({ rank_by_score: true });
   });
+
+  it("saves the per-member time flag for time-based activities", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <ActivityForm
+        checkpoints={[]}
+        lockCheckpointId={1}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+        initialData={{
+          name: "Estafeta",
+          activity_type: ActivityType.TIME_BASED,
+          checkpoint_id: 1,
+          config: { max_points: 100, min_points: 10 },
+          is_active: true,
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", { name: /Dividir o tempo pelo nº de elementos/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Atualizar" }));
+
+    expect(onSubmit.mock.calls[0]?.[0].config).toMatchObject({ per_member_time: true });
+  });
 });

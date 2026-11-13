@@ -336,6 +336,7 @@ class TimeBasedConfig(BaseModel):
 
     max_points: int = Field(default=100, gt=0)
     min_points: int = Field(default=10, ge=0)
+    per_member_time: bool = False
 
 
 class ScoreBasedConfig(BaseModel):
