@@ -252,7 +252,7 @@ async def test_checkpoint_sheet_shows_only_the_counters_that_were_recorded():
 
     assert "Vómitos (-)" in header
     assert "Extra Shots" in header
-    assert "Não bebeu (-)" not in header
+    assert "Bebida desperdiçada (-)" not in header
 
 
 @pytest.mark.asyncio

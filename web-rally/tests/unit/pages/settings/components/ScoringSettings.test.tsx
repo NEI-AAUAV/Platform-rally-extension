@@ -43,7 +43,7 @@ describe("ScoringSettings", () => {
   it("renders numeric inputs with initial values", () => {
     render(<Wrapper />);
     expect(screen.getByLabelText("Penalização por vómito")).toHaveValue(-10);
-    expect(screen.getByLabelText("Penalização por não beber")).toHaveValue(-5);
+    expect(screen.getByLabelText("Penalização por desperdiçar bebida")).toHaveValue(-5);
     expect(screen.getByLabelText("Bónus por shot extra")).toHaveValue(5);
     expect(screen.getByLabelText("Máximo shots extra por membro")).toHaveValue(3);
   });

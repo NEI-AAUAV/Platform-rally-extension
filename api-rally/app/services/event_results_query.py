@@ -49,7 +49,7 @@ PENDING_JUDGMENT = "pending_judgment"
 
 _BUILTIN_LABELS = {
     VOMIT_KEY: "Vómitos",
-    NOT_DRINKING_KEY: "Não bebeu",
+    NOT_DRINKING_KEY: "Bebida desperdiçada",
 }
 
 type _CheckpointEngagement = CheckpointArrival | CheckpointHintReveal | CheckpointSkip

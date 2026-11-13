@@ -59,7 +59,8 @@ export default function ScoringSettings({ className = "", eventType }: ScoringSe
               </span>
             </div>
             <p className="text-xs leading-snug text-muted-foreground">
-              Ativa penalties de vómito, não beber e bónus de shots extra no percurso.
+              Ativa penalizações por vómito e por desperdiçar bebida, e bónus de shots extra no
+              percurso.
             </p>
           </div>
           <div className="mt-0.5 shrink-0">
@@ -90,11 +91,11 @@ export default function ScoringSettings({ className = "", eventType }: ScoringSe
           />
           <SettingNumber
             name="penalty_per_not_drinking"
-            label="Penalização por não beber"
+            label="Penalização por desperdiçar bebida"
             min={-100}
             max={0}
             unit="pts"
-            help="Pontos perdidos por não beber obrigatório (deve ser negativo)."
+            help="Pontos perdidos por cada vez que a equipa desperdiça bebida (deve ser negativo)."
           />
           <SettingNumber
             name="bonus_per_extra_shot"

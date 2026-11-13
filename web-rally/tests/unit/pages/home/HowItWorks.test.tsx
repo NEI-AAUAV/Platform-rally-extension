@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import HowItWorks, { HowItWorks as HowItWorksNamed } from "@/pages/home/HowItWorks";
 
 // useEventTerms pulls from useRallySettings (React Query), which needs a
@@ -16,7 +16,17 @@ vi.mock("@/hooks/useEventTerms", () => ({
   }),
 }));
 
+// useRallySettings is React Query too; drive gps_checkin_enabled per test.
+const settingsState: { gps_checkin_enabled?: boolean } = {};
+vi.mock("@/hooks/useRallySettings", () => ({
+  default: () => ({ settings: { ...settingsState } }),
+}));
+
 describe("HowItWorks", () => {
+  beforeEach(() => {
+    delete settingsState.gps_checkin_enabled;
+  });
+
   it("renders the section heading", () => {
     render(<HowItWorks />);
     expect(screen.getByRole("heading", { name: "Como funciona" })).toBeInTheDocument();
@@ -33,12 +43,25 @@ describe("HowItWorks", () => {
 
     expect(screen.getByText("Percorre os postos")).toBeInTheDocument();
     expect(
-      screen.getByText("Vai a cada posto, completa o desafio e faz check-in com o QR code."),
+      screen.getByText("Vai a cada posto e completa cada desafio. O staff regista a tua passagem."),
     ).toBeInTheDocument();
 
     expect(screen.getByText("Sobe na classificação")).toBeInTheDocument();
     expect(
       screen.getByText("Cada posto soma pontos. Acompanha a pontuação e luta pelo pódio."),
+    ).toBeInTheDocument();
+  });
+
+  it("never mentions a QR check-in", () => {
+    render(<HowItWorks />);
+    expect(screen.queryByText(/QR/)).not.toBeInTheDocument();
+  });
+
+  it("tells the team to check in by GPS when GPS check-in is on", () => {
+    settingsState.gps_checkin_enabled = true;
+    render(<HowItWorks />);
+    expect(
+      screen.getByText("Vai a cada posto, faz check-in pelo GPS e completa cada desafio."),
     ).toBeInTheDocument();
   });
 

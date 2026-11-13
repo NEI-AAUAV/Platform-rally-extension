@@ -17,7 +17,9 @@ describe("PenaltiesFieldset", () => {
       />,
     );
     expect(screen.queryByLabelText("Número de vezes que vomitou")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Número de vezes que não bebeu")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Número de vezes que desperdiçou bebida"),
+    ).not.toBeInTheDocument();
     expect(screen.getByText(/Penalização total:/)).toBeInTheDocument();
   });
 
@@ -47,8 +49,10 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={true}
       />,
     );
-    expect(screen.getByLabelText("Número de vezes que não bebeu")).toBeInTheDocument();
-    expect(screen.getByText(/Penalização por não beber \(3 pts cada\)/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Número de vezes que desperdiçou bebida")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Penalização por desperdiçar bebida \(3 pts cada\)/),
+    ).toBeInTheDocument();
   });
 
   it("renders the vomit input empty when penalties.vomit is undefined", () => {
@@ -126,7 +130,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={true}
       />,
     );
-    expect(screen.getByLabelText("Número de vezes que não bebeu")).toHaveValue(null);
+    expect(screen.getByLabelText("Número de vezes que desperdiçou bebida")).toHaveValue(null);
   });
 
   it("calls onChange with updated not_drinking value on input change", () => {
@@ -141,7 +145,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={true}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Número de vezes que não bebeu"), {
+    fireEvent.change(screen.getByLabelText("Número de vezes que desperdiçou bebida"), {
       target: { value: "7" },
     });
     expect(onChange).toHaveBeenCalledWith({ vomit: 1, not_drinking: 7 });
@@ -159,7 +163,7 @@ describe("PenaltiesFieldset", () => {
         showNotDrinkingPenalty={true}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Número de vezes que não bebeu"), {
+    fireEvent.change(screen.getByLabelText("Número de vezes que desperdiçou bebida"), {
       target: { value: "xyz" },
     });
     expect(onChange).toHaveBeenCalledWith({ not_drinking: 0 });
