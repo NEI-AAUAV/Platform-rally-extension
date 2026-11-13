@@ -52,6 +52,15 @@ else:
 - 4º lugar (38.9s): 32.5 pontos
 - 5º lugar (45.2s): 10 pontos
 
+#### Tempo por elemento (`per_member_time`)
+Opcional, desligado por omissão. Para estafetas em que **todos os elementos jogam à vez**, uma equipa maior tem mais pernas e por isso mais tempo. Com `"per_member_time": true` o ranking compara `tempo / nº de membros da equipa` (contados automaticamente; o staff só regista o tempo total).
+
+- O `time_score` guardado continua a ser o tempo bruto; só a comparação divide.
+- Equipas sem membros registados contam como 1 membro — registar todos os membros antes do evento.
+- Não ligar em jogos em que o trabalho total é fixo por equipa ou em que todos jogam em simultâneo.
+
+Exemplo: equipa de 6 faz 60s (10s/elemento), equipa de 5 faz 55s (11s/elemento) → a equipa de 6 fica em 1º.
+
 ---
 
 ### 2. 🎯 ScoreBasedActivity - Atividades Baseadas em Pontuação
