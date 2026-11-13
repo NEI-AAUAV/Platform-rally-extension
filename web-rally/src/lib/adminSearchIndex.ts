@@ -70,7 +70,7 @@ export const ADMIN_SEARCH_INDEX: readonly AdminSearchEntry[] = [
   ...settingsEntries("pontuacao", [
     ["enable_staff_scoring", "Permitir pontuação manual pelos staff"],
     ["penalty_per_puke", "Penalização por vómito"],
-    ["penalty_per_not_drinking", "Penalização por não beber"],
+    ["penalty_per_not_drinking", "Penalização por desperdiçar bebida"],
     ["bonus_per_extra_shot", "Bónus por shot extra"],
     ["max_extra_shots_per_member", "Máximo shots extra por membro"],
   ]),

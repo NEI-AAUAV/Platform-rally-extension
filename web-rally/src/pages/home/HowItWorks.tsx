@@ -1,6 +1,26 @@
 import useEventTerms from "@/hooks/useEventTerms";
+import useRallySettings from "@/hooks/useRallySettings";
+import type { EventTerms } from "@/lib/eventTerms";
 
-function buildSteps(terms: ReturnType<typeof useEventTerms>) {
+interface Step {
+  n: string;
+  title: string;
+  body: string;
+}
+
+/**
+ * How a team's arrival gets recorded, as told on the landing page. Only GPS is
+ * a team-side check-in visible in the public settings; otherwise the staff at
+ * the checkpoint records it when they evaluate.
+ */
+function arrivalSentence(terms: EventTerms, gpsCheckinEnabled: boolean): string {
+  if (gpsCheckinEnabled) {
+    return `Vai a cada ${terms.checkpoint}, faz check-in pelo GPS e completa cada ${terms.activity}.`;
+  }
+  return `Vai a cada ${terms.checkpoint} e completa cada ${terms.activity}. O staff regista a tua passagem.`;
+}
+
+function buildSteps(terms: EventTerms, gpsCheckinEnabled: boolean): Step[] {
   return [
     {
       n: "1",
@@ -10,7 +30,7 @@ function buildSteps(terms: ReturnType<typeof useEventTerms>) {
     {
       n: "2",
       title: `Percorre os ${terms.checkpoints}`,
-      body: `Vai a cada ${terms.checkpoint}, completa o ${terms.activity} e faz check-in com o QR code.`,
+      body: arrivalSentence(terms, gpsCheckinEnabled),
     },
     {
       n: "3",
@@ -23,7 +43,8 @@ function buildSteps(terms: ReturnType<typeof useEventTerms>) {
 /** Three-step explainer matching the prototype composition. */
 export function HowItWorks() {
   const terms = useEventTerms();
-  const steps = buildSteps(terms);
+  const { settings } = useRallySettings();
+  const steps = buildSteps(terms, settings?.gps_checkin_enabled === true);
 
   return (
     <section aria-labelledby="how-heading">

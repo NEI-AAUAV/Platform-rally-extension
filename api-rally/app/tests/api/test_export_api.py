@@ -165,7 +165,7 @@ async def test_export_checkpoint_detail_columns(pg_session, pg_client, as_admin)
         "Versus Pair",
         "Match Result",
         "Extra Shots",
-        "Não bebeu (-pontos)",
+        "Bebida desperdiçada (-pontos)",
         "Vómitos (-pontos)",
         "Notes",
         "Activity",

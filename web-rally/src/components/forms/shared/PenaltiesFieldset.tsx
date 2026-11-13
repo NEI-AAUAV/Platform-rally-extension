@@ -127,10 +127,10 @@ export default function PenaltiesFieldset({
                 }
                 className="w-20 rounded-xl border border-border bg-card p-2 text-foreground focus:border-ring focus:ring-1 focus:ring-ring"
                 placeholder="0"
-                aria-label="Número de vezes que não bebeu"
+                aria-label="Número de vezes que desperdiçou bebida"
               />
               <label htmlFor={`${idPrefix}-not-drinking`} className="text-sm text-muted-foreground">
-                Penalização por não beber ({penaltyValues.not_drinking} pts cada)
+                Penalização por desperdiçar bebida ({penaltyValues.not_drinking} pts cada)
               </label>
             </div>
           )}
