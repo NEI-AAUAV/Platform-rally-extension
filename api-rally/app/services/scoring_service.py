@@ -38,6 +38,7 @@ from app.events import (
     publish_event,
 )
 from app.models.activities.score_based import RANK_BY_SCORE_KEY
+from app.models.activities.time_based import PER_MEMBER_TIME_KEY
 from app.models.activity import Activity, ActivityResult, RallyEvent
 from app.models.activity_factory import ActivityFactory
 from app.models.dynamic_scoring import (
@@ -185,7 +186,10 @@ class ScoringService:
         team = await self.db.scalar(
             select(Team).options(selectinload(Team.members)).where(Team.id == team_id)
         )
-        return len(team.members) if team and team.members else 1
+        if team and team.members:
+            return len(team.members)
+        logger.warning("Team %s has no registered members; scoring it as size 1", team_id)
+        return 1
 
     @staticmethod
     def _uses_relative_ranking(activity_type: str, config: dict[str, Any] | None) -> bool:
@@ -208,29 +212,67 @@ class ScoringService:
         return float(value) if value is not None else None
 
     @staticmethod
-    def _ranking_values(activity: Activity, results: Sequence[ActivityResult]) -> list[float]:
+    def _ranks_time_per_member(activity_type: str, config: dict[str, Any] | None) -> bool:
+        """Whether a timed activity ranks by time per team member.
+
+        For relays where every member plays in turn, a bigger team has more
+        legs to run, so its raw time is not comparable with a smaller team's.
+        Dividing by the team size compares the average leg instead. The
+        persisted ``time_score`` stays the raw time; only the ranking divides.
+        """
+        return activity_type == ActivityType.TIME_BASED.value and bool(
+            (config or {}).get(PER_MEMBER_TIME_KEY)
+        )
+
+    @classmethod
+    def _ranked_value(
+        cls, activity_type: str, config: dict[str, Any] | None, value: float, team_size: int
+    ) -> float:
+        """A ranking value as compared against other teams'."""
+        if cls._ranks_time_per_member(activity_type, config):
+            return value / max(team_size, 1)
+        return value
+
+    async def _ranking_values(
+        self,
+        activity: Activity,
+        results: Sequence[ActivityResult],
+        team_size_cache: dict[int, int] | None = None,
+    ) -> list[float]:
         """The persisted values ranked against each other, one per scored result."""
         column = (
             "time_score"
             if activity.activity_type == ActivityType.TIME_BASED.value
             else "points_score"
         )
-        values = (getattr(result, column) for result in results)
-        return [float(value) for value in values if value is not None]
+        per_member = self._ranks_time_per_member(activity.activity_type, activity.config)
+        sizes = team_size_cache if team_size_cache is not None else {}
+        values: list[float] = []
+        for result in results:
+            value = getattr(result, column)
+            if value is None:
+                continue
+            if per_member:
+                if result.team_id not in sizes:
+                    sizes[result.team_id] = await self._team_size(result.team_id)
+                value = float(value) / sizes[result.team_id]
+            values.append(float(value))
+        return values
 
     async def _completed_ranking_values(
         self, activity: Activity, extra_value: float | None = None
     ) -> list[float]:
         """Ranking values of an activity's completed results.
 
-        Pass extra_value to include a result not yet persisted (create path)
+        Pass extra_value to include a result not yet persisted (create path);
+        it must already be in ranking form (see ``_ranked_value``).
         """
 
         stmt = select(ActivityResult).where(
             ActivityResult.activity_id == activity.id, ActivityResult.is_completed.is_(True)
         )
 
-        values = self._ranking_values(activity, (await self.db.scalars(stmt)).all())
+        values = await self._ranking_values(activity, (await self.db.scalars(stmt)).all())
 
         if extra_value is not None:
             values.append(extra_value)
@@ -293,6 +335,8 @@ class ScoringService:
             if self._uses_relative_ranking(activity_type, config)
             else None
         )
+        if ranking_metric is not None:
+            ranking_metric = self._ranked_value(activity_type, config, ranking_metric, team_size)
 
         if ranking_metric is not None:
             if (
@@ -1044,10 +1088,18 @@ class ScoringService:
             else obj_in.bonuses
         )
         is_ranked = self._uses_relative_ranking(activity.activity_type, activity.config)
+        team_size = await self._team_size(obj_in.team_id)
+        new_metric = self._ranking_metric(activity.activity_type, obj_in.result_data)
         all_times = (
             await self._completed_ranking_values(
                 activity,
-                extra_value=self._ranking_metric(activity.activity_type, obj_in.result_data),
+                extra_value=(
+                    self._ranked_value(
+                        activity.activity_type, activity.config, new_metric, team_size
+                    )
+                    if new_metric is not None
+                    else None
+                ),
             )
             if is_ranked
             else None
@@ -1056,7 +1108,7 @@ class ScoringService:
             activity_type=activity.activity_type,
             config=activity.config,
             result_data=obj_in.result_data,
-            team_size=await self._team_size(obj_in.team_id),
+            team_size=team_size,
             extra_shots=obj_in.extra_shots,
             penalties=penalties,
             bonuses=bonuses,
@@ -1402,9 +1454,9 @@ class ScoringService:
             if not all_results:
                 return totals
 
-            all_times = self._ranking_values(activity, all_results)
-
             team_size_cache: dict[int, int] = {}
+            all_times = await self._ranking_values(activity, all_results, team_size_cache)
+
             for result in all_results:
                 if result.team_id not in team_size_cache:
                     team_size_cache[result.team_id] = await self._team_size(result.team_id)
@@ -1482,7 +1534,7 @@ class ScoringService:
             if activity is None:
                 continue
             all_times = (
-                self._ranking_values(activity, activity_results)
+                await self._ranking_values(activity, activity_results, team_size_cache)
                 if self._uses_relative_ranking(activity.activity_type, activity.config)
                 else None
             )
