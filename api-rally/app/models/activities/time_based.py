@@ -6,6 +6,8 @@ from typing import Any
 
 from app.models.activities.base import BaseActivity
 
+PER_MEMBER_TIME_KEY = "per_member_time"
+
 
 class TimeBasedActivity(BaseActivity):
     @classmethod
