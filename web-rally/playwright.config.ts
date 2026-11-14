@@ -21,6 +21,9 @@ export default defineConfig({
   // route-mocked) suite. The fullstack project keeps its own workers: 1 below.
   workers: process.env.CI ? 4 : undefined,
   reporter: 'html',
+  // Local runs reuse a running `vite preview`, which serves dist/ as built:
+  // stop early if src/ changed since the last `pnpm build`.
+  globalSetup: './tests/e2e/helpers/assertFreshBuild.ts',
 
   use: {
     trace: 'on-first-retry',
