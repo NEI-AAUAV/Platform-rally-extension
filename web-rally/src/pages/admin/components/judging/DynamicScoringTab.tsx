@@ -17,6 +17,7 @@ import {
   type DynamicAwardResponse,
   type ListingTeam,
 } from "@/client";
+import { useConfirmDialog } from "@/components/shared/feedback/useConfirmDialog";
 
 type RuleForm = { name: string; points: string; maxPoints: string; description: string };
 
@@ -161,6 +162,7 @@ function BonusCeilingCard() {
 
 function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<RuleForm>(EMPTY_RULE);
   const copy = RULE_COPY[kind];
@@ -212,6 +214,7 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
 
   return (
     <section className="space-y-3">
+      {dialog}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold">{copy.heading}</h3>
@@ -349,12 +352,16 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
               title="Eliminar"
               aria-label={`Eliminar ${copy.noun} ${rule.name}`}
               className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-ink"
-              onClick={() => {
-                const message =
-                  `Eliminar definitivamente ${copy.noun} "${rule.name}"?\n\n` +
-                  "Deixa de aparecer, mas os resultados já pontuados com ela mantêm os pontos. " +
-                  "Para a suspender temporariamente, usa o interruptor.";
-                if (confirm(message)) deleteMutation.mutate(rule.id);
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Eliminar ${copy.noun} "${rule.name}"?`,
+                  description:
+                    "Deixa de aparecer, mas os resultados já pontuados com ela mantêm os pontos. " +
+                    "Para a suspender temporariamente, usa o interruptor.",
+                  confirmLabel: "Eliminar",
+                  destructive: true,
+                });
+                if (ok) deleteMutation.mutate(rule.id);
               }}
             >
               <Trash2 className="h-4 w-4" />
@@ -368,6 +375,7 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
 
 function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AwardForm>(EMPTY_AWARD);
 
@@ -409,6 +417,7 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
 
   return (
     <section className="space-y-3">
+      {dialog}
       <div className="flex items-center gap-2">
         <h3 className="text-sm font-semibold">Prémios / Ajustes manuais</h3>
         <button
@@ -508,8 +517,14 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
                 title="Revogar"
                 aria-label={`Revogar prémio de ${teamName(award.team_id)}`}
                 className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-ink"
-                onClick={() => {
-                  if (confirm("Revogar este prémio?")) deleteMutation.mutate(award.id);
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Revogar prémio de ${teamName(award.team_id)}?`,
+                    description: "Os pontos deste prémio saem da classificação da equipa.",
+                    confirmLabel: "Revogar",
+                    destructive: true,
+                  });
+                  if (ok) deleteMutation.mutate(award.id);
                 }}
               >
                 <Trash2 className="h-4 w-4" />

@@ -41,6 +41,7 @@ import {
   utcISOStringToLocalDatetimeLocal,
   localDatetimeLocalToUTCISOString,
 } from "@/utils/timezone";
+import { useConfirmDialog } from "@/components/shared/feedback/useConfirmDialog";
 
 interface FormState {
   name: string;
@@ -208,6 +209,7 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
 function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
   const toast = useAppToast();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [eventType, setEventType] = useState<EventType>(event.event_type);
   const [profile, setProfile] = useState<EventProfile>(event.event_profile ?? "custom");
   const mutation = useMutation({
@@ -235,6 +237,7 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
   const profiles = PROFILE_OPTIONS[eventType];
   return (
     <div className="flex w-full min-w-0 flex-wrap gap-2">
+      {dialog}
       <Select
         value={eventType}
         onValueChange={(value) => {
@@ -271,13 +274,13 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
         size="sm"
         className="w-full sm:w-auto"
         disabled={mutation.isPending}
-        onClick={() => {
-          if (
-            window.confirm(
-              "Aplicar este formato? As capabilities obrigatórias e indisponíveis serão reconciliadas.",
-            )
-          )
-            mutation.mutate();
+        onClick={async () => {
+          const ok = await confirm({
+            title: "Aplicar este formato?",
+            description: "As capabilities obrigatórias e indisponíveis serão reconciliadas.",
+            confirmLabel: "Aplicar",
+          });
+          if (ok) mutation.mutate();
         }}
       >
         {mutation.isPending ? "A aplicar…" : "Aplicar formato"}

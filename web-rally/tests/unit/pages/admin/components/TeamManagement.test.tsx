@@ -1,8 +1,14 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import TeamManagement from "@/pages/admin/components/teams/TeamManagement";
+
+/** Answers the in-app confirmation dialog (replaces window.confirm). */
+async function answerConfirm(label: string) {
+  const dialog = await screen.findByRole("alertdialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: label }));
+}
 
 const {
   mockGetTeams,
@@ -64,7 +70,6 @@ const teamListItem = (overrides: Partial<any> = {}) => ({
 describe("TeamManagement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     mockGetTeams.mockResolvedValue({ data: [] });
     mockGetTeamById.mockResolvedValue({ data: null });
     mockCreateTeam.mockResolvedValue({ data: { id: 1, name: "New Team", access_code: "ABC123" } });
@@ -188,13 +193,13 @@ describe("TeamManagement", () => {
     const teamRow = screen.getByText("Team Alpha").closest("li")!;
     const rowButtons = teamRow.querySelectorAll("button");
     fireEvent.click(rowButtons[3]!);
+    await answerConfirm("Eliminar");
 
     await waitFor(() => expect(mockDeleteTeam).toHaveBeenCalledWith({ path: { id: 1 } }));
     expect(mockToastSuccess).toHaveBeenCalledWith("Equipa deletada com sucesso!");
   });
 
   it("does not delete a team when confirm is cancelled", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     mockGetTeams.mockResolvedValue({ data: [teamListItem()] });
     renderWithClient(<TeamManagement />);
     expect(await screen.findByText("Team Alpha")).toBeInTheDocument();
@@ -202,6 +207,7 @@ describe("TeamManagement", () => {
     const teamRow = screen.getByText("Team Alpha").closest("li")!;
     const rowButtons = teamRow.querySelectorAll("button");
     fireEvent.click(rowButtons[3]!);
+    await answerConfirm("Cancelar");
     expect(mockDeleteTeam).not.toHaveBeenCalled();
   });
 
@@ -214,6 +220,7 @@ describe("TeamManagement", () => {
     const teamRow = screen.getByText("Team Alpha").closest("li")!;
     const rowButtons = teamRow.querySelectorAll("button");
     fireEvent.click(rowButtons[3]!);
+    await answerConfirm("Eliminar");
 
     await waitFor(() => expect(mockToastError).toHaveBeenCalled());
   });

@@ -21,6 +21,7 @@ import { BloodyButton } from "@/components/themes/bloody";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
 import { activityTypeLabel } from "@/lib/activityTypeLabels";
+import { useConfirmDialog } from "@/components/shared/feedback/useConfirmDialog";
 
 type Props = Readonly<{
   checkpointId: number;
@@ -36,6 +37,7 @@ type Props = Readonly<{
  */
 export default function CheckpointActivitiesManager({ checkpointId }: Props) {
   const toast = useAppToast();
+  const { confirm, dialog } = useConfirmDialog();
   const [editingActivity, setEditingActivity] = useState<ActivityResponse | null>(null);
   const [showForm, setShowForm] = useState(false);
 
@@ -84,8 +86,14 @@ export default function CheckpointActivitiesManager({ checkpointId }: Props) {
     });
   };
 
-  const handleDelete = (id: number) => {
-    if (!confirm("Apagar este desafio?")) return;
+  const handleDelete = async (id: number) => {
+    const ok = await confirm({
+      title: "Apagar este desafio?",
+      description: "Não é possível desfazer.",
+      confirmLabel: "Apagar",
+      destructive: true,
+    });
+    if (!ok) return;
     deleteActivity(id, {
       onSuccess: () => toast.success("Desafio apagado."),
       onError: (error) => toast.error(getErrorMessage(error, "Erro ao apagar desafio")),
@@ -94,6 +102,7 @@ export default function CheckpointActivitiesManager({ checkpointId }: Props) {
 
   return (
     <section className="space-y-3 border-t border-border pt-4">
+      {dialog}
       <div className="flex items-center gap-2 text-sm font-semibold">
         <Dumbbell className="h-4 w-4 text-primary" />
         Desafio
