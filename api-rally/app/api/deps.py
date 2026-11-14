@@ -17,9 +17,15 @@ from app.crud.crud_rally_staff_assignment import rally_staff_assignment
 from app.db.session import SessionLocal
 from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
+from app.services.account_ownership import may_claim_by_email
 from app.services.team_auth_service import validate_team_token
 
 logger = logging.getLogger(__name__)
+
+EMAIL_CONFLICT_DETAIL = (
+    "Já existe uma conta no Rally com este email, associada a outra conta NEI. "
+    "Contacta a organização para resolver."
+)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -28,21 +34,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
-
-
-def _holds_authentik_uuid_as_sub(user: Any, oidc_sub: str) -> bool:
-    """True only when the row *provably* holds its Authentik uuid as subject.
-
-    The uuid shape alone proves nothing (in "user UUID" subject mode every
-    real subject is a uuid), and inferring from it would let a second account
-    sharing a verified email take the row over. Rows linked before
-    ``authentik_uuid`` existed keep working through the email fallback in
-    ``get_current_user``.
-    """
-    stored: str | None = user.authentik_sub
-    if stored is None or stored == oidc_sub:
-        return False
-    return user.authentik_uuid is not None and stored == user.authentik_uuid
 
 
 async def _adopt_email_placeholder(
@@ -74,11 +65,12 @@ async def _adopt_email_placeholder(
     placeholder = await crud.user.get_by_email(db, email=auth.email)
     if placeholder is None:
         return None
+    if not await may_claim_by_email(placeholder, auth.oidc_sub):
+        return None
     if placeholder.authentik_sub is not None:
-        if not _holds_authentik_uuid_as_sub(placeholder, auth.oidc_sub):
-            return None
-        # Linked by an admin before the uuid got its own column: the uuid was
-        # stored as the subject. Re-key the row and its history to the real sub.
+        # A legacy admin link stored the Authentik uuid as the subject, and
+        # Authentik has just confirmed the caller owns that account. Re-key
+        # the row and its history to the real subject.
         old_sub = placeholder.authentik_sub
         placeholder.authentik_uuid = placeholder.authentik_uuid or old_sub
         await crud.participation.rekey_sub(db, old_sub=old_sub, new_sub=auth.oidc_sub)
@@ -138,7 +130,9 @@ async def get_current_user(
         # Two concurrent first requests can race on the insert; the loser
         # re-fetches the row the winner created. The unique email index can
         # also reject the insert when a row for this address already exists
-        # and adoption declined it — retry by email so the request survives.
+        # and adoption declined it. That row belongs to someone else (or the
+        # email is unverified), so it is a conflict — never returned as the
+        # caller, which would bypass every adoption check above.
         try:
             user = await crud.user.create_for_oidc(
                 db,
@@ -150,8 +144,18 @@ async def get_current_user(
         except IntegrityError:
             await db.rollback()
             user = await crud.user.get_by_authentik_sub(db, authentik_sub=auth.oidc_sub)
-            if user is None and auth.email:
-                user = await crud.user.get_by_email(db, email=auth.email)
+            email_taken = (
+                user is None
+                and auth.email is not None
+                and await crud.user.get_by_email(db, email=auth.email) is not None
+            )
+            if email_taken:
+                logger.warning(
+                    "Login for sub=%s collides with an existing user row by email that "
+                    "this account may not claim.",
+                    auth.oidc_sub,
+                )
+                raise HTTPException(status_code=409, detail=EMAIL_CONFLICT_DETAIL) from None
             if user is None:
                 raise HTTPException(status_code=500, detail="Failed to initialise user") from None
     else:

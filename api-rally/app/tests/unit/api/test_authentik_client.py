@@ -158,3 +158,82 @@ async def test_list_group_members_degrades_to_empty_on_http_error(monkeypatch):
 
     with patch.object(authentik_client.httpx, "AsyncClient", _client_factory(handler)):
         assert await authentik_client.list_group_members("rally-guide") == []
+
+
+# ---------- account_has_subject: proof that an OIDC subject owns an account ----------
+
+_ACCOUNT = {
+    "pk": 42,
+    "uuid": "3f2b8c1e-9d4a-4b7e-8f21-6c5d4e3a2b10",
+    "uid": "a3c1f0e9d8b7a6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1",
+    "username": "ana",
+    "name": "Ana",
+    "email": "ana@ua.pt",
+}
+
+
+def _account_handler(results):
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params.get("uuid") == _ACCOUNT["uuid"]
+        return httpx.Response(200, json={"results": results})
+
+    return handler
+
+
+@pytest.mark.parametrize(
+    "subject",
+    [_ACCOUNT["uid"], _ACCOUNT["uuid"], str(_ACCOUNT["pk"]), _ACCOUNT["username"]],
+    ids=["hashed-id", "uuid", "pk", "username"],
+)
+async def test_account_has_subject_accepts_every_authentik_subject_mode(monkeypatch, subject):
+    _configured(monkeypatch)
+    with patch.object(
+        authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([_ACCOUNT]))
+    ):
+        assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], subject) is True
+
+
+async def test_account_has_subject_rejects_another_accounts_subject(monkeypatch):
+    """A second Authentik account sharing the email has its own subject."""
+    _configured(monkeypatch)
+    with patch.object(
+        authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([_ACCOUNT]))
+    ):
+        assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], "other-sub") is False
+
+
+async def test_account_has_subject_never_matches_on_email(monkeypatch):
+    """Authentik does not enforce unique emails, so an email-mode subject from a
+    different account could equal this account's email."""
+    _configured(monkeypatch)
+    with patch.object(
+        authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([_ACCOUNT]))
+    ):
+        assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], "ana@ua.pt") is False
+
+
+async def test_account_has_subject_false_for_unknown_account(monkeypatch):
+    _configured(monkeypatch)
+    with patch.object(authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([]))):
+        assert (
+            await authentik_client.account_has_subject(_ACCOUNT["uuid"], _ACCOUNT["uid"]) is False
+        )
+
+
+async def test_account_has_subject_false_when_not_configured(monkeypatch):
+    monkeypatch.setattr(settings, "AUTHENTIK_API_URL", "")
+    monkeypatch.setattr(settings, "AUTHENTIK_API_TOKEN", "")
+    assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], _ACCOUNT["uid"]) is False
+
+
+async def test_account_has_subject_raises_when_authentik_unreachable(monkeypatch):
+    _configured(monkeypatch)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(502, text="bad gateway")
+
+    with (
+        patch.object(authentik_client.httpx, "AsyncClient", _client_factory(handler)),
+        pytest.raises(authentik_client.AuthentikUnavailableError),
+    ):
+        await authentik_client.account_has_subject(_ACCOUNT["uuid"], _ACCOUNT["uid"])

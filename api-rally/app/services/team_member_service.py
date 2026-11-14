@@ -21,6 +21,7 @@ from app.models.team import Team
 from app.models.user import User
 from app.schemas.team_members import TeamMemberAdd, TeamMemberUpdate
 from app.schemas.user import UserCreate
+from app.services.account_ownership import may_claim_by_email
 
 TEAM_NOT_FOUND_MESSAGE = "Team not found"
 USER_NOT_FOUND_MESSAGE = "User not found"
@@ -205,7 +206,13 @@ class TeamMemberService:
         if target is None and email:
             by_email = await crud.user.get_by_email(self._db, email=email)
             if by_email is not None:
-                if by_email.authentik_sub is not None or not adopt_by_email:
+                # A shared email is not proof of ownership: a row reserved for
+                # a specific Authentik account is only claimable by that account.
+                if (
+                    by_email.authentik_sub is not None
+                    or not adopt_by_email
+                    or not await may_claim_by_email(by_email, auth.oidc_sub)
+                ):
                     raise RallyValidationError(EMAIL_IN_USE_MESSAGE)
                 target = by_email
         if target is None:

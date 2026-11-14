@@ -37,10 +37,11 @@ def _settings(trust_unverified=True):
     return s
 
 
-def _user(id=1, sub="sub-1", scopes=None, disabled=False):
+def _user(id=1, sub="sub-1", scopes=None, disabled=False, authentik_uuid=None):
     u = Mock()
     u.id = id
     u.authentik_sub = sub
+    u.authentik_uuid = authentik_uuid
     u.name = "User"
     u.email = "user@ua.pt"
     u.scopes = scopes if scopes is not None else []
@@ -130,14 +131,17 @@ async def test_get_current_user_rekeys_row_linked_under_authentik_uuid():
     row = _user(id=7, sub=legacy_uuid)
     row.authentik_uuid = legacy_uuid
     rekey = AsyncMock()
+    owns = AsyncMock(return_value=True)
     with (
         patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)),
         patch("app.crud.user.get_by_email", new=AsyncMock(return_value=row)),
         patch("app.crud.participation.rekey_sub", new=rekey),
+        patch("app.api.authentik_client.account_has_subject", new=owns),
         patch("app.crud.user.create_for_oidc", new=AsyncMock()) as create_mock,
         patch.object(DetailedUser, "model_validate", return_value=_detailed(row)),
     ):
         result = await deps.get_current_user(_auth(sub="hashed-sub"), db, _settings())
+    owns.assert_awaited_once_with(legacy_uuid, "hashed-sub")
     assert result.id == 7
     assert row.authentik_sub == "hashed-sub"
     assert row.authentik_uuid == legacy_uuid
@@ -163,6 +167,135 @@ async def test_get_current_user_does_not_adopt_row_owned_by_other_subject():
         await deps.get_current_user(_auth(sub="my-sub"), db, _settings())
     assert row.authentik_sub == "3f2b8c1e-9d4a-4b7e-8f21-6c5d4e3a2b10"
     rekey.assert_not_awaited()
+
+
+def _integrity_error():
+    return IntegrityError("dup", None, RuntimeError("duplicate key"))
+
+
+async def test_rekey_refused_when_caller_does_not_own_the_recorded_uuid():
+    """A second Authentik account sharing the verified email must not take over
+    a row stored under the first account's uuid, nor re-key its history."""
+    db = AsyncMock()
+    legacy_uuid = "3f2b8c1e-9d4a-4b7e-8f21-6c5d4e3a2b10"
+    row = _user(id=7, sub=legacy_uuid, authentik_uuid=legacy_uuid)
+    rekey = AsyncMock()
+    with (
+        patch("app.crud.participation.rekey_sub", new=rekey),
+        patch("app.api.authentik_client.account_has_subject", new=AsyncMock(return_value=False)),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=row)),
+    ):
+        adopted = await deps._adopt_email_placeholder(db, _auth(sub="intruder"), _settings())
+    assert adopted is None
+    assert row.authentik_sub == legacy_uuid
+    rekey.assert_not_awaited()
+
+
+async def test_rekeys_row_linked_before_the_uuid_column_once_ownership_is_proven():
+    """Rows linked before ``authentik_uuid`` existed hold the uuid only as the
+    subject; Authentik confirms the caller owns it, and the column is filled."""
+    db = AsyncMock()
+    legacy_uuid = "3f2b8c1e-9d4a-4b7e-8f21-6c5d4e3a2b10"
+    row = _user(id=7, sub=legacy_uuid, authentik_uuid=None)
+    owns = AsyncMock(return_value=True)
+    with (
+        patch("app.crud.participation.rekey_sub", new=AsyncMock()),
+        patch("app.api.authentik_client.account_has_subject", new=owns),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=row)),
+    ):
+        adopted = await deps._adopt_email_placeholder(db, _auth(sub="hashed-sub"), _settings())
+    assert adopted is row
+    assert row.authentik_sub == "hashed-sub"
+    assert row.authentik_uuid == legacy_uuid
+    owns.assert_awaited_once_with(legacy_uuid, "hashed-sub")
+
+
+async def test_never_adopts_row_already_logged_into_under_another_subject():
+    """``authentik_sub`` differing from ``authentik_uuid`` is a real login by
+    someone else: refused without even asking Authentik."""
+    db = AsyncMock()
+    row = _user(id=7, sub="their-real-sub", authentik_uuid="their-uuid")
+    owns = AsyncMock(return_value=True)
+    with (
+        patch("app.api.authentik_client.account_has_subject", new=owns),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=row)),
+    ):
+        adopted = await deps._adopt_email_placeholder(db, _auth(sub="intruder"), _settings())
+    assert adopted is None
+    assert row.authentik_sub == "their-real-sub"
+    owns.assert_not_awaited()
+
+
+async def test_admin_linked_row_adopted_only_by_the_linked_account():
+    """An admin link records the uuid and leaves the subject empty: only the
+    account Authentik confirms may claim it on first login."""
+    db = AsyncMock()
+    row = _user(id=7, sub=None, authentik_uuid="linked-uuid")
+    with (
+        patch("app.api.authentik_client.account_has_subject", new=AsyncMock(return_value=False)),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=row)),
+    ):
+        refused = await deps._adopt_email_placeholder(db, _auth(sub="intruder"), _settings())
+    assert refused is None
+    assert row.authentik_sub is None
+
+    with (
+        patch("app.api.authentik_client.account_has_subject", new=AsyncMock(return_value=True)),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=row)),
+    ):
+        adopted = await deps._adopt_email_placeholder(db, _auth(sub="owner-sub"), _settings())
+    assert adopted is row
+    assert row.authentik_sub == "owner-sub"
+
+
+async def test_adoption_fails_closed_when_authentik_is_unreachable():
+    from app.api.authentik_client import AuthentikUnavailableError
+
+    db = AsyncMock()
+    row = _user(id=7, sub=None, authentik_uuid="linked-uuid")
+    with (
+        patch(
+            "app.api.authentik_client.account_has_subject",
+            new=AsyncMock(side_effect=AuthentikUnavailableError("down")),
+        ),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=row)),
+    ):
+        adopted = await deps._adopt_email_placeholder(db, _auth(sub="owner-sub"), _settings())
+    assert adopted is None
+    assert row.authentik_sub is None
+
+
+async def test_email_collision_after_refused_adoption_is_a_conflict_not_a_login():
+    """When adoption is refused, the insert hits the unique email index. That
+    row belongs to someone else and must never be returned as the caller."""
+    db = AsyncMock()
+    someone_else = _user(id=7, sub="their-real-sub", authentik_uuid="their-uuid")
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(side_effect=[None, None])),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=someone_else)),
+        patch("app.crud.user.create_for_oidc", new=AsyncMock(side_effect=_integrity_error())),
+        pytest.raises(HTTPException) as exc,
+    ):
+        await deps.get_current_user(_auth(sub="intruder"), db, _settings())
+    assert exc.value.status_code == 409
+
+
+async def test_unverified_email_collision_is_a_conflict_not_a_login():
+    """The unique-email retry used to hand over the placeholder that the
+    ``email_verified`` guard had just refused."""
+    db = AsyncMock()
+    placeholder = _user(id=5, sub=None)
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(side_effect=[None, None])),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=placeholder)),
+        patch("app.crud.user.create_for_oidc", new=AsyncMock(side_effect=_integrity_error())),
+        pytest.raises(HTTPException) as exc,
+    ):
+        await deps.get_current_user(
+            _auth(sub="new-sub", email_verified=False), db, _settings(trust_unverified=False)
+        )
+    assert exc.value.status_code == 409
+    assert placeholder.authentik_sub is None
 
 
 async def test_get_current_user_skips_email_backfill_when_email_unverified():

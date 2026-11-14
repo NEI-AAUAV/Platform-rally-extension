@@ -6,8 +6,9 @@ locally after a first OIDC login.
 
 We surface the account ``uuid`` as ``authentik_sub`` for the picker, but it is
 only the OIDC ``sub`` when the provider's subject mode is "user UUID" (the
-default mode hashes it). Links therefore store it as ``user.authentik_uuid`` and
-reconcile with the real subject by email on first login.
+default mode hashes it). Links therefore store it as ``user.authentik_uuid``;
+on first login ``account_has_subject`` proves the caller owns that account
+before the row is handed over.
 """
 
 from dataclasses import dataclass
@@ -83,12 +84,10 @@ async def search_users(q: str, *, limit: int = _SEARCH_LIMIT) -> list[AuthentikU
     return [u for u in parsed if u is not None]
 
 
-async def get_user(uuid: str) -> AuthentikUser | None:
-    """Fetch one Authentik account by its uuid; ``None`` when it does not exist.
+async def _fetch_user_item(uuid: str) -> dict[str, Any] | None:
+    """The raw Authentik user record for ``uuid``; ``None`` when it does not exist.
 
-    Raises ``AuthentikUnavailableError`` on transport errors so callers that
-    must not trust client-supplied account details can refuse instead of
-    silently degrading.
+    Raises ``AuthentikUnavailableError`` on transport errors.
     """
     url = f"{settings.AUTHENTIK_API_URL.rstrip('/')}/core/users/"
     headers = {"Authorization": f"Bearer {settings.AUTHENTIK_API_TOKEN}"}
@@ -102,11 +101,40 @@ async def get_user(uuid: str) -> AuthentikUser | None:
         logger.warning(f"Authentik user lookup failed: {exc}")
         raise AuthentikUnavailableError(str(exc)) from exc
 
-    for item in data.get("results", []):
-        user = _parse_user(item)
-        if user is not None and user.authentik_sub == uuid:
-            return user
-    return None
+    results: list[dict[str, Any]] = data.get("results", [])
+    return next((item for item in results if str(item.get("uuid") or "") == uuid), None)
+
+
+async def get_user(uuid: str) -> AuthentikUser | None:
+    """Fetch one Authentik account by its uuid; ``None`` when it does not exist.
+
+    Raises ``AuthentikUnavailableError`` on transport errors so callers that
+    must not trust client-supplied account details can refuse instead of
+    silently degrading.
+    """
+    item = await _fetch_user_item(uuid)
+    return _parse_user(item) if item is not None else None
+
+
+async def account_has_subject(uuid: str, oidc_sub: str) -> bool:
+    """True when ``oidc_sub`` is the OIDC subject Authentik issues for ``uuid``.
+
+    This is the proof that a login belongs to the account an admin linked:
+    a shared email is not, because Authentik does not enforce unique emails.
+    The subject is one of the account's identifiers depending on the
+    provider's subject mode (hashed id ``uid``, ``uuid``, ``pk`` or
+    ``username``). Email mode is deliberately not matched, for the same
+    reason. ``False`` when the API is not configured (nothing can be proven);
+    raises ``AuthentikUnavailableError`` when it cannot be reached, so callers
+    fail closed.
+    """
+    if not is_configured() or not oidc_sub:
+        return False
+    item = await _fetch_user_item(uuid)
+    if item is None:
+        return False
+    candidates = {item.get("uid"), item.get("uuid"), item.get("pk"), item.get("username")}
+    return oidc_sub in {str(c) for c in candidates if c not in (None, "")}
 
 
 async def list_group_members(group_name: str) -> list[AuthentikUser]:
