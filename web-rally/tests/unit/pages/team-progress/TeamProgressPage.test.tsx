@@ -176,9 +176,26 @@ describe("TeamProgress page", () => {
       expect(screen.getByTestId("route-item-0")).toBeInTheDocument();
     });
 
-    it("leaves the map and team to their bottom-nav pages", () => {
+    it("shows the map between the current post and the route", () => {
+      render(<TeamProgress />);
+      const next = screen.getByTestId("next-checkpoint");
+      const map = screen.getByTestId("map-section");
+      const route = screen.getByTestId("route-item-0");
+      expect(next.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(map.compareDocumentPosition(route) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it("still hides the map when show_checkpoint_map is false", () => {
+      mockUseTeamProgress.mockReturnValue({
+        ...baseHookReturn,
+        settings: { participant_view_enabled: true, show_checkpoint_map: false },
+      });
       render(<TeamProgress />);
       expect(screen.queryByTestId("map-section")).not.toBeInTheDocument();
+    });
+
+    it("leaves the team details to their bottom-nav page", () => {
+      render(<TeamProgress />);
       expect(screen.queryByTestId("members-card")).not.toBeInTheDocument();
       expect(screen.queryByTestId("details-card")).not.toBeInTheDocument();
     });

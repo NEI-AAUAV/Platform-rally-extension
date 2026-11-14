@@ -178,10 +178,9 @@ export default function TeamProgress() {
     </p>
   );
 
-  // Phones: one scroll — what to do now, then where you've been. The map and
-  // the team already have their own tabs in the bottom nav (Postos, Equipa),
-  // so repeating them here only stacked a second navigation on top of it.
-  // Desktop has the room to keep the current task pinned beside the rest.
+  // Phones: one scroll — what to do now, where to go (map), then where you've
+  // been. Team details stay on their own bottom-nav tab (Equipa). Desktop has
+  // the room to keep the current task pinned beside the rest.
   return (
     <div className="min-w-0 space-y-4 duration-500 animate-in fade-in lg:space-y-6">
       {header}
@@ -199,7 +198,7 @@ export default function TeamProgress() {
           )}
         </div>
         <div className="space-y-6">
-          {isDesktop && mapSection}
+          {mapSection}
           {route}
         </div>
       </div>
