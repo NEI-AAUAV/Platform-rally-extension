@@ -128,7 +128,7 @@ export function UserMenu() {
     .toUpperCase();
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3">
+    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
       {isAdmin && (
         <Link
           to="/admin"
@@ -139,7 +139,7 @@ export function UserMenu() {
         </Link>
       )}
 
-      <div className="group relative flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-1.5 py-1 transition-colors hover:bg-accent sm:px-2">
+      <div className="group relative flex min-w-0 cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-1.5 py-1 transition-colors hover:bg-accent sm:px-2">
         {image ? (
           <img
             src={image}
@@ -151,7 +151,7 @@ export function UserMenu() {
             {initials}
           </div>
         )}
-        <span className="hidden max-w-[14ch] truncate text-sm font-semibold sm:inline">
+        <span className="hidden min-w-0 max-w-[12ch] truncate text-sm font-semibold sm:inline lg:max-w-[14ch]">
           {displayName}
         </span>
 

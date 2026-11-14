@@ -139,7 +139,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
         {/* Controls. On mobile the lamp moves next to the hamburger and the
             logged-out login buttons live in the sidebar, so this slot only
             shows the desktop lamp plus the (mobile-aware) user menu. */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 shrink items-center gap-2">
           <ColorModeToggle className="hidden sm:inline-flex" />
           <UserMenu />
         </div>
