@@ -8,7 +8,7 @@ editions and switch the current one without wiping the database.
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Security
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,7 +46,9 @@ from app.schemas.activity import (
     RallyEventUpdate,
 )
 from app.schemas.user import DetailedUser
-from app.services.deps import get_event_service
+from app.services.audit_service import AuditActor
+from app.services.deps import get_event_purge_service, get_event_service
+from app.services.event_purge_service import EventPurgeService
 from app.services.event_service import EVENT_NOT_FOUND, EventService
 
 EVENT_NOT_FOUND_RESPONSES: dict[int | str, dict[str, Any]] = {404: {"description": EVENT_NOT_FOUND}}
@@ -63,6 +65,19 @@ class CloneStructureResponse(BaseModel):
     event_id: int
     source_event_id: int
     created: dict[str, int]
+
+
+class DeleteEventRequest(BaseModel):
+    """The admin must retype the edition's name to confirm a permanent delete."""
+
+    confirm_name: str = Field(min_length=1, max_length=255)
+
+
+class DeleteEventResponse(BaseModel):
+    """How many rows of each kind the delete removed."""
+
+    event_id: int
+    deleted: dict[str, int]
 
 
 class ChangeEventFormatRequest(BaseModel):
@@ -234,6 +249,19 @@ class EventController:
             name="update_event",
             tags=["Events"],
             responses=EVENT_NOT_FOUND_RESPONSES,
+        )
+        self.router.add_api_route(
+            "/events/{event_id}",
+            self.delete_event,
+            methods=["DELETE"],
+            name="delete_event",
+            tags=["Events"],
+            responses={
+                404: {"description": EVENT_NOT_FOUND},
+                400: {
+                    "description": "Current edition, rally running, or confirmation name mismatch"
+                },
+            },
         )
         self.router.add_api_route(
             "/events/{event_id}/set-current",
@@ -560,6 +588,26 @@ class EventController:
             issues=[_serialize_issue(issue) for issue in report.issues],
             ready=report.ready,
         )
+
+    async def delete_event(
+        self,
+        event_id: int,
+        body: DeleteEventRequest,
+        admin: Annotated[DetailedUser, Depends(get_admin)],
+        _auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
+        service: Annotated[EventPurgeService, Depends(get_event_purge_service)],
+    ) -> DeleteEventResponse:
+        """Permanently delete an edition and all its data (admin/manager only).
+
+        Meant for test editions. Refuses the current edition and one whose rally
+        is running; the body must repeat the edition's exact name.
+        """
+        deleted = await service.purge(
+            event_id,
+            confirm_name=body.confirm_name,
+            actor=AuditActor(id=str(admin.id), name=admin.name, kind="user"),
+        )
+        return DeleteEventResponse(event_id=event_id, deleted=deleted)
 
     async def set_current_event(
         self,

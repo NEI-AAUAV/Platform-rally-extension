@@ -12,6 +12,7 @@ from app.services.checkpoint_media_service import CheckpointMediaService
 from app.services.checkpoint_service import CheckpointService
 from app.services.deferred_judging_service import DeferredJudgingService
 from app.services.dynamic_scoring_service import DynamicScoringService
+from app.services.event_purge_service import EventPurgeService
 from app.services.event_service import EventService
 from app.services.export_service import ExportService
 from app.services.guide_service import GuideService
@@ -80,6 +81,10 @@ def get_dynamic_scoring_service(db: SessionDep) -> DynamicScoringService:
 
 def get_event_service(db: SessionDep) -> EventService:
     return EventService(db)
+
+
+def get_event_purge_service(db: SessionDep) -> EventPurgeService:
+    return EventPurgeService(db)
 
 
 def get_export_service(db: SessionDep) -> ExportService:

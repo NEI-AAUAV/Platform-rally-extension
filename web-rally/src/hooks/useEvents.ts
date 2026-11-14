@@ -15,7 +15,7 @@ export function useEvents(enabled = true) {
   });
 }
 
-/** Create / update / set-current mutations, invalidating the events + settings
+/** Create / update / set-current / clone / delete mutations, invalidating the events + settings
  * caches so the shell (event name, accent, switcher) reflects the change. */
 export function useEventMutations() {
   const qc = useQueryClient();
@@ -63,5 +63,11 @@ export function useEventMutations() {
     },
   });
 
-  return { create, update, setCurrent, clone };
+  const remove = useMutation({
+    mutationFn: ({ id, confirmName }: { id: number; confirmName: string }) =>
+      EventsService.deleteEvent(id, confirmName),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, setCurrent, clone, remove };
 }

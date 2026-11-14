@@ -158,3 +158,56 @@ async def test_rotation_schedule_excludes_draft_checkpoints(pg_session, pg_clien
     }
     assert published.id in checkpoint_ids
     assert draft.id not in checkpoint_ids
+
+
+async def test_delete_event_removes_a_test_edition(pg_session, pg_client, as_admin):
+    await rally_event.create(pg_session, obj_in=RallyEventCreate(name="Atual", is_current=True))
+    doomed = await rally_event.create(pg_session, obj_in=RallyEventCreate(name="Teste 1"))
+
+    resp = pg_client.request(
+        "DELETE", f"/api/rally/v1/events/{doomed.id}", json={"confirm_name": "Teste 1"}
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["event_id"] == doomed.id
+    assert pg_client.get(f"/api/rally/v1/events/{doomed.id}").status_code == 404
+
+
+async def test_delete_event_requires_the_exact_name(pg_session, pg_client, as_admin):
+    await rally_event.create(pg_session, obj_in=RallyEventCreate(name="Atual", is_current=True))
+    doomed = await rally_event.create(pg_session, obj_in=RallyEventCreate(name="Teste 2"))
+
+    resp = pg_client.request(
+        "DELETE", f"/api/rally/v1/events/{doomed.id}", json={"confirm_name": "teste"}
+    )
+
+    assert resp.status_code == 400
+    assert pg_client.get(f"/api/rally/v1/events/{doomed.id}").status_code == 200
+
+
+async def test_delete_event_refuses_the_current_edition(pg_session, pg_client, as_admin):
+    current = await rally_event.create(
+        pg_session, obj_in=RallyEventCreate(name="Atual", is_current=True)
+    )
+
+    resp = pg_client.request(
+        "DELETE", f"/api/rally/v1/events/{current.id}", json={"confirm_name": "Atual"}
+    )
+
+    assert resp.status_code == 400
+
+
+def test_delete_event_not_found(pg_client, as_admin):
+    resp = pg_client.request("DELETE", "/api/rally/v1/events/999999", json={"confirm_name": "Nope"})
+
+    assert resp.status_code == 404
+
+
+async def test_delete_event_forbidden_for_non_admin(pg_session, pg_client, as_user):
+    doomed = await rally_event.create(pg_session, obj_in=RallyEventCreate(name="Teste 3"))
+
+    resp = pg_client.request(
+        "DELETE", f"/api/rally/v1/events/{doomed.id}", json={"confirm_name": "Teste 3"}
+    )
+
+    assert resp.status_code == 403

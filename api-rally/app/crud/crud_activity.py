@@ -432,14 +432,9 @@ class CRUDRallyEvent:
         await db.refresh(db_obj)
         return db_obj
 
-    async def remove(self, db: AsyncSession, *, id: int) -> RallyEvent | None:
-        """Remove a rally event"""
-        obj = await db.get(RallyEvent, id)
-        if obj is None:
-            return None
-        await db.delete(obj)
-        await db.commit()
-        return obj
+    # No ``remove`` here on purpose: most tables reference an edition without
+    # ON DELETE CASCADE, so a bare row delete fails on foreign keys. Deleting an
+    # edition goes through ``EventPurgeService``, which clears its data first.
 
 
 # Create instances

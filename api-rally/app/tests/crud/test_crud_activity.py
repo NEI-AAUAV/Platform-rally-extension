@@ -20,7 +20,6 @@ from app.schemas.activity import (
     ActivityCreate,
     ActivityResultCreate,
     ActivityUpdate,
-    RallyEventCreate,
     RallyEventUpdate,
 )
 from app.schemas.activity_types import ActivityType
@@ -204,22 +203,6 @@ def test_rally_event_update_rejects_event_type() -> None:
     """Changing type through the generic update would retain stale settings."""
     with pytest.raises(ValidationError):
         RallyEventUpdate(event_type=EventType.RALLY_TASCAS)
-
-
-async def test_remove_rally_event_missing_returns_none(pg_session) -> None:
-    result = await crud_rally_event.remove(pg_session, id=999999)
-
-    assert result is None
-
-
-async def test_remove_rally_event_existing_deletes_and_returns_it(pg_session) -> None:
-    event = await crud_rally_event.create(pg_session, obj_in=RallyEventCreate(name="To Delete"))
-
-    removed = await crud_rally_event.remove(pg_session, id=event.id)
-
-    assert removed is not None
-    assert removed.id == event.id
-    assert await crud_rally_event.get(pg_session, event.id) is None
 
 
 async def test_concurrent_ensure_current_bootstraps_exactly_one_event(_pg_engine) -> None:

@@ -50,6 +50,12 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
 };
 
 /** What a clone created, per entity, so the UI can report it. */
+/** Rows removed per table when an edition is permanently deleted. */
+export interface DeleteEventResult {
+  event_id: number;
+  deleted: Record<string, number>;
+}
+
 export interface CloneStructureResult {
   event_id: number;
   source_event_id: number;

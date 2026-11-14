@@ -4783,6 +4783,69 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Events",
+          "Events"
+        ],
+        "summary": "Delete Event",
+        "description": "Permanently delete an edition and all its data (admin/manager only).\n\nMeant for test editions. Refuses the current edition and one whose rally\nis running; the body must repeat the edition's exact name.",
+        "operationId": "delete_event",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteEventRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteEventResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "400": {
+            "description": "Current edition, rally running, or confirmation name mismatch"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/rally/v1/events/{event_id}/set-current": {
@@ -10832,6 +10895,44 @@
           "is_completed"
         ],
         "title": "DeferredResultResponse"
+      },
+      "DeleteEventRequest": {
+        "properties": {
+          "confirm_name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Confirm Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "confirm_name"
+        ],
+        "title": "DeleteEventRequest",
+        "description": "The admin must retype the edition's name to confirm a permanent delete."
+      },
+      "DeleteEventResponse": {
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "title": "Event Id"
+          },
+          "deleted": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "deleted"
+        ],
+        "title": "DeleteEventResponse",
+        "description": "How many rows of each kind the delete removed."
       },
       "DetailedCheckPoint": {
         "properties": {

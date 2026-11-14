@@ -1,6 +1,7 @@
 import { client } from "@/client/client.gen";
 import type {
   CloneStructureResult,
+  DeleteEventResult,
   RallyEvent,
   RallyEventCreate,
   RallyEventUpdate,
@@ -69,5 +70,22 @@ export class EventsService {
       path: { event_id: eventId, source_event_id: sourceEventId },
     });
     return data as CloneStructureResult;
+  }
+
+  /**
+   * Permanently delete an edition and everything in it (meant for test
+   * editions). The server refuses the current edition and one whose rally is
+   * running, and requires `confirmName` to repeat the edition's exact name.
+   */
+  public static async deleteEvent(
+    eventId: number,
+    confirmName: string,
+  ): Promise<DeleteEventResult> {
+    const { data } = await client.delete<DeleteEventResult>({
+      url: "/api/rally/v1/events/{event_id}",
+      path: { event_id: eventId },
+      body: { confirm_name: confirmName },
+    });
+    return data as DeleteEventResult;
   }
 }
