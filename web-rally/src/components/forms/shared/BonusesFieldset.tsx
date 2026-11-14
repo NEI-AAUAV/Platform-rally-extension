@@ -58,7 +58,7 @@ function CounterRow({ idPrefix, counter, bonuses, onChange }: Readonly<CounterRo
         {counter.label} (+{Math.abs(counter.points)} pts cada{limitLabel})
       </label>
       {maxCount !== undefined && value >= maxCount && (
-        <output className="text-xs text-amber-600" aria-live="polite">
+        <output className="text-xs text-warning-ink" aria-live="polite">
           Limite atingido: máximo {counter.maxPoints} pontos neste bónus.
         </output>
       )}
@@ -141,7 +141,7 @@ export default function BonusesFieldset({
         O bónus aumenta a pontuação final. Bónus total: {awarded} pontos
       </p>
       {isOverCap && (
-        <output className="mt-1 block text-sm text-amber-600">
+        <output className="mt-1 block text-sm text-warning-ink">
           Introduziste {total} pontos de bónus; serão contados apenas {maxBonusPoints}.
         </output>
       )}

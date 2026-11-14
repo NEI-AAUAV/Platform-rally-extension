@@ -362,7 +362,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
       </div>
 
       {errorMessage && (
-        <div className="flex items-center gap-2 text-xs text-red-500">
+        <div className="flex items-center gap-2 text-xs text-destructive-ink">
           <AlertCircle className="h-4 w-4" />
           {errorMessage}
         </div>

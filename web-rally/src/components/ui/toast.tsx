@@ -66,28 +66,28 @@ const ToastComponent: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast
 
   const config = {
     success: {
-      bg: "bg-green-600",
-      border: "border-green-500",
+      bg: "bg-success",
+      border: "border-success",
       icon: CheckCircle,
-      iconColor: "text-green-800 dark:text-green-300",
+      iconColor: "text-success-ink",
     },
     error: {
-      bg: "bg-red-600",
-      border: "border-red-500",
+      bg: "bg-destructive",
+      border: "border-destructive",
       icon: AlertCircle,
-      iconColor: "text-red-800 dark:text-red-300",
+      iconColor: "text-destructive-ink",
     },
     warning: {
-      bg: "bg-yellow-600",
-      border: "border-yellow-500",
+      bg: "bg-warning",
+      border: "border-warning",
       icon: AlertTriangle,
-      iconColor: "text-yellow-800 dark:text-yellow-300",
+      iconColor: "text-warning-ink",
     },
     info: {
-      bg: "bg-blue-600",
-      border: "border-blue-500",
+      bg: "bg-info",
+      border: "border-info",
       icon: Info,
-      iconColor: "text-blue-800 dark:text-blue-300",
+      iconColor: "text-info-ink",
     },
   };
 

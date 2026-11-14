@@ -131,8 +131,8 @@ export default function ActivityList({
                     <span
                       className={`rounded px-2 py-1 text-xs ${
                         activity.is_active
-                          ? "bg-green-500/20 text-green-700 dark:text-green-400"
-                          : "bg-red-500/20 text-red-700 dark:text-red-400"
+                          ? "bg-success/20 text-success-ink"
+                          : "bg-destructive/20 text-destructive-ink"
                       }`}
                     >
                       {activity.is_active ? "Ativa" : "Inativa"}

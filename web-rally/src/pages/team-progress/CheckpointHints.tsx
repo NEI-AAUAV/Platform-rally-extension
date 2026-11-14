@@ -61,7 +61,7 @@ export default function CheckpointHints({
         </button>
       )}
       {hints.reveal.isError && (
-        <p className="text-center text-xs text-red-500">
+        <p className="text-center text-xs text-destructive-ink">
           {isOfflineFailure(hints.reveal.error)
             ? // Deliberately not queued like an arrival. A check-in is a fact
               // about where the team stood, safe to replay; buying a hint

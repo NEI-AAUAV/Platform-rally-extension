@@ -19,7 +19,7 @@ export default function ReadinessIssue({ issue, onNavigate }: Readonly<Readiness
     tone = "text-destructive";
   } else if (issue.severity === "warning") {
     Icon = AlertTriangle;
-    tone = "text-amber-600";
+    tone = "text-warning-ink";
   }
 
   const intent = onNavigate ? navigationIntentForIssue(issue) : undefined;

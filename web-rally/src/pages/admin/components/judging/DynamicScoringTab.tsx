@@ -151,7 +151,7 @@ function BonusCeilingCard() {
         </button>
       </div>
       {saveMutation.isError && (
-        <div className="flex items-center gap-2 text-xs text-red-500">
+        <div className="flex items-center gap-2 text-xs text-destructive-ink">
           <AlertCircle className="h-4 w-4" /> Erro ao guardar o teto de bónus.
         </div>
       )}
@@ -274,7 +274,7 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
             </label>
           </div>
           {createMutation.isError && (
-            <div className="flex items-center gap-2 text-xs text-red-500">
+            <div className="flex items-center gap-2 text-xs text-destructive-ink">
               <AlertCircle className="h-4 w-4" /> {copy.createErrorLabel}
             </div>
           )}
@@ -339,7 +339,7 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
               onClick={() => toggleMutation.mutate({ id: rule.id, is_active: !rule.is_active })}
             >
               {rule.is_active ? (
-                <ToggleRight className="h-5 w-5 text-green-500" />
+                <ToggleRight className="h-5 w-5 text-success-ink" />
               ) : (
                 <ToggleLeft className="h-5 w-5" />
               )}
@@ -348,7 +348,7 @@ function RulesSection({ kind }: Readonly<{ kind: RuleKind }>) {
               type="button"
               title="Eliminar"
               aria-label={`Eliminar ${copy.noun} ${rule.name}`}
-              className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+              className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-ink"
               onClick={() => {
                 const message =
                   `Eliminar definitivamente ${copy.noun} "${rule.name}"?\n\n` +
@@ -459,7 +459,7 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
             </label>
           </div>
           {createMutation.isError && (
-            <div className="flex items-center gap-2 text-xs text-red-500">
+            <div className="flex items-center gap-2 text-xs text-destructive-ink">
               <AlertCircle className="h-4 w-4" /> Erro ao criar prémio.
             </div>
           )}
@@ -507,7 +507,7 @@ function AwardsSection({ teams }: Readonly<{ teams: readonly ListingTeam[] }>) {
                 type="button"
                 title="Revogar"
                 aria-label={`Revogar prémio de ${teamName(award.team_id)}`}
-                className="rounded-lg p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-ink"
                 onClick={() => {
                   if (confirm("Revogar este prémio?")) deleteMutation.mutate(award.id);
                 }}

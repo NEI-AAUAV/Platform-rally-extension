@@ -209,7 +209,7 @@ export default function QRCodeScanner({
         {/* Video element */}
         {permissionDenied ? (
           <div className="flex aspect-square flex-col items-center justify-center gap-4 bg-muted">
-            <Camera className="h-12 w-12 text-red-500/50" />
+            <Camera className="h-12 w-12 text-destructive-ink/50" />
             <div className="px-4 text-center">
               <p className="mb-2 font-semibold text-foreground">Permissão Negada</p>
               <p className="text-sm text-muted-foreground">
@@ -278,7 +278,7 @@ export default function QRCodeScanner({
             Alinhe o código QR com o quadrado para escanear
           </p>
           {cameraError && !permissionDenied && (
-            <p className="mt-2 text-center text-xs text-red-700 dark:text-red-400">{cameraError}</p>
+            <p className="mt-2 text-center text-xs text-destructive-ink">{cameraError}</p>
           )}
         </div>
 

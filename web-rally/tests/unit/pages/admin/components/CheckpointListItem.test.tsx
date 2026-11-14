@@ -215,6 +215,6 @@ describe("CheckpointListItem", () => {
       </ul>,
     );
 
-    expect(container.querySelector(".lucide-clock")?.parentElement).toHaveClass("text-amber-600");
+    expect(container.querySelector(".lucide-clock")?.parentElement).toHaveClass("text-warning-ink");
   });
 });

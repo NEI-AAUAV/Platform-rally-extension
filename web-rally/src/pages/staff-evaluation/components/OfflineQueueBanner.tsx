@@ -23,7 +23,7 @@ export default function OfflineQueueBanner() {
 
   return (
     <div className="mb-3 space-y-2">
-      <output className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+      <output className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-ink">
         <span className="inline-flex items-center gap-2 font-medium">
           <CloudOff className="h-4 w-4" />
           {pending > 0 && <span>{pending} avaliação(ões) por sincronizar</span>}
@@ -32,7 +32,7 @@ export default function OfflineQueueBanner() {
         <button
           type="button"
           onClick={() => void syncNow()}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/20 px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-amber-500/30"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-warning/20 px-2.5 py-1 text-xs font-semibold transition-colors hover:bg-warning/30"
         >
           <RefreshCw className="h-3.5 w-3.5" /> Sincronizar
         </button>
@@ -41,7 +41,7 @@ export default function OfflineQueueBanner() {
       {failedItems.map((item) => (
         <div
           key={item.idempotencyKey}
-          className="flex items-center justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300"
+          className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive-ink"
         >
           <span className="min-w-0 truncate">
             Equipa {item.teamId}, atividade {item.activityId}: {item.lastError ?? "falha"}
@@ -52,7 +52,7 @@ export default function OfflineQueueBanner() {
               onClick={() => {
                 void retryFailed(item.idempotencyKey).then(() => syncNow());
               }}
-              className="inline-flex items-center gap-1 rounded-lg bg-red-500/20 px-2 py-1 font-semibold transition-colors hover:bg-red-500/30"
+              className="inline-flex items-center gap-1 rounded-lg bg-destructive/20 px-2 py-1 font-semibold transition-colors hover:bg-destructive/30"
             >
               <RotateCcw className="h-3 w-3" /> Tentar de novo
             </button>
@@ -61,7 +61,7 @@ export default function OfflineQueueBanner() {
               onClick={() => {
                 void discard(item.idempotencyKey).then(() => refresh());
               }}
-              className="inline-flex items-center gap-1 rounded-lg bg-red-500/20 px-2 py-1 font-semibold transition-colors hover:bg-red-500/30"
+              className="inline-flex items-center gap-1 rounded-lg bg-destructive/20 px-2 py-1 font-semibold transition-colors hover:bg-destructive/30"
             >
               <Trash2 className="h-3 w-3" /> Descartar
             </button>

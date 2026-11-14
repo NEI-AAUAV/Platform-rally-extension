@@ -77,7 +77,7 @@ function reachedOf(team: ListingTeam): number {
   return team.resolved_checkpoint_orders?.length ?? 0;
 }
 
-const MEDAL_RING = ["ring-amber-400", "ring-zinc-400", "ring-amber-700"];
+const MEDAL_RING = ["ring-warning", "ring-zinc-400", "ring-warning"];
 const ORDINAL = ["1º", "2º", "3º"];
 
 /**

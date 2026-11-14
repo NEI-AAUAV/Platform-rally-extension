@@ -71,11 +71,9 @@ function ChangesSummary({ changes }: Readonly<{ changes: Record<string, unknown>
         return (
           <div key={field} className="flex flex-wrap items-center gap-1 text-xs">
             <span className="font-medium text-muted-foreground">{field}:</span>
-            <span className="text-red-700 line-through dark:text-red-400">
-              {formatValue(before)}
-            </span>
+            <span className="text-destructive-ink line-through">{formatValue(before)}</span>
             <span className="text-muted-foreground">→</span>
-            <span className="text-green-700 dark:text-green-400">{formatValue(after)}</span>
+            <span className="text-success-ink">{formatValue(after)}</span>
           </div>
         );
       })}
@@ -144,9 +142,7 @@ export default function AuditLogTab() {
     }
     if (isError) {
       return (
-        <p className="py-6 text-sm text-red-700 dark:text-red-400">
-          Não foi possível carregar a auditoria.
-        </p>
+        <p className="py-6 text-sm text-destructive-ink">Não foi possível carregar a auditoria.</p>
       );
     }
     if (entries.length === 0) {

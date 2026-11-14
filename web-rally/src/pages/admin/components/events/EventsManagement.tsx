@@ -188,14 +188,14 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
           onClick={() => generateMutation.mutate()}
         >
           {generateMutation.isError ? (
-            <AlertCircle className="mr-1.5 h-3.5 w-3.5 text-red-500" />
+            <AlertCircle className="mr-1.5 h-3.5 w-3.5 text-destructive-ink" />
           ) : (
             <Shuffle className="mr-1.5 h-3.5 w-3.5" />
           )}
           {generateButtonLabel(generateMutation.isPending, Boolean(rounds))}
         </Button>
         {rounds && (
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1.5 text-xs font-semibold text-green-600">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-xs font-semibold text-success-ink">
             <CheckCircle2 className="h-3.5 w-3.5" /> {rounds.length} rondas
           </span>
         )}
@@ -302,11 +302,11 @@ function EventReadiness({ eventId }: Readonly<{ eventId: number }>) {
     );
   const errors = data.issues.filter((issue) => issue.severity === "error").length;
   return data.ready ? (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-success-ink">
       <CheckCircle2 className="h-3.5 w-3.5" /> Pronto
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-warning-ink">
       <AlertCircle className="h-3.5 w-3.5" /> Não pronto · {errors}{" "}
       {errors === 1 ? "erro" : "erros"}
     </span>

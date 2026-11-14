@@ -14,7 +14,7 @@ export default function StatusScreen({ variant, title, description }: StatusScre
           <LoadingState variant="block" message={title} />
         ) : (
           <>
-            <p className="text-lg font-semibold text-red-500">{title}</p>
+            <p className="text-lg font-semibold text-destructive-ink">{title}</p>
             {description && <p className="mt-2 text-sm text-muted-foreground">{description}</p>}
           </>
         )}

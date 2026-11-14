@@ -90,9 +90,9 @@ export default function CheckpointDiscovery({
           {funFacts.map((f) => (
             <li
               key={f.id}
-              className="flex items-start gap-2.5 rounded-xl border border-amber-500/25 bg-amber-50/60 px-3 py-2.5 text-sm text-amber-900 dark:bg-amber-950/25 dark:text-amber-200"
+              className="flex items-start gap-2.5 rounded-xl border border-warning/25 bg-warning/10 px-3 py-2.5 text-sm text-warning-ink"
             >
-              <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-warning-ink" />
               <span>{f.caption}</span>
             </li>
           ))}

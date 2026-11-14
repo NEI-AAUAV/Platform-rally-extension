@@ -48,19 +48,19 @@ const RallyInteractiveCard = forwardRef<
         selected: "bg-muted border-border",
       },
       success: {
-        base: "bg-green-500/10 border-green-500/30",
-        hover: "hover:bg-green-500/20",
-        selected: "bg-green-500/25 border-green-500/50",
+        base: "bg-success/10 border-success/30",
+        hover: "hover:bg-success/20",
+        selected: "bg-success/25 border-success/50",
       },
       warning: {
-        base: "bg-yellow-500/10 border-yellow-500/30",
-        hover: "hover:bg-yellow-500/20",
-        selected: "bg-yellow-500/25 border-yellow-500/50",
+        base: "bg-warning/10 border-warning/30",
+        hover: "hover:bg-warning/20",
+        selected: "bg-warning/25 border-warning/50",
       },
       info: {
-        base: "bg-blue-500/10 border-blue-500/30",
-        hover: "hover:bg-blue-500/20",
-        selected: "bg-blue-500/25 border-blue-500/50",
+        base: "bg-info/10 border-info/30",
+        hover: "hover:bg-info/20",
+        selected: "bg-info/25 border-info/50",
       },
       neutral: {
         base: "bg-muted border-border",

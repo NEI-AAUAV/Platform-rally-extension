@@ -39,6 +39,20 @@
     --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 98%;
 
+    /* Status colours. The bare token is a solid fill that carries white text
+       at >= 4.5:1; `-ink` is the same hue tuned for text/icons sitting on the
+       page or a card (also >= 4.5:1). Tints use the solid token with alpha. */
+    --destructive-ink: 0 72% 38%;
+    --success: 142 72% 29%;
+    --success-foreground: 0 0% 100%;
+    --success-ink: 142 72% 25%;
+    --warning: 32 95% 33%;
+    --warning-foreground: 0 0% 100%;
+    --warning-ink: 30 90% 29%;
+    --info: 221 70% 45%;
+    --info-foreground: 0 0% 100%;
+    --info-ink: 221 70% 40%;
+
     --border: 45 10% 84%;
     --input: 45 10% 80%;
     --ring: 60 4% 7%;
@@ -76,6 +90,17 @@
 
     --destructive: 0 70% 52%;
     --destructive-foreground: 0 0% 98%;
+
+    --destructive-ink: 0 90% 72%;
+    --success: 142 64% 30%;
+    --success-foreground: 0 0% 100%;
+    --success-ink: 142 60% 62%;
+    --warning: 32 90% 34%;
+    --warning-foreground: 0 0% 100%;
+    --warning-ink: 43 96% 62%;
+    --info: 221 65% 48%;
+    --info-foreground: 0 0% 100%;
+    --info-ink: 213 94% 74%;
 
     --border: 60 3% 15%;
     --input: 60 3% 20%;

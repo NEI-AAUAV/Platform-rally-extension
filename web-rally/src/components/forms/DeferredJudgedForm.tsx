@@ -146,7 +146,7 @@ export default function DeferredJudgedForm({
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white transition-colors hover:bg-red-700"
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90"
                   aria-label="Remover foto"
                 >
                   <X className="h-3.5 w-3.5" />

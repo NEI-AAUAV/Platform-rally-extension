@@ -105,7 +105,7 @@ export default function TeamInfo() {
             </div>
 
             {member.is_linked ? (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+              <span className="flex items-center gap-1.5 text-sm font-medium text-success-ink">
                 <CheckCircle2 className="h-4 w-4" />
                 Associado
               </span>

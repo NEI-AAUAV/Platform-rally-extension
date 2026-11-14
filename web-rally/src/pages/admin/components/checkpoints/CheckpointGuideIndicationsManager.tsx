@@ -104,7 +104,7 @@ export default function CheckpointGuideIndicationsManager({ checkpointId }: Prop
                 )}
                 {ind.expected_answer && (
                   <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success-ink" />
                     {ind.expected_answer}
                   </p>
                 )}

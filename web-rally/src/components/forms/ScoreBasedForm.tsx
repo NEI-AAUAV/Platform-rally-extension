@@ -176,7 +176,7 @@ export default function ScoreBasedForm({
             min="0"
             value={displayCount(achievedPoints)}
             onChange={(e) => setAchievedPoints(parseCount(e.target.value))}
-            className="w-full rounded border border-border bg-background p-3 text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:ring-1 focus:ring-ring"
+            className="w-full rounded border border-border bg-background p-3 text-foreground placeholder:text-muted-foreground focus:border-destructive focus:ring-1 focus:ring-ring"
             placeholder="Introduz os pontos alcançados"
             required
           />

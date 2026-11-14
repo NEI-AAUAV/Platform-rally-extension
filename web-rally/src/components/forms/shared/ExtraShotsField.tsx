@@ -42,7 +42,7 @@ export default function ExtraShotsField({
         {maxExtraShotsPerMember} por membro da equipa)
       </p>
       {extraShots > maxExtraShots && (
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-red-700 dark:text-red-400">
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-destructive-ink">
           <AlertTriangle className="h-4 w-4" />
           Excede o máximo permitido de shots extra ({maxExtraShots})
         </p>

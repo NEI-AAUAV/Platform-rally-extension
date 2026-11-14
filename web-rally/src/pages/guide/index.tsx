@@ -88,9 +88,9 @@ function MediaGallery({ media }: Readonly<{ media: readonly GuideMediaItem[] }>)
             .map((item) => (
               <li
                 key={item.id}
-                className="flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-foreground"
+                className="flex items-start gap-2 rounded-lg bg-warning/10 px-3 py-2 text-sm text-foreground"
               >
-                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-warning-ink" />
                 <span>{item.caption}</span>
               </li>
             ))}
@@ -143,7 +143,7 @@ function IndicationList({
               {purchased.has(ind.id) && (
                 // Already paid for in the app. Reading it out again hands back,
                 // for free, what the team spent points on.
-                <p className="mb-1 text-xs font-semibold text-amber-600">
+                <p className="mb-1 text-xs font-semibold text-warning-ink">
                   Já comprada por uma equipa
                 </p>
               )}
@@ -156,7 +156,7 @@ function IndicationList({
               )}
               {ind.expected_answer && (
                 <p className="mt-1 flex items-start gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success-ink" />
                   <span>{ind.expected_answer}</span>
                 </p>
               )}

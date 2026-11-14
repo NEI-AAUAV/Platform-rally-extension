@@ -50,7 +50,7 @@ function StatusDot({ order, isCompleted, isSkipped, isCurrent, isFuture }: Statu
       className={cn(
         "rally-num grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold",
         isCompleted && "rally-bg-accent text-white",
-        isSkipped && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+        isSkipped && "bg-warning/15 text-warning-ink",
         isCurrent &&
           "rally-bg-accent text-white ring-4 ring-[var(--rally-accent-soft,var(--rally-accent-soft-fallback))]",
         isFuture && "border border-dashed border-border text-muted-foreground",

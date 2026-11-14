@@ -101,7 +101,7 @@ export default function ClueImageField({
         }}
         className="hidden"
       />
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-destructive-ink">{error}</p>}
       <BloodyButton
         type="button"
         variant="neutral"

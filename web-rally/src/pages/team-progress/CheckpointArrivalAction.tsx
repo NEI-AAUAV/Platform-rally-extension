@@ -5,19 +5,19 @@ import type { GpsState } from "./useCheckpointArrival";
 const BUTTON_CLASSES: Record<GpsState, string> = {
   idle: "rally-bg-accent text-white shadow-[var(--rally-shadow-sm)] hover:brightness-110",
   locating: "border border-border bg-card text-foreground hover:bg-accent/40",
-  done: "cursor-default bg-green-500/15 text-green-600",
-  queued: "bg-amber-500/15 text-amber-600",
+  done: "cursor-default bg-success/15 text-success-ink",
+  queued: "bg-warning/15 text-warning-ink",
   // Retrying is the next step, so it keeps the primary look; the message
   // below carries the error, not the button.
   error: "rally-bg-accent text-white shadow-[var(--rally-shadow-sm)] hover:brightness-110",
 };
 
 const MESSAGE_CLASSES: Record<GpsState, string> = {
-  idle: "text-red-500",
-  locating: "text-red-500",
-  done: "text-green-600",
-  queued: "text-amber-600",
-  error: "text-red-500",
+  idle: "text-destructive-ink",
+  locating: "text-destructive-ink",
+  done: "text-success-ink",
+  queued: "text-warning-ink",
+  error: "text-destructive-ink",
 };
 
 function ButtonContent({
@@ -151,7 +151,7 @@ export default function CheckpointArrivalAction({
             <p className={["text-center text-xs", MESSAGE_CLASSES[gpsState]].join(" ")}>{gpsMsg}</p>
           )}
           {isQueuedHere && gpsState !== "queued" && (
-            <p className="text-center text-xs text-amber-600">
+            <p className="text-center text-xs text-warning-ink">
               Há um check-in por enviar para este local. Será enviado assim que houver ligação.
             </p>
           )}
