@@ -116,25 +116,42 @@ async def get_user(uuid: str) -> AuthentikUser | None:
     return _parse_user(item) if item is not None else None
 
 
+# Authentik subject mode -> the user-record field it places in ``sub``. Only
+# identifiers the account owner cannot change; username/email/UPN modes are
+# absent on purpose, so they never count as proof of ownership.
+_SUBJECT_FIELD_BY_MODE = {
+    "hashed_user_id": "uid",
+    "user_uuid": "uuid",
+    "user_id": "pk",
+}
+
+
 async def account_has_subject(uuid: str, oidc_sub: str) -> bool:
     """True when ``oidc_sub`` is the OIDC subject Authentik issues for ``uuid``.
 
-    This is the proof that a login belongs to the account an admin linked:
-    a shared email is not, because Authentik does not enforce unique emails.
-    The subject is one of the account's identifiers depending on the
-    provider's subject mode (hashed id ``uid``, ``uuid``, ``pk`` or
-    ``username``). Email mode is deliberately not matched, for the same
-    reason. ``False`` when the API is not configured (nothing can be proven);
-    raises ``AuthentikUnavailableError`` when it cannot be reached, so callers
+    This is the proof that a login belongs to the account an admin linked: a
+    shared email is not, because Authentik does not enforce unique emails.
+    Only the single identifier selected by ``OIDC_SUBJECT_MODE`` is compared,
+    so a subject from another identifier space (e.g. a username crafted to
+    equal someone's uuid) cannot match. ``False`` when the API is not
+    configured or the mode is mutable/unknown; raises
+    ``AuthentikUnavailableError`` when Authentik cannot be reached, so callers
     fail closed.
     """
+    field = _SUBJECT_FIELD_BY_MODE.get(settings.OIDC_SUBJECT_MODE)
+    if field is None:
+        logger.warning(
+            f"OIDC_SUBJECT_MODE={settings.OIDC_SUBJECT_MODE!r} cannot prove account "
+            "ownership; refusing to hand linked rows over."
+        )
+        return False
     if not is_configured() or not oidc_sub:
         return False
     item = await _fetch_user_item(uuid)
     if item is None:
         return False
-    candidates = {item.get("uid"), item.get("uuid"), item.get("pk"), item.get("username")}
-    return oidc_sub in {str(c) for c in candidates if c not in (None, "")}
+    expected = item.get(field)
+    return expected not in (None, "") and str(expected) == oidc_sub
 
 
 async def list_group_members(group_name: str) -> list[AuthentikUser]:

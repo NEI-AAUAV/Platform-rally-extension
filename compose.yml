@@ -68,6 +68,7 @@ services:
       # without requiring a prior login for the account to appear.
       AUTHENTIK_API_URL: ${AUTHENTIK_API_URL:-}
       AUTHENTIK_API_TOKEN: ${AUTHENTIK_API_TOKEN:-}
+      OIDC_SUBJECT_MODE: ${OIDC_SUBJECT_MODE:-hashed_user_id}
       # Team auth (rally-minted HS256 tokens) — unrelated to staff OIDC.
       TEAM_JWT_SECRET_KEY: ${TEAM_JWT_SECRET_KEY:-dev_secret_key_change_me_in_production_12345}
       # Team QR self-check-in. Staff display a rotating QR; teams scan it to

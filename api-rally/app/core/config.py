@@ -223,6 +223,13 @@ class Settings(BaseSettings):
     # AUTHENTIK_API_URL points at the API root, e.g. "https://auth.example.com/api/v3".
     AUTHENTIK_API_URL: str = os.getenv("AUTHENTIK_API_URL", "")
     AUTHENTIK_API_TOKEN: str = os.getenv("AUTHENTIK_API_TOKEN", "")
+    # The rally provider's "Subject mode" in Authentik. Used to prove that a
+    # login belongs to the Authentik account an admin linked: only the
+    # identifier this mode puts in ``sub`` is compared. Immutable modes only —
+    # hashed_user_id (Authentik's default), user_uuid or user_id. Mutable ones
+    # (user_username, user_email, user_upn) prove nothing and disable the
+    # check, so such links are then refused rather than trusted.
+    OIDC_SUBJECT_MODE: str = os.getenv("OIDC_SUBJECT_MODE") or "hashed_user_id"
 
     # Team authentication (independent: rally mints its own HS256 team tokens)
     ## Secret key for team JWT tokens

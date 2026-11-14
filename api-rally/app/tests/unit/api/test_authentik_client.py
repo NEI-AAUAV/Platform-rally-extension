@@ -180,26 +180,57 @@ def _account_handler(results):
     return handler
 
 
+def _mode(monkeypatch, mode):
+    monkeypatch.setattr(settings, "OIDC_SUBJECT_MODE", mode)
+
+
 @pytest.mark.parametrize(
-    "subject",
-    [_ACCOUNT["uid"], _ACCOUNT["uuid"], str(_ACCOUNT["pk"]), _ACCOUNT["username"]],
-    ids=["hashed-id", "uuid", "pk", "username"],
+    ("mode", "subject"),
+    [
+        ("hashed_user_id", _ACCOUNT["uid"]),
+        ("user_uuid", _ACCOUNT["uuid"]),
+        ("user_id", str(_ACCOUNT["pk"])),
+    ],
 )
-async def test_account_has_subject_accepts_every_authentik_subject_mode(monkeypatch, subject):
+async def test_account_has_subject_accepts_the_configured_mode_identifier(
+    monkeypatch, mode, subject
+):
     _configured(monkeypatch)
+    _mode(monkeypatch, mode)
     with patch.object(
         authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([_ACCOUNT]))
     ):
         assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], subject) is True
 
 
-async def test_account_has_subject_rejects_another_accounts_subject(monkeypatch):
-    """A second Authentik account sharing the email has its own subject."""
+@pytest.mark.parametrize(
+    "subject",
+    [_ACCOUNT["uuid"], str(_ACCOUNT["pk"]), _ACCOUNT["username"]],
+    ids=["uuid", "pk", "username"],
+)
+async def test_account_has_subject_ignores_identifiers_of_other_modes(monkeypatch, subject):
+    """In hashed-id mode a subject that equals the account's uuid, pk or
+    username came from a different identifier space, e.g. an attacker whose
+    username was set to the victim's uuid under another provider."""
     _configured(monkeypatch)
+    _mode(monkeypatch, "hashed_user_id")
     with patch.object(
         authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([_ACCOUNT]))
     ):
-        assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], "other-sub") is False
+        assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], subject) is False
+
+
+@pytest.mark.parametrize("mode", ["user_username", "user_email", "user_upn", "bogus"])
+async def test_account_has_subject_refuses_mutable_or_unknown_modes(monkeypatch, mode):
+    """Usernames and emails can be changed by their owner, so they prove
+    nothing; an unknown mode is treated the same way."""
+    _configured(monkeypatch)
+    _mode(monkeypatch, mode)
+    with patch.object(
+        authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([_ACCOUNT]))
+    ):
+        for subject in (_ACCOUNT["username"], _ACCOUNT["email"], _ACCOUNT["uid"]):
+            assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], subject) is False
 
 
 async def test_account_has_subject_never_matches_on_email(monkeypatch):
