@@ -182,4 +182,60 @@ test.describe("Admin events", () => {
 
     await expect(page.getByText("Não foi possível carregar as edições.")).toBeVisible();
   });
+  test("deletes a test edition only after retyping its name", async ({ page, context }) => {
+    await mockSettings(page);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockEvents(page, [
+      event({ id: 1, name: "Rally Real", is_current: true }),
+      event({ id: 9, name: "Teste QA" }),
+    ]);
+    let deleteBody: unknown = null;
+    await page.route("**/api/rally/v1/events/9", (route) => {
+      if (route.request().method() !== "DELETE") return route.fallback();
+      deleteBody = route.request().postDataJSON();
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ event_id: 9, deleted: { teams: 2, checkpoints: 3 } }),
+      });
+    });
+
+    await gotoEvents(page);
+    // The current edition never offers delete.
+    await expect(page.getByRole("button", { name: "Eliminar edição Rally Real" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Eliminar edição Teste QA" }).click();
+
+    const confirm = page.getByRole("button", { name: "Eliminar edição", exact: true });
+    await expect(confirm).toBeDisabled();
+    await page.getByLabel(/para confirmar/).fill("Teste");
+    await expect(confirm).toBeDisabled();
+    await page.getByLabel(/para confirmar/).fill("Teste QA");
+    await confirm.click();
+
+    await expect(page.getByText('Edição "Teste QA" eliminada (5 registos)')).toBeVisible();
+    expect(deleteBody).toEqual({ confirm_name: "Teste QA" });
+  });
+
+  test("shows the server refusal inside the delete dialog", async ({ page, context }) => {
+    await mockSettings(page);
+    await seedOidcSession(context, ADMIN_GROUPS);
+    await mockEvents(page, [event({ id: 9, name: "A decorrer" })]);
+    await page.route("**/api/rally/v1/events/9", (route) => {
+      if (route.request().method() !== "DELETE") return route.fallback();
+      return route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: "Não é possível eliminar uma edição com o rally a decorrer.",
+        }),
+      });
+    });
+
+    await gotoEvents(page);
+    await page.getByRole("button", { name: "Eliminar edição A decorrer" }).click();
+    await page.getByLabel(/para confirmar/).fill("A decorrer");
+    await page.getByRole("button", { name: "Eliminar edição", exact: true }).click();
+
+    await expect(page.getByRole("alert").filter({ hasText: "rally a decorrer" })).toBeVisible();
+  });
 });

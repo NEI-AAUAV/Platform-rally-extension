@@ -17,6 +17,7 @@ import {
 import { changeEventFormat, eventConfigurationStatus, generateRotationSchedule } from "@/client";
 import { downloadEventResults, downloadEventReport } from "@/services/eventExport";
 import RotationScheduleView from "./RotationScheduleView";
+import DeleteEventDialog from "./DeleteEventDialog";
 import { EmptyState, LoadingState } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -519,6 +520,9 @@ export default function EventsManagement() {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
+                {/* The current edition is what every public page resolves to;
+                    switch to another one first to delete it. */}
+                {!ev.is_current && <DeleteEventDialog event={ev} />}
               </div>
             </div>
 

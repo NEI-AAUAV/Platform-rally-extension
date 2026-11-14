@@ -49,6 +49,7 @@ vi.mock("@/hooks/useEvents", () => ({
     update: { mutate: mockUpdateMutate, isPending: false },
     setCurrent: { mutate: mockSetCurrentMutate, isPending: false },
     clone: { mutate: mockCloneMutate, isPending: false },
+    remove: { mutate: vi.fn(), isPending: false },
   }),
 }));
 
