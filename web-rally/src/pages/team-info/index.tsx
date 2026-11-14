@@ -97,7 +97,7 @@ export default function TeamInfo() {
               <p className="font-semibold text-foreground">
                 {member.name}
                 {member.is_captain && (
-                  <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                  <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                     Capitão
                   </span>
                 )}

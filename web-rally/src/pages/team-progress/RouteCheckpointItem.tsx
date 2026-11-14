@@ -106,9 +106,7 @@ function CompletedMeta({
       {score !== null && (
         <span className="rally-num rally-accent text-sm font-bold">+{score} pts</span>
       )}
-      {time && (
-        <span className="rally-num text-[11px] text-muted-foreground">{formatTime(time)}</span>
-      )}
+      {time && <span className="rally-num text-xs text-muted-foreground">{formatTime(time)}</span>}
     </span>
   );
 }

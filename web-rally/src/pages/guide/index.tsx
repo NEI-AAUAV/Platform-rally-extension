@@ -203,7 +203,7 @@ function CheckpointCard({ cp }: Readonly<{ cp: GuideCheckpointResponse }>) {
           <div className="flex items-center gap-2">
             <p className="font-semibold leading-tight">{cp.name}</p>
             {cp.is_current && (
-              <span className="rally-accent shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+              <span className="rally-accent shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide">
                 Atual
               </span>
             )}

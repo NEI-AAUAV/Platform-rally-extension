@@ -329,13 +329,13 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                       <div className="flex flex-col gap-0.5">
                         <Badge
                           variant="outline"
-                          className="w-fit border-border text-[10px] text-muted-foreground"
+                          className="w-fit border-border text-xs text-muted-foreground"
                         >
                           {new Date(evaluation.completed_at).toLocaleDateString()}
                         </Badge>
                         <Badge
                           variant="outline"
-                          className="w-fit border-border text-[10px] text-muted-foreground"
+                          className="w-fit border-border text-xs text-muted-foreground"
                         >
                           {new Date(evaluation.completed_at).toLocaleTimeString("en-US", {
                             hour: "2-digit",

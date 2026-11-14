@@ -170,9 +170,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
             onChange={(e) => setForm({ ...form, code: e.target.value })}
           />
           {isEdit && (
-            <span className="text-[10px] text-muted-foreground">
-              O código não pode ser alterado.
-            </span>
+            <span className="text-xs text-muted-foreground">O código não pode ser alterado.</span>
           )}
         </label>
         <label className="space-y-1" data-admin-search-key="badge_name">
@@ -247,7 +245,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
           </label>
         </div>
       </div>
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Uma imagem carregada substitui a cor + emoji no showcase.
       </p>
 
@@ -286,7 +284,7 @@ export default function BadgeForm({ editing, onDone }: BadgeFormProps) {
                 </SelectContent>
               </Select>
               {selectedTrigger && (
-                <span className="text-[11px] text-muted-foreground">{selectedTrigger.help}</span>
+                <span className="text-xs text-muted-foreground">{selectedTrigger.help}</span>
               )}
             </label>
 

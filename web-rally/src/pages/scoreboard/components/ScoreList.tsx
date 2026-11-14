@@ -161,20 +161,12 @@ export function Podium({
               </span>
             </p>
             {reached > 0 && (
-              <p
-                className={["mt-0.5 text-[0.7rem]", champion ? "" : "text-muted-foreground"].join(
-                  " ",
-                )}
-              >
+              <p className={["mt-0.5 text-xs", champion ? "" : "text-muted-foreground"].join(" ")}>
                 {reachedLabel(reached, checkpointsCount, terms)}
               </p>
             )}
             {showPace && team.elapsed_seconds != null && (
-              <p
-                className={["mt-0.5 text-[0.7rem]", champion ? "" : "text-muted-foreground"].join(
-                  " ",
-                )}
-              >
+              <p className={["mt-0.5 text-xs", champion ? "" : "text-muted-foreground"].join(" ")}>
                 {formatElapsed(team.elapsed_seconds)}
               </p>
             )}

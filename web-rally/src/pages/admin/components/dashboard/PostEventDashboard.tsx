@@ -73,7 +73,7 @@ export default function PostEventDashboard() {
                 </span>
                 <span className="rally-num shrink-0 text-[15px] font-bold tabular-nums text-foreground">
                   {team.total}
-                  <span className="ml-0.5 text-[10px] font-medium text-muted-foreground">pts</span>
+                  <span className="ml-0.5 text-xs font-medium text-muted-foreground">pts</span>
                 </span>
               </div>
             ))}

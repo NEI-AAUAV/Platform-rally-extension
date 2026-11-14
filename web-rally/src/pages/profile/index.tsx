@@ -41,7 +41,7 @@ function ParticipationCard({ entry }: Readonly<{ entry: ParticipationEntry }>) {
               {entry.event_name}
             </h3>
             {entry.is_captain && (
-              <span className="rally-bg-accent-soft inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-foreground">
+              <span className="rally-bg-accent-soft inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-foreground">
                 <Crown className="h-3 w-3" /> Capitão
               </span>
             )}
@@ -172,7 +172,7 @@ export default function Profile() {
                 {roleLabels(userScopes).map((label) => (
                   <span
                     key={label}
-                    className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                    className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
                   >
                     {label}
                   </span>

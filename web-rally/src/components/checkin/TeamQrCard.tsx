@@ -28,7 +28,7 @@ export function TeamQrCard({ accessCode }: TeamQrCardProps) {
           <QRCodeSVG value={accessCode} size={120} level="M" />
         </div>
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
             Código
           </p>
           <p className="rally-display mt-1 break-all font-mono text-xl font-bold tracking-[0.14em] text-foreground sm:text-2xl">

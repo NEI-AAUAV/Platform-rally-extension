@@ -479,7 +479,7 @@ export default function EventsManagement() {
                     {ev.name}
                   </h3>
                   {ev.is_current && (
-                    <span className="rally-bg-accent inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white">
+                    <span className="rally-bg-accent inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-white">
                       <Star className="h-3 w-3" /> Atual
                     </span>
                   )}
@@ -524,7 +524,7 @@ export default function EventsManagement() {
                 each group full-width, desktop lets them sit inline. */}
             <div className="mt-5 grid grid-cols-1 gap-4 border-t border-border/60 pt-4 sm:grid-cols-3">
               <div className="min-w-0 space-y-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Exportar
                 </span>
                 <div className="flex flex-wrap gap-2">
@@ -533,7 +533,7 @@ export default function EventsManagement() {
                 </div>
               </div>
               <div className="min-w-0 space-y-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Formato
                 </span>
                 <ChangeFormatButton event={ev} />
@@ -544,7 +544,7 @@ export default function EventsManagement() {
                 )}
               </div>
               <div className="min-w-0 space-y-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Copiar estrutura
                 </span>
                 <CloneStructureButton event={ev} others={list.filter((o) => o.id !== ev.id)} />

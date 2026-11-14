@@ -85,7 +85,7 @@ export default function PeddyPaperSettings({ className = "" }: PeddyPaperSetting
                   <label htmlFor="qr_checkin_enabled" className="text-sm font-medium leading-snug">
                     Check-in por QR Code feito pela equipa
                   </label>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                     {qrStatusLabel}
                   </span>
                 </div>

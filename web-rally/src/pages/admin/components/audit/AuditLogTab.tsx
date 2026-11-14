@@ -172,7 +172,7 @@ export default function AuditLogTab() {
           Filtros
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">Ação</span>
+          <span className="text-xs text-muted-foreground">Ação</span>
 
           <Select
             value={action}
@@ -194,7 +194,7 @@ export default function AuditLogTab() {
           </Select>
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">Alvo</span>
+          <span className="text-xs text-muted-foreground">Alvo</span>
 
           <Select
             value={targetType}
@@ -216,7 +216,7 @@ export default function AuditLogTab() {
           </Select>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="audit-since" className="text-[11px] text-muted-foreground">
+          <label htmlFor="audit-since" className="text-xs text-muted-foreground">
             Desde
           </label>
           <Input
@@ -231,7 +231,7 @@ export default function AuditLogTab() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="audit-until" className="text-[11px] text-muted-foreground">
+          <label htmlFor="audit-until" className="text-xs text-muted-foreground">
             Até
           </label>
           <Input

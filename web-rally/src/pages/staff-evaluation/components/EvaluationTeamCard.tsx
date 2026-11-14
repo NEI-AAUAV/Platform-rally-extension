@@ -73,7 +73,7 @@ export function EvaluationTeamCard({
       </div>
       <span
         className={cn(
-          "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
+          "shrink-0 rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide",
           cfg.badgeClass,
         )}
       >

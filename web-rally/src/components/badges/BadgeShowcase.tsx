@@ -55,7 +55,7 @@ export function BadgeShowcase({ teamId }: BadgeShowcaseProps) {
             {earnedCount}
             <span className="ml-1 text-[16px] text-muted-foreground">/{total}</span>
           </div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
             Conquistadas
           </div>
         </div>

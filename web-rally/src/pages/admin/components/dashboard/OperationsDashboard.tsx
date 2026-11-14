@@ -105,7 +105,7 @@ function StatCard({
         </p>
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         {status === "error" && (
-          <p className="flex items-center gap-1 text-[11px] font-medium text-destructive-ink">
+          <p className="flex items-center gap-1 text-xs font-medium text-destructive-ink">
             <AlertTriangle className="h-3 w-3" aria-hidden="true" />
             Indisponível
           </p>
@@ -349,7 +349,7 @@ export default function OperationsDashboard() {
                 </span>
                 <span className="rally-num shrink-0 text-[15px] font-bold tabular-nums text-foreground">
                   {team.total}
-                  <span className="ml-0.5 text-[10px] font-medium text-muted-foreground">pts</span>
+                  <span className="ml-0.5 text-xs font-medium text-muted-foreground">pts</span>
                 </span>
               </div>
             ))}

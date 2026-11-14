@@ -83,7 +83,7 @@ export default function BadgeAdminTab() {
                   <p className="mt-0.5 text-xs text-muted-foreground">{badge.description}</p>
                 )}
                 <span
-                  className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
                     badge.is_auto ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                   }`}
                 >
