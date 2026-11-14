@@ -122,6 +122,49 @@ async def test_get_current_user_backfills_email_placeholder():
     create_mock.assert_not_awaited()
 
 
+async def test_get_current_user_rekeys_row_linked_under_authentik_uuid():
+    """Legacy admin links stored the Authentik uuid as the subject. On login
+    with the real (hashed) subject the row and its history are re-keyed."""
+    db = AsyncMock()
+    legacy_uuid = "3f2b8c1e-9d4a-4b7e-8f21-6c5d4e3a2b10"
+    row = _user(id=7, sub=legacy_uuid)
+    row.authentik_uuid = legacy_uuid
+    rekey = AsyncMock()
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=row)),
+        patch("app.crud.participation.rekey_sub", new=rekey),
+        patch("app.crud.user.create_for_oidc", new=AsyncMock()) as create_mock,
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(row)),
+    ):
+        result = await deps.get_current_user(_auth(sub="hashed-sub"), db, _settings())
+    assert result.id == 7
+    assert row.authentik_sub == "hashed-sub"
+    assert row.authentik_uuid == legacy_uuid
+    rekey.assert_awaited_once_with(db, old_sub=legacy_uuid, new_sub="hashed-sub")
+    create_mock.assert_not_awaited()
+
+
+async def test_get_current_user_does_not_adopt_row_owned_by_other_subject():
+    """A row whose subject is not its recorded Authentik uuid belongs to someone
+    else — even when that subject is uuid-shaped (UUID subject mode). Sharing an
+    email must not hand it over."""
+    db = AsyncMock()
+    row = _user(id=7, sub="3f2b8c1e-9d4a-4b7e-8f21-6c5d4e3a2b10")
+    row.authentik_uuid = None
+    rekey = AsyncMock()
+    with (
+        patch("app.crud.user.get_by_authentik_sub", new=AsyncMock(return_value=None)),
+        patch("app.crud.user.get_by_email", new=AsyncMock(return_value=row)),
+        patch("app.crud.participation.rekey_sub", new=rekey),
+        patch("app.crud.user.create_for_oidc", new=AsyncMock(return_value=_user(id=8))),
+        patch.object(DetailedUser, "model_validate", return_value=_detailed(_user(id=8))),
+    ):
+        await deps.get_current_user(_auth(sub="my-sub"), db, _settings())
+    assert row.authentik_sub == "3f2b8c1e-9d4a-4b7e-8f21-6c5d4e3a2b10"
+    rekey.assert_not_awaited()
+
+
 async def test_get_current_user_skips_email_backfill_when_email_unverified():
     """M12: with OIDC_TRUST_UNVERIFIED_EMAIL off, an unverified email claim must
     never adopt a pre-mirrored placeholder row -- an attacker who merely claims

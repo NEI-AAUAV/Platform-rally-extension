@@ -34,10 +34,13 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     async def get_by_authentik_subs(
         self, db: AsyncSession, *, authentik_subs: list[str]
     ) -> Sequence[User]:
-        """Fetch locally-mirrored users for a set of OIDC subjects."""
+        """Fetch local users whose OIDC subject *or* Authentik uuid is in the set
+        (admin search hands out uuids, which equal the subject only in UUID mode)."""
         if not authentik_subs:
             return []
-        stmt = select(User).where(User.authentik_sub.in_(authentik_subs))
+        stmt = select(User).where(
+            or_(User.authentik_sub.in_(authentik_subs), User.authentik_uuid.in_(authentik_subs))
+        )
         return list((await db.scalars(stmt)).all())
 
     async def search_oidc_users(
@@ -68,8 +71,13 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         name: str,
         email: str | None,
         scopes: list[str],
+        commit: bool = True,
     ) -> User:
-        """Create a local user mirroring an authentik identity on first login."""
+        """Create a local user mirroring an authentik identity on first login.
+
+        ``commit=False`` only flushes, so a caller can keep the insert inside its
+        own transaction (e.g. a link that must not leave a stray row behind).
+        """
         db_obj = User(
             authentik_sub=authentik_sub,
             name=name,
@@ -77,6 +85,9 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             scopes=scopes,
         )
         db.add(db_obj)
+        if not commit:
+            await db.flush()
+            return db_obj
         await db.commit()
         await db.refresh(db_obj)
         return db_obj

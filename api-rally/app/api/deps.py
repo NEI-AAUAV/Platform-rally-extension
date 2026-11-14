@@ -30,6 +30,21 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
 
 
+def _holds_authentik_uuid_as_sub(user: Any, oidc_sub: str) -> bool:
+    """True only when the row *provably* holds its Authentik uuid as subject.
+
+    The uuid shape alone proves nothing (in "user UUID" subject mode every
+    real subject is a uuid), and inferring from it would let a second account
+    sharing a verified email take the row over. Rows linked before
+    ``authentik_uuid`` existed keep working through the email fallback in
+    ``get_current_user``.
+    """
+    stored: str | None = user.authentik_sub
+    if stored is None or stored == oidc_sub:
+        return False
+    return user.authentik_uuid is not None and stored == user.authentik_uuid
+
+
 async def _adopt_email_placeholder(
     db: AsyncSession, auth: AuthData, settings: Settings
 ) -> Any | None:
@@ -57,8 +72,16 @@ async def _adopt_email_placeholder(
         )
         return None
     placeholder = await crud.user.get_by_email(db, email=auth.email)
-    if placeholder is None or placeholder.authentik_sub is not None:
+    if placeholder is None:
         return None
+    if placeholder.authentik_sub is not None:
+        if not _holds_authentik_uuid_as_sub(placeholder, auth.oidc_sub):
+            return None
+        # Linked by an admin before the uuid got its own column: the uuid was
+        # stored as the subject. Re-key the row and its history to the real sub.
+        old_sub = placeholder.authentik_sub
+        placeholder.authentik_uuid = placeholder.authentik_uuid or old_sub
+        await crud.participation.rekey_sub(db, old_sub=old_sub, new_sub=auth.oidc_sub)
     placeholder.authentik_sub = auth.oidc_sub
     placeholder.name = auth.name
     placeholder.scopes = auth.scopes

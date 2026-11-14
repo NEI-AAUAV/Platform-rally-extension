@@ -353,7 +353,7 @@ class TestLinkSelfTeamMember:
         finally:
             self._clear_oidc_override()
 
-        assert resp.status_code == 404
+        assert resp.status_code == 403  # same as a wrong code: no team-id enumeration
 
     async def test_link_self_user_not_found(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)

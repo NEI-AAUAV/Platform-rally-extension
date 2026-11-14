@@ -76,7 +76,11 @@ class ProfileService:
         if team is None:
             raise RallyNotFoundError("Team not found")
 
-        stmt = select(User).where(User.team_id == team.id, User.authentik_sub.is_(None))
+        stmt = select(User).where(
+            User.team_id == team.id,
+            User.authentik_sub.is_(None),
+            User.authentik_uuid.is_(None),
+        )
         members = list((await self._db.scalars(stmt)).all())
         return ClaimableTeam(
             team_id=team.id,
@@ -100,7 +104,7 @@ class ProfileService:
         member = await self._db.get(User, member_user_id)
         if member is None:
             raise RallyNotFoundError("Member not found")
-        if member.authentik_sub is not None:
+        if member.is_linked:
             raise RallyValidationError("This member is already linked to an account")
         if member.team_id is None:
             raise RallyValidationError("This member is not on a team")

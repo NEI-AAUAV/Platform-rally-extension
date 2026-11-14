@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.participation import EventParticipation
@@ -29,6 +29,25 @@ class CRUDParticipation:
             EventParticipation.event_id == event_id,
         )
         return (await db.scalars(stmt)).first()
+
+    async def rekey_sub(self, db: AsyncSession, *, old_sub: str, new_sub: str) -> None:
+        """Move participations recorded under ``old_sub`` to ``new_sub``.
+
+        Used when a row was linked under the Authentik uuid but the person logs
+        in with a different OIDC subject. Events ``new_sub`` already has a row
+        for are left alone (unique on (sub, event)). Does not commit.
+        """
+        taken = select(EventParticipation.event_id).where(
+            EventParticipation.authentik_sub == new_sub
+        )
+        await db.execute(
+            update(EventParticipation)
+            .where(
+                EventParticipation.authentik_sub == old_sub,
+                EventParticipation.event_id.not_in(taken),
+            )
+            .values(authentik_sub=new_sub)
+        )
 
     async def record(
         self,
