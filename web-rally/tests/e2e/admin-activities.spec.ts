@@ -199,14 +199,18 @@ test.describe("Admin activities", () => {
       }
       return route.fallback();
     });
-    page.on("dialog", (dialog) => dialog.accept());
-
     await gotoActivities(page);
     await page
       .getByRole("button")
       .filter({ has: page.locator(".lucide-trash-2") })
       .first()
       .click();
+
+    // In-app confirmation, not window.confirm: nothing is deleted until confirmed.
+    const confirm = page.getByRole("alertdialog", { name: "Apagar esta atividade?" });
+    await expect(confirm).toBeVisible();
+    expect(deleteCalled).toBe(false);
+    await confirm.getByRole("button", { name: "Apagar" }).click();
 
     await expect.poll(() => deleteCalled).toBe(true);
     expect(deleteCalled).toBe(true);
