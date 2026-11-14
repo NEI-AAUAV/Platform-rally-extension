@@ -52,7 +52,7 @@ describe("LinkMemberPanel", () => {
     });
 
     await user.type(screen.getByPlaceholderText(/Procurar conta NEI/i), "Carlos");
-    await user.click(screen.getByRole("button", { name: "" }));
+    await user.click(screen.getByRole("button", { name: "Procurar" }));
 
     await waitFor(() => {
       expect(screen.getByText("Carlos")).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe("LinkMemberPanel", () => {
     });
 
     await user.type(screen.getByPlaceholderText(/Procurar conta NEI/i), "zz");
-    await user.click(screen.getByRole("button", { name: "" }));
+    await user.click(screen.getByRole("button", { name: "Procurar" }));
 
     await waitFor(() => {
       expect(screen.getByText("Nenhuma conta encontrada.")).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe("LinkMemberPanel", () => {
     });
 
     await user.type(screen.getByPlaceholderText(/Procurar conta NEI/i), "zz");
-    await user.click(screen.getByRole("button", { name: "" }));
+    await user.click(screen.getByRole("button", { name: "Procurar" }));
 
     await waitFor(() => {
       expect(screen.getByText("search failed")).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe("LinkMemberPanel", () => {
     });
 
     await user.type(screen.getByPlaceholderText(/Procurar conta NEI/i), "zz");
-    await user.click(screen.getByRole("button", { name: "" }));
+    await user.click(screen.getByRole("button", { name: "Procurar" }));
 
     await waitFor(() => {
       expect(screen.getByText("Conta já associada a outra equipa.")).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe("LinkMemberPanel", () => {
     });
 
     await user.type(screen.getByPlaceholderText(/Procurar conta NEI/i), "zz");
-    await user.click(screen.getByRole("button", { name: "" }));
+    await user.click(screen.getByRole("button", { name: "Procurar" }));
 
     await waitFor(() => {
       expect(screen.getByText("Não foi possível ligar a conta.")).toBeInTheDocument();
@@ -150,7 +150,7 @@ describe("LinkMemberPanel", () => {
     });
 
     await user.type(screen.getByPlaceholderText(/Procurar conta NEI/i), "Carlos");
-    await user.click(screen.getByRole("button", { name: "" }));
+    await user.click(screen.getByRole("button", { name: "Procurar" }));
 
     expect(await screen.findByText("Carlos")).toBeInTheDocument();
     await user.click(screen.getByText("Carlos").closest("button")!);
@@ -158,5 +158,69 @@ describe("LinkMemberPanel", () => {
     await waitFor(() => {
       expect(screen.getByText("Placeholder já foi ligado.")).toBeInTheDocument();
     });
+  });
+
+  it("shows a loading state and disables the search button while searching", async () => {
+    let resolveSearch: (v: { name: string; email: string; authentik_sub: string }[]) => void =
+      () => {};
+    vi.mocked(TeamMemberLinkService.searchOidcUsers).mockReturnValue(
+      new Promise((resolve) => {
+        resolveSearch = resolve;
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<LinkMemberPanel teamId={1} placeholderUserId={2} onLinked={onLinked} />, {
+      wrapper: createWrapper(),
+    });
+
+    await user.type(screen.getByPlaceholderText(/Procurar conta NEI/i), "Carlos");
+    await user.click(screen.getByRole("button", { name: "Procurar" }));
+
+    expect(await screen.findByText("A procurar…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Procurar" })).toBeDisabled();
+
+    resolveSearch([{ name: "Carlos", email: "carlos@x.com", authentik_sub: "sub-1" }]);
+
+    expect(await screen.findByText("Carlos")).toBeInTheDocument();
+    expect(screen.queryByText("A procurar…")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Procurar" })).toBeEnabled();
+  });
+
+  it("re-runs the search when the same term is submitted again", async () => {
+    vi.mocked(TeamMemberLinkService.searchOidcUsers).mockResolvedValue([]);
+
+    const user = userEvent.setup();
+    render(<LinkMemberPanel teamId={1} placeholderUserId={2} onLinked={onLinked} />, {
+      wrapper: createWrapper(),
+    });
+
+    await user.type(screen.getByPlaceholderText(/Procurar conta NEI/i), "zz");
+    await user.click(screen.getByRole("button", { name: "Procurar" }));
+    await screen.findByText("Nenhuma conta encontrada.");
+    await user.click(screen.getByRole("button", { name: "Procurar" }));
+
+    await waitFor(() => {
+      expect(TeamMemberLinkService.searchOidcUsers).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("shows a linking state while the link request is pending", async () => {
+    vi.mocked(TeamMemberLinkService.searchOidcUsers).mockResolvedValue([
+      { name: "Carlos", email: "carlos@x.com", authentik_sub: "sub-1" },
+    ]);
+    vi.mocked(TeamMemberLinkService.linkMember).mockReturnValue(new Promise(() => {}));
+
+    const user = userEvent.setup();
+    render(<LinkMemberPanel teamId={1} placeholderUserId={2} onLinked={onLinked} />, {
+      wrapper: createWrapper(),
+    });
+
+    await user.type(screen.getByPlaceholderText(/Procurar conta NEI/i), "Carlos");
+    await user.click(screen.getByRole("button", { name: "Procurar" }));
+    await user.click((await screen.findByText("Carlos")).closest("button")!);
+
+    expect(await screen.findByText("A ligar…")).toBeInTheDocument();
+    expect(screen.getByText("Carlos").closest("button")).toBeDisabled();
   });
 });

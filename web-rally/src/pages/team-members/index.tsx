@@ -93,6 +93,7 @@ export default function TeamMembers({ embedded = false }: TeamMembersProps) {
                   name: member.name,
                   email: member.email ?? undefined,
                   is_captain: member.is_captain ?? false,
+                  is_linked: member.is_linked ?? false,
                 }))}
                 selectedTeam={selectedTeam}
                 userToken={token || ""}

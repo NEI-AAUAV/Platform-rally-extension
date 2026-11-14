@@ -41,10 +41,16 @@ vi.mock("@/pages/team-members/components", () => ({
     </select>
   ),
   MemberForm: () => <div data-testid="member-form" />,
-  MemberList: ({ teamMembers }: { teamMembers: Array<{ id: number; name: string }> }) => (
+  MemberList: ({
+    teamMembers,
+  }: {
+    teamMembers: Array<{ id: number; name: string; is_linked?: boolean }>;
+  }) => (
     <ul>
       {teamMembers.map((m) => (
-        <li key={m.id}>{m.name}</li>
+        <li key={m.id} data-linked={String(m.is_linked)}>
+          {m.name}
+        </li>
       ))}
     </ul>
   ),
@@ -185,6 +191,33 @@ describe("TeamMembers page", () => {
 
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByTestId("member-form")).toBeInTheDocument();
+  });
+
+  it("passes is_linked through to the member list", async () => {
+    mockUseUser.mockReturnValue({
+      isLoading: false,
+      isRallyAdmin: true,
+      userStore: { scopes: [] },
+    });
+    mockUseTeamMembersData.mockReturnValue({
+      teamsQuery: { ...emptyQuery, data: [{ id: 1, name: "Team A" }] },
+      membersQuery: {
+        ...emptyQuery,
+        data: [
+          { id: 10, name: "Alice", is_captain: false, is_linked: true },
+          { id: 11, name: "Bob", is_captain: false, is_linked: false },
+        ],
+      },
+      teamDataQuery: emptyQuery,
+    });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    render(<TeamMembers />);
+
+    await user.selectOptions(screen.getByLabelText("team-selector"), "1");
+
+    expect(screen.getByText("Alice")).toHaveAttribute("data-linked", "true");
+    expect(screen.getByText("Bob")).toHaveAttribute("data-linked", "false");
   });
 
   it("shows teams loading and error banners", () => {
