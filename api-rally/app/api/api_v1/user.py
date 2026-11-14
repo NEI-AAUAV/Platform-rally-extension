@@ -100,7 +100,9 @@ class UserController:
             # Map known local mirrors so the UI can show their local id when present.
             subs = [u.authentik_sub for u in authentik_users]
             local = await crud.user.get_by_authentik_subs(db, authentik_subs=subs)
-            local_by_sub = {u.authentik_sub: u for u in local}
+            local_by_sub = {
+                key: u for u in local for key in (u.authentik_sub, u.authentik_uuid) if key
+            }
             return [
                 OidcUserSearchResult(
                     id=local_by_sub[u.authentik_sub].id

@@ -6,6 +6,7 @@ guard clauses that aren't reachable through the router tests.
 
 import pytest
 
+from app.api.authentik_client import AuthentikUser
 from app.core.exceptions import RallyValidationError
 from app.crud.crud_team import team as crud_team
 from app.crud.crud_user import user as crud_user
@@ -18,6 +19,10 @@ from app.tests.conftest import make_event as _make_event
 
 async def _make_team(pg_session, name="Test Team"):
     return await crud_team.create(pg_session, obj_in=TeamCreate(name=name))
+
+
+def _account(uuid: str, name: str = "Someone", email: str | None = None) -> AuthentikUser:
+    return AuthentikUser(authentik_sub=uuid, name=name, username="", email=email)
 
 
 async def _make_placeholder(pg_session, team_id: int, name="Placeholder"):
@@ -42,12 +47,8 @@ class TestLinkPlaceholderToAuthentikAccount:
 
         # when / then
         with pytest.raises(RallyValidationError, match="already linked"):
-            await service.link_placeholder_to_authentik_account(
-                team=team,
-                placeholder=placeholder,
-                authentik_sub="new-sub",
-                name="Someone",
-                email=None,
+            await service.link_with_authentik_account(
+                team=team, user_id=placeholder.id, account=_account("new-sub")
             )
 
     async def test_target_account_already_on_a_team_is_rejected(self, pg_session) -> None:
@@ -72,12 +73,8 @@ class TestLinkPlaceholderToAuthentikAccount:
 
         # when / then
         with pytest.raises(RallyValidationError, match="already on a team"):
-            await service.link_placeholder_to_authentik_account(
-                team=team_a,
-                placeholder=placeholder,
-                authentik_sub="taken-sub",
-                name="Already On A Team",
-                email=None,
+            await service.link_with_authentik_account(
+                team=team_a, user_id=placeholder.id, account=_account("taken-sub")
             )
 
     async def test_links_previously_unseen_account_and_creates_local_mirror(
@@ -91,16 +88,16 @@ class TestLinkPlaceholderToAuthentikAccount:
         service = TeamMemberService(pg_session)
 
         # when
-        target = await service.link_placeholder_to_authentik_account(
+        target = await service.link_with_authentik_account(
             team=team,
-            placeholder=placeholder,
-            authentik_sub="brand-new-sub",
-            name="New Person",
-            email="new@example.com",
+            user_id=placeholder.id,
+            account=_account("brand-new-sub", "New Person", "new@example.com"),
         )
 
-        # then
-        assert target.authentik_sub == "brand-new-sub"
+        # then: the uuid is kept apart; the OIDC subject is left for the first login
+        assert target.authentik_uuid == "brand-new-sub"
+        assert target.authentik_sub is None
+        assert target.is_linked is True
         assert target.team_id == team.id
         assert target.is_captain is False
 

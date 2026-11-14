@@ -23,6 +23,7 @@ import type {
 } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/errorHandling";
+import { useConfirmDialog } from "@/components/shared/feedback/useConfirmDialog";
 
 interface Checkpoint {
   id: number;
@@ -39,6 +40,7 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
   const [editingActivity, setEditingActivity] = React.useState<ActivityType | null>(null);
   const [showActivityForm, setShowActivityForm] = React.useState(false);
   const toast = useAppToast();
+  const { confirm, dialog } = useConfirmDialog();
 
   // Activities queries and mutations
   const { data: activitiesData } = useActivities();
@@ -86,21 +88,27 @@ export default function ActivityManagement({ checkpoints }: ActivityManagementPr
     setShowActivityForm(true);
   };
 
-  const handleDeleteActivity = (id: number) => {
-    if (confirm("Tem certeza que deseja deletar esta atividade?")) {
-      deleteActivity(id, {
-        onSuccess: () => {
-          toast.success("Atividade deletada com sucesso!");
-        },
-        onError: (error) => {
-          toast.error(getErrorMessage(error, "Erro ao deletar atividade"));
-        },
-      });
-    }
+  const handleDeleteActivity = async (id: number) => {
+    const ok = await confirm({
+      title: "Apagar esta atividade?",
+      description: "Não é possível desfazer.",
+      confirmLabel: "Apagar",
+      destructive: true,
+    });
+    if (!ok) return;
+    deleteActivity(id, {
+      onSuccess: () => {
+        toast.success("Atividade apagada.");
+      },
+      onError: (error) => {
+        toast.error(getErrorMessage(error, "Erro ao apagar atividade"));
+      },
+    });
   };
 
   return (
     <div className="space-y-6">
+      {dialog}
       {showActivityForm ? (
         <ActivityForm
           checkpoints={checkpoints}

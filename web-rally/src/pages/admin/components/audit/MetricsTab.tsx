@@ -25,9 +25,9 @@ function StatCard({
 }>) {
   let toneClass = "bg-secondary text-muted-foreground";
   if (tone === "danger") {
-    toneClass = "bg-red-500/10 text-red-500";
+    toneClass = "bg-destructive/10 text-destructive-ink";
   } else if (tone === "warning") {
-    toneClass = "bg-yellow-500/10 text-yellow-800 dark:text-yellow-400";
+    toneClass = "bg-warning/10 text-warning-ink";
   }
   return (
     <div className="rally-surface flex items-center gap-4 p-4">
@@ -109,9 +109,9 @@ export default function MetricsTab() {
       <h2 className="sr-only">Métricas</h2>
 
       {(metricsError || readinessError) && (
-        <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm font-medium text-red-500">
+        <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-destructive-ink" />
+          <p className="text-sm font-medium text-destructive-ink">
             Não foi possível obter métricas ou estado de saúde do servidor.
           </p>
         </div>
@@ -224,8 +224,8 @@ export default function MetricsTab() {
                 <span
                   className={
                     w.alive
-                      ? "text-xs font-semibold text-green-500"
-                      : "text-xs font-semibold text-red-500"
+                      ? "text-xs font-semibold text-success-ink"
+                      : "text-xs font-semibold text-destructive-ink"
                   }
                 >
                   {w.alive ? "vivo" : "morto"}

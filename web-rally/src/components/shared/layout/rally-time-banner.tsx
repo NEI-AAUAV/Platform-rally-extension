@@ -33,20 +33,20 @@ export default function RallyTimeBanner() {
 
   if (state.kind === "pre") {
     return (
-      <div className="mt-4 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-yellow-100">
+      <div className="mt-4 rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-warning-ink">
         O Rally começa em {formatElapsed(state.remaining / 1000)}
       </div>
     );
   }
   if (state.kind === "live") {
     return (
-      <div className="mt-4 rounded-md border border-green-500/30 bg-green-500/10 px-4 py-3 text-green-100">
+      <div className="mt-4 rounded-md border border-success/30 bg-success/10 px-4 py-3 text-success-ink">
         Rally a decorrer — termina em {formatElapsed(state.remaining / 1000)}
       </div>
     );
   }
   return (
-    <div className="mt-4 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-100">
+    <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive-ink">
       O Rally terminou há {formatElapsed(state.elapsed / 1000)}
     </div>
   );

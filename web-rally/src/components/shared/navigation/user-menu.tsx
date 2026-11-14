@@ -1,5 +1,6 @@
 import { useUserStore } from "@/stores/useUserStore";
 import useTeamAuth from "@/hooks/useTeamAuth";
+import { useId, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Settings,
@@ -24,6 +25,21 @@ export function UserMenu() {
   // M10: full OIDC sign-out (clears the local token store AND ends the
   // Authentik session), not just the local rally session.
   const logout = useLogout();
+  // Account menu is a disclosure: hover still previews it on desktop, but it
+  // must also open by click/tap and keyboard (hover alone excludes both).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeMenu = () => setMenuOpen(false);
+  const handleMenuBlur = (e: FocusEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) closeMenu();
+  };
+  const handleMenuKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Escape" || !menuOpen) return;
+    e.stopPropagation();
+    closeMenu();
+    triggerRef.current?.focus();
+  };
 
   const isAdmin =
     scopes !== undefined && (scopes.includes("admin") || scopes.includes("manager-rally"));
@@ -43,7 +59,10 @@ export function UserMenu() {
         </div>
         <span className="max-w-[14ch] truncate text-sm font-semibold">{teamData.team_name}</span>
 
-        <div className="absolute right-0 top-full z-50 hidden w-52 pt-2 group-hover:block">
+        <div
+          id={menuId}
+          className={`absolute right-0 top-full z-50 w-52 pt-2 ${menuOpen ? "block" : "hidden group-hover:block"}`}
+        >
           <div className="rally-elevate flex flex-col overflow-hidden rounded-lg border border-border bg-popover">
             <div className="border-b border-border px-4 py-3">
               <p className="truncate text-sm font-semibold text-popover-foreground">
@@ -92,7 +111,7 @@ export function UserMenu() {
           size="sm"
           variant="ghost"
           onClick={() => onStaffLogin({ mode: "registration" })}
-          className="h-8 gap-1.5"
+          className="rally-hit relative h-8 gap-1.5"
         >
           <UserPlus className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Registar</span>
@@ -102,13 +121,13 @@ export function UserMenu() {
           size="sm"
           variant="outline"
           onClick={() => onStaffLogin({ mode: "login" })}
-          className="h-8 gap-1.5"
+          className="rally-hit relative h-8 gap-1.5"
         >
           <LogIn className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Iniciar sessão</span>
           <span className="sm:hidden">Entrar</span>
         </Button>
-        <Button asChild size="sm" className="h-8 gap-1.5">
+        <Button asChild size="sm" className="rally-hit relative h-8 gap-1.5">
           <Link to="/team-login">
             <Users className="h-3.5 w-3.5" />
             Entrar com a Equipa
@@ -128,7 +147,7 @@ export function UserMenu() {
     .toUpperCase();
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3">
+    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
       {isAdmin && (
         <Link
           to="/admin"
@@ -139,27 +158,39 @@ export function UserMenu() {
         </Link>
       )}
 
-      <div className="group relative flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-1.5 py-1 transition-colors hover:bg-accent sm:px-2">
-        {image ? (
-          <img
-            src={image}
-            alt={displayName}
-            className="h-7 w-7 rounded-full object-cover sm:h-8 sm:w-8"
-          />
-        ) : (
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground sm:h-8 sm:w-8 sm:text-xs">
-            {initials}
-          </div>
-        )}
-        <span className="hidden max-w-[14ch] truncate text-sm font-semibold sm:inline">
-          {displayName}
-        </span>
+      <div className="group relative min-w-0" onBlur={handleMenuBlur} onKeyDown={handleMenuKeyDown}>
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-label={`Menu da conta de ${displayName}`}
+          aria-expanded={menuOpen}
+          aria-controls={menuId}
+          onClick={() => setMenuOpen((open) => !open)}
+          className="rally-hit relative flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-1.5 py-1 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-2"
+        >
+          {image ? (
+            <img src={image} alt="" className="h-7 w-7 rounded-full object-cover sm:h-8 sm:w-8" />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground sm:h-8 sm:w-8 sm:text-xs"
+            >
+              {initials}
+            </div>
+          )}
+          <span className="hidden min-w-0 max-w-[12ch] truncate text-sm font-semibold sm:inline lg:max-w-[14ch]">
+            {displayName}
+          </span>
+        </button>
 
         {/* Dropdown Menu na vista Desktop (Hover). The outer wrapper's pt-2 is a
             transparent hover bridge: it keeps the 8px visual gap but makes that
             gap part of the group, so moving the pointer into the menu never
             leaves :hover (which would close it before it could be reached). */}
-        <div className="absolute right-0 top-full z-50 hidden w-52 pt-2 group-hover:block">
+        <div
+          id={menuId}
+          className={`absolute right-0 top-full z-50 w-52 pt-2 ${menuOpen ? "block" : "hidden group-hover:block"}`}
+        >
           <div className="rally-elevate flex flex-col overflow-hidden rounded-lg border border-border bg-popover">
             <div className="border-b border-border px-4 py-3">
               <p className="truncate text-sm font-semibold text-popover-foreground">
@@ -169,12 +200,14 @@ export function UserMenu() {
             </div>
             <Link
               to="/profile"
+              onClick={closeMenu}
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-popover-foreground transition-colors hover:bg-accent"
             >
               <User className="h-4 w-4" />O meu perfil
             </Link>
             <Link
               to="/preferences"
+              onClick={closeMenu}
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-popover-foreground transition-colors hover:bg-accent"
             >
               <SlidersHorizontal className="h-4 w-4" />

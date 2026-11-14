@@ -17,7 +17,7 @@ export default function StatusMessage({
     <div className={`mt-4 text-center ${className}`}>
       <div
         className={`flex items-center justify-center gap-2 ${
-          isSuccess ? "text-green-500" : "text-red-500"
+          isSuccess ? "text-success-ink" : "text-destructive-ink"
         }`}
       >
         {isSuccess ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}

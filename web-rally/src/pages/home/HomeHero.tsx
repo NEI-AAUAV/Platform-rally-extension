@@ -51,7 +51,7 @@ function CountdownClock({ state }: { readonly state: CountdownState }) {
               <span className="rally-display text-6xl tabular-nums sm:text-8xl">
                 {PAD(cell.value)}
               </span>
-              <span className="mt-1 text-[0.65rem] font-bold uppercase tracking-[0.16em] opacity-60">
+              <span className="mt-1 text-xs font-bold uppercase tracking-[0.16em] opacity-60">
                 {cell.label}
               </span>
             </div>

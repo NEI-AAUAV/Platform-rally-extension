@@ -26,7 +26,7 @@ export default function StopwatchWidget({ onUseTime }: StopwatchWidgetProps) {
           <button
             type="button"
             onClick={pause}
-            className="rally-press flex h-10 w-10 items-center justify-center rounded-full bg-amber-500 text-white shadow transition hover:bg-amber-600"
+            className="rally-press flex h-10 w-10 items-center justify-center rounded-full bg-warning text-white shadow transition hover:bg-warning/90"
             aria-label="Pausar"
           >
             <Pause className="h-4 w-4 fill-current" />
@@ -35,7 +35,7 @@ export default function StopwatchWidget({ onUseTime }: StopwatchWidgetProps) {
           <button
             type="button"
             onClick={start}
-            className="rally-press flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-white shadow transition hover:bg-green-600"
+            className="rally-press flex h-10 w-10 items-center justify-center rounded-full bg-success text-white shadow transition hover:bg-success/90"
             aria-label="Iniciar"
           >
             <Play className="h-4 w-4 fill-current" />
@@ -88,9 +88,9 @@ export default function StopwatchWidget({ onUseTime }: StopwatchWidgetProps) {
                 const isWorst = worstLap !== null && l.split === worstLap;
                 let splitClass = "";
                 if (isBest) {
-                  splitClass = "text-green-500";
+                  splitClass = "text-success-ink";
                 } else if (isWorst) {
-                  splitClass = "text-red-500";
+                  splitClass = "text-destructive-ink";
                 }
                 return (
                   <tr key={l.n} className="border-b border-border/50 last:border-0">

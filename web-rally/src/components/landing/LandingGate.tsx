@@ -38,7 +38,7 @@ export default function LandingGate({
   return (
     <div className="flex min-h-screen w-full items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <p className="mb-4 text-center font-display text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+        <p className="mb-4 text-center font-display text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
           Núcleo de Estudantes de Informática
         </p>
 

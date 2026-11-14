@@ -54,7 +54,7 @@ export default function ScoringSettings({ className = "", eventType }: ScoringSe
               <label htmlFor="drinking_scoring" className="text-sm font-medium leading-snug">
                 Ativar mecânicas de bebida
               </label>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                 Opcional
               </span>
             </div>

@@ -4,11 +4,9 @@ type NoTeamsMessageProps = Readonly<{
 
 export default function NoTeamsMessage({ description }: NoTeamsMessageProps) {
   return (
-    <div className="rounded-lg border border-yellow-500/30 bg-yellow-50 p-4 dark:bg-yellow-950/30 sm:p-6">
-      <h3 className="mb-2 font-semibold text-yellow-800 dark:text-yellow-300">
-        Nenhuma equipa encontrada
-      </h3>
-      <p className="text-sm text-yellow-800 dark:text-yellow-200">{description}</p>
+    <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 sm:p-6">
+      <h3 className="mb-2 font-semibold text-warning-ink">Nenhuma equipa encontrada</h3>
+      <p className="text-sm text-warning-ink">{description}</p>
     </div>
   );
 }

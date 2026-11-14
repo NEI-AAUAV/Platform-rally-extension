@@ -141,7 +141,7 @@ export function SettingSwitch({
   return (
     <SettingRow name={name} label={label} help={help}>
       {resolvedPolicy && resolvedPolicy !== "optional" && (
-        <span className="mr-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+        <span className="mr-2 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
           {resolvedPolicy === "required" ? "Obrigatório" : "Indisponível"}
         </span>
       )}

@@ -1,14 +1,18 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, Request, Security
 
-from app.api import deps
+from app.api import authentik_client, deps
 from app.api.abac_deps import (
     require_add_team_member_permission,
     require_team_management_permission,
     require_view_team_members_permission,
 )
 from app.api.auth import AuthData, api_nei_auth
+from app.api.authentik_client import AuthentikUnavailableError, AuthentikUser
+from app.api.rate_limit import check_login_rate_limit
+from app.core.config import SettingsDep
+from app.core.exceptions import RallyConflictError, RallyForbiddenError, RallyValidationError
 from app.schemas.team_members import (
     TeamMemberAdd,
     TeamMemberLink,
@@ -18,7 +22,33 @@ from app.schemas.team_members import (
 )
 from app.schemas.user import DetailedUser
 from app.services.deps import get_team_member_service
-from app.services.team_member_service import TeamMemberService
+from app.services.team_member_service import INVALID_ACCESS_CODE_MESSAGE, TeamMemberService
+
+
+async def _resolve_authentik_account(link_data: TeamMemberLink) -> AuthentikUser:
+    """The account to link, as Authentik knows it.
+
+    With the management API configured the body's name/email are ignored and
+    re-read from Authentik, so a request cannot pair one account's uuid with
+    another person's email. Without it, search only lists already-mirrored local
+    accounts, and the body is all there is.
+    """
+    if not authentik_client.is_configured():
+        return AuthentikUser(
+            authentik_sub=link_data.authentik_sub,
+            name=link_data.name or "",
+            username="",
+            email=link_data.email,
+        )
+    try:
+        account = await authentik_client.get_user(link_data.authentik_sub)
+    except AuthentikUnavailableError:
+        raise RallyConflictError(
+            "Não foi possível contactar o Authentik. Tenta novamente."
+        ) from None
+    if account is None:
+        raise RallyValidationError("Conta NEI não encontrada")
+    return account
 
 
 class TeamMembersController:
@@ -111,14 +141,9 @@ class TeamMembersController:
         require_team_management_permission(auth=auth, curr_user=curr_user)
 
         team = await service.get_team_or_raise(team_id)
-        placeholder = await service.get_team_member_or_raise(team_id, user_id)
-
-        target = await service.link_placeholder_to_authentik_account(
-            team=team,
-            placeholder=placeholder,
-            authentik_sub=link_data.authentik_sub,
-            name=link_data.name,
-            email=link_data.email,
+        account = await _resolve_authentik_account(link_data)
+        target = await service.link_with_authentik_account(
+            team=team, user_id=user_id, account=account
         )
 
         return TeamMemberResponse(
@@ -134,8 +159,10 @@ class TeamMembersController:
         team_id: int,
         user_id: int,
         link_data: TeamMemberLinkSelf,
+        request: Request,
         auth: Annotated[AuthData, Security(api_nei_auth, scopes=[])],
         service: Annotated[TeamMemberService, Depends(get_team_member_service)],
+        settings: SettingsDep,
     ) -> TeamMemberResponse:
         """Self-serve variant of ``link_team_member``.
 
@@ -150,16 +177,21 @@ class TeamMembersController:
         Placeholder state alone is not authorization: without the code check any
         authenticated user could claim any team's open slot.
         """
-        team_obj = await service.get_team_or_raise(team_id)
+        await check_login_rate_limit(request, link_data.access_code, settings)
+        # Same 403 for an unknown team and a wrong code, so the endpoint cannot
+        # be used to enumerate team ids.
+        team_obj = await service.find_team(team_id)
+        if team_obj is None:
+            raise RallyForbiddenError(INVALID_ACCESS_CODE_MESSAGE)
         service.assert_team_access_code(team_obj, link_data.access_code)
-        placeholder = await service.get_team_member_or_raise(team_id, user_id)
 
-        target = await service.link_placeholder_to_authentik_account(
+        target = await service.link_self(
             team=team_obj,
-            placeholder=placeholder,
-            authentik_sub=auth.oidc_sub,
-            name=auth.name,
-            email=auth.email,
+            user_id=user_id,
+            auth=auth,
+            # Same rule as first login: only a verified email may claim an
+            # existing unclaimed row by address.
+            adopt_by_email=bool(auth.email_verified or settings.OIDC_TRUST_UNVERIFIED_EMAIL),
         )
 
         return TeamMemberResponse(
@@ -218,7 +250,7 @@ class TeamMembersController:
                 name=member.name,
                 email=member.email,
                 is_captain=member.is_captain,
-                is_linked=member.authentik_sub is not None,
+                is_linked=member.is_linked,
             )
             for member in members
         ]

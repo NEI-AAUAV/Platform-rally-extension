@@ -158,3 +158,113 @@ async def test_list_group_members_degrades_to_empty_on_http_error(monkeypatch):
 
     with patch.object(authentik_client.httpx, "AsyncClient", _client_factory(handler)):
         assert await authentik_client.list_group_members("rally-guide") == []
+
+
+# ---------- account_has_subject: proof that an OIDC subject owns an account ----------
+
+_ACCOUNT = {
+    "pk": 42,
+    "uuid": "3f2b8c1e-9d4a-4b7e-8f21-6c5d4e3a2b10",
+    "uid": "a3c1f0e9d8b7a6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1",
+    "username": "ana",
+    "name": "Ana",
+    "email": "ana@ua.pt",
+}
+
+
+def _account_handler(results):
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params.get("uuid") == _ACCOUNT["uuid"]
+        return httpx.Response(200, json={"results": results})
+
+    return handler
+
+
+def _mode(monkeypatch, mode):
+    monkeypatch.setattr(settings, "OIDC_SUBJECT_MODE", mode)
+
+
+@pytest.mark.parametrize(
+    ("mode", "subject"),
+    [
+        ("hashed_user_id", _ACCOUNT["uid"]),
+        ("user_uuid", _ACCOUNT["uuid"]),
+        ("user_id", str(_ACCOUNT["pk"])),
+    ],
+)
+async def test_account_has_subject_accepts_the_configured_mode_identifier(
+    monkeypatch, mode, subject
+):
+    _configured(monkeypatch)
+    _mode(monkeypatch, mode)
+    with patch.object(
+        authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([_ACCOUNT]))
+    ):
+        assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], subject) is True
+
+
+@pytest.mark.parametrize(
+    "subject",
+    [_ACCOUNT["uuid"], str(_ACCOUNT["pk"]), _ACCOUNT["username"]],
+    ids=["uuid", "pk", "username"],
+)
+async def test_account_has_subject_ignores_identifiers_of_other_modes(monkeypatch, subject):
+    """In hashed-id mode a subject that equals the account's uuid, pk or
+    username came from a different identifier space, e.g. an attacker whose
+    username was set to the victim's uuid under another provider."""
+    _configured(monkeypatch)
+    _mode(monkeypatch, "hashed_user_id")
+    with patch.object(
+        authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([_ACCOUNT]))
+    ):
+        assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], subject) is False
+
+
+@pytest.mark.parametrize("mode", ["user_username", "user_email", "user_upn", "bogus"])
+async def test_account_has_subject_refuses_mutable_or_unknown_modes(monkeypatch, mode):
+    """Usernames and emails can be changed by their owner, so they prove
+    nothing; an unknown mode is treated the same way."""
+    _configured(monkeypatch)
+    _mode(monkeypatch, mode)
+    with patch.object(
+        authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([_ACCOUNT]))
+    ):
+        for subject in (_ACCOUNT["username"], _ACCOUNT["email"], _ACCOUNT["uid"]):
+            assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], subject) is False
+
+
+async def test_account_has_subject_never_matches_on_email(monkeypatch):
+    """Authentik does not enforce unique emails, so an email-mode subject from a
+    different account could equal this account's email."""
+    _configured(monkeypatch)
+    with patch.object(
+        authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([_ACCOUNT]))
+    ):
+        assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], "ana@ua.pt") is False
+
+
+async def test_account_has_subject_false_for_unknown_account(monkeypatch):
+    _configured(monkeypatch)
+    with patch.object(authentik_client.httpx, "AsyncClient", _client_factory(_account_handler([]))):
+        assert (
+            await authentik_client.account_has_subject(_ACCOUNT["uuid"], _ACCOUNT["uid"]) is False
+        )
+
+
+async def test_account_has_subject_false_when_not_configured(monkeypatch):
+    monkeypatch.setattr(settings, "AUTHENTIK_API_URL", "")
+    monkeypatch.setattr(settings, "AUTHENTIK_API_TOKEN", "")
+    assert await authentik_client.account_has_subject(_ACCOUNT["uuid"], _ACCOUNT["uid"]) is False
+
+
+async def test_account_has_subject_raises_when_authentik_unreachable(monkeypatch):
+    _configured(monkeypatch)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(502, text="bad gateway")
+
+    with (
+        patch.object(authentik_client.httpx, "AsyncClient", _client_factory(handler)),
+        pytest.raises(authentik_client.AuthentikUnavailableError),
+    ):
+        await authentik_client.account_has_subject(_ACCOUNT["uuid"], _ACCOUNT["uid"])

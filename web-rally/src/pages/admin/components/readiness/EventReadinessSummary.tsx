@@ -64,7 +64,7 @@ export default function EventReadinessSummary({
     <div>
       <div className="flex items-start gap-3">
         {ready ? (
-          <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+          <CheckCircle2 className="mt-0.5 h-5 w-5 text-success-ink" />
         ) : (
           <XCircle className="mt-0.5 h-5 w-5 text-destructive" />
         )}

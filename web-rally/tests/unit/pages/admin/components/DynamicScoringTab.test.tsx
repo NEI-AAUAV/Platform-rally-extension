@@ -1,8 +1,14 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import DynamicScoringTab from "@/pages/admin/components/judging/DynamicScoringTab";
+
+/** Answers the in-app confirmation dialog (replaces window.confirm). */
+async function answerConfirm(label: string) {
+  const dialog = await screen.findByRole("alertdialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: label }));
+}
 
 const {
   mockListDynamicRules,
@@ -80,7 +86,6 @@ const team = (overrides: Partial<any> = {}) => ({ id: 1, name: "Team Alpha", ...
 describe("DynamicScoringTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     mockListDynamicRules.mockResolvedValue({ data: [] });
     mockListDynamicAwards.mockResolvedValue({ data: [] });
     mockGetTeams.mockResolvedValue({ data: [] });
@@ -286,17 +291,18 @@ describe("DynamicScoringTab", () => {
     renderWithClient(<DynamicScoringTab />);
     expect(await screen.findByText("Rule One")).toBeInTheDocument();
     fireEvent.click(screen.getByTitle("Eliminar"));
+    await answerConfirm("Eliminar");
     await waitFor(() =>
       expect(mockDeleteDynamicRule).toHaveBeenCalledWith({ path: { rule_id: 1 } }),
     );
   });
 
   it("does not delete a rule when confirm is cancelled", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     mockListDynamicRules.mockResolvedValue({ data: [rule()] });
     renderWithClient(<DynamicScoringTab />);
     expect(await screen.findByText("Rule One")).toBeInTheDocument();
     fireEvent.click(screen.getByTitle("Eliminar"));
+    await answerConfirm("Cancelar");
     expect(mockDeleteDynamicRule).not.toHaveBeenCalled();
   });
 
@@ -344,6 +350,7 @@ describe("DynamicScoringTab", () => {
     renderWithClient(<DynamicScoringTab />);
     expect(await screen.findByText("Team Alpha")).toBeInTheDocument();
     fireEvent.click(screen.getByTitle("Revogar"));
+    await answerConfirm("Revogar");
     await waitFor(() =>
       expect(mockDeleteDynamicAward).toHaveBeenCalledWith({ path: { award_id: 1 } }),
     );

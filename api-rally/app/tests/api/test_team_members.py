@@ -341,6 +341,75 @@ class TestLinkSelfTeamMember:
         assert body["is_captain"] is True
         assert body["is_linked"] is True
 
+    async def _admin_linked_row(self, pg_session, email="real@nei.pt", uuid="linked-uuid"):
+        """A row an admin linked by Authentik uuid; nobody has logged into it."""
+        from app.crud.crud_user import user as crud_user
+        from app.schemas.user import UserCreate
+
+        row = await crud_user.create(pg_session, obj_in=UserCreate(name="Linked", email=email))
+        row.authentik_uuid = uuid
+        pg_session.add(row)
+        await pg_session.commit()
+        await pg_session.refresh(row)
+        return row
+
+    async def _link_self_as(self, pg_client, team, placeholder, *, oidc_sub, owns):
+        from unittest.mock import AsyncMock, patch
+
+        auth = AuthData(
+            oidc_sub=oidc_sub, name="Caller", email="real@nei.pt", email_verified=True, scopes=[]
+        )
+        app.dependency_overrides[api_nei_auth] = lambda: auth
+        try:
+            with patch(
+                "app.api.authentik_client.account_has_subject", new=AsyncMock(return_value=owns)
+            ) as owns_mock:
+                resp = pg_client.post(
+                    f"/api/rally/v1/team/{team.id}/members/{placeholder.id}/link-self",
+                    json={"access_code": team.access_code},
+                )
+        finally:
+            self._clear_oidc_override()
+        return resp, owns_mock
+
+    async def test_link_self_cannot_adopt_row_linked_to_another_account(
+        self, pg_session, pg_client, as_admin
+    ):
+        """Sharing the verified email is not enough to claim a row an admin
+        linked to a specific Authentik account."""
+        await _make_event(pg_session)
+        team = await _make_team(pg_session)
+        placeholder = await self._make_placeholder(pg_session, team.id)
+        row = await self._admin_linked_row(pg_session)
+
+        resp, owns = await self._link_self_as(
+            pg_client, team, placeholder, oidc_sub="intruder-sub", owns=False
+        )
+
+        assert resp.status_code == 400, resp.text
+        owns.assert_awaited_once_with("linked-uuid", "intruder-sub")
+        await pg_session.refresh(row)
+        assert row.authentik_sub is None
+        assert row.team_id is None
+
+    async def test_link_self_adopts_row_linked_to_the_callers_account(
+        self, pg_session, pg_client, as_admin
+    ):
+        await _make_event(pg_session)
+        team = await _make_team(pg_session)
+        placeholder = await self._make_placeholder(pg_session, team.id)
+        row = await self._admin_linked_row(pg_session)
+
+        resp, _ = await self._link_self_as(
+            pg_client, team, placeholder, oidc_sub="owner-sub", owns=True
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["id"] == row.id
+        await pg_session.refresh(row)
+        assert row.authentik_sub == "owner-sub"
+        assert row.team_id == team.id
+
     async def test_link_self_team_not_found(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)
 
@@ -353,7 +422,7 @@ class TestLinkSelfTeamMember:
         finally:
             self._clear_oidc_override()
 
-        assert resp.status_code == 404
+        assert resp.status_code == 403  # same as a wrong code: no team-id enumeration
 
     async def test_link_self_user_not_found(self, pg_session, pg_client, as_admin):
         await _make_event(pg_session)

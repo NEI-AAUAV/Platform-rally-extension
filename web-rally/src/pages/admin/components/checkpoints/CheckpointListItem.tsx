@@ -75,12 +75,12 @@ export default function CheckpointListItem({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold">{checkpoint.name}</span>
                 {checkpoint.is_draft && (
-                  <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                  <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning-ink">
                     Rascunho — invisível para as equipas
                   </span>
                 )}
                 {checkpoint.is_placeholder && (
-                  <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                  <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                     Nome provisório
                   </span>
                 )}
@@ -98,7 +98,7 @@ export default function CheckpointListItem({
                     <span
                       className={cn(
                         "flex items-center gap-1",
-                        checkpointOpeningNotice(checkpoint) && "text-amber-600",
+                        checkpointOpeningNotice(checkpoint) && "text-warning-ink",
                       )}
                     >
                       <Clock className="h-3 w-3" />
@@ -128,7 +128,7 @@ export default function CheckpointListItem({
                     <li
                       key={key}
                       className={cn(
-                        "rounded px-1.5 py-0.5 text-[11px]",
+                        "rounded px-1.5 py-0.5 text-xs",
                         checkpoint.is_draft
                           ? "bg-muted text-muted-foreground"
                           : "bg-destructive/10 text-destructive",

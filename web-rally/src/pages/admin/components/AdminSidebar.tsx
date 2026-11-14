@@ -19,7 +19,7 @@ export default function AdminSidebar({
     <nav aria-label="Secções de administração" className="hidden gap-5 lg:flex lg:flex-col">
       {groups.map((group) => (
         <div key={group.id} className="flex flex-col gap-0.5">
-          <span className="rally-eyebrow px-3.5 pb-1 text-[11px]">{group.label}</span>
+          <span className="rally-eyebrow px-3.5 pb-1 text-xs">{group.label}</span>
           {group.items.map(({ id, label, icon: Icon }) => {
             const active = activeTab === id;
             const disabled = disabledTabIds.has(id);
@@ -39,7 +39,7 @@ export default function AdminSidebar({
                 <Icon className="h-4 w-4 shrink-0" />
                 <span className="flex-1 text-left">{label}</span>
                 {disabled && (
-                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
                     desativado
                   </span>
                 )}

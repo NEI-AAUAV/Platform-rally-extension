@@ -49,7 +49,7 @@ export default function CheckpointAnnouncement() {
     <form onSubmit={handleSubmit} className="rally-surface space-y-3 p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-semibold">
-          <BellRing className="h-4 w-4 text-amber-500" />
+          <BellRing className="h-4 w-4 text-warning-ink" />
           Avisar todas as equipas
         </div>
         <button
@@ -72,14 +72,14 @@ export default function CheckpointAnnouncement() {
       />
 
       {announce.isError && (
-        <div className="flex items-center gap-2 text-xs text-red-500">
+        <div className="flex items-center gap-2 text-xs text-destructive-ink">
           <AlertCircle className="h-4 w-4" />
           {getErrorMessage(announce.error, "Erro ao enviar aviso")}
         </div>
       )}
 
       {lastSentCount !== null && !announce.isError && (
-        <div className="flex items-center gap-2 text-xs text-green-600">
+        <div className="flex items-center gap-2 text-xs text-success-ink">
           <CheckCircle2 className="h-4 w-4" />
           {lastSentCount > 0
             ? `Enviado a ${lastSentCount} dispositivo(s).`

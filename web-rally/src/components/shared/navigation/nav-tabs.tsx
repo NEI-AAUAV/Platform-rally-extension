@@ -433,7 +433,7 @@ export default function NavTabs({ className, branding, ...props }: NavTabsProps)
             {primary.map((item) => renderLink(item, { isSidebar: true }))}
             {management.length > 0 && (
               <>
-                <li className="px-3 pb-1 pt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                <li className="px-3 pb-1 pt-4 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
                   Gestão
                 </li>
                 {management.map((item) => renderLink(item, { isSidebar: true }))}

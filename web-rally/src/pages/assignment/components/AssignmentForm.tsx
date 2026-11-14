@@ -28,7 +28,7 @@ export default function AssignmentForm({
       </div>
 
       {assignmentsError ? (
-        <div className="py-8 text-center text-red-500">
+        <div className="py-8 text-center text-destructive-ink">
           <p className="font-semibold">Erro ao carregar atribuições</p>
           <p className="mt-2 text-sm">{assignmentsError.message}</p>
           <p className="mt-2 text-xs text-muted-foreground">
@@ -40,12 +40,12 @@ export default function AssignmentForm({
       )}
 
       {isSuccessUpdate && (
-        <output className="mt-4 block text-center font-semibold text-green-700 dark:text-green-400">
+        <output className="mt-4 block text-center font-semibold text-success-ink">
           Atribuição atualizada com sucesso!
         </output>
       )}
       {isErrorUpdate && (
-        <div className="mt-4 text-center text-red-500">
+        <div className="mt-4 text-center text-destructive-ink">
           {updateError?.message || "Erro ao atualizar atribuição"}
         </div>
       )}

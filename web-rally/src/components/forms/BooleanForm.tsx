@@ -87,13 +87,13 @@ export default function BooleanForm({
           />
           <label
             htmlFor="success-checkbox"
-            className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded border-2 transition-all duration-200 hover:border-red-500 hover:bg-muted peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 ${
-              isSuccessChecked ? "border-red-500 bg-muted" : "border-border"
+            className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded border-2 transition-all duration-200 hover:border-destructive hover:bg-muted peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 ${
+              isSuccessChecked ? "border-destructive bg-muted" : "border-border"
             }`}
           >
             <span className="sr-only">Sucesso</span>
             <svg
-              className={`h-4 w-4 text-red-500 transition-opacity duration-200 ${
+              className={`h-4 w-4 text-destructive-ink transition-opacity duration-200 ${
                 isSuccessChecked ? "opacity-100" : "opacity-0"
               }`}
               fill="currentColor"

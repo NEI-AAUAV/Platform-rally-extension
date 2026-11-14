@@ -41,6 +41,7 @@ import {
   utcISOStringToLocalDatetimeLocal,
   localDatetimeLocalToUTCISOString,
 } from "@/utils/timezone";
+import { useConfirmDialog } from "@/components/shared/feedback/useConfirmDialog";
 
 interface FormState {
   name: string;
@@ -188,14 +189,14 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
           onClick={() => generateMutation.mutate()}
         >
           {generateMutation.isError ? (
-            <AlertCircle className="mr-1.5 h-3.5 w-3.5 text-red-500" />
+            <AlertCircle className="mr-1.5 h-3.5 w-3.5 text-destructive-ink" />
           ) : (
             <Shuffle className="mr-1.5 h-3.5 w-3.5" />
           )}
           {generateButtonLabel(generateMutation.isPending, Boolean(rounds))}
         </Button>
         {rounds && (
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-1.5 text-xs font-semibold text-green-600">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-xs font-semibold text-success-ink">
             <CheckCircle2 className="h-3.5 w-3.5" /> {rounds.length} rondas
           </span>
         )}
@@ -208,6 +209,7 @@ function RotationScheduleButton({ eventId }: Readonly<{ eventId: number }>) {
 function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
   const toast = useAppToast();
   const qc = useQueryClient();
+  const { confirm, dialog } = useConfirmDialog();
   const [eventType, setEventType] = useState<EventType>(event.event_type);
   const [profile, setProfile] = useState<EventProfile>(event.event_profile ?? "custom");
   const mutation = useMutation({
@@ -235,6 +237,7 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
   const profiles = PROFILE_OPTIONS[eventType];
   return (
     <div className="flex w-full min-w-0 flex-wrap gap-2">
+      {dialog}
       <Select
         value={eventType}
         onValueChange={(value) => {
@@ -271,13 +274,13 @@ function ChangeFormatButton({ event }: Readonly<{ event: RallyEvent }>) {
         size="sm"
         className="w-full sm:w-auto"
         disabled={mutation.isPending}
-        onClick={() => {
-          if (
-            window.confirm(
-              "Aplicar este formato? As capabilities obrigatórias e indisponíveis serão reconciliadas.",
-            )
-          )
-            mutation.mutate();
+        onClick={async () => {
+          const ok = await confirm({
+            title: "Aplicar este formato?",
+            description: "As capabilities obrigatórias e indisponíveis serão reconciliadas.",
+            confirmLabel: "Aplicar",
+          });
+          if (ok) mutation.mutate();
         }}
       >
         {mutation.isPending ? "A aplicar…" : "Aplicar formato"}
@@ -302,11 +305,11 @@ function EventReadiness({ eventId }: Readonly<{ eventId: number }>) {
     );
   const errors = data.issues.filter((issue) => issue.severity === "error").length;
   return data.ready ? (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-success-ink">
       <CheckCircle2 className="h-3.5 w-3.5" /> Pronto
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-warning-ink">
       <AlertCircle className="h-3.5 w-3.5" /> Não pronto · {errors}{" "}
       {errors === 1 ? "erro" : "erros"}
     </span>
@@ -479,7 +482,7 @@ export default function EventsManagement() {
                     {ev.name}
                   </h3>
                   {ev.is_current && (
-                    <span className="rally-bg-accent inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white">
+                    <span className="rally-bg-accent inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-white">
                       <Star className="h-3 w-3" /> Atual
                     </span>
                   )}
@@ -524,7 +527,7 @@ export default function EventsManagement() {
                 each group full-width, desktop lets them sit inline. */}
             <div className="mt-5 grid grid-cols-1 gap-4 border-t border-border/60 pt-4 sm:grid-cols-3">
               <div className="min-w-0 space-y-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Exportar
                 </span>
                 <div className="flex flex-wrap gap-2">
@@ -533,7 +536,7 @@ export default function EventsManagement() {
                 </div>
               </div>
               <div className="min-w-0 space-y-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Formato
                 </span>
                 <ChangeFormatButton event={ev} />
@@ -544,7 +547,7 @@ export default function EventsManagement() {
                 )}
               </div>
               <div className="min-w-0 space-y-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                   Copiar estrutura
                 </span>
                 <CloneStructureButton event={ev} others={list.filter((o) => o.id !== ev.id)} />

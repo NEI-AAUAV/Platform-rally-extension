@@ -177,11 +177,13 @@ test.describe("Admin scoring", () => {
       }
       return route.fallback();
     });
-    page.on("dialog", (dialog) => dialog.accept());
-
     await gotoScoring(page);
     await page.getByText("Última Ronda", { exact: true }).scrollIntoViewIfNeeded();
     await page.getByTitle("Revogar").click();
+
+    const confirm = page.getByRole("alertdialog", { name: "Revogar prémio de Última Ronda?" });
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole("button", { name: "Revogar" }).click();
 
     await expect.poll(() => deleteCalled).toBe(true);
     expect(deleteCalled).toBe(true);

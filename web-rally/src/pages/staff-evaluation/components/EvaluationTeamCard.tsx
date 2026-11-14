@@ -17,8 +17,8 @@ const VARIANTS: Record<TeamCardVariant, VariantConfig> = {
   },
   previous: {
     label: "Anterior",
-    cardClass: "border border-amber-500/40 bg-card",
-    badgeClass: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    cardClass: "border border-warning/40 bg-card",
+    badgeClass: "bg-warning/15 text-warning-ink",
   },
   evaluated: {
     label: "Avaliado",
@@ -73,7 +73,7 @@ export function EvaluationTeamCard({
       </div>
       <span
         className={cn(
-          "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
+          "shrink-0 rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide",
           cfg.badgeClass,
         )}
       >

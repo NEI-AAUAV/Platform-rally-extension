@@ -56,7 +56,7 @@ export default function ManualAwardPanel({ definitions }: Readonly<ManualAwardPa
   return (
     <div className="rally-surface space-y-4 p-4">
       <div className="flex items-center gap-2">
-        <Award className="h-4 w-4 text-amber-500" />
+        <Award className="h-4 w-4 text-warning-ink" />
         <p className="text-sm font-semibold">Atribuição manual</p>
       </div>
 
@@ -94,7 +94,7 @@ export default function ManualAwardPanel({ definitions }: Readonly<ManualAwardPa
       </div>
 
       {awardError && (
-        <div className="flex items-center gap-2 text-xs text-red-500">
+        <div className="flex items-center gap-2 text-xs text-destructive-ink">
           <AlertCircle className="h-4 w-4" />
           {awardError}
         </div>
@@ -128,7 +128,7 @@ export default function ManualAwardPanel({ definitions }: Readonly<ManualAwardPa
                     <button
                       type="button"
                       title="Revogar"
-                      className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-red-500/10 hover:text-red-500"
+                      className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive-ink"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

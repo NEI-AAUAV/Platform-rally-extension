@@ -4,9 +4,11 @@ Used so admins can search *all* Authentik accounts when linking a real account
 to a name-only placeholder member — not only the accounts already mirrored
 locally after a first OIDC login.
 
-Authentik's default OIDC ``sub`` claim is the user's UUID, so we surface
-``uuid`` as ``authentik_sub``. We also keep ``username``/``email`` so the link
-can be reconciled if a deployment customised the ``sub`` mapping.
+We surface the account ``uuid`` as ``authentik_sub`` for the picker, but it is
+only the OIDC ``sub`` when the provider's subject mode is "user UUID" (the
+default mode hashes it). Links therefore store it as ``user.authentik_uuid``;
+on first login ``account_has_subject`` proves the caller owns that account
+before the row is handed over.
 """
 
 from dataclasses import dataclass
@@ -32,6 +34,22 @@ class AuthentikUser:
     name: str
     username: str
     email: str | None
+
+
+class AuthentikUnavailableError(Exception):
+    """The Authentik management API could not be reached or answered badly."""
+
+
+def _parse_user(item: dict[str, Any]) -> AuthentikUser | None:
+    uuid = item.get("uuid")
+    if not uuid:
+        return None
+    return AuthentikUser(
+        authentik_sub=str(uuid),
+        name=item.get("name") or item.get("username") or "",
+        username=item.get("username") or "",
+        email=item.get("email") or None,
+    )
 
 
 def is_configured() -> bool:
@@ -62,20 +80,78 @@ async def search_users(q: str, *, limit: int = _SEARCH_LIMIT) -> list[AuthentikU
         logger.warning(f"Authentik user search failed: {exc}")
         return []
 
-    results: list[AuthentikUser] = []
-    for item in data.get("results", []):
-        uuid = item.get("uuid")
-        if not uuid:
-            continue
-        results.append(
-            AuthentikUser(
-                authentik_sub=str(uuid),
-                name=item.get("name") or item.get("username") or "",
-                username=item.get("username") or "",
-                email=item.get("email") or None,
-            )
+    parsed = (_parse_user(item) for item in data.get("results", []))
+    return [u for u in parsed if u is not None]
+
+
+async def _fetch_user_item(uuid: str) -> dict[str, Any] | None:
+    """The raw Authentik user record for ``uuid``; ``None`` when it does not exist.
+
+    Raises ``AuthentikUnavailableError`` on transport errors.
+    """
+    url = f"{settings.AUTHENTIK_API_URL.rstrip('/')}/core/users/"
+    headers = {"Authorization": f"Bearer {settings.AUTHENTIK_API_TOKEN}"}
+    params: dict[str, str | int] = {"uuid": uuid, "page_size": 1}
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
+            resp = await client.get(url, headers=headers, params=params)
+            resp.raise_for_status()
+            data = resp.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning(f"Authentik user lookup failed: {exc}")
+        raise AuthentikUnavailableError(str(exc)) from exc
+
+    results: list[dict[str, Any]] = data.get("results", [])
+    return next((item for item in results if str(item.get("uuid") or "") == uuid), None)
+
+
+async def get_user(uuid: str) -> AuthentikUser | None:
+    """Fetch one Authentik account by its uuid; ``None`` when it does not exist.
+
+    Raises ``AuthentikUnavailableError`` on transport errors so callers that
+    must not trust client-supplied account details can refuse instead of
+    silently degrading.
+    """
+    item = await _fetch_user_item(uuid)
+    return _parse_user(item) if item is not None else None
+
+
+# Authentik subject mode -> the user-record field it places in ``sub``. Only
+# identifiers the account owner cannot change; username/email/UPN modes are
+# absent on purpose, so they never count as proof of ownership.
+_SUBJECT_FIELD_BY_MODE = {
+    "hashed_user_id": "uid",
+    "user_uuid": "uuid",
+    "user_id": "pk",
+}
+
+
+async def account_has_subject(uuid: str, oidc_sub: str) -> bool:
+    """True when ``oidc_sub`` is the OIDC subject Authentik issues for ``uuid``.
+
+    This is the proof that a login belongs to the account an admin linked: a
+    shared email is not, because Authentik does not enforce unique emails.
+    Only the single identifier selected by ``OIDC_SUBJECT_MODE`` is compared,
+    so a subject from another identifier space (e.g. a username crafted to
+    equal someone's uuid) cannot match. ``False`` when the API is not
+    configured or the mode is mutable/unknown; raises
+    ``AuthentikUnavailableError`` when Authentik cannot be reached, so callers
+    fail closed.
+    """
+    field = _SUBJECT_FIELD_BY_MODE.get(settings.OIDC_SUBJECT_MODE)
+    if field is None:
+        logger.warning(
+            f"OIDC_SUBJECT_MODE={settings.OIDC_SUBJECT_MODE!r} cannot prove account "
+            "ownership; refusing to hand linked rows over."
         )
-    return results
+        return False
+    if not is_configured() or not oidc_sub:
+        return False
+    item = await _fetch_user_item(uuid)
+    if item is None:
+        return False
+    expected = item.get(field)
+    return expected not in (None, "") and str(expected) == oidc_sub
 
 
 async def list_group_members(group_name: str) -> list[AuthentikUser]:

@@ -174,7 +174,7 @@ export default function ActivityTypeInfo() {
               );
             })}
 
-            <div className="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3 text-xs text-yellow-800 dark:text-yellow-200">
+            <div className="mt-4 rounded-lg border border-warning/20 bg-warning/10 p-3 text-xs text-warning-ink">
               <strong>Todos os tipos podem receber:</strong> Bonus por shots extra e penalizações
               que afetam a pontuação final.
             </div>

@@ -146,10 +146,13 @@ test.describe("Fase 4: Operações CRUD Completas de Admin", () => {
       // Verificar persistência na lista
       await expect(adminPage.getByText(team1NewName)).toBeVisible({ timeout: 15_000 });
 
-      // 3. Eliminar Equipa Beta (lida com o confirm modal do browser)
-      adminPage.on("dialog", (dialog) => dialog.accept());
+      // 3. Eliminar Equipa Beta (confirmação no diálogo da app)
       const team2Item = adminPage.locator("li", { hasText: team2Name });
       await team2Item.locator("button:has(svg.lucide-trash-2, svg.lucide-trash)").first().click();
+      await adminPage
+        .getByRole("alertdialog")
+        .getByRole("button", { name: "Eliminar" })
+        .click();
 
       // Verificar que Equipa Beta foi removida da lista
       await expect(adminPage.getByText(team2Name)).toHaveCount(0, { timeout: 15_000 });
@@ -206,10 +209,10 @@ test.describe("Fase 4: Operações CRUD Completas de Admin", () => {
       await adminPage.getByRole("button", { name: /^Atualizar$/ }).click();
       await expect(adminPage.getByText(act1NewName)).toBeVisible({ timeout: 15_000 });
 
-      // 4. Eliminar Atividade
-      adminPage.on("dialog", (dialog) => dialog.accept());
+      // 4. Eliminar Atividade (confirmação no diálogo da app)
       const actUpdatedItem = adminPage.locator(".rounded-lg.border", { hasText: act1NewName });
       await actUpdatedItem.locator("button:has(svg.lucide-trash-2, svg.lucide-trash)").first().click();
+      await adminPage.getByRole("alertdialog").getByRole("button", { name: "Apagar" }).click();
 
       // Verificar que a atividade foi removida
       await expect(adminPage.getByText(act1NewName)).toHaveCount(0, { timeout: 15_000 });

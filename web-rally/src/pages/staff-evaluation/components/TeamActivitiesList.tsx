@@ -160,10 +160,10 @@ export function TeamActivitiesList({
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 <span
                   className={cn(
-                    "rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
+                    "rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide",
                     isCompleted
                       ? "rally-bg-accent-soft text-foreground"
-                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+                      : "bg-warning/15 text-warning-ink",
                   )}
                 >
                   {isCompleted ? "Avaliado" : "Pendente"}

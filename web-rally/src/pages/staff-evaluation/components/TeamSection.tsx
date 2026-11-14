@@ -10,7 +10,7 @@ const LABEL_CLASS: Record<TeamCardVariant, string> = {
   // darker step is picked against the *tinted* ground the nei theme paints
   // behind this label (#d3e7db, where amber-700 is still only 3.88:1), not
   // just the off-white one.
-  previous: "text-amber-800 dark:text-amber-400",
+  previous: "text-warning-ink",
   evaluated: "text-muted-foreground",
 };
 

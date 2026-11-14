@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Link2, Search } from "lucide-react";
+import { Link2, Loader2, Search } from "lucide-react";
 import { TeamMemberLinkService, type OidcUserSearchResult } from "@/services/TeamMemberLinkService";
 
 function errorMessage(error: unknown): string {
@@ -52,7 +52,11 @@ export default function LinkMemberPanel({
         onSubmit={(e) => {
           e.preventDefault();
           link.reset();
-          setSubmitted(term);
+          if (term === submitted) {
+            void search.refetch();
+          } else {
+            setSubmitted(term);
+          }
         }}
       >
         <Input
@@ -61,16 +65,32 @@ export default function LinkMemberPanel({
           placeholder="Procurar conta NEI (nome ou email)"
           aria-label="Procurar conta NEI"
         />
-        <Button type="submit" size="sm" disabled={term.trim().length < 2}>
-          <Search className="h-4 w-4" />
+        <Button
+          type="submit"
+          size="sm"
+          aria-label="Procurar"
+          aria-busy={search.isFetching}
+          disabled={term.trim().length < 2 || search.isFetching}
+        >
+          {search.isFetching ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Search className="h-4 w-4" />
+          )}
         </Button>
       </form>
 
-      {search.isError && (
+      {search.isFetching && (
+        <p role="status" className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />A procurar…
+        </p>
+      )}
+
+      {!search.isFetching && search.isError && (
         <p className="mt-2 text-sm text-destructive">{errorMessage(search.error)}</p>
       )}
 
-      {search.isSuccess && (
+      {!search.isFetching && search.isSuccess && (
         <div className="mt-2 space-y-1">
           {search.data.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma conta encontrada.</p>
@@ -87,11 +107,21 @@ export default function LinkMemberPanel({
                   <span className="font-medium">{user.name}</span>
                   {user.email && <span className="text-muted-foreground"> · {user.email}</span>}
                 </span>
-                <Link2 className="h-4 w-4 text-muted-foreground" />
+                {link.isPending && link.variables?.authentik_sub === user.authentik_sub ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <Link2 className="h-4 w-4 text-muted-foreground" />
+                )}
               </button>
             ))
           )}
         </div>
+      )}
+
+      {link.isPending && (
+        <p role="status" className="mt-2 text-sm text-muted-foreground">
+          A ligar…
+        </p>
       )}
 
       {link.isError && <p className="mt-2 text-sm text-destructive">{errorMessage(link.error)}</p>}

@@ -32,7 +32,7 @@ export default function BadgeAdminTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Trophy className="h-5 w-5 text-amber-500" />
+        <Trophy className="h-5 w-5 text-warning-ink" />
         <h2 className="rally-display text-2xl">Catálogo de Crachás</h2>
         {!formMode.open && (
           <button
@@ -83,7 +83,7 @@ export default function BadgeAdminTab() {
                   <p className="mt-0.5 text-xs text-muted-foreground">{badge.description}</p>
                 )}
                 <span
-                  className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${
                     badge.is_auto ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                   }`}
                 >
@@ -108,7 +108,7 @@ export default function BadgeAdminTab() {
                   onClick={() => toggleActive(badge)}
                 >
                   {badge.is_active ? (
-                    <ToggleRight className="h-5 w-5 text-green-500" />
+                    <ToggleRight className="h-5 w-5 text-success-ink" />
                   ) : (
                     <ToggleLeft className="h-5 w-5" />
                   )}
@@ -119,7 +119,7 @@ export default function BadgeAdminTab() {
                       type="button"
                       title="Eliminar"
                       aria-label={`Eliminar crachá ${badge.name}`}
-                      className="rounded-lg p-2 text-muted-foreground transition hover:bg-red-500/10 hover:text-red-500"
+                      className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive-ink"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

@@ -64,6 +64,7 @@ jobs:
       # authentik management API — group listing without prior login
       AUTHENTIK_API_URL: ${{ vars.AUTHENTIK_API_URL }}
       AUTHENTIK_API_TOKEN: ${{ secrets.AUTHENTIK_API_TOKEN }}
+      OIDC_SUBJECT_MODE: ${{ vars.OIDC_SUBJECT_MODE }}
       # Team auth
       TEAM_JWT_SECRET_KEY: ${{ secrets.TEAM_JWT_SECRET_KEY }}
       # General

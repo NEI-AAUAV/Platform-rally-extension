@@ -1,10 +1,16 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ComponentProps } from "react";
 import type ActivityCreateForm from "@/components/activity-form/ActivityCreateForm";
 import type ActivityList from "@/components/activity-form/ActivityList";
 import type { ActivityType } from "@/types/activityTypes";
 import ActivityManagement from "@/pages/admin/components/activity/ActivityManagement";
+
+/** Answers the in-app confirmation dialog (replaces window.confirm). */
+async function answerConfirm(label: string) {
+  const dialog = await screen.findByRole("alertdialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: label }));
+}
 
 const {
   mockUseActivities,
@@ -78,7 +84,6 @@ describe("ActivityManagement", () => {
     mockUseCreateActivity.mockReturnValue({ mutate: vi.fn(), isPending: false, error: null });
     mockUseUpdateActivity.mockReturnValue({ mutate: vi.fn(), isPending: false });
     mockUseDeleteActivity.mockReturnValue({ mutate: vi.fn() });
-    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   it("renders without crashing with no checkpoints", () => {
@@ -208,7 +213,7 @@ describe("ActivityManagement", () => {
     expect(screen.queryByTestId("activity-form")).not.toBeInTheDocument();
   });
 
-  it("deletes an activity after confirm", () => {
+  it("deletes an activity after confirm", async () => {
     mockUseActivities.mockReturnValue({
       data: {
         activities: [
@@ -230,12 +235,12 @@ describe("ActivityManagement", () => {
     mockUseDeleteActivity.mockReturnValue({ mutate });
     render(<ActivityManagement checkpoints={checkpoints} />);
     fireEvent.click(screen.getByText("delete-9"));
-    expect(mutate).toHaveBeenCalledWith(9, expect.anything());
-    expect(mockToastSuccess).toHaveBeenCalledWith("Atividade deletada com sucesso!");
+    await answerConfirm("Apagar");
+    await waitFor(() => expect(mutate).toHaveBeenCalledWith(9, expect.anything()));
+    expect(mockToastSuccess).toHaveBeenCalledWith("Atividade apagada.");
   });
 
-  it("does not delete when confirm is cancelled", () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
+  it("does not delete when confirm is cancelled", async () => {
     mockUseActivities.mockReturnValue({
       data: {
         activities: [
@@ -257,10 +262,12 @@ describe("ActivityManagement", () => {
     mockUseDeleteActivity.mockReturnValue({ mutate });
     render(<ActivityManagement checkpoints={checkpoints} />);
     fireEvent.click(screen.getByText("delete-9"));
+    await answerConfirm("Cancelar");
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it("shows error toast on delete failure", () => {
+  it("shows error toast on delete failure", async () => {
     mockUseActivities.mockReturnValue({
       data: {
         activities: [
@@ -282,6 +289,7 @@ describe("ActivityManagement", () => {
     mockUseDeleteActivity.mockReturnValue({ mutate });
     render(<ActivityManagement checkpoints={checkpoints} />);
     fireEvent.click(screen.getByText("delete-9"));
-    expect(mockToastError).toHaveBeenCalled();
+    await answerConfirm("Apagar");
+    await waitFor(() => expect(mockToastError).toHaveBeenCalled());
   });
 });

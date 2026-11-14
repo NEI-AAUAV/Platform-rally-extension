@@ -429,7 +429,7 @@ export default function BrandingSettings() {
                       style={{ backgroundColor: p.accent_color || "#888888" }}
                     />
                     <span className="text-xs font-medium">{p.name}</span>
-                    <span className="text-[10px] uppercase text-muted-foreground">
+                    <span className="text-xs uppercase text-muted-foreground">
                       {BUTTON_STYLE_OPTIONS.find((o) => o.value === p.button_style)?.label ??
                         "Simples"}
                     </span>

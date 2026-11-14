@@ -84,13 +84,12 @@ const activityTypeIcons = {
 };
 
 const TEAM_VS_CLASSES: Record<string, string> = {
-  win: "border-green-500/50 text-green-700 dark:text-green-400",
-  lose: "border-red-500/50 text-red-700 dark:text-red-400",
+  win: "border-success/50 text-success-ink",
+  lose: "border-destructive/50 text-destructive-ink",
 };
 
 function TeamVsResultBadges({ result, opponentId }: { result: string; opponentId: number | null }) {
-  const badgeClass =
-    TEAM_VS_CLASSES[result] ?? "border-yellow-500/50 text-yellow-700 dark:text-yellow-400";
+  const badgeClass = TEAM_VS_CLASSES[result] ?? "border-warning/50 text-warning-ink";
   return (
     <>
       <Badge variant="outline" className={`flex items-center gap-1 text-xs ${badgeClass}`}>
@@ -323,20 +322,20 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <Badge
                         variant="default"
-                        className="w-fit bg-green-500/20 text-xs text-green-700 dark:text-green-400 sm:text-sm"
+                        className="w-fit bg-success/20 text-xs text-success-ink sm:text-sm"
                       >
                         Pontuação: {evaluation.final_score?.toFixed(1) || "0"}
                       </Badge>
                       <div className="flex flex-col gap-0.5">
                         <Badge
                           variant="outline"
-                          className="w-fit border-border text-[10px] text-muted-foreground"
+                          className="w-fit border-border text-xs text-muted-foreground"
                         >
                           {new Date(evaluation.completed_at).toLocaleDateString()}
                         </Badge>
                         <Badge
                           variant="outline"
-                          className="w-fit border-border text-[10px] text-muted-foreground"
+                          className="w-fit border-border text-xs text-muted-foreground"
                         >
                           {new Date(evaluation.completed_at).toLocaleTimeString("en-US", {
                             hour: "2-digit",
@@ -367,8 +366,8 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                                 variant="outline"
                                 className={`flex items-center gap-1 text-xs ${
                                   evaluation.final_score > 0
-                                    ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400"
-                                    : "border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
+                                    ? "border-success/50 bg-success/10 text-success-ink"
+                                    : "border-warning/50 bg-warning/10 text-warning-ink"
                                 }`}
                               >
                                 {evaluation.final_score > 0 ? (
@@ -396,8 +395,8 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                                   variant="outline"
                                   className={`flex items-center gap-1 text-xs ${
                                     evaluation.boolean_score
-                                      ? "border-green-500/50 text-green-700 dark:text-green-400"
-                                      : "border-red-500/50 text-red-700 dark:text-red-400"
+                                      ? "border-success/50 text-success-ink"
+                                      : "border-destructive/50 text-destructive-ink"
                                   }`}
                                 >
                                   {evaluation.boolean_score ? (
@@ -426,20 +425,18 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
                       {(evaluation.extra_shots ?? 0) > 0 && (
                         <div>
-                          <p className="mb-1 text-xs font-semibold text-blue-700 dark:text-blue-400">
-                            Modificadores:
-                          </p>
+                          <p className="mb-1 text-xs font-semibold text-info-ink">Modificadores:</p>
                           <div className="flex flex-wrap gap-1">
                             <Badge
                               variant="outline"
-                              className="border-blue-500/30 text-xs text-blue-700 dark:text-blue-400"
+                              className="border-info/30 text-xs text-info-ink"
                             >
                               Shots extra: +{evaluation.extra_shots}
                             </Badge>
                             {(evaluation.team.num_members ?? 0) > 0 && (
                               <Badge
                                 variant="outline"
-                                className="border-blue-500/30 text-xs text-blue-700 dark:text-blue-400"
+                                className="border-info/30 text-xs text-info-ink"
                               >
                                 Membros da equipa: {evaluation.team.num_members}
                               </Badge>
@@ -450,7 +447,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
 
                       {evaluation.penalties && Object.keys(evaluation.penalties).length > 0 && (
                         <div>
-                          <p className="mb-1 text-xs font-semibold text-red-700 dark:text-red-400">
+                          <p className="mb-1 text-xs font-semibold text-destructive-ink">
                             Penalizações:
                           </p>
                           <div className="flex flex-wrap gap-1">
@@ -458,7 +455,7 @@ export default function AllEvaluations({ evaluations: evaluationsProp }: AllEval
                               <Badge
                                 key={key}
                                 variant="outline"
-                                className="border-red-500/30 text-xs text-red-700 dark:text-red-400"
+                                className="border-destructive/30 text-xs text-destructive-ink"
                               >
                                 {key}: {value}
                               </Badge>

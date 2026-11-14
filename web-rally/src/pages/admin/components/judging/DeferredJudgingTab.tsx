@@ -98,7 +98,7 @@ function RankingGroup({ activityId, activityName, onRanked }: RankingGroupProps)
       </div>
 
       {rankMutation.isError && (
-        <div className="flex items-center gap-2 text-xs text-red-500">
+        <div className="flex items-center gap-2 text-xs text-destructive-ink">
           <AlertCircle className="h-4 w-4" />
           Erro ao submeter a ordenação. Tenta novamente.
         </div>
@@ -150,7 +150,7 @@ function RankingGroup({ activityId, activityName, onRanked }: RankingGroupProps)
                   disabled={index === 0}
                   onClick={() => move(index, -1)}
                   aria-label={`Subir equipa #${result.team_id}`}
-                  className="rounded p-1 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
+                  className="rounded p-2 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
                 >
                   <ArrowUp className="h-4 w-4" />
                 </button>
@@ -159,7 +159,7 @@ function RankingGroup({ activityId, activityName, onRanked }: RankingGroupProps)
                   disabled={index === order.length - 1}
                   onClick={() => move(index, 1)}
                   aria-label={`Descer equipa #${result.team_id}`}
-                  className="rounded p-1 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
+                  className="rounded p-2 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
                 >
                   <ArrowDown className="h-4 w-4" />
                 </button>
@@ -213,7 +213,7 @@ export default function DeferredJudgingTab() {
   if (activityIds.length === 0) {
     return (
       <div className="rally-surface flex flex-col items-center gap-3 py-16 text-center">
-        <CheckCircle2 className="h-10 w-10 text-green-500" />
+        <CheckCircle2 className="h-10 w-10 text-success-ink" />
         <p className="font-semibold">Sem julgamentos pendentes</p>
         <p className="text-sm text-muted-foreground">
           Quando o staff fotografar equipas, as entradas aparecem aqui.
@@ -225,9 +225,9 @@ export default function DeferredJudgingTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Gavel className="h-5 w-5 text-amber-500" />
+        <Gavel className="h-5 w-5 text-warning-ink" />
         <h2 className="rally-display text-2xl">Julgamentos Pendentes</h2>
-        <span className="ml-auto rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-semibold text-amber-600">
+        <span className="ml-auto rounded-full bg-warning/20 px-2.5 py-0.5 text-xs font-semibold text-warning-ink">
           {pending.length}
         </span>
       </div>

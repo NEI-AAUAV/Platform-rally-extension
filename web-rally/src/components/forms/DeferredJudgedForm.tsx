@@ -113,7 +113,7 @@ export default function DeferredJudgedForm({
                     type="button"
                     onClick={() => handleSetTeamPhoto(url)}
                     disabled={settingTeamPhotoUrl === url}
-                    className="absolute bottom-1 right-1 rounded-full bg-black/60 p-1.5 text-white transition-colors hover:bg-black/80 disabled:opacity-50"
+                    className="rally-hit absolute bottom-1 right-1 rounded-full bg-black/60 p-1.5 text-white transition-colors hover:bg-black/80 disabled:opacity-50"
                     aria-label="Definir como foto da equipa"
                     title="Definir como foto da equipa"
                   >
@@ -146,7 +146,7 @@ export default function DeferredJudgedForm({
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white transition-colors hover:bg-red-700"
+                  className="rally-hit absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-white transition-colors hover:bg-destructive/90"
                   aria-label="Remover foto"
                 >
                   <X className="h-3.5 w-3.5" />

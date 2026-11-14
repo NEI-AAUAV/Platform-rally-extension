@@ -131,7 +131,7 @@ export function CheckpointTimelineItem({
                 Checkpoint {checkpointOrder}
               </span>
               {isCurrentCheckpoint && (
-                <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                <span className="rounded bg-success/15 px-2 py-1 text-xs text-success-ink">
                   Current
                 </span>
               )}

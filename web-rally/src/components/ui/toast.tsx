@@ -52,7 +52,14 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ showToast, toasts }}>
       {children}
-      <div className="pointer-events-none fixed bottom-0 right-0 z-50 flex flex-col-reverse gap-2 p-4">
+      {/* Persistent polite region: dynamically inserted role="status" nodes are
+          announced unreliably, so the container owns the live region. Errors and
+          warnings still interrupt via role="alert". */}
+      <div
+        aria-live="polite"
+        aria-relevant="additions"
+        className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 flex flex-col-reverse items-stretch gap-2 p-4 sm:left-auto sm:items-end"
+      >
         {toasts.map((toast) => (
           <ToastComponent key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
         ))}
@@ -64,48 +71,33 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 const ToastComponent: React.FC<{ toast: Toast; onClose: () => void }> = ({ toast, onClose }) => {
   const { type, message } = toast;
 
+  // Status tokens are tuned so white text clears 4.5:1 (WCAG 1.4.3) in both themes.
   const config = {
-    success: {
-      bg: "bg-green-600",
-      border: "border-green-500",
-      icon: CheckCircle,
-      iconColor: "text-green-800 dark:text-green-300",
-    },
-    error: {
-      bg: "bg-red-600",
-      border: "border-red-500",
-      icon: AlertCircle,
-      iconColor: "text-red-800 dark:text-red-300",
-    },
-    warning: {
-      bg: "bg-yellow-600",
-      border: "border-yellow-500",
-      icon: AlertTriangle,
-      iconColor: "text-yellow-800 dark:text-yellow-300",
-    },
-    info: {
-      bg: "bg-blue-600",
-      border: "border-blue-500",
-      icon: Info,
-      iconColor: "text-blue-800 dark:text-blue-300",
-    },
+    success: { bg: "bg-success", border: "border-success", icon: CheckCircle },
+    error: { bg: "bg-destructive", border: "border-destructive", icon: AlertCircle },
+    warning: { bg: "bg-warning", border: "border-warning", icon: AlertTriangle },
+    info: { bg: "bg-info", border: "border-info", icon: Info },
   };
 
-  const { bg, border, icon: Icon, iconColor } = config[type];
+  const { bg, border, icon: Icon } = config[type];
+  const isUrgent = type === "error" || type === "warning";
 
   return (
     <div
-      className={`min-w-[300px] max-w-[500px] ${bg} border ${border} pointer-events-auto rounded-lg p-4 shadow-lg animate-in slide-in-from-bottom-2`}
+      role={isUrgent ? "alert" : "status"}
+      aria-atomic="true"
+      className={`w-full sm:w-auto sm:min-w-[300px] sm:max-w-[500px] ${bg} border ${border} pointer-events-auto rounded-lg p-4 shadow-lg animate-in slide-in-from-bottom-2`}
     >
       <div className="flex items-start gap-3">
-        <Icon className={`h-5 w-5 ${iconColor} mt-0.5 flex-shrink-0`} />
+        <Icon aria-hidden="true" className="mt-0.5 h-5 w-5 flex-shrink-0 text-white" />
         <p className="flex-1 text-sm font-medium text-white">{message}</p>
         <button
           type={"button"}
           onClick={onClose}
-          className="flex-shrink-0 text-white/70 transition-colors hover:text-white"
+          aria-label="Fechar notificação"
+          className="-m-2 flex-shrink-0 rounded-md p-2 text-white/80 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
         >
-          <X className="h-4 w-4" />
+          <X aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>
     </div>

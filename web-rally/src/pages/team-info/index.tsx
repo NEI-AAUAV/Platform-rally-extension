@@ -97,7 +97,7 @@ export default function TeamInfo() {
               <p className="font-semibold text-foreground">
                 {member.name}
                 {member.is_captain && (
-                  <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                  <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                     Capitão
                   </span>
                 )}
@@ -105,7 +105,7 @@ export default function TeamInfo() {
             </div>
 
             {member.is_linked ? (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+              <span className="flex items-center gap-1.5 text-sm font-medium text-success-ink">
                 <CheckCircle2 className="h-4 w-4" />
                 Associado
               </span>

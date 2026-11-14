@@ -39,7 +39,8 @@ class ListingUser(UserBase):
             "name": data.name,
             "team_id": data.team_id,
             "is_captain": data.is_captain,
-            "is_linked": getattr(data, "authentik_sub", None) is not None,
+            "is_linked": getattr(data, "authentik_sub", None) is not None
+            or getattr(data, "authentik_uuid", None) is not None,
         }
 
 

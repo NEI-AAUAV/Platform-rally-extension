@@ -80,7 +80,7 @@ export default function MemberList({
                   {member.is_captain && (
                     <Badge
                       variant="outline"
-                      className="border-yellow-500 bg-yellow-600/20 text-yellow-800 dark:text-yellow-300"
+                      className="border-warning bg-warning/20 text-warning-ink"
                     >
                       Capitão
                     </Badge>
@@ -97,7 +97,7 @@ export default function MemberList({
                   {member.is_linked ? (
                     <Badge
                       variant="outline"
-                      className="border-emerald-500 bg-emerald-600/20 text-emerald-800 dark:text-emerald-300"
+                      className="border-success bg-success/20 text-success-ink"
                     >
                       <Link2 className="mr-1.5 h-3.5 w-3.5" />
                       Conta NEI associada
@@ -118,7 +118,7 @@ export default function MemberList({
                     size="sm"
                     onClick={() => handleRemoveMember(member.id)}
                     disabled={isRemovingMember}
-                    className="text-red-700 hover:bg-red-600/20 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                    className="text-destructive-ink hover:bg-destructive/20 hover:text-destructive-ink"
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Remover

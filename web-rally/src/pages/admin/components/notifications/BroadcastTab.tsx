@@ -43,7 +43,7 @@ export default function BroadcastTab() {
   return (
     <div className="mx-auto max-w-xl space-y-4">
       <div className="flex items-center gap-2">
-        <BellRing className="h-5 w-5 text-amber-500" />
+        <BellRing className="h-5 w-5 text-warning-ink" />
         <h2 className="rally-display text-2xl">Anúncio a todas as equipas</h2>
       </div>
       <p className="text-sm text-muted-foreground">
@@ -88,14 +88,14 @@ export default function BroadcastTab() {
         </label>
 
         {broadcast.isError && (
-          <div className="flex items-center gap-2 text-xs text-red-500">
+          <div className="flex items-center gap-2 text-xs text-destructive-ink">
             <AlertCircle className="h-4 w-4" />
             {getErrorMessage(broadcast.error, "Erro ao enviar anúncio")}
           </div>
         )}
 
         {lastSentCount !== null && !broadcast.isError && (
-          <div className="flex items-center gap-2 text-xs text-green-600">
+          <div className="flex items-center gap-2 text-xs text-success-ink">
             <CheckCircle2 className="h-4 w-4" />
             {lastSentCount > 0
               ? `Enviado a ${lastSentCount} dispositivo(s).`

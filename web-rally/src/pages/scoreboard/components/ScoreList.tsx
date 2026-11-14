@@ -77,7 +77,7 @@ function reachedOf(team: ListingTeam): number {
   return team.resolved_checkpoint_orders?.length ?? 0;
 }
 
-const MEDAL_RING = ["ring-amber-400", "ring-zinc-400", "ring-amber-700"];
+const MEDAL_RING = ["ring-warning", "ring-zinc-400", "ring-warning"];
 const ORDINAL = ["1º", "2º", "3º"];
 
 /**
@@ -161,20 +161,12 @@ export function Podium({
               </span>
             </p>
             {reached > 0 && (
-              <p
-                className={["mt-0.5 text-[0.7rem]", champion ? "" : "text-muted-foreground"].join(
-                  " ",
-                )}
-              >
+              <p className={["mt-0.5 text-xs", champion ? "" : "text-muted-foreground"].join(" ")}>
                 {reachedLabel(reached, checkpointsCount, terms)}
               </p>
             )}
             {showPace && team.elapsed_seconds != null && (
-              <p
-                className={["mt-0.5 text-[0.7rem]", champion ? "" : "text-muted-foreground"].join(
-                  " ",
-                )}
-              >
+              <p className={["mt-0.5 text-xs", champion ? "" : "text-muted-foreground"].join(" ")}>
                 {formatElapsed(team.elapsed_seconds)}
               </p>
             )}

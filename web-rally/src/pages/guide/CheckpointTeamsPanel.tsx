@@ -127,12 +127,12 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
               key={row.team_id}
               className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm"
             >
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-success-ink" />
               <span className="min-w-0 flex-1 truncate font-medium">{row.team_name}</span>
               {row.revealed_indication_ids.length > 0 && (
                 // The team paid points for these in the app; reading them out
                 // again would be giving away, for free, what they just bought.
-                <span className="shrink-0 text-xs text-amber-600">
+                <span className="shrink-0 text-xs text-warning-ink">
                   {row.revealed_indication_ids.length} pista
                   {row.revealed_indication_ids.length === 1 ? "" : "s"} já comprada
                   {row.revealed_indication_ids.length === 1 ? "" : "s"}
@@ -193,7 +193,7 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
           </p>
 
           {markArrived.isError && (
-            <p className="text-xs text-red-500">
+            <p className="text-xs text-destructive-ink">
               {getErrorMessage(markArrived.error, "Não foi possível marcar a chegada.")}
             </p>
           )}
@@ -224,7 +224,7 @@ export default function CheckpointTeamsPanel({ checkpointId, onPurchasedIdsChang
           </p>
 
           {markArrived.isError && (
-            <p className="text-xs text-red-500">
+            <p className="text-xs text-destructive-ink">
               {getErrorMessage(markArrived.error, "Não foi possível marcar a chegada.")}
             </p>
           )}

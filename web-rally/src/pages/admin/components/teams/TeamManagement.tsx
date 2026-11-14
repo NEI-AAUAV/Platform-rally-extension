@@ -30,6 +30,7 @@ import {
 } from "@/client";
 import { useAppToast } from "@/hooks/use-toast";
 import QRCodeDisplay from "@/components/qr/QRCodeDisplay";
+import { useConfirmDialog } from "@/components/shared/feedback/useConfirmDialog";
 
 const teamFormSchema = z.object({
   name: z.string().min(1, "Nome da equipa é obrigatório"),
@@ -53,6 +54,7 @@ type ExtendedDetailedTeam = Omit<DetailedTeam, "access_code"> & { access_code?: 
 
 export default function TeamManagement() {
   const navigate = useNavigate();
+  const { confirm, dialog } = useConfirmDialog();
   const [editingTeam, setEditingTeam] = React.useState<Team | null>(null);
   const [newlyCreatedTeam, setNewlyCreatedTeam] = React.useState<DetailedTeam | null>(null);
   const [selectedTeamForQR, setSelectedTeamForQR] = React.useState<Team | null>(null);
@@ -169,6 +171,7 @@ export default function TeamManagement() {
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+      {dialog}
       {/* Create/Edit Team Form — a side column on wide screens, list first */}
       <div className="rally-surface p-6 xl:sticky xl:top-24 xl:order-last">
         <h3 className="rally-display mb-4 text-2xl">
@@ -285,10 +288,14 @@ export default function TeamManagement() {
                     <BloodyButton
                       variant="neutral"
                       aria-label={`Eliminar equipa ${team.name}`}
-                      onClick={() => {
-                        if (confirm("Tem certeza que deseja deletar esta equipa?")) {
-                          deleteTeam(team.id);
-                        }
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `Eliminar a equipa ${team.name}?`,
+                          description: "Não é possível desfazer.",
+                          confirmLabel: "Eliminar",
+                          destructive: true,
+                        });
+                        if (ok) deleteTeam(team.id);
                       }}
                       disabled={isDeletingTeam}
                     >

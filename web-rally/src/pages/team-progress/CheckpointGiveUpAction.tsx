@@ -40,7 +40,7 @@ export default function CheckpointGiveUpAction({
         isso do que ficarem aqui presos o resto do evento.
       </p>
       {giveUp.isError && (
-        <p className="text-center text-xs text-red-500">
+        <p className="text-center text-xs text-destructive-ink">
           {getErrorMessage(giveUp.error, "Não foi possível desistir do posto.")}
         </p>
       )}

@@ -38,7 +38,7 @@ export default function StaffTeamRoster({ teamName, teamMembers, teamData }: Sta
                     )}
                   </div>
                   {member.is_captain && (
-                    <span className="rounded bg-yellow-100 px-2 py-1 text-xs text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                    <span className="rounded bg-warning/15 px-2 py-1 text-xs text-warning-ink">
                       Capitão
                     </span>
                   )}

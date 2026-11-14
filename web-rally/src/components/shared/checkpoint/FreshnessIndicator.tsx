@@ -35,7 +35,7 @@ export default function FreshnessIndicator({
       <span
         aria-hidden
         className={`h-1.5 w-1.5 rounded-full ${
-          isStale ? "bg-yellow-500" : "rally-bg-accent animate-pulse motion-reduce:animate-none"
+          isStale ? "bg-warning" : "rally-bg-accent animate-pulse motion-reduce:animate-none"
         }`}
       />
       {relativeLabel(secondsAgo)}

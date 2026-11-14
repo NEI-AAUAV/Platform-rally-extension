@@ -9,9 +9,9 @@ type Props = Readonly<{ checkpointId: number }>;
 
 /** Warmer as you get closer — the band names come from the server. */
 const BAND_TONE: Record<string, string> = {
-  "menos de 100m": "text-red-500",
-  "menos de 500m": "text-amber-600",
-  "menos de 2km": "text-sky-600",
+  "menos de 100m": "text-destructive-ink",
+  "menos de 500m": "text-warning-ink",
+  "menos de 2km": "text-info-ink",
   "mais de 2km": "text-muted-foreground",
 };
 
@@ -86,7 +86,7 @@ export default function ProximityButton({ checkpointId }: Props) {
       )}
 
       {reading?.is_within_radius && (
-        <p className="text-center text-xs text-emerald-600">
+        <p className="text-center text-xs text-success-ink">
           Estás dentro do raio — podes fazer check-in.
         </p>
       )}
@@ -110,7 +110,7 @@ export default function ProximityButton({ checkpointId }: Props) {
         Diz-te se estás a aquecer, nunca onde é o sítio.
       </p>
 
-      {error && <p className="text-center text-xs text-red-500">{error}</p>}
+      {error && <p className="text-center text-xs text-destructive-ink">{error}</p>}
     </div>
   );
 }

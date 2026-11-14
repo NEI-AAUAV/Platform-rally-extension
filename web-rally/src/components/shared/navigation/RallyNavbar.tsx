@@ -36,7 +36,7 @@ function EventSwitcher({ eventName }: { readonly eventName: string }) {
   const currentEventId = (events ?? []).find((ev) => ev.is_current)?.id ?? "";
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative min-w-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -45,9 +45,10 @@ function EventSwitcher({ eventName }: { readonly eventName: string }) {
         // The event-name span is hidden below the `sm` breakpoint, so the
         // button would otherwise have no accessible name on mobile viewports.
         aria-label={`Edição atual: ${eventName}`}
-        className="rally-press flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent"
+        title={eventName}
+        className="rally-press flex min-w-0 max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-accent"
       >
-        <span className="rally-display hidden max-w-[16ch] truncate text-lg text-foreground sm:inline sm:text-xl">
+        <span className="rally-display hidden min-w-0 max-w-[28ch] truncate text-lg text-foreground sm:inline sm:text-xl">
           {eventName}
         </span>
         <ChevronDown
@@ -105,8 +106,9 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
         aria-label="Navegação principal"
         className="rally-glass rally-glass-on-background rally-elevate pointer-events-auto mx-auto mt-3 flex max-w-5xl items-center gap-3 rounded-full border border-border/60 px-3 py-2 sm:px-5"
       >
-        {/* Brand */}
-        <div className="flex shrink-0 items-center gap-2.5">
+        {/* Brand. It may shrink: the event name truncates only when the bar
+            is actually out of room, not at a fixed width. */}
+        <div className="flex min-w-0 shrink items-center gap-2.5">
           <Link to="/" className="rally-press flex shrink-0 items-center gap-2">
             {logoSrc ? (
               <img
@@ -123,7 +125,10 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
           {isAdminOrManager ? (
             <EventSwitcher eventName={eventName} />
           ) : (
-            <span className="rally-display hidden max-w-[16ch] truncate text-lg text-foreground sm:inline sm:text-xl">
+            <span
+              title={eventName}
+              className="rally-display hidden min-w-0 max-w-[28ch] truncate text-lg text-foreground sm:inline sm:text-xl"
+            >
               {eventName}
             </span>
           )}
@@ -139,7 +144,7 @@ export function RallyNavbar({ branding }: RallyNavbarProps) {
         {/* Controls. On mobile the lamp moves next to the hamburger and the
             logged-out login buttons live in the sidebar, so this slot only
             shows the desktop lamp plus the (mobile-aware) user menu. */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 shrink items-center gap-2">
           <ColorModeToggle className="hidden sm:inline-flex" />
           <UserMenu />
         </div>

@@ -50,7 +50,7 @@ function PhaseChip({
   }
   if (phase === "pre") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-500/40 bg-yellow-500/10 px-3 py-1 text-xs font-bold text-yellow-800 dark:text-yellow-300">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-bold text-warning-ink">
         <Clock className="h-3.5 w-3.5" />
         Começa em {state.days > 0 ? `${state.days}d ` : ""}
         {PAD(state.hours)}:{PAD(state.minutes)}:{PAD(state.seconds)}
@@ -105,7 +105,7 @@ function StatCard({
         </p>
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         {status === "error" && (
-          <p className="flex items-center gap-1 text-[11px] font-medium text-red-700 dark:text-red-300">
+          <p className="flex items-center gap-1 text-xs font-medium text-destructive-ink">
             <AlertTriangle className="h-3 w-3" aria-hidden="true" />
             Indisponível
           </p>
@@ -220,7 +220,7 @@ export default function OperationsDashboard() {
       </div>
 
       {configurationErrors.length > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+        <div className="flex items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-ink">
           ⚠ Existem {configurationErrors.length} problema(s) de configuração que podem afetar a
           prova.
         </div>
@@ -246,9 +246,9 @@ export default function OperationsDashboard() {
 
       {/* Teams not started alert */}
       {teamsNotStarted > 0 && countdownState.phase === "live" && (
-        <div className="flex items-center gap-3 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
-          <Clock className="h-4 w-4 shrink-0 text-yellow-800 dark:text-yellow-400" />
-          <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
+        <div className="flex items-center gap-3 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3">
+          <Clock className="h-4 w-4 shrink-0 text-warning-ink" />
+          <p className="text-sm font-medium text-warning-ink">
             {teamsNotStarted} equipa{teamsNotStarted !== 1 ? "s" : ""} ainda não iniciou o percurso
           </p>
         </div>
@@ -258,7 +258,7 @@ export default function OperationsDashboard() {
       {checkpointsStatus === "error" && (
         <div
           role="alert"
-          className="flex items-center gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
+          className="flex items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-ink"
         >
           <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
           Não foi possível carregar os postos — o progresso por posto está indisponível.
@@ -349,7 +349,7 @@ export default function OperationsDashboard() {
                 </span>
                 <span className="rally-num shrink-0 text-[15px] font-bold tabular-nums text-foreground">
                   {team.total}
-                  <span className="ml-0.5 text-[10px] font-medium text-muted-foreground">pts</span>
+                  <span className="ml-0.5 text-xs font-medium text-muted-foreground">pts</span>
                 </span>
               </div>
             ))}

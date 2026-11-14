@@ -46,7 +46,7 @@ export default function GuideTeamPanel() {
               key={member.id}
               className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm"
             >
-              {member.is_captain && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-500" />}
+              {member.is_captain && <Crown className="h-3.5 w-3.5 shrink-0 text-warning-ink" />}
               <span className="truncate font-medium">{member.name}</span>
             </li>
           ))}

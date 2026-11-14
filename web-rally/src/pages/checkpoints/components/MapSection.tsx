@@ -149,7 +149,7 @@ export default function MapSection({
         {/* overlay card */}
         {overlay && (
           <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-[1000] rounded-[13px] border border-border bg-card px-[14px] py-3 shadow-[0_12px_30px_-14px_rgba(0,0,0,0.4)]">
-            <div className="rally-accent text-[11px] font-bold uppercase tracking-[0.14em]">
+            <div className="rally-accent text-xs font-bold uppercase tracking-[0.14em]">
               {selectedCheckpoint ? "Posto selecionado" : "Primeiro posto"}
             </div>
             <div className="mt-0.5 truncate text-[15px] font-bold text-foreground">

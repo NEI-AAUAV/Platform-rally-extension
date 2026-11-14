@@ -38,8 +38,24 @@ module.exports = {
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
+          foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
+          ink: "hsl(var(--destructive-ink) / <alpha-value>)",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success) / <alpha-value>)",
+          foreground: "hsl(var(--success-foreground) / <alpha-value>)",
+          ink: "hsl(var(--success-ink) / <alpha-value>)",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning) / <alpha-value>)",
+          foreground: "hsl(var(--warning-foreground) / <alpha-value>)",
+          ink: "hsl(var(--warning-ink) / <alpha-value>)",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info) / <alpha-value>)",
+          foreground: "hsl(var(--info-foreground) / <alpha-value>)",
+          ink: "hsl(var(--info-ink) / <alpha-value>)",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",

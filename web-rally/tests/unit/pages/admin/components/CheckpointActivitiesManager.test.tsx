@@ -1,6 +1,12 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import CheckpointActivitiesManager from "@/pages/admin/components/checkpoints/CheckpointActivitiesManager";
+
+/** Answers the in-app confirmation dialog (replaces window.confirm). */
+async function answerConfirm(label: string) {
+  const dialog = await screen.findByRole("alertdialog");
+  fireEvent.click(within(dialog).getByRole("button", { name: label }));
+}
 
 const {
   mockUseActivities,
@@ -105,15 +111,26 @@ describe("CheckpointActivitiesManager", () => {
     expect(screen.getByDisplayValue("Cabo de Guerra")).toBeInTheDocument();
   });
 
-  it("asks for confirmation before deleting", () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+  it("asks for confirmation before deleting", async () => {
     mockUseActivities.mockReturnValue({ data: { activities: [activityForCheckpoint1] } });
     render(<CheckpointActivitiesManager checkpointId={1} />);
 
     fireEvent.click(screen.getByLabelText("Apagar Cabo de Guerra"));
 
-    expect(confirmSpy).toHaveBeenCalled();
+    expect(
+      await screen.findByRole("alertdialog", { name: "Apagar este desafio?" }),
+    ).toBeInTheDocument();
+    await answerConfirm("Cancelar");
     expect(mockDeleteActivity).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
+  });
+
+  it("deletes after the dialog is confirmed", async () => {
+    mockUseActivities.mockReturnValue({ data: { activities: [activityForCheckpoint1] } });
+    render(<CheckpointActivitiesManager checkpointId={1} />);
+
+    fireEvent.click(screen.getByLabelText("Apagar Cabo de Guerra"));
+    await answerConfirm("Apagar");
+
+    expect(mockDeleteActivity).toHaveBeenCalledWith(activityForCheckpoint1.id, expect.anything());
   });
 });

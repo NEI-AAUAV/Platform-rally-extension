@@ -56,11 +56,11 @@ export default function VersusGroupList({
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <Badge variant="default" className="bg-red-600">
+                      <Badge variant="default" className="bg-destructive">
                         {teamA.name}
                       </Badge>
                       <span className="text-muted-foreground">vs</span>
-                      <Badge variant="default" className="bg-blue-600">
+                      <Badge variant="default" className="bg-info">
                         {teamB.name}
                       </Badge>
                     </div>
