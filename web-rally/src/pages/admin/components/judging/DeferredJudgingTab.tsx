@@ -150,7 +150,7 @@ function RankingGroup({ activityId, activityName, onRanked }: RankingGroupProps)
                   disabled={index === 0}
                   onClick={() => move(index, -1)}
                   aria-label={`Subir equipa #${result.team_id}`}
-                  className="rounded p-1 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
+                  className="rounded p-2 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
                 >
                   <ArrowUp className="h-4 w-4" />
                 </button>
@@ -159,7 +159,7 @@ function RankingGroup({ activityId, activityName, onRanked }: RankingGroupProps)
                   disabled={index === order.length - 1}
                   onClick={() => move(index, 1)}
                   aria-label={`Descer equipa #${result.team_id}`}
-                  className="rounded p-1 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
+                  className="rounded p-2 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
                 >
                   <ArrowDown className="h-4 w-4" />
                 </button>

@@ -63,7 +63,7 @@ export default function CheckpointMediaRow({
           disabled={isFirst}
           onClick={() => onMove(-1)}
           aria-label="Mover para cima"
-          className="rounded p-1 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
+          className="rounded p-2 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
         >
           <ArrowUp className="h-4 w-4" />
         </button>
@@ -72,7 +72,7 @@ export default function CheckpointMediaRow({
           disabled={isLast}
           onClick={() => onMove(1)}
           aria-label="Mover para baixo"
-          className="rounded p-1 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
+          className="rounded p-2 text-muted-foreground transition hover:bg-accent disabled:opacity-30"
         >
           <ArrowDown className="h-4 w-4" />
         </button>
@@ -81,7 +81,7 @@ export default function CheckpointMediaRow({
           onClick={onDelete}
           disabled={deleteDisabled}
           aria-label={`Remover ${label.toLowerCase()}`}
-          className="rounded p-1 text-muted-foreground transition hover:text-destructive"
+          className="rounded p-2 text-muted-foreground transition hover:text-destructive"
         >
           <Trash2 className="h-4 w-4" />
         </button>

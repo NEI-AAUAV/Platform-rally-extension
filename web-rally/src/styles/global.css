@@ -679,7 +679,6 @@
     pointer-events: none;
     opacity: 0;
     transform-origin: center;
-    will-change: transform;
     background-color: hsl(var(--foreground) / 0.08);
     transition:
       transform 420ms cubic-bezier(0.34, 1.32, 0.5, 1),
@@ -688,6 +687,7 @@
   }
   .rally-tabbar-pill[data-visible="true"] {
     opacity: 1;
+    will-change: transform;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -699,6 +699,19 @@
   /* Opt-in control material, for chrome-level controls (segmented pickers,
      toolbar buttons). Deliberately not applied to .rally-btn: the button
      skins own their own box-shadow, and overriding it would flatten them. */
+  /* Extends a compact control's hit area to at least 44x44px without changing
+     its look. The host must be positioned (relative/absolute). Do not use on
+     controls packed closer than the overflow, or hit areas overlap. */
+  .rally-hit::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+
   /* Interaction: lift on hover, settle on press — compositor-friendly. */
   .rally-press {
     transition:
