@@ -16,12 +16,36 @@ from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.pace_service import compute_paces
 from app.services.team_checkpoint_progress import team_started_at
-from app.services.visibility_policy import public_listing_allowed, scores_are_hidden
+from app.services.visibility_policy import (
+    neutral_team_order,
+    public_listing_allowed,
+    standings_private,
+    team_scores_hidden,
+)
 from app.utils.rally_duration import (
     format_duration,
     get_rally_duration_info,
     get_team_duration_info,
 )
+
+
+def _pace_entry(pace: Any, *, name: str, hidden: bool) -> TeamPaceEntry:
+    """One pace row, with the timing and rank blanked when ``hidden``."""
+    elapsed = pace.elapsed_seconds
+    return TeamPaceEntry(
+        id=pace.team_id,
+        name=name,
+        rank=0 if hidden else pace.rank,
+        elapsed_seconds=None if hidden else elapsed,
+        elapsed_display=None
+        if hidden
+        else format_duration(timedelta(seconds=elapsed) if elapsed is not None else None),
+        started_at=None if hidden else pace.started_at,
+        last_progress_at=None if hidden else pace.last_progress_at,
+        resolved_count=pace.resolved_count,
+        total_checkpoints=pace.total_published,
+        is_finished=pace.is_finished,
+    )
 
 
 class RallyDurationController:
@@ -109,30 +133,27 @@ class RallyDurationController:
             raise RallyUnauthorizedError("Authentication required (User or Team Token)")
         settings = await rally_settings.get_or_create(db)
         is_privileged = bool(curr_user) and deps.is_admin_or_staff(getattr(curr_user, "scopes", []))
-        hidden = scores_are_hidden(settings, is_privileged=is_privileged)
+        viewer_team_id = (
+            curr_team.team_id if curr_team is not None else getattr(curr_user, "team_id", None)
+        )
         teams = {entry.id: entry for entry in await team.get_multi(db)}
         paces = await compute_paces(db, settings)
+        if standings_private(settings, is_privileged=is_privileged):
+            # Paces arrive in rank order; with the ranks blanked the order
+            # would still be the ranking.
+            paces = sorted(paces, key=lambda p: neutral_team_order(teams[p.team_id].name))
         event = await team.get_current_event(db)
         return PaceRanking(
             event_id=event.id,
             entries=[
-                TeamPaceEntry(
-                    id=pace.team_id,
+                _pace_entry(
+                    pace,
                     name=teams[pace.team_id].name,
-                    rank=0 if hidden else pace.rank,
-                    elapsed_seconds=None if hidden else pace.elapsed_seconds,
-                    elapsed_display=None
-                    if hidden
-                    else format_duration(
-                        timedelta(seconds=pace.elapsed_seconds)
-                        if pace.elapsed_seconds is not None
-                        else None
+                    hidden=team_scores_hidden(
+                        settings,
+                        is_privileged=is_privileged,
+                        is_own_team=viewer_team_id is not None and pace.team_id == viewer_team_id,
                     ),
-                    started_at=None if hidden else pace.started_at,
-                    last_progress_at=None if hidden else pace.last_progress_at,
-                    resolved_count=pace.resolved_count,
-                    total_checkpoints=pace.total_published,
-                    is_finished=pace.is_finished,
                 )
                 for pace in paces
             ],

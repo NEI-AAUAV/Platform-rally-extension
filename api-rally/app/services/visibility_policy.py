@@ -21,6 +21,10 @@ from app.crud.crud_rally_settings import rally_settings
 LEADERBOARD_HIDDEN = "The live leaderboard is turned off for this event"
 TEAM_DETAILS_HIDDEN = "Team details are turned off for this event"
 PARTICIPANT_VIEW_DISABLED = "The participant view is turned off for this event"
+STANDINGS_PRIVATE = "Each team sees only its own score in this event"
+
+# ``show_score_mode`` values that withhold other teams' standings.
+_PRIVATE_SCORE_MODES = frozenset({"hidden", "individual"})
 
 
 async def public_listing_allowed(db: AsyncSession) -> bool:
@@ -68,14 +72,47 @@ async def require_participant_view(db: AsyncSession, *, is_privileged: bool) -> 
         raise RallyForbiddenError(PARTICIPANT_VIEW_DISABLED)
 
 
-def scores_are_hidden(settings: Any, *, is_privileged: bool) -> bool:
-    """Whether point totals must be withheld from this caller.
+def team_scores_hidden(settings: Any, *, is_privileged: bool, is_own_team: bool) -> bool:
+    """Whether one team's points and rank must be withheld from this caller.
 
-    ``show_score_mode == "hidden"`` is the manager saying the standings are
-    secret until the reveal. It has to hold on the wire, not only in the UI:
-    the totals, the rank and the per-post breakdown are the whole of what it
-    is hiding.
+    ``hidden`` withholds every team's. ``individual`` is "each team sees only
+    its own score": the viewer's own team is served in full and every other
+    team is redacted — for an anonymous caller that is all of them. The mode
+    used to bind in the SPA only, so the full standings stayed one request away.
     """
     if is_privileged:
         return False
-    return getattr(settings, "show_score_mode", "") == "hidden"
+    mode = getattr(settings, "show_score_mode", "")
+    if mode == "hidden":
+        return True
+    return mode == "individual" and not is_own_team
+
+
+def standings_private(settings: Any, *, is_privileged: bool) -> bool:
+    """Whether other teams' standings are withheld from this caller.
+
+    When they are, a response listing several teams must not come back in
+    rank order either: blanking the rank leaves the order as the ranking.
+    """
+    if is_privileged:
+        return False
+    return getattr(settings, "show_score_mode", "") in _PRIVATE_SCORE_MODES
+
+
+def neutral_team_order(name: str) -> str:
+    """Sort key for team rows whose order must not reveal the standings."""
+    return name.casefold()
+
+
+async def require_full_standings(db: AsyncSession, *, is_privileged: bool) -> None:
+    """Gate the cross-team ranking on ``show_score_mode``.
+
+    Unlike the team directory, the ranking cannot be redacted row by row to
+    something useful, so a mode that keeps other teams' scores private closes
+    it to non-privileged callers outright.
+    """
+    if is_privileged:
+        return
+    settings = await rally_settings.get_or_create(db)
+    if standings_private(settings, is_privileged=False):
+        raise RallyForbiddenError(STANDINGS_PRIVATE)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayRank, sortTeamsByRank } from "./teamRanking";
+import { displayRank, sortTeamsByRank, teamRank } from "./teamRanking";
 
 type T = { total: number; name: string; classification: number };
 
@@ -57,5 +57,39 @@ describe("displayRank", () => {
   it("is the 1-based position in the sorted list", () => {
     expect(displayRank(0)).toBe(1);
     expect(displayRank(3)).toBe(4);
+  });
+});
+
+describe("teamRank", () => {
+  type R = T & { id: number };
+  const ranked = (id: number, total: number, classification: number): R => ({
+    id,
+    total,
+    name: `T${id}`,
+    classification,
+  });
+
+  it("is the position in the sorted list when every score is visible", () => {
+    const teams = [ranked(1, 10, 2), ranked(2, 50, 1), ranked(3, 5, 3)];
+
+    expect(teamRank(teams, 1, { scoresRedacted: false })).toBe(2);
+  });
+
+  it("uses the server rank when other teams' scores are redacted", () => {
+    // Individual mode: the API zeroes every other team, so sorting the list
+    // would put the viewer's team first whatever its real standing.
+    const teams = [ranked(1, 30, 4), ranked(2, 0, 0), ranked(3, 0, 0)];
+
+    expect(teamRank(teams, 1, { scoresRedacted: true })).toBe(4);
+  });
+
+  it("is null for an unranked team under redaction", () => {
+    const teams = [ranked(1, 0, 0), ranked(2, 0, 0)];
+
+    expect(teamRank(teams, 1, { scoresRedacted: true })).toBeNull();
+  });
+
+  it("is null for a team not in the list", () => {
+    expect(teamRank([ranked(1, 0, 1)], 9, { scoresRedacted: false })).toBeNull();
   });
 });

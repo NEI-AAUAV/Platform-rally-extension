@@ -7,7 +7,7 @@ import useTeamAuth from "@/hooks/useTeamAuth";
 import useScoreboardStream from "@/hooks/useScoreboardStream";
 import useEventTerms from "@/hooks/useEventTerms";
 import { getCheckpoints, getTeams, type ListingTeam, type RallySettingsResponse } from "@/client";
-import { sortTeamsByRank } from "@/lib/teamRanking";
+import { sortTeamsByRank, teamRank } from "@/lib/teamRanking";
 import { Podium, ScoreRows, ScoreboardSkeleton } from "./components/ScoreList";
 import { ProvisionalBadge, FreshnessIndicator } from "@/components/shared";
 import { RallyButton } from "@/components/themes/rally";
@@ -16,9 +16,9 @@ import React from "react";
 
 /** Podium / ranked-rows split. In individual mode the single visible team is
  * rendered as a row at its real rank, never on the podium. */
-function splitBoard(list: ListingTeam[], isIndividualMode: boolean, myRankIndex: number) {
+function splitBoard(list: ListingTeam[], isIndividualMode: boolean, myRank: number | null) {
   if (isIndividualMode) {
-    return { podium: [] as ListingTeam[], rest: list, restStartRank: Math.max(myRankIndex + 1, 1) };
+    return { podium: [] as ListingTeam[], rest: list, restStartRank: Math.max(myRank ?? 1, 1) };
   }
   return { podium: list.slice(0, 3), rest: list.slice(3), restStartRank: 4 };
 }
@@ -144,11 +144,17 @@ export default function Scoreboard() {
   const myRankIndex =
     teamData && sortedTeams ? sortedTeams.findIndex((t) => t.id === teamData.team_id) : -1;
   const myTeam = myRankIndex >= 0 ? sortedTeams?.[myRankIndex] : undefined;
+  // In individual mode the API redacts every other team, so the standing is
+  // the server's rank for this team, not its position in the redacted list.
+  const myRank =
+    teamData && teams
+      ? teamRank(teams, teamData.team_id, { scoresRedacted: isIndividualMode })
+      : null;
 
   // Individual mode shows only the viewer's own team: render it as a plain
   // ranked row at its real position, never through the podium (which would
   // paint a mid-table team as "1º" with the gold ring).
-  const { podium, rest, restStartRank } = splitBoard(list, isIndividualMode, myRankIndex);
+  const { podium, rest, restStartRank } = splitBoard(list, isIndividualMode, myRank);
 
   const showSkeleton = teamsLoading && list.length === 0;
 
@@ -228,10 +234,13 @@ export default function Scoreboard() {
             )}
             {myTeam &&
               (() => {
-                const myRank = myRankIndex + 1;
-                const thirdPlace = sortedTeams?.[2];
+                // Other teams' points are redacted in individual mode, so there
+                // is no podium score to measure the gap against.
+                const thirdPlace = isIndividualMode ? undefined : sortedTeams?.[2];
                 const gapToPodium =
-                  myRank > 3 && thirdPlace ? thirdPlace.total - myTeam.total + 1 : null;
+                  myRank !== null && myRank > 3 && thirdPlace
+                    ? thirdPlace.total - myTeam.total + 1
+                    : null;
                 return (
                   <div className="rally-surface relative overflow-hidden p-6">
                     <div
@@ -244,7 +253,7 @@ export default function Scoreboard() {
                       </p>
                       <div className="mt-3 flex items-baseline gap-2">
                         <span className="rally-display text-4xl font-bold text-foreground">
-                          #{myRank}
+                          {myRank === null ? "–" : `#${myRank}`}
                         </span>
                         <span className="text-sm text-muted-foreground">
                           de {sortedTeams?.length}
@@ -267,7 +276,7 @@ export default function Scoreboard() {
                           para o pódio.
                         </p>
                       )}
-                      {myRank <= 3 && (
+                      {myRank !== null && myRank <= 3 && (
                         <p className="rally-accent mt-4 border-t border-border pt-4 text-sm font-semibold">
                           No pódio! Mantém a posição.
                         </p>

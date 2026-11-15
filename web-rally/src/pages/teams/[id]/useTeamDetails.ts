@@ -12,7 +12,8 @@ import {
   type ListingTeam,
 } from "@/client";
 import useRallySettings from "@/hooks/useRallySettings";
-import { displayRank, sortTeamsByRank } from "@/lib/teamRanking";
+import { teamRank } from "@/lib/teamRanking";
+import { useUserStore } from "@/stores/useUserStore";
 import type { EvaluationResult } from "./teamDetails.types";
 
 /**
@@ -22,6 +23,13 @@ import type { EvaluationResult } from "./teamDetails.types";
  */
 export function useTeamDetails(id: string | undefined) {
   const { settings } = useRallySettings();
+  const scopes = useUserStore((state) => state.scopes);
+  const isPrivileged =
+    scopes?.includes("admin") ||
+    scopes?.includes("manager-rally") ||
+    scopes?.includes("rally-staff");
+  // Individual mode: the API redacts every team but the viewer's own.
+  const scoresRedacted = settings?.show_score_mode === "individual" && !isPrivileged;
 
   const {
     data: team,
@@ -131,9 +139,8 @@ export function useTeamDetails(id: string | undefined) {
   // the same team, and this page was printing the raw field.
   const rank = useMemo(() => {
     if (!team || !allTeamsData?.length) return null;
-    const position = sortTeamsByRank(allTeamsData).findIndex((t) => t.id === team.id);
-    return position < 0 ? null : displayRank(position);
-  }, [team, allTeamsData]);
+    return teamRank(allTeamsData, team.id, { scoresRedacted });
+  }, [team, allTeamsData, scoresRedacted]);
 
   return {
     settings,

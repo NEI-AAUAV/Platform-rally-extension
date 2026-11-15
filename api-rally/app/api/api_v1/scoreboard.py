@@ -23,7 +23,7 @@ from app.services import leaderboard_cache
 from app.services.deps import get_scoring_service, get_team_service
 from app.services.scoring_service import ScoringService
 from app.services.team_service import TeamService
-from app.services.visibility_policy import require_live_leaderboard
+from app.services.visibility_policy import require_full_standings, require_live_leaderboard
 
 
 def _is_privileged(curr_user: DetailedUser | None) -> bool:
@@ -127,9 +127,11 @@ class ScoreboardController:
 
         ``show_live_leaderboard`` gates it: the switch used to hide the
         scoreboard in the SPA while this endpoint served the standings to
-        anyone who asked.
+        anyone who asked. ``show_score_mode`` gates it too: a mode that keeps
+        other teams' scores private has no cross-team ranking to publish.
         """
         await require_live_leaderboard(db, is_privileged=_is_privileged(curr_user))
+        await require_full_standings(db, is_privileged=_is_privileged(curr_user))
         if not settings.EVENTS_ENABLED:
             return await service.get_team_ranking()
 
