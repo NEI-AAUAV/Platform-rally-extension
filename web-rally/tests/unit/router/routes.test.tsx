@@ -1,4 +1,4 @@
-import { describe, test, expect } from "vitest";
+import { beforeAll, describe, test, expect } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import {
   createMemoryHistory,
@@ -9,6 +9,13 @@ import {
 } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { routeTree, adminRoute, teamsRedirectRoute } from "@/router/routes";
+
+// Rendering a route loads its lazy page chunk. The first load of a chunk
+// compiles it through Vite, which can take several seconds on a busy machine,
+// so the waits get a budget well past that and the test a budget past the wait.
+const LAZY_ROUTE_WAIT_MS = 15_000;
+const LAZY_ROUTE_TEST_MS = 20_000;
+const LAZY_CHUNK_PRELOAD_MS = 60_000;
 
 function buildRouter(initialPath: string) {
   return createRouter({
@@ -92,11 +99,18 @@ describe("routeTree structure", () => {
   });
 });
 
-describe("routeTree rendering", () => {
+describe("routeTree rendering", { timeout: LAZY_ROUTE_TEST_MS }, () => {
+  // The admin page is by far the largest chunk; compiling it inside a test's
+  // budget is what made the admin cases time out under a full parallel run.
+  // Load it once up front so every test only resolves an already-built module.
+  beforeAll(async () => {
+    await import("@/pages/admin");
+  }, LAZY_CHUNK_PRELOAD_MS);
+
   test("resolves the auth callback route outside the main layout", async () => {
     const router = buildRouter("/auth/callback");
     renderWithQueryClient(router);
-    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: 5000 });
+    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: LAZY_ROUTE_WAIT_MS });
     expect(router.state.matches.some((m) => m.routeId === "/auth/callback")).toBe(true);
     // The auth callback route should not go through the "main" layout route.
     expect(router.state.matches.some((m) => m.routeId === "/main")).toBe(false);
@@ -105,7 +119,7 @@ describe("routeTree rendering", () => {
   test("matches the teams route (which redirects to the scoreboard)", async () => {
     const router = buildRouter("/teams");
     renderWithQueryClient(router);
-    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: 5000 });
+    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: LAZY_ROUTE_WAIT_MS });
     expect(router.state.matches.some((m) => m.routeId === "/main/teams")).toBe(true);
   });
 
@@ -131,14 +145,14 @@ describe("routeTree rendering", () => {
     });
     render(<RouterProvider router={router} />);
     await waitFor(() => expect(router.state.location.pathname).toBe("/scoreboard"), {
-      timeout: 5000,
+      timeout: LAZY_ROUTE_WAIT_MS,
     });
   });
 
   test("resolves a parameterized route (team by id)", async () => {
     const router = buildRouter("/teams/abc123");
     renderWithQueryClient(router);
-    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: 5000 });
+    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: LAZY_ROUTE_WAIT_MS });
     const match = router.state.matches.find((m) => m.routeId === "/main/teams/$id");
     expect(match).toBeDefined();
     expect(match?.params).toEqual({ id: "abc123" });
@@ -147,7 +161,7 @@ describe("routeTree rendering", () => {
   test("resolves a nested parameterized route (checkpoint evaluation)", async () => {
     const router = buildRouter("/staff-evaluation/checkpoint/xyz");
     renderWithQueryClient(router);
-    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: 5000 });
+    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: LAZY_ROUTE_WAIT_MS });
     const match = router.state.matches.find(
       (m) => m.routeId === "/main/staff-evaluation/checkpoint/$checkpointId",
     );
@@ -158,7 +172,7 @@ describe("routeTree rendering", () => {
   test("preserves an allowed admin tab search param on navigation", async () => {
     const router = buildRouter("/admin?tab=events");
     renderWithQueryClient(router);
-    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: 5000 });
+    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: LAZY_ROUTE_WAIT_MS });
     const match = router.state.matches.find((m) => m.routeId === "/main/admin");
     expect(match).toBeDefined();
     expect(match?.search).toEqual({ tab: "events" });
@@ -167,7 +181,7 @@ describe("routeTree rendering", () => {
   test("matches the admin route even with a disallowed tab search param", async () => {
     const router = buildRouter("/admin?tab=bogus");
     renderWithQueryClient(router);
-    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: 5000 });
+    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: LAZY_ROUTE_WAIT_MS });
     const match = router.state.matches.find((m) => m.routeId === "/main/admin");
     expect(match).toBeDefined();
   });
@@ -193,7 +207,7 @@ describe("routeTree rendering", () => {
   ])("resolves the %s route to route id %s", async (path, expectedRouteId) => {
     const router = buildRouter(path);
     renderWithQueryClient(router);
-    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: 5000 });
+    await waitFor(() => expect(router.state.status).toBe("idle"), { timeout: LAZY_ROUTE_WAIT_MS });
     expect(router.state.matches.some((m) => m.routeId === expectedRouteId)).toBe(true);
   });
 });

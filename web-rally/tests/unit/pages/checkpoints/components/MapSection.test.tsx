@@ -49,7 +49,12 @@ const withoutCoords: Checkpoint[] = [
   { id: 3, name: "Checkpoint C", order: 3 },
 ];
 
-describe("MapSection", () => {
+// The real map is a lazy chunk (Leaflet); its first load compiles through Vite
+// and can outlast the 1s findBy default on a busy machine.
+const LAZY_MAP_WAIT_MS = 15_000;
+const LAZY_MAP_TEST_MS = 20_000;
+
+describe("MapSection", { timeout: LAZY_MAP_TEST_MS }, () => {
   it("renders nothing when showMap is false", () => {
     const { container } = render(
       <MapSection checkpoints={withCoords} selectedCheckpoint={null} showMap={false} />,
@@ -64,7 +69,9 @@ describe("MapSection", () => {
 
   it("renders the real map (lazy loaded) when at least one checkpoint has coordinates", async () => {
     render(<MapSection checkpoints={withCoords} selectedCheckpoint={null} />);
-    expect(await screen.findByTestId("map-container")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("map-container", {}, { timeout: LAZY_MAP_WAIT_MS }),
+    ).toBeInTheDocument();
   });
 
   it("renders the schematic SVG fallback when no checkpoints have coordinates", () => {
@@ -118,7 +125,9 @@ describe("MapSection", () => {
         onSelectCheckpoint={onSelectCheckpoint}
       />,
     );
-    await waitFor(() => expect(screen.getAllByTestId("marker").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByTestId("marker").length).toBeGreaterThan(0), {
+      timeout: LAZY_MAP_WAIT_MS,
+    });
     fireEvent.click(screen.getAllByTestId("marker")[0]!);
     expect(onSelectCheckpoint).toHaveBeenCalled();
   });
@@ -129,6 +138,8 @@ describe("MapSection", () => {
       { id: 2, name: "No coords", order: 2 },
     ];
     render(<MapSection checkpoints={mixed} selectedCheckpoint={null} />);
-    expect(await screen.findByTestId("map-container")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("map-container", {}, { timeout: LAZY_MAP_WAIT_MS }),
+    ).toBeInTheDocument();
   });
 });
