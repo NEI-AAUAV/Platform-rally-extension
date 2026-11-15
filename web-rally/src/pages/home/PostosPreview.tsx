@@ -5,6 +5,8 @@ import { ArrowRight, MapPin } from "lucide-react";
 import { getCheckpoints, type DetailedCheckPoint } from "@/client";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
+import useHiddenCheckpoints from "@/hooks/useHiddenCheckpoints";
+import { useUserStore } from "@/stores/useUserStore";
 
 const PREVIEW_LIMIT = 6;
 
@@ -25,6 +27,16 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
     queryFn: async () => (await getCheckpoints()).data,
     retry: false,
     enabled,
+  });
+  const scopes = useUserStore((state) => state.scopes);
+  const isPrivileged =
+    scopes?.includes("admin") ||
+    scopes?.includes("manager-rally") ||
+    scopes?.includes("rally-staff") ||
+    scopes?.includes("rally-guide");
+  const hasHiddenCheckpoints = useHiddenCheckpoints({
+    visibleCount: Array.isArray(checkpoints) ? checkpoints.length : 0,
+    enabled: enabled && !isPrivileged && Array.isArray(checkpoints) && checkpoints.length > 0,
   });
 
   if (enabled && isLoading) {
@@ -82,10 +94,33 @@ export function PostosPreview({ enabled }: PostosPreviewProps) {
             </div>
           </li>
         ))}
-        {remaining > 0 && (
-          <li className="flex items-center justify-center rounded-3xl border border-dashed border-border p-5 text-sm font-semibold text-muted-foreground">
-            <MapPin className="mr-2 h-4 w-4" />+{remaining} postos
+        {hasHiddenCheckpoints ? (
+          <li
+            aria-label={`Mais ${terms.checkpoints} por revelar`}
+            className="flex items-start gap-4 rounded-3xl border border-dashed border-border p-5"
+          >
+            <span
+              aria-hidden="true"
+              className="rally-display rally-accent w-10 shrink-0 text-4xl leading-none"
+            >
+              ?
+            </span>
+            <div className="min-w-0">
+              <p className="text-base font-bold text-foreground">
+                Mais {terms.checkpoints} por revelar
+              </p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {terms.checkpointGender === "f" ? "As restantes" : "Os restantes"}{" "}
+                {terms.checkpoints} revelam-se à medida que o percurso decorre.
+              </p>
+            </div>
           </li>
+        ) : (
+          remaining > 0 && (
+            <li className="flex items-center justify-center rounded-3xl border border-dashed border-border p-5 text-sm font-semibold text-muted-foreground">
+              <MapPin className="mr-2 h-4 w-4" />+{remaining} postos
+            </li>
+          )
         )}
       </ul>
     </section>

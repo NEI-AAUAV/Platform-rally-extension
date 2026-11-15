@@ -5,6 +5,7 @@ import useRallySettings from "@/hooks/useRallySettings";
 import useEventTerms from "@/hooks/useEventTerms";
 import { capitalize } from "@/lib/eventTerms";
 import useTeamAuth from "@/hooks/useTeamAuth";
+import useHiddenCheckpoints from "@/hooks/useHiddenCheckpoints";
 import { LoadingState } from "@/components/shared";
 import { MapPin } from "lucide-react";
 import { CheckpointList, MapSection } from "./components";
@@ -38,6 +39,13 @@ export default function Postos() {
       return data;
     },
     enabled: !isTeamAuthenticated || canViewPostos,
+  });
+
+  // Staff see the whole route; for everyone else a focused route withholds
+  // what is still ahead, and the list says so.
+  const hasHiddenCheckpoints = useHiddenCheckpoints({
+    visibleCount: checkpoints?.length ?? 0,
+    enabled: !isPrivileged && canViewPostos && Array.isArray(checkpoints),
   });
 
   // Redirect team users to their progress page unless admin allows the checkpoint map for teams
@@ -75,6 +83,7 @@ export default function Postos() {
           selectedCheckpoint={selectedCheckpoint}
           onSelectCheckpoint={setSelectedCheckpoint}
           showMap={settings?.show_checkpoint_map !== false}
+          hasHiddenCheckpoints={hasHiddenCheckpoints}
         />
 
         <div className="order-first lg:sticky lg:top-24 lg:order-none">

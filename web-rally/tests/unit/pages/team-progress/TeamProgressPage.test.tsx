@@ -45,6 +45,10 @@ vi.mock("@/pages/team-progress/NextCheckpointCard", () => ({
   default: () => <div data-testid="next-checkpoint" />,
 }));
 
+vi.mock("@/pages/team-progress/RouteFinishedCard", () => ({
+  default: () => <div data-testid="route-finished" />,
+}));
+
 vi.mock("@/pages/team-progress/RouteCheckpointItem", () => ({
   default: ({ index }: { index: number }) => <div data-testid={`route-item-${index}`} />,
 }));
@@ -113,6 +117,53 @@ describe("TeamProgress page", () => {
     mockUseTeamProgress.mockReturnValue({ ...baseHookReturn, team: undefined });
     render(<TeamProgress />);
     expect(screen.getByTestId("status-screen")).toHaveTextContent("Erro ao carregar");
+  });
+
+  describe("focused route", () => {
+    const focused = {
+      participant_view_enabled: true,
+      show_checkpoint_map: true,
+      show_route_mode: "focused",
+      event_type: "rally_tascas",
+    };
+
+    it("closes the route list with a '?' row when posts are withheld", () => {
+      mockUseTeamProgress.mockReturnValue({ ...baseHookReturn, settings: focused, totalCount: 5 });
+      render(<TeamProgress />);
+      const row = screen.getByRole("listitem", { name: "Mais tascas por revelar" });
+      expect(row).toHaveTextContent("?");
+      expect(row).toHaveTextContent(
+        "As restantes tascas revelam-se à medida que o percurso decorre.",
+      );
+    });
+
+    it("has no '?' row once every post is listed", () => {
+      mockUseTeamProgress.mockReturnValue({ ...baseHookReturn, settings: focused, totalCount: 2 });
+      render(<TeamProgress />);
+      expect(screen.queryByText("Mais tascas por revelar")).not.toBeInTheDocument();
+    });
+
+    it("has no '?' row after the route is finished", () => {
+      mockUseTeamProgress.mockReturnValue({
+        ...baseHookReturn,
+        settings: focused,
+        totalCount: 5,
+        isRouteFinished: true,
+        nextCheckpoint: undefined,
+      });
+      render(<TeamProgress />);
+      expect(screen.queryByText("Mais tascas por revelar")).not.toBeInTheDocument();
+    });
+
+    it("has no '?' row on a complete route", () => {
+      mockUseTeamProgress.mockReturnValue({
+        ...baseHookReturn,
+        settings: { ...focused, show_route_mode: "complete" },
+        totalCount: 5,
+      });
+      render(<TeamProgress />);
+      expect(screen.queryByText("Mais tascas por revelar")).not.toBeInTheDocument();
+    });
   });
 
   it("renders the full progress layout on success", () => {

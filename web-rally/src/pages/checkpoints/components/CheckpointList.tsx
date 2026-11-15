@@ -1,6 +1,7 @@
 import { MapPin } from "lucide-react";
 import CheckpointCard from "./CheckpointCard";
 import { EmptyState } from "@/components/shared";
+import UpcomingCheckpointsCard from "./UpcomingCheckpointsCard";
 
 interface Checkpoint {
   id: number;
@@ -16,6 +17,8 @@ type CheckpointListProps = Readonly<{
   selectedCheckpoint: Checkpoint | null;
   onSelectCheckpoint: (checkpoint: Checkpoint) => void;
   showMap?: boolean;
+  /** A focused route is withholding posts the team has not reached yet. */
+  hasHiddenCheckpoints?: boolean;
 }>;
 
 export default function CheckpointList({
@@ -23,8 +26,9 @@ export default function CheckpointList({
   selectedCheckpoint,
   onSelectCheckpoint,
   showMap = true,
+  hasHiddenCheckpoints = false,
 }: CheckpointListProps) {
-  if (checkpoints.length === 0) {
+  if (checkpoints.length === 0 && !hasHiddenCheckpoints) {
     return (
       <EmptyState
         icon={<MapPin className="h-8 w-8 text-muted-foreground" />}
@@ -45,6 +49,7 @@ export default function CheckpointList({
           showMap={showMap}
         />
       ))}
+      {hasHiddenCheckpoints && <UpcomingCheckpointsCard />}
     </div>
   );
 }

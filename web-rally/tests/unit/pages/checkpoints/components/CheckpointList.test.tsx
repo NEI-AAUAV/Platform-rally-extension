@@ -6,6 +6,10 @@ vi.mock("@/hooks/useCheckpointMedia", () => ({
   useCheckpointMedia: () => ({ photos: [], funFacts: [] }),
 }));
 
+vi.mock("@/hooks/useEventTerms", () => ({
+  default: () => ({ checkpoint: "tasca", checkpoints: "tascas", checkpointGender: "f" }),
+}));
+
 vi.mock("@/components/shared", () => ({
   Spinner: () => <div data-testid="spinner" />,
   CheckpointDiscovery: () => <div>Discovery</div>,
@@ -17,6 +21,46 @@ vi.mock("@/components/shared", () => ({
 }));
 
 describe("CheckpointList", () => {
+  it("appends the upcoming placeholder when posts are withheld", () => {
+    render(
+      <CheckpointList
+        checkpoints={[{ id: 1, name: "Meia-Lua", order: 1 }]}
+        selectedCheckpoint={null}
+        onSelectCheckpoint={vi.fn()}
+        hasHiddenCheckpoints
+      />,
+    );
+    expect(screen.getByText("Meia-Lua")).toBeInTheDocument();
+    expect(screen.getByText("Mais tascas por revelar")).toBeInTheDocument();
+    expect(
+      screen.getByText("As restantes tascas revelam-se à medida que o percurso decorre."),
+    ).toBeInTheDocument();
+  });
+
+  it("omits the upcoming placeholder by default", () => {
+    render(
+      <CheckpointList
+        checkpoints={[{ id: 1, name: "Meia-Lua", order: 1 }]}
+        selectedCheckpoint={null}
+        onSelectCheckpoint={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Mais tascas por revelar")).not.toBeInTheDocument();
+  });
+
+  it("shows the placeholder instead of the empty state when everything is withheld", () => {
+    render(
+      <CheckpointList
+        checkpoints={[]}
+        selectedCheckpoint={null}
+        onSelectCheckpoint={vi.fn()}
+        hasHiddenCheckpoints
+      />,
+    );
+    expect(screen.queryByText(/Nenhum posto disponível/)).not.toBeInTheDocument();
+    expect(screen.getByText("Mais tascas por revelar")).toBeInTheDocument();
+  });
+
   it("renders empty state when no checkpoints", () => {
     render(
       <CheckpointList checkpoints={[]} selectedCheckpoint={null} onSelectCheckpoint={vi.fn()} />,
