@@ -4,12 +4,30 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PostosPreview } from "@/pages/home/PostosPreview";
 
-const { mockGetCheckpoints } = vi.hoisted(() => ({
-  mockGetCheckpoints: vi.fn(),
-}));
+const { mockGetCheckpoints, mockGetCheckpointsCount, mockSettings, mockScopes } = vi.hoisted(
+  () => ({
+    mockGetCheckpoints: vi.fn(),
+    mockGetCheckpointsCount: vi.fn(),
+    mockSettings: vi.fn(),
+    mockScopes: vi.fn(),
+  }),
+);
 
 vi.mock("@/client", () => ({
   getCheckpoints: (...args: unknown[]) => mockGetCheckpoints(...args),
+  getCheckpointsCount: (...args: unknown[]) => mockGetCheckpointsCount(...args),
+}));
+
+vi.mock("@/hooks/useRallySettings", () => ({
+  default: () => ({ settings: mockSettings() }),
+}));
+
+vi.mock("@/hooks/useEventTerms", () => ({
+  default: () => ({ checkpoint: "tasca", checkpoints: "tascas", checkpointGender: "f" }),
+}));
+
+vi.mock("@/stores/useUserStore", () => ({
+  useUserStore: (selector: (state: unknown) => unknown) => selector({ scopes: mockScopes() }),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -28,6 +46,51 @@ function renderWithClient(ui: React.ReactElement) {
 describe("PostosPreview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettings.mockReturnValue({ show_route_mode: "complete" });
+    mockScopes.mockReturnValue(undefined);
+    mockGetCheckpointsCount.mockResolvedValue({ data: 0 });
+  });
+
+  describe("focused route", () => {
+    const oneOpen = { data: [{ id: 1, name: "Meia-Lua", order: 1 }] };
+
+    beforeEach(() => {
+      mockSettings.mockReturnValue({ show_route_mode: "focused" });
+      mockGetCheckpoints.mockResolvedValue(oneOpen);
+      mockGetCheckpointsCount.mockResolvedValue({ data: 5 });
+    });
+
+    it("adds a '?' card for the posts still to be revealed", async () => {
+      renderWithClient(<PostosPreview enabled />);
+      const card = await screen.findByRole("listitem", { name: "Mais tascas por revelar" });
+      expect(card).toHaveTextContent("?");
+      expect(card).toHaveTextContent(
+        "As restantes tascas revelam-se à medida que o percurso decorre.",
+      );
+    });
+
+    it("omits the card once every post is listed", async () => {
+      mockGetCheckpointsCount.mockResolvedValue({ data: 1 });
+      renderWithClient(<PostosPreview enabled />);
+      expect(await screen.findByText("Meia-Lua")).toBeInTheDocument();
+      await waitFor(() => expect(mockGetCheckpointsCount).toHaveBeenCalled());
+      expect(screen.queryByText("Mais tascas por revelar")).not.toBeInTheDocument();
+    });
+
+    it("omits the card for staff", async () => {
+      mockScopes.mockReturnValue(["rally-staff"]);
+      renderWithClient(<PostosPreview enabled />);
+      expect(await screen.findByText("Meia-Lua")).toBeInTheDocument();
+      expect(mockGetCheckpointsCount).not.toHaveBeenCalled();
+      expect(screen.queryByText("Mais tascas por revelar")).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not ask for the total on a complete route", async () => {
+    mockGetCheckpoints.mockResolvedValue({ data: [{ id: 1, name: "Meia-Lua", order: 1 }] });
+    renderWithClient(<PostosPreview enabled />);
+    expect(await screen.findByText("Meia-Lua")).toBeInTheDocument();
+    expect(mockGetCheckpointsCount).not.toHaveBeenCalled();
   });
 
   it("renders nothing when disabled", () => {
