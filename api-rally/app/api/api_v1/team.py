@@ -45,9 +45,11 @@ from app.services.pace_service import compute_paces
 from app.services.storage import storage_client
 from app.services.team_service import TeamService, is_rally_window_open
 from app.services.visibility_policy import (
+    neutral_team_order,
     public_listing_allowed,
     require_participant_view,
     require_team_details,
+    standings_private,
     team_scores_hidden,
 )
 
@@ -145,6 +147,10 @@ class TeamController:
         settings = await rally_settings.get_or_create(db)
         is_privileged = bool(curr_user) and deps.is_admin_or_staff(getattr(curr_user, "scopes", []))
         viewer_team_id = _viewer_team_id(curr_user, curr_team)
+        if standings_private(settings, is_privileged=is_privileged):
+            # The directory has no ORDER BY, so its row order follows table
+            # writes, i.e. scoring activity. Pin it to something neutral.
+            teams = sorted(teams, key=lambda t: neutral_team_order(t.name))
         paces = {pace.team_id: pace for pace in await compute_paces(db, settings)}
         return [
             await service.build_listing_team(

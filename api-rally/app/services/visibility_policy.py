@@ -88,6 +88,22 @@ def team_scores_hidden(settings: Any, *, is_privileged: bool, is_own_team: bool)
     return mode == "individual" and not is_own_team
 
 
+def standings_private(settings: Any, *, is_privileged: bool) -> bool:
+    """Whether other teams' standings are withheld from this caller.
+
+    When they are, a response listing several teams must not come back in
+    rank order either: blanking the rank leaves the order as the ranking.
+    """
+    if is_privileged:
+        return False
+    return getattr(settings, "show_score_mode", "") in _PRIVATE_SCORE_MODES
+
+
+def neutral_team_order(name: str) -> str:
+    """Sort key for team rows whose order must not reveal the standings."""
+    return name.casefold()
+
+
 async def require_full_standings(db: AsyncSession, *, is_privileged: bool) -> None:
     """Gate the cross-team ranking on ``show_score_mode``.
 
@@ -98,5 +114,5 @@ async def require_full_standings(db: AsyncSession, *, is_privileged: bool) -> No
     if is_privileged:
         return
     settings = await rally_settings.get_or_create(db)
-    if getattr(settings, "show_score_mode", "") in _PRIVATE_SCORE_MODES:
+    if standings_private(settings, is_privileged=False):
         raise RallyForbiddenError(STANDINGS_PRIVATE)

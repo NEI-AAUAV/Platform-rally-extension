@@ -176,3 +176,30 @@ class TestStandings:
         if other.id in entries:
             assert entries[other.id]["rank"] == 0
             assert entries[other.id]["elapsed_seconds"] is None
+
+
+class TestOrderDoesNotLeakStandings:
+    """Blanking the rank is not enough if the rows still arrive in rank order."""
+
+    async def test_directory_is_ordered_by_name_when_redacted(self, pg_session, pg_client):
+        mine, other = await _individual_event(pg_session)
+        # "Other" leads; a name order that differs from the rank order.
+        await _set_score(pg_session, other, total=90, classification=1)
+        zed = await crud_team.create(pg_session, obj_in=TeamCreate(name="Aardvark"), commit=True)
+        await _set_score(pg_session, zed, total=1, classification=3)
+
+        with _as_team_token(mine.id):
+            resp = pg_client.get(TEAMS_URL)
+
+        assert [t["name"] for t in resp.json()] == ["Aardvark", "Mine", "Other"]
+
+    async def test_pace_ranking_is_ordered_by_name_when_redacted(self, pg_session, pg_client):
+        mine, _ = await _individual_event(pg_session)
+        await crud_team.create(pg_session, obj_in=TeamCreate(name="Aardvark"), commit=True)
+
+        with _as_team_token(mine.id):
+            resp = pg_client.get("/api/rally/v1/rally/pace-ranking")
+
+        assert resp.status_code == 200, resp.text
+        names = [e["name"] for e in resp.json()["entries"]]
+        assert names == sorted(names, key=str.casefold)

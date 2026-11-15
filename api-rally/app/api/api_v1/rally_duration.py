@@ -16,7 +16,12 @@ from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.pace_service import compute_paces
 from app.services.team_checkpoint_progress import team_started_at
-from app.services.visibility_policy import public_listing_allowed, team_scores_hidden
+from app.services.visibility_policy import (
+    neutral_team_order,
+    public_listing_allowed,
+    standings_private,
+    team_scores_hidden,
+)
 from app.utils.rally_duration import (
     format_duration,
     get_rally_duration_info,
@@ -133,6 +138,10 @@ class RallyDurationController:
         )
         teams = {entry.id: entry for entry in await team.get_multi(db)}
         paces = await compute_paces(db, settings)
+        if standings_private(settings, is_privileged=is_privileged):
+            # Paces arrive in rank order; with the ranks blanked the order
+            # would still be the ranking.
+            paces = sorted(paces, key=lambda p: neutral_team_order(teams[p.team_id].name))
         event = await team.get_current_event(db)
         return PaceRanking(
             event_id=event.id,
