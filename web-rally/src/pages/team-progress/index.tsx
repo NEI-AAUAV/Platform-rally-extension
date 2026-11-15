@@ -11,6 +11,7 @@ import TeamMembersCard from "./TeamMembersCard";
 import NextCheckpointCard from "./NextCheckpointCard";
 import RouteFinishedCard from "./RouteFinishedCard";
 import RouteCheckpointItem from "./RouteCheckpointItem";
+import RouteUpcomingItem from "./RouteUpcomingItem";
 import { departureNotice } from "./checkpointHours";
 import MapSection from "@/pages/checkpoints/components/MapSection";
 import { findCheckpointProgress } from "@/lib/checkpointProgress";
@@ -136,6 +137,13 @@ export default function TeamProgress() {
   );
 
   const hasRoute = !!checkpoints && checkpoints.length > 0;
+  // A focused route lists only what the team has finished plus what is open
+  // now; the total in the header already counts the rest, so say they exist.
+  const hasHiddenCheckpoints =
+    hasRoute &&
+    !isFinished &&
+    settings?.show_route_mode !== "complete" &&
+    totalCount > checkpoints.length;
   const route = hasRoute && (
     <section aria-labelledby="route-heading" className="rally-surface p-2 sm:p-3">
       <div className="flex items-baseline justify-between gap-3 px-3 pb-1 pt-2">
@@ -166,6 +174,7 @@ export default function TeamProgress() {
             notYetDeparted={notYetDeparted}
           />
         ))}
+        {hasHiddenCheckpoints && <RouteUpcomingItem terms={terms} />}
       </ol>
     </section>
   );

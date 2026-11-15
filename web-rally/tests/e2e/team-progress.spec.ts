@@ -86,7 +86,7 @@ function team(overrides: Record<string, unknown> = {}) {
 
 async function mockTeamProgressApis(
   page: Page,
-  options: { teamId?: number; teamBody?: unknown; checkpoints?: unknown[] } = {},
+  options: { teamId?: number; teamBody?: unknown; checkpoints?: unknown[]; count?: number } = {},
 ) {
   const teamId = options.teamId ?? 3;
   await page.route(`**/api/rally/v1/team/${teamId}**`, (route) =>
@@ -109,7 +109,7 @@ async function mockTeamProgressApis(
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(2),
+        body: JSON.stringify(options.count ?? 2),
       });
     }
     return route.fulfill({
@@ -332,5 +332,32 @@ test.describe("Team progress", () => {
     await page.goto("/rally/team-progress");
 
     await expect(page.getByRole("main").getByText("Os Fixes")).toBeVisible();
+  });
+
+  test("focused route closes the list with a '?' row for posts still hidden", async ({
+    page,
+    context,
+  }) => {
+    await mockSettings(page, { participant_view_enabled: true, show_route_mode: "focused" });
+    await seedTeamAuth(context);
+    await mockTeamProgressApis(page, { count: 5 });
+
+    await page.goto("/rally/team-progress");
+
+    const route = page.locator("section", { has: page.getByRole("heading", { name: "Percurso" }) });
+    const row = route.getByRole("listitem", { name: "Mais tascas por revelar" });
+    await expect(row).toBeVisible();
+    await expect(row).toContainText("revelam-se à medida que o percurso decorre");
+  });
+
+  test("complete route has no '?' row", async ({ page, context }) => {
+    await mockSettings(page, { participant_view_enabled: true, show_route_mode: "complete" });
+    await seedTeamAuth(context);
+    await mockTeamProgressApis(page, { count: 5 });
+
+    await page.goto("/rally/team-progress");
+
+    await expect(page.getByRole("heading", { name: "Percurso" })).toBeVisible();
+    await expect(page.getByRole("listitem", { name: /por revelar/ })).toHaveCount(0);
   });
 });
