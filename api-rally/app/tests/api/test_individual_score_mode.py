@@ -11,6 +11,7 @@ from sqlalchemy import update
 
 from app.api import deps
 from app.api.auth import AuthData, api_nei_auth_optional
+from app.core.config import get_settings
 from app.crud.crud_team import team as crud_team
 from app.main import app
 from app.models.team import Team
@@ -159,9 +160,16 @@ class TestStandings:
 
     async def test_live_scoreboard_stays_open_to_staff(self, pg_session, pg_client):
         await _individual_event(pg_session)
+        # Serve the ranking straight from Postgres: this is about the gate,
+        # not the Redis cache, and CI runs the API tests without Redis.
+        no_events = get_settings().model_copy(update={"EVENTS_ENABLED": False})
+        app.dependency_overrides[get_settings] = lambda: no_events
 
-        with _as_user(scopes=["rally-staff"]):
-            resp = pg_client.get("/api/rally/v1/scoreboard/live")
+        try:
+            with _as_user(scopes=["rally-staff"]):
+                resp = pg_client.get("/api/rally/v1/scoreboard/live")
+        finally:
+            app.dependency_overrides.pop(get_settings, None)
 
         assert resp.status_code == 200, resp.text
 

@@ -4005,7 +4005,7 @@
           "Scoreboard"
         ],
         "summary": "Get Live Scoreboard",
-        "description": "Return the cached global ranking, recomputing on a cache miss.\n\nWhen the realtime subsystem is disabled there is no cache to read and no\nworker keeping it warm, but the ranking is still a plain DB computation \u2014\nserve it directly from Postgres instead of failing the public view.\n\n``show_live_leaderboard`` gates it: the switch used to hide the\nscoreboard in the SPA while this endpoint served the standings to\nanyone who asked.",
+        "description": "Return the cached global ranking, recomputing on a cache miss.\n\nWhen the realtime subsystem is disabled there is no cache to read and no\nworker keeping it warm, but the ranking is still a plain DB computation \u2014\nserve it directly from Postgres instead of failing the public view.\n\n``show_live_leaderboard`` gates it: the switch used to hide the\nscoreboard in the SPA while this endpoint served the standings to\nanyone who asked. ``show_score_mode`` gates it too: a mode that keeps\nother teams' scores private has no cross-team ranking to publish.",
         "operationId": "get_live_scoreboard",
         "responses": {
           "200": {
