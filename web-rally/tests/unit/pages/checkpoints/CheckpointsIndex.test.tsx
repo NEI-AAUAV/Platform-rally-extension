@@ -10,9 +10,13 @@ function renderWithClient(ui: React.ReactElement) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
-const { mockGetCheckpoints, mockUseRallySettings, mockUseTeamAuth, mockUseUserStore } = vi.hoisted(
+const {
+  mockGetCheckpointsCount,
+  mockGetCheckpoints,
+  mockUseRallySettings, mockUseTeamAuth, mockUseUserStore } = vi.hoisted(
   () => ({
     mockGetCheckpoints: vi.fn(),
+    mockGetCheckpointsCount: vi.fn(),
     mockUseRallySettings: vi.fn(),
     mockUseTeamAuth: vi.fn(),
     mockUseUserStore: vi.fn(),
@@ -21,6 +25,7 @@ const { mockGetCheckpoints, mockUseRallySettings, mockUseTeamAuth, mockUseUserSt
 
 vi.mock("@/client", () => ({
   getCheckpoints: (...args: unknown[]) => mockGetCheckpoints(...args),
+  getCheckpointsCount: (...args: unknown[]) => mockGetCheckpointsCount(...args),
 }));
 
 vi.mock("@/hooks/useRallySettings", () => ({
@@ -49,8 +54,17 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("@/pages/checkpoints/components", () => ({
-  CheckpointList: ({ checkpoints }: { checkpoints: { id: number; name: string }[] }) => (
-    <div>CheckpointList: {checkpoints.map((c) => c.name).join(", ")}</div>
+  CheckpointList: ({
+    checkpoints,
+    hasHiddenCheckpoints,
+  }: {
+    checkpoints: { id: number; name: string }[];
+    hasHiddenCheckpoints?: boolean;
+  }) => (
+    <div>
+      CheckpointList: {checkpoints.map((c) => c.name).join(", ")}
+      {hasHiddenCheckpoints && <span>has-hidden</span>}
+    </div>
   ),
   MapSection: () => <div>MapSection</div>,
 }));
@@ -62,6 +76,7 @@ describe("Checkpoints index", () => {
     mockUseTeamAuth.mockReturnValue({ isAuthenticated: false });
     mockUseUserStore.mockReturnValue({ scopes: [] });
     mockGetCheckpoints.mockResolvedValue({ data: [] });
+    mockGetCheckpointsCount.mockResolvedValue({ data: 0 });
   });
 
   it("redirects team users when checkpoint map is not public and user unprivileged", () => {
@@ -99,6 +114,56 @@ describe("Checkpoints index", () => {
     renderWithClient(<Checkpoints />);
     await waitFor(() => {
       expect(screen.getByText("CheckpointList:")).toBeInTheDocument();
+    });
+  });
+
+  describe("withheld posts placeholder", () => {
+    const oneOpen = { data: [{ id: 1, name: "Meia-Lua", order: 1 }] };
+
+    beforeEach(() => {
+      mockUseTeamAuth.mockReturnValue({ isAuthenticated: true });
+      mockGetCheckpoints.mockResolvedValue(oneOpen);
+      mockGetCheckpointsCount.mockResolvedValue({ data: 5 });
+    });
+
+    it("flags hidden posts for a team on a focused route", async () => {
+      mockUseRallySettings.mockReturnValue({
+        settings: { show_checkpoint_map: true, show_route_mode: "focused" },
+      });
+      renderWithClient(<Checkpoints />);
+      await waitFor(() => expect(screen.getByText("has-hidden")).toBeInTheDocument());
+    });
+
+    it("does not flag on a complete route", async () => {
+      mockUseRallySettings.mockReturnValue({
+        settings: { show_checkpoint_map: true, show_route_mode: "complete" },
+      });
+      renderWithClient(<Checkpoints />);
+      await waitFor(() => expect(screen.getByText(/Meia-Lua/)).toBeInTheDocument());
+      expect(screen.queryByText("has-hidden")).not.toBeInTheDocument();
+      expect(mockGetCheckpointsCount).not.toHaveBeenCalled();
+    });
+
+    it("does not flag once every post is listed", async () => {
+      mockUseRallySettings.mockReturnValue({
+        settings: { show_checkpoint_map: true, show_route_mode: "focused" },
+      });
+      mockGetCheckpointsCount.mockResolvedValue({ data: 1 });
+      renderWithClient(<Checkpoints />);
+      await waitFor(() => expect(mockGetCheckpointsCount).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByText(/Meia-Lua/)).toBeInTheDocument());
+      expect(screen.queryByText("has-hidden")).not.toBeInTheDocument();
+    });
+
+    it("does not flag for privileged staff", async () => {
+      mockUseRallySettings.mockReturnValue({
+        settings: { show_checkpoint_map: true, show_route_mode: "focused" },
+      });
+      mockUseUserStore.mockReturnValue({ scopes: ["rally-staff"] });
+      renderWithClient(<Checkpoints />);
+      await waitFor(() => expect(screen.getByText(/Meia-Lua/)).toBeInTheDocument());
+      expect(screen.queryByText("has-hidden")).not.toBeInTheDocument();
+      expect(mockGetCheckpointsCount).not.toHaveBeenCalled();
     });
   });
 });
