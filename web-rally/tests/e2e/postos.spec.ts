@@ -117,4 +117,78 @@ test.describe("Postos", () => {
 
     await expect(page.getByText("Posto 1").first()).toBeVisible();
   });
+
+  test.describe("focused route", () => {
+    async function loginTeam(page: Page) {
+      await page.addInitScript(() => {
+        localStorage.setItem("rally_team_token", "team-jwt");
+        localStorage.setItem(
+          "rally_team_data",
+          JSON.stringify({ team_id: 3, team_name: "Os Fixes" }),
+        );
+      });
+      await page.route("**/api/rally/v1/team-auth/refresh", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ access_token: "team-jwt" }),
+        }),
+      );
+    }
+
+    async function mockCount(page: Page, total: number) {
+      // Registered after mockCheckpoints so it wins for /checkpoint/count.
+      await page.route("**/api/rally/v1/checkpoint/count**", (route) =>
+        route.fulfill({ status: 200, contentType: "application/json", body: String(total) }),
+      );
+    }
+
+    const OPEN_ONLY = [
+      { id: 1, name: "Meia-Lua", description: null, latitude: 40.64, longitude: -8.66, order: 1 },
+    ];
+
+    test("shows a '?' placeholder for the posts still to be revealed", async ({ page }) => {
+      await loginTeam(page);
+      await mockSettings(page, { show_checkpoint_map: true, show_route_mode: "focused" });
+      await mockCheckpoints(page, OPEN_ONLY);
+      await mockCount(page, 5);
+
+      await page.goto("/rally/checkpoints");
+
+      await expect(page.getByRole("button", { name: /Meia-Lua/ })).toBeVisible();
+      const placeholder = page.getByRole("article", { name: /por revelar/ });
+      await expect(placeholder).toBeVisible();
+      await expect(placeholder).toContainText("?");
+      await expect(placeholder).toContainText("revelam-se à medida que o percurso decorre");
+    });
+
+    test("public home preview also shows the '?' placeholder", async ({ page }) => {
+      // Logged-in teams are sent from "/" to /team-progress; the home preview
+      // is what the public sees, and focused mode gives them the first post only.
+      await mockSettings(page, { show_checkpoint_map: true, show_route_mode: "focused" });
+      await mockCheckpoints(page, OPEN_ONLY);
+      await mockCount(page, 5);
+
+      await page.goto("/rally/");
+
+      const preview = page.locator("section", { has: page.locator("#postos-heading") });
+      await preview.scrollIntoViewIfNeeded();
+      await expect(preview.getByText("Meia-Lua")).toBeVisible();
+      const placeholder = preview.getByRole("listitem", { name: /por revelar/ });
+      await expect(placeholder).toBeVisible();
+      await expect(placeholder).toContainText("revelam-se à medida que o percurso decorre");
+    });
+
+    test("hides the placeholder once every post is listed", async ({ page }) => {
+      await loginTeam(page);
+      await mockSettings(page, { show_checkpoint_map: true, show_route_mode: "focused" });
+      await mockCheckpoints(page, OPEN_ONLY);
+      await mockCount(page, 1);
+
+      await page.goto("/rally/checkpoints");
+
+      await expect(page.getByRole("button", { name: /Meia-Lua/ })).toBeVisible();
+      await expect(page.getByRole("article", { name: /por revelar/ })).toHaveCount(0);
+    });
+  });
 });
