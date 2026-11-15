@@ -36,3 +36,28 @@ export function sortTeamsByRank<T extends RankableTeam>(teams: readonly T[]): T[
 export function displayRank(index: number): number {
   return index + 1;
 }
+
+interface IdentifiedRankableTeam extends RankableTeam {
+  readonly id: number;
+}
+
+/**
+ * 1-based standing of one team, or null when it has none to show.
+ *
+ * With `scoresRedacted` (individual score mode, non-privileged viewer) the API
+ * zeroes every other team's points and rank, so the list cannot be sorted into
+ * a real standing; the team's own server `classification` is the only rank
+ * there is. Otherwise it is the position under `sortTeamsByRank`.
+ */
+export function teamRank<T extends IdentifiedRankableTeam>(
+  teams: readonly T[],
+  teamId: number,
+  { scoresRedacted }: { readonly scoresRedacted: boolean },
+): number | null {
+  if (scoresRedacted) {
+    const team = teams.find((t) => t.id === teamId);
+    return team && team.classification > 0 ? team.classification : null;
+  }
+  const position = sortTeamsByRank(teams).findIndex((t) => t.id === teamId);
+  return position < 0 ? null : displayRank(position);
+}

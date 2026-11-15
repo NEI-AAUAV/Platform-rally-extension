@@ -36,7 +36,10 @@ export default function Home() {
     scopes?.includes("rally-staff");
   const scoreVisible =
     isPrivileged ||
-    (settings?.show_score_mode !== "hidden" && settings?.show_live_leaderboard !== false);
+    // "individual" keeps every team's score private to that team: no public top-5.
+    (settings?.show_score_mode !== "hidden" &&
+      settings?.show_score_mode !== "individual" &&
+      settings?.show_live_leaderboard !== false);
   const checkpointsPublic = settings?.show_checkpoint_map === true;
 
   const layout = settings?.home_layout?.length ? settings.home_layout : DEFAULT_HOME_LAYOUT;

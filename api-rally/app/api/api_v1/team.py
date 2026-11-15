@@ -48,11 +48,18 @@ from app.services.visibility_policy import (
     public_listing_allowed,
     require_participant_view,
     require_team_details,
-    scores_are_hidden,
+    team_scores_hidden,
 )
 
 _TEAM_ID_PATH = "/{id}"
 AUTH_REQUIRED = "Authentication required (User or Team Token)"
+
+
+def _viewer_team_id(curr_user: DetailedUser | None, curr_team: TeamTokenData | None) -> int | None:
+    """The team the caller belongs to, from a team token or a linked account."""
+    if curr_team is not None:
+        return curr_team.team_id
+    return getattr(curr_user, "team_id", None)
 
 
 class TeamController:
@@ -137,14 +144,18 @@ class TeamController:
             await db.refresh(team, ["members"])
         settings = await rally_settings.get_or_create(db)
         is_privileged = bool(curr_user) and deps.is_admin_or_staff(getattr(curr_user, "scopes", []))
-        hide_scores = scores_are_hidden(settings, is_privileged=is_privileged)
+        viewer_team_id = _viewer_team_id(curr_user, curr_team)
         paces = {pace.team_id: pace for pace in await compute_paces(db, settings)}
         return [
             await service.build_listing_team(
                 team,
                 reveal_next_checkpoint=bool(settings.reveal_next_checkpoint),
                 is_privileged=is_privileged,
-                hide_scores=hide_scores,
+                hide_scores=team_scores_hidden(
+                    settings,
+                    is_privileged=is_privileged,
+                    is_own_team=viewer_team_id is not None and team.id == viewer_team_id,
+                ),
                 pace=paces.get(team.id),
             )
             for team in teams
@@ -231,7 +242,9 @@ class TeamController:
             team_obj,
             with_progress=True,
             with_access_code=may_see_access_code,
-            hide_scores=scores_are_hidden(settings, is_privileged=is_privileged or is_own_team),
+            hide_scores=team_scores_hidden(
+                settings, is_privileged=is_privileged, is_own_team=is_own_team
+            ),
             pace=paces.get(team_obj.id),
         )
 
