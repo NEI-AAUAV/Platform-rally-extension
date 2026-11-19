@@ -1,6 +1,7 @@
 import { Route } from "lucide-react";
 import { useTeamProgress } from "./useTeamProgress";
 import useTeamNotifications from "@/hooks/useTeamNotifications";
+import { TeamNotificationPrompt } from "@/components/preferences/TeamNotificationPrompt";
 import { getEventTerms } from "@/lib/eventTerms";
 import StatusScreen from "./StatusScreen";
 import TeamProgressSkeleton from "./TeamProgressSkeleton";
@@ -193,6 +194,7 @@ export default function TeamProgress() {
   return (
     <div className="min-w-0 space-y-4 duration-500 animate-in fade-in lg:space-y-6">
       {header}
+      <TeamNotificationPrompt />
       {/* Explicit minmax(0,1fr) on phones too: an implicit grid track sizes
           to its widest content, which pushed the page past the viewport and
           made mobile browsers zoom out. */}

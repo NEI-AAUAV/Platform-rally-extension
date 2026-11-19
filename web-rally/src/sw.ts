@@ -281,7 +281,7 @@ self.addEventListener("notificationclick", (event) => {
  * The SW re-subscribes with the same application server key so the browser
  * side is healthy again immediately, then parks the new subscription for the
  * page to register. It cannot call /push/subscribe itself: that endpoint is
- * user-scoped and the bearer token lives in the page, not here.
+ * session-scoped (user or team) and the bearer token lives in the page, not here.
  */
 const PENDING_SUB_CACHE = "rally-push-pending";
 const PENDING_SUB_KEY = "https://rally.push/pending-subscription";

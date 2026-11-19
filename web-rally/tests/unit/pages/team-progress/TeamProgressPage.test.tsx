@@ -21,6 +21,9 @@ vi.mock("@/hooks/useTeamNotifications", () => ({
   default: (...args: unknown[]) => mockUseTeamNotifications(...args),
 }));
 
+vi.mock("@/components/preferences/TeamNotificationPrompt", () => ({
+  TeamNotificationPrompt: () => null,
+}));
 vi.mock("@/pages/team-progress/StatusScreen", () => ({
   default: ({ title }: { title: string }) => <div data-testid="status-screen">{title}</div>,
 }));

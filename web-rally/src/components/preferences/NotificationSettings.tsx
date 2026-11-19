@@ -1,25 +1,30 @@
 import { Bell, BellOff } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useAppToast } from "@/hooks/use-toast";
+import { PUSH_OFF_FAILED, PUSH_ON_FAILED } from "./pushMessages";
 
 interface NotificationSettingsProps {
   readonly className?: string;
 }
 
 /**
- * Web Push opt-in. Only rendered for logged-in users (see preferences page) —
- * subscriptions are tied to the account, not the team. Silently absent when
+ * Web Push opt-in. Only rendered with a session (see preferences page): the
+ * subscription belongs to the staff/user account or to the team logged in on
+ * this device, whichever session sends the request. Silently absent when
  * the server has no VAPID keys configured, or when the platform can't
  * deliver push at all (iOS PWA not yet added to the Home Screen).
  */
 export function NotificationSettings({ className = "" }: NotificationSettingsProps) {
   const { status, loading, subscribe, unsubscribe } = usePushNotifications();
+  const toast = useAppToast();
 
   if (status === "unconfigured") return null;
 
   const subscribed = status === "subscribed";
   const handleToggle = (checked: boolean) => {
-    (checked ? subscribe() : unsubscribe()).catch(() => undefined);
+    const action = checked ? subscribe : unsubscribe;
+    action().catch(() => toast.error(checked ? PUSH_ON_FAILED : PUSH_OFF_FAILED));
   };
   const Icon = subscribed ? Bell : BellOff;
 
@@ -42,7 +47,7 @@ export function NotificationSettings({ className = "" }: NotificationSettingsPro
                 "Adiciona esta app ao ecrã principal para ativar notificações."}
               {status === "denied" && "Permissão negada nas definições do dispositivo."}
               {(status === "unsubscribed" || status === "subscribed") &&
-                "Recebe avisos de pontuação e da tua equipa."}
+                "Recebe avisos da organização e dos postos."}
             </p>
           </div>
         </div>

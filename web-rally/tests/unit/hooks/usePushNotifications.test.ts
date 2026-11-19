@@ -117,9 +117,7 @@ describe("usePushNotifications", () => {
         await result.current.subscribe();
       });
 
-      expect(subscribe).toHaveBeenCalledWith(
-        expect.objectContaining({ userVisibleOnly: true }),
-      );
+      expect(subscribe).toHaveBeenCalledWith(expect.objectContaining({ userVisibleOnly: true }));
       expect(pushSubscribe).toHaveBeenCalledWith(subscriptionJSON);
       expect(result.current.status).toBe("subscribed");
       expect(result.current.loading).toBe(false);
@@ -155,6 +153,27 @@ describe("usePushNotifications", () => {
     });
   });
 
+  describe("subscribe rollback", () => {
+    it("drops the browser subscription when the server rejects it", async () => {
+      const { subscribe } = installServiceWorker(null);
+      setPermission("default", "granted");
+      pushSubscribe.mockRejectedValue(new Error("409"));
+
+      const { result } = renderHook(() => usePushNotifications());
+      await waitFor(() => expect(result.current.status).toBe("unsubscribed"));
+
+      await act(async () => {
+        await expect(result.current.subscribe()).rejects.toThrow("409");
+      });
+
+      // Otherwise the browser keeps a subscription the server never stored,
+      // and the next visit shows the toggle "on" for a device nobody pushes to.
+      const browserSub = await subscribe.mock.results[0]?.value;
+      expect(browserSub?.unsubscribe).toHaveBeenCalled();
+      expect(result.current.status).toBe("unsubscribed");
+    });
+  });
+
   describe("unsubscribe", () => {
     it("tells the server and drops the browser subscription", async () => {
       const browserSub = {
@@ -171,7 +190,7 @@ describe("usePushNotifications", () => {
       });
 
       expect(pushUnsubscribe).toHaveBeenCalledWith(subscriptionJSON.endpoint);
-      expect(browserSub.unsubscribe).toHaveBeenCalled();
+      expect(browserSub?.unsubscribe).toHaveBeenCalled();
       expect(result.current.status).toBe("unsubscribed");
     });
 

@@ -3,8 +3,8 @@
  *
  * Chrome rotates push endpoints (expiry, key rotation, storage pressure) and
  * fires `pushsubscriptionchange`. The SW re-subscribes immediately, but it
- * cannot tell the server: /push/subscribe is user-scoped and the bearer token
- * lives in the page. So it parks the new subscription and this hook registers
+ * cannot tell the server: /push/subscribe needs the user or team bearer
+ * token, which lives in the page. So it parks the new subscription and this hook registers
  * it. Until that happens the server is still sending to the dead endpoint and
  * every notification silently 410s.
  *

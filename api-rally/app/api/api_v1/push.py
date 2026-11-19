@@ -1,8 +1,9 @@
 """Web Push subscription management.
 
-Subscribe/unsubscribe are user-scoped (a device belongs to a logged-in
-person, not a team) so a push can be addressed to "this person", matching
-how badges/notifications are earned per participant.
+Subscribe/unsubscribe accept either session the app has: a logged-in
+user (staff/admin, OIDC) or a team (team token). Teams play from the team
+session, so without it their phones could never receive the rally-wide
+announcements the admin and staff send.
 """
 
 from typing import Annotated
@@ -10,7 +11,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.abac_deps import get_staff_with_checkpoint_access
-from app.api.deps import get_admin, get_current_user
+from app.api.deps import get_admin, get_current_team_optional, get_current_user_optional
 from app.core.config import settings
 from app.schemas.push_subscription import (
     PushBroadcastRequest,
@@ -21,9 +22,24 @@ from app.schemas.push_subscription import (
     PushSubscriptionUnsubscribe,
     VapidPublicKey,
 )
+from app.schemas.team_auth import TeamTokenData
 from app.schemas.user import DetailedUser
 from app.services.deps import get_push_service
-from app.services.push_service import PushService
+from app.services.push_service import PushOwner, PushService
+
+
+def get_push_owner(
+    user: Annotated[DetailedUser | None, Depends(get_current_user_optional)],
+    team: Annotated[TeamTokenData | None, Depends(get_current_team_optional)],
+) -> PushOwner:
+    """The session a device subscribes under. A request carries one bearer
+    token, so at most one of these resolves; the user wins if both ever do,
+    matching the frontend, which sends the staff token first."""
+    if user is not None:
+        return PushOwner(user_id=user.id)
+    if team is not None:
+        return PushOwner(team_id=team.team_id)
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
 
 class PushController:
@@ -45,6 +61,7 @@ class PushController:
             self.subscribe,
             methods=["POST"],
             name="push_subscribe",
+            responses={409: {"description": "Device subscribed under another session"}},
         )
         self.router.add_api_route(
             "/push/unsubscribe",
@@ -83,19 +100,19 @@ class PushController:
         self,
         payload: PushSubscriptionCreate,
         *,
-        current_user: Annotated[DetailedUser, Depends(get_current_user)],
+        owner: Annotated[PushOwner, Depends(get_push_owner)],
         service: Annotated[PushService, Depends(get_push_service)],
     ) -> PushSubscriptionRead:
-        return await service.subscribe(user_id=current_user.id, payload=payload)
+        return await service.subscribe(owner=owner, payload=payload)
 
     async def unsubscribe(
         self,
         payload: PushSubscriptionUnsubscribe,
         *,
-        current_user: Annotated[DetailedUser, Depends(get_current_user)],
+        owner: Annotated[PushOwner, Depends(get_push_owner)],
         service: Annotated[PushService, Depends(get_push_service)],
     ) -> None:
-        await service.unsubscribe(user_id=current_user.id, endpoint=payload.endpoint)
+        await service.unsubscribe(owner=owner, endpoint=payload.endpoint)
 
     async def broadcast(
         self,

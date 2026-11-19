@@ -13,7 +13,7 @@ export function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer
 /**
  * Where src/sw.ts parks a subscription it re-created after the browser rotated
  * the endpoint (`pushsubscriptionchange`). The SW cannot register it: the
- * /push/subscribe endpoint is user-scoped and the token lives in the page.
+ * /push/subscribe endpoint is session-scoped (user or team) and the token lives in the page.
  */
 const PENDING_SUB_CACHE = "rally-push-pending";
 const PENDING_SUB_KEY = "https://rally.push/pending-subscription";
@@ -46,6 +46,23 @@ export async function clearPendingSubscription(): Promise<void> {
   }
 }
 
+function isIos(): boolean {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function isStandalone(): boolean {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+/** An iPhone/iPad Safari tab: push only works after "Adicionar ao ecrã
+ * principal", so the UI should say that instead of hiding the option. */
+export function isIosBrowserTab(): boolean {
+  return isIos() && !isStandalone();
+}
+
 /** True only where Web Push can actually fire: standard support, plus on iOS
  * specifically the PWA must be running installed to the Home Screen — a
  * plain Safari tab never delivers `push` events, even after 16.4. */
@@ -57,10 +74,5 @@ export function isPushSupported(): boolean {
   ) {
     return false;
   }
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  if (!isIOS) return true;
-  const isStandalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true;
-  return isStandalone;
+  return !isIos() || isStandalone();
 }
