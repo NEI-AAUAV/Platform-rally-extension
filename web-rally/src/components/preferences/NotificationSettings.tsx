@@ -7,8 +7,9 @@ interface NotificationSettingsProps {
 }
 
 /**
- * Web Push opt-in. Only rendered for logged-in users (see preferences page) —
- * subscriptions are tied to the account, not the team. Silently absent when
+ * Web Push opt-in. Only rendered with a session (see preferences page): the
+ * subscription belongs to the staff/user account or to the team logged in on
+ * this device, whichever session sends the request. Silently absent when
  * the server has no VAPID keys configured, or when the platform can't
  * deliver push at all (iOS PWA not yet added to the Home Screen).
  */
@@ -42,7 +43,7 @@ export function NotificationSettings({ className = "" }: NotificationSettingsPro
                 "Adiciona esta app ao ecrã principal para ativar notificações."}
               {status === "denied" && "Permissão negada nas definições do dispositivo."}
               {(status === "unsubscribed" || status === "subscribed") &&
-                "Recebe avisos de pontuação e da tua equipa."}
+                "Recebe avisos da organização e dos postos."}
             </p>
           </div>
         </div>

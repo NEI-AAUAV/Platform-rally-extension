@@ -118,3 +118,121 @@ class TestCheckpointAnnouncement:
                 "/api/rally/v1/push/checkpoint-announcement", json={"body": "Fila grande"}
             )
         assert resp.status_code == 503
+
+
+_SUB_BODY = {
+    "endpoint": "https://push.example/team-device",
+    "keys": {"p256dh": "p256dh", "auth": "auth"},
+}
+
+
+def _vapid_on():
+    return (
+        patch("app.core.config.settings.VAPID_PRIVATE_KEY", "priv"),
+        patch("app.core.config.settings.VAPID_PUBLIC_KEY", "pub"),
+    )
+
+
+async def _subscription_rows(pg_session):
+    from sqlalchemy import select
+
+    pg_session.expire_all()
+    return (await pg_session.scalars(select(PushSubscription))).all()
+
+
+class TestSubscribe:
+    """A device can subscribe from a staff/user session or a team session."""
+
+    async def test_requires_some_session(self, pg_client):
+        priv, pub = _vapid_on()
+        with priv, pub:
+            resp = pg_client.post("/api/rally/v1/push/subscribe", json=_SUB_BODY)
+        assert resp.status_code == 401
+
+    async def test_team_session_subscribes_its_device(self, pg_session, pg_client):
+        from app.tests.conftest import as_team, make_team
+
+        team_id = (await make_team(pg_session, name="Equipa Push")).id
+        priv, pub = _vapid_on()
+        with priv, pub, as_team(team_id):
+            resp = pg_client.post("/api/rally/v1/push/subscribe", json=_SUB_BODY)
+
+        assert resp.status_code == 200, resp.text
+        rows = await _subscription_rows(pg_session)
+        assert [(r.team_id, r.user_id) for r in rows] == [(team_id, None)]
+
+    async def test_staff_session_subscribes_as_user(self, pg_session, pg_client, as_staff):
+        pg_session.add(User(id=as_staff.id, name="Test Staff", disabled=False))
+        await pg_session.commit()
+        priv, pub = _vapid_on()
+        with priv, pub:
+            resp = pg_client.post("/api/rally/v1/push/subscribe", json=_SUB_BODY)
+
+        assert resp.status_code == 200, resp.text
+        rows = await _subscription_rows(pg_session)
+        assert [(r.team_id, r.user_id) for r in rows] == [(None, as_staff.id)]
+
+    async def test_same_device_switching_to_team_moves_ownership(self, pg_session, pg_client):
+        from app.tests.conftest import as_team, make_team
+
+        await _add_subscription(pg_session, user_id=40, endpoint=_SUB_BODY["endpoint"])
+        team_id = (await make_team(pg_session, name="Equipa Troca")).id
+        priv, pub = _vapid_on()
+        with priv, pub, as_team(team_id):
+            resp = pg_client.post("/api/rally/v1/push/subscribe", json=_SUB_BODY)
+
+        assert resp.status_code == 200, resp.text
+        rows = await _subscription_rows(pg_session)
+        assert [(r.team_id, r.user_id) for r in rows] == [(team_id, None)]
+
+    async def test_team_unsubscribes_its_own_device(self, pg_session, pg_client):
+        from app.tests.conftest import as_team, make_team
+
+        team = await make_team(pg_session, name="Equipa Sai")
+        pg_session.add(
+            PushSubscription(team_id=team.id, endpoint=_SUB_BODY["endpoint"], p256dh="p", auth="a")
+        )
+        await pg_session.commit()
+        with as_team(team.id):
+            resp = pg_client.post(
+                "/api/rally/v1/push/unsubscribe", json={"endpoint": _SUB_BODY["endpoint"]}
+            )
+
+        assert resp.status_code in (200, 204), resp.text
+        assert await _subscription_rows(pg_session) == []
+
+    async def test_team_cannot_unsubscribe_another_team_device(self, pg_session, pg_client):
+        from app.tests.conftest import as_team, make_team
+
+        owner = await make_team(pg_session, name="Dona")
+        other = await make_team(pg_session, name="Outra")
+        pg_session.add(
+            PushSubscription(team_id=owner.id, endpoint=_SUB_BODY["endpoint"], p256dh="p", auth="a")
+        )
+        await pg_session.commit()
+        with as_team(other.id):
+            pg_client.post(
+                "/api/rally/v1/push/unsubscribe", json={"endpoint": _SUB_BODY["endpoint"]}
+            )
+
+        assert len(await _subscription_rows(pg_session)) == 1
+
+    async def test_broadcast_reaches_team_devices(self, pg_session, pg_client, as_admin):
+        from app.tests.conftest import make_team
+
+        team = await make_team(pg_session, name="Equipa Recebe")
+        pg_session.add(
+            PushSubscription(
+                team_id=team.id, endpoint="https://push.example/t", p256dh="p", auth="a"
+            )
+        )
+        await pg_session.commit()
+        await _add_subscription(pg_session, user_id=50, endpoint="https://push.example/u")
+        priv, pub = _vapid_on()
+        with priv, pub, patch("app.services.push_service.webpush") as mock_webpush:
+            resp = pg_client.post(
+                "/api/rally/v1/push/broadcast", json={"title": "Oi", "body": "Corpo"}
+            )
+
+        assert resp.json() == {"sent": 2}
+        assert mock_webpush.call_count == 2

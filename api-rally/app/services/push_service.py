@@ -14,6 +14,7 @@ controller used to hold inline.
 
 import json
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from fastapi import HTTPException, status
 from fastapi.concurrency import run_in_threadpool
@@ -30,6 +31,16 @@ from app.models.push_subscription import PushSubscription
 from app.schemas.push_subscription import PushSubscriptionCreate, PushSubscriptionRead
 
 VAPID_NOT_CONFIGURED = "Push notifications are not configured"
+
+
+@dataclass(frozen=True)
+class PushOwner:
+    """Who a device subscription belongs to: a logged-in user (staff/admin)
+    or a team session. Exactly one is set."""
+
+    user_id: int | None = None
+    team_id: int | None = None
+
 
 # Endpoint gone/expired — the browser will never accept another push here.
 _DEAD_SUBSCRIPTION_STATUSES = {404, 410}
@@ -139,17 +150,21 @@ class PushService:
             )
 
     async def subscribe(
-        self, *, user_id: int, payload: PushSubscriptionCreate
+        self, *, owner: PushOwner, payload: PushSubscriptionCreate
     ) -> PushSubscriptionRead:
         self._require_vapid_configured()
         subscription = await self._push_subscription_crud.upsert(
-            self._db, user_id=user_id, obj_in=payload
+            self._db, obj_in=payload, user_id=owner.user_id, team_id=owner.team_id
         )
         return PushSubscriptionRead.model_validate(subscription)
 
-    async def unsubscribe(self, *, user_id: int, endpoint: str) -> None:
+    async def unsubscribe(self, *, owner: PushOwner, endpoint: str) -> None:
+        """Only the session that owns the device may drop it — a team can't
+        silence another team's phone by posting its endpoint."""
         existing = await self._push_subscription_crud.get_by_endpoint(self._db, endpoint=endpoint)
-        if existing is not None and existing.user_id == user_id:
+        if existing is None:
+            return
+        if (existing.user_id, existing.team_id) == (owner.user_id, owner.team_id):
             await self._push_subscription_crud.remove_by_endpoint(self._db, endpoint=endpoint)
 
     async def broadcast(self, *, title: str, body: str, url: str | None) -> int:

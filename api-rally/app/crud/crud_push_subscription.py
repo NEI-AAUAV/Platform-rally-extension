@@ -28,13 +28,27 @@ class CRUDPushSubscription(
         return (await db.scalars(select(self.model))).all()
 
     async def upsert(
-        self, db: AsyncSession, *, user_id: int, obj_in: PushSubscriptionCreate
+        self,
+        db: AsyncSession,
+        *,
+        obj_in: PushSubscriptionCreate,
+        user_id: int | None = None,
+        team_id: int | None = None,
     ) -> PushSubscription:
-        """Re-subscribing with the same endpoint (token refresh, re-grant)
-        replaces the stored keys rather than duplicating the row."""
+        """Re-subscribing with the same endpoint (token refresh, re-grant,
+        or the same phone switching from a staff to a team session) replaces
+        the stored keys and owner rather than duplicating the row.
+
+        Exactly one of ``user_id``/``team_id`` must be given — the table's
+        check constraint enforces the same rule.
+        """
+        if (user_id is None) == (team_id is None):
+            raise ValueError("A push subscription needs exactly one owner (user or team)")
+
         existing = await self.get_by_endpoint(db, endpoint=obj_in.endpoint)
         if existing is not None:
             existing.user_id = user_id
+            existing.team_id = team_id
             existing.p256dh = obj_in.keys.p256dh
             existing.auth = obj_in.keys.auth
             db.add(existing)
@@ -44,6 +58,7 @@ class CRUDPushSubscription(
 
         db_obj = self.model(
             user_id=user_id,
+            team_id=team_id,
             endpoint=obj_in.endpoint,
             p256dh=obj_in.keys.p256dh,
             auth=obj_in.keys.auth,

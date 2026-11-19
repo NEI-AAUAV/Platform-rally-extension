@@ -13,7 +13,7 @@ export function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer
 /**
  * Where src/sw.ts parks a subscription it re-created after the browser rotated
  * the endpoint (`pushsubscriptionchange`). The SW cannot register it: the
- * /push/subscribe endpoint is user-scoped and the token lives in the page.
+ * /push/subscribe endpoint is session-scoped (user or team) and the token lives in the page.
  */
 const PENDING_SUB_CACHE = "rally-push-pending";
 const PENDING_SUB_KEY = "https://rally.push/pending-subscription";

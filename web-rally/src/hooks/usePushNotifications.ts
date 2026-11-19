@@ -6,8 +6,8 @@ type PushStatus = "unsupported" | "unconfigured" | "denied" | "unsubscribed" | "
 
 /**
  * Web Push opt-in for the current device. Requires the caller to be logged
- * in (subscribe is user-scoped server-side) — the preferences page only
- * renders this when authenticated.
+ * in, as a user or a team (the server ties the subscription to whichever
+ * session sends it) — the preferences page only renders this then.
  *
  * iOS 16.4+ delivers real push, but *only* once the PWA is installed to the
  * Home Screen — `isPushSupported` gates on that so the toggle never appears
