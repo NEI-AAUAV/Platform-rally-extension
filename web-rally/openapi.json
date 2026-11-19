@@ -7693,6 +7693,9 @@
               }
             }
           },
+          "409": {
+            "description": "Device subscribed under another session"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
