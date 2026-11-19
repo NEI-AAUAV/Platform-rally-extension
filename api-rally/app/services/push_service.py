@@ -31,6 +31,7 @@ from app.models.push_subscription import PushSubscription
 from app.schemas.push_subscription import PushSubscriptionCreate, PushSubscriptionRead
 
 VAPID_NOT_CONFIGURED = "Push notifications are not configured"
+SUBSCRIPTION_OWNED_ELSEWHERE = "This device is subscribed under another session"
 
 
 @dataclass(frozen=True)
@@ -153,10 +154,30 @@ class PushService:
         self, *, owner: PushOwner, payload: PushSubscriptionCreate
     ) -> PushSubscriptionRead:
         self._require_vapid_configured()
+        existing = await self._push_subscription_crud.get_by_endpoint(
+            self._db, endpoint=payload.endpoint
+        )
+        if existing is not None and not self._may_claim(existing, owner, payload):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=SUBSCRIPTION_OWNED_ELSEWHERE
+            )
         subscription = await self._push_subscription_crud.upsert(
             self._db, obj_in=payload, user_id=owner.user_id, team_id=owner.team_id
         )
         return PushSubscriptionRead.model_validate(subscription)
+
+    @staticmethod
+    def _may_claim(
+        existing: PushSubscription, owner: PushOwner, payload: PushSubscriptionCreate
+    ) -> bool:
+        """The current owner may always refresh its keys. Another session may
+        take the device over (a phone switching from a staff to a team login)
+        only by presenting the stored keys, which only that browser holds —
+        knowing the endpoint URL alone must not let anyone overwrite the keys
+        and silence someone else's device."""
+        if (existing.user_id, existing.team_id) == (owner.user_id, owner.team_id):
+            return True
+        return (existing.p256dh, existing.auth) == (payload.keys.p256dh, payload.keys.auth)
 
     async def unsubscribe(self, *, owner: PushOwner, endpoint: str) -> None:
         """Only the session that owns the device may drop it — a team can't

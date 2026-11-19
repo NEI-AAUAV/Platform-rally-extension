@@ -236,3 +236,39 @@ class TestSubscribe:
 
         assert resp.json() == {"sent": 2}
         assert mock_webpush.call_count == 2
+
+
+class TestSubscribeOwnershipGuard:
+    """Knowing another device's endpoint must not let a session take it over."""
+
+    async def test_other_owner_with_different_keys_is_rejected(self, pg_session, pg_client):
+        from app.tests.conftest import as_team, make_team
+
+        await _add_subscription(pg_session, user_id=60, endpoint=_SUB_BODY["endpoint"])
+        team_id = (await make_team(pg_session, name="Intrusa")).id
+        hijack = {**_SUB_BODY, "keys": {"p256dh": "attacker", "auth": "attacker"}}
+        priv, pub = _vapid_on()
+        with priv, pub, as_team(team_id):
+            resp = pg_client.post("/api/rally/v1/push/subscribe", json=hijack)
+
+        assert resp.status_code == 409
+        rows = await _subscription_rows(pg_session)
+        assert [(r.user_id, r.team_id, r.p256dh) for r in rows] == [(60, None, "p256dh")]
+
+    async def test_same_owner_can_refresh_keys(self, pg_session, pg_client):
+        from app.tests.conftest import as_team, make_team
+
+        team_id = (await make_team(pg_session, name="Refresca")).id
+        pg_session.add(
+            PushSubscription(
+                team_id=team_id, endpoint=_SUB_BODY["endpoint"], p256dh="old", auth="old"
+            )
+        )
+        await pg_session.commit()
+        priv, pub = _vapid_on()
+        with priv, pub, as_team(team_id):
+            resp = pg_client.post("/api/rally/v1/push/subscribe", json=_SUB_BODY)
+
+        assert resp.status_code == 200, resp.text
+        rows = await _subscription_rows(pg_session)
+        assert [(r.team_id, r.p256dh) for r in rows] == [(team_id, "p256dh")]

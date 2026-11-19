@@ -61,6 +61,7 @@ class PushController:
             self.subscribe,
             methods=["POST"],
             name="push_subscribe",
+            responses={409: {"description": "Device subscribed under another session"}},
         )
         self.router.add_api_route(
             "/push/unsubscribe",
