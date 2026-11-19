@@ -1,6 +1,8 @@
 import { Bell, BellOff } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useAppToast } from "@/hooks/use-toast";
+import { PUSH_OFF_FAILED, PUSH_ON_FAILED } from "./pushMessages";
 
 interface NotificationSettingsProps {
   readonly className?: string;
@@ -15,12 +17,14 @@ interface NotificationSettingsProps {
  */
 export function NotificationSettings({ className = "" }: NotificationSettingsProps) {
   const { status, loading, subscribe, unsubscribe } = usePushNotifications();
+  const toast = useAppToast();
 
   if (status === "unconfigured") return null;
 
   const subscribed = status === "subscribed";
   const handleToggle = (checked: boolean) => {
-    (checked ? subscribe() : unsubscribe()).catch(() => undefined);
+    const action = checked ? subscribe : unsubscribe;
+    action().catch(() => toast.error(checked ? PUSH_ON_FAILED : PUSH_OFF_FAILED));
   };
   const Icon = subscribed ? Bell : BellOff;
 

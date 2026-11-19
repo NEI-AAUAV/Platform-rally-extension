@@ -66,7 +66,15 @@ export function usePushNotifications() {
         applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
 
-      await PushService.subscribe(subscription.toJSON() as never);
+      try {
+        await PushService.subscribe(subscription.toJSON() as never);
+      } catch (error) {
+        // The server never stored it, so nobody will push here. Drop the
+        // browser side too, or the next visit shows the toggle "on" for a
+        // device that receives nothing.
+        await subscription.unsubscribe().catch(() => undefined);
+        throw error;
+      }
       setStatus("subscribed");
     } finally {
       setLoading(false);
