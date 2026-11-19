@@ -272,3 +272,30 @@ class TestSubscribeOwnershipGuard:
         assert resp.status_code == 200, resp.text
         rows = await _subscription_rows(pg_session)
         assert [(r.team_id, r.p256dh) for r in rows] == [(team_id, "p256dh")]
+
+
+class TestSubscribeWithRealTeamToken:
+    """No dependency overrides: a genuine team JWT must pass through the
+    optional OIDC check (which rejects it) and resolve as the team."""
+
+    async def test_team_jwt_subscribes_as_team(self, pg_session, pg_client):
+        from app.services.team_auth_service import create_team_access_token
+        from app.tests.conftest import make_event, make_team
+
+        event = await make_event(pg_session, is_current=True)
+        team = await make_team(pg_session, name="Equipa JWT", event_id=event.id)
+        team_id, team_name, version, event_id = team.id, team.name, team.auth_version, event.id
+        token = create_team_access_token(
+            team_id=team_id, team_name=team_name, auth_version=version, event_id=event_id
+        )
+        priv, pub = _vapid_on()
+        with priv, pub:
+            resp = pg_client.post(
+                "/api/rally/v1/push/subscribe",
+                json=_SUB_BODY,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        assert resp.status_code == 200, resp.text
+        rows = await _subscription_rows(pg_session)
+        assert [(r.team_id, r.user_id) for r in rows] == [(team_id, None)]
